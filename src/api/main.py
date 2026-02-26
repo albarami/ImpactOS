@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.documents import router as documents_router
+from src.api.exports import router as exports_router
 from src.api.governance import router as governance_router
 from src.api.runs import router as runs_router
 from src.api.scenarios import router as scenarios_router
@@ -62,6 +63,7 @@ app.add_middleware(
 
 # --- Routers ---
 app.include_router(documents_router)
+app.include_router(exports_router)
 app.include_router(governance_router)
 app.include_router(runs_router)
 app.include_router(scenarios_router)
