@@ -1,0 +1,78 @@
+"""ImpactOS domain models — Pydantic v2 schemas (source of truth for all data structures)."""
+
+from src.models.common import (
+    AssumptionStatus,
+    AssumptionType,
+    ClaimStatus,
+    ClaimType,
+    ConstraintConfidence,
+    DataClassification,
+    DisclosureTier,
+    ExportMode,
+    ImpactOSBase,
+    MappingConfidenceBand,
+)
+from src.models.export import Export, ExportStatus
+from src.models.governance import (
+    Assumption,
+    AssumptionRange,
+    BoundingBox,
+    Claim,
+    EvidenceSnippet,
+    ModelRef,
+    TableCellRef,
+    VALID_CLAIM_TRANSITIONS,
+)
+from src.models.model_version import ConcordanceVersion, ModelVersion, TaxonomyVersion
+from src.models.run import ResultSet, RunRequest, RunSnapshot
+from src.models.scenario import (
+    ConstraintOverride,
+    DataQualitySummary,
+    FinalDemandShock,
+    ImportSubstitutionShock,
+    LocalContentChange,
+    MappingConfidence,
+    ScenarioSpec,
+    ShockItem,
+    TimeHorizon,
+)
+from src.models.workspace import Workspace
+
+__all__ = [
+    "AssumptionRange",
+    "AssumptionStatus",
+    "AssumptionType",
+    "Assumption",
+    "BoundingBox",
+    "Claim",
+    "ClaimStatus",
+    "ClaimType",
+    "ConcordanceVersion",
+    "ConstraintConfidence",
+    "ConstraintOverride",
+    "DataClassification",
+    "DataQualitySummary",
+    "DisclosureTier",
+    "EvidenceSnippet",
+    "Export",
+    "ExportMode",
+    "ExportStatus",
+    "FinalDemandShock",
+    "ImpactOSBase",
+    "ImportSubstitutionShock",
+    "LocalContentChange",
+    "MappingConfidence",
+    "MappingConfidenceBand",
+    "ModelRef",
+    "ModelVersion",
+    "ResultSet",
+    "RunRequest",
+    "RunSnapshot",
+    "ScenarioSpec",
+    "ShockItem",
+    "TableCellRef",
+    "TaxonomyVersion",
+    "TimeHorizon",
+    "VALID_CLAIM_TRANSITIONS",
+    "Workspace",
+]

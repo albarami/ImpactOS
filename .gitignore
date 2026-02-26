@@ -1,0 +1,56 @@
+# Environment
+.env
+.env.local
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.windsurf/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Database
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Uploads and outputs (local dev)
+uploads/
+outputs/
+temp/
+
+# Node (for frontend later)
+node_modules/
+.next/
+
+# Secrets and keys
+*.pem
+*.key
+*.crt

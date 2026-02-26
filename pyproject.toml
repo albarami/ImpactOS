@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "impactos"
+version = "0.1.0"
+description = "ImpactOS — Internal Impact & Scenario Intelligence System for Strategic Gears"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Proprietary"}
+authors = [
+    {name = "Salim Al-Barami", email = "salim@example.com"},
+]
+
+dependencies = [
+    # Core
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+
+    # Database
+    "sqlalchemy>=2.0.25",
+    "asyncpg>=0.29.0",
+    "alembic>=1.13.0",
+
+    # Computation engine
+    "numpy>=1.26.0",
+    "scipy>=1.12.0",
+
+    # Document processing
+    "python-multipart>=0.0.6",
+
+    # Job queue
+    "celery>=5.3.0",
+    "redis>=5.0.0",
+
+    # AI/LLM clients
+    "anthropic>=0.40.0",
+    "openai>=1.10.0",
+    "httpx>=0.26.0",
+
+    # Utilities
+    "python-dotenv>=1.0.0",
+    "structlog>=24.1.0",
+    "uuid7>=0.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "anyio[trio]>=4.0.0",
+    "httpx>=0.26.0",
+    "ruff>=0.2.0",
+    "mypy>=1.8.0",
+    "pre-commit>=3.6.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "ANN", "S", "B"]
+ignore = ["ANN101", "ANN102"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true

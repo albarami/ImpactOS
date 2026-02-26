@@ -1,0 +1,104 @@
+# ImpactOS Development Rules
+
+## Project Identity
+This is ImpactOS — an internal Impact & Scenario Intelligence System for Strategic Gears.
+It is a Leontief input-output economic modeling platform with AI-assisted scenario compilation and audit-grade governance.
+
+## Critical Architecture Rule: Agent-to-Math Boundary
+THE MOST IMPORTANT RULE IN THIS PROJECT:
+- The deterministic I-O engine (src/engine/) performs ALL matrix algebra and numerical computations.
+- AI/LLM components (src/agents/, src/compiler/) ONLY produce structured JSON (Pydantic-validated).
+- AI NEVER computes economic results. AI NEVER modifies matrices. AI NEVER generates numbers that appear in client outputs.
+- If you are writing code that touches NumPy/SciPy matrix operations, it goes in src/engine/ and ONLY in src/engine/.
+- If you are writing code that calls an LLM, it goes in src/agents/ or src/compiler/ and MUST output validated Pydantic models.
+- Violation of this boundary is a critical defect. Stop and ask before crossing it.
+
+## Development Methodology
+
+### Before Writing Any Code
+1. READ the relevant section of docs/technical_specification_v1.md first.
+2. CONFIRM which component you are building (engine, compiler, ingestion, governance, agents, api, export).
+3. IDENTIFY the Pydantic schemas involved — check src/models/ first.
+4. ASK clarifying questions if requirements are ambiguous. Do not guess.
+
+### Test-Driven Development (Mandatory)
+- Write the test FIRST. Always. No exceptions.
+- Run the test. Watch it FAIL (red).
+- Write the MINIMUM code to make it pass (green).
+- Refactor only after green.
+- NEVER modify test files to make them pass. If a test is wrong, say so explicitly and get approval before changing it.
+- Tests live in tests/ mirroring the src/ structure.
+
+### Git Discipline
+- Commit after every meaningful unit of work (not after hours of changes).
+- Commit messages follow: `[component] brief description` (e.g., `[engine] add Leontief inverse computation with caching`)
+- Never commit failing tests to main.
+- Use feature branches for anything beyond trivial fixes.
+
+## Code Standards
+
+### Python
+- Python 3.11+
+- Type hints on ALL function signatures. No exceptions.
+- Pydantic v2 for all data models and API schemas.
+- FastAPI for all API endpoints.
+- NumPy/SciPy for all matrix operations (in src/engine/ only).
+- async/await for I/O-bound operations.
+- No global mutable state. Ever.
+
+### Schema-First Design
+- Define Pydantic models in src/models/ BEFORE writing service logic.
+- API endpoints accept and return Pydantic models.
+- AI agent outputs are validated against Pydantic schemas before any downstream processing.
+- Invalid AI outputs are rejected and re-requested. Never silently accept malformed data.
+
+### Naming Conventions
+- Files: snake_case.py
+- Classes: PascalCase
+- Functions: snake_case
+- Constants: UPPER_SNAKE_CASE
+- Pydantic models: PascalCase ending with descriptive suffix (e.g., ScenarioSpec, RunSnapshot, AssumptionRegister)
+
+## Component-Specific Rules
+
+### src/engine/ (Deterministic I-O Engine)
+- Pure functions where possible. Given the same inputs, ALWAYS produce the same outputs.
+- No LLM calls. No network calls. No side effects beyond logging.
+- Cache the Leontief inverse B = (I-A)^-1 per ModelVersion.
+- Use linear solvers over explicit matrix inversion for large n.
+- Validate: spectral radius of A < 1, non-negativity of outputs.
+- Every computation must be reproducible given a RunSnapshot.
+
+### src/models/ (Pydantic Schemas)
+- All entities from Section 5.3 of the tech spec must have Pydantic models.
+- Immutable entities (RunSnapshot, ResultSet, EvidenceSnippet) use frozen=True.
+- Versioned entities track version numbers explicitly.
+- All IDs are UUIDs.
+
+### src/governance/ (No Free Facts)
+- Claims must be typed: MODEL, SOURCE_FACT, ASSUMPTION, RECOMMENDATION.
+- The publication gate BLOCKS export if any claim is unresolved.
+- Sandbox mode watermarks ALL outputs.
+- Governed mode requires: approved assumptions, resolved claims, locked mappings, valid RunSnapshot.
+
+### src/agents/ (AI/LLM Layer)
+- All agent outputs must conform to typed Pydantic schemas.
+- Agents are stateless at runtime. All state persisted to database.
+- Prompt packs are versioned and stored as PromptPackVersion.
+- Never auto-publish AI-generated content to client-facing outputs.
+- Tiered disclosure: contrarian outputs default to TIER0.
+
+### src/api/ (FastAPI Endpoints)
+- All endpoints require authentication.
+- POST endpoints support idempotency keys.
+- Validation errors return machine-readable schema violations.
+- Governed exports denied with explicit reasons.
+
+## What NOT To Do
+- Do NOT use print() for debugging. Use structured logging.
+- Do NOT hardcode API keys, credentials, or secrets. Use environment variables.
+- Do NOT skip writing tests "to save time." This is non-negotiable.
+- Do NOT let AI generate economic numbers. The deterministic engine does that.
+- Do NOT commit .env files. Only .env.example.
+- Do NOT use `any` type hints. Be specific.
+- Do NOT write monolithic functions. Keep functions under 50 lines where possible.
