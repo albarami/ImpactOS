@@ -6,6 +6,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.compiler import router as compiler_router
 from src.api.documents import router as documents_router
 from src.api.exports import router as exports_router
 from src.api.governance import router as governance_router
@@ -63,6 +64,7 @@ app.add_middleware(
 
 
 # --- Routers ---
+app.include_router(compiler_router)
 app.include_router(documents_router)
 app.include_router(exports_router)
 app.include_router(governance_router)

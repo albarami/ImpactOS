@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude skill install-github-skill:*)",
+      "Bash(where:*)",
+      "Bash(npx @anthropic-ai/claude-code:*)",
+      "Bash(npm install:*)",
+      "Bash(git clone:*)",
+      "Bash(unset:*)",
+      "Bash(claude /plugin marketplace add:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git status:*)"
+    ]
+  }
+}
