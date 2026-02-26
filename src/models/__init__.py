@@ -36,6 +36,21 @@ from src.models.scenario import (
     ShockItem,
     TimeHorizon,
 )
+from src.models.document import (
+    BoQLineItem,
+    Document,
+    DocumentGraph,
+    DocumentType,
+    ExtractionJob,
+    ExtractionMetadata,
+    ExtractionStatus,
+    ExtractedTable,
+    LanguageCode,
+    PageBlock,
+    SourceType,
+    TableCell,
+    TextBlock,
+)
 from src.models.workspace import Workspace
 
 __all__ = [
@@ -75,4 +90,17 @@ __all__ = [
     "TimeHorizon",
     "VALID_CLAIM_TRANSITIONS",
     "Workspace",
+    "BoQLineItem",
+    "Document",
+    "DocumentGraph",
+    "DocumentType",
+    "ExtractionJob",
+    "ExtractionMetadata",
+    "ExtractionStatus",
+    "ExtractedTable",
+    "LanguageCode",
+    "PageBlock",
+    "SourceType",
+    "TableCell",
+    "TextBlock",
 ]

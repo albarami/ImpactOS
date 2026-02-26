@@ -6,6 +6,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.documents import router as documents_router
 from src.config.settings import get_settings
 
 APP_VERSION = "0.1.0"
@@ -54,6 +55,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# --- Routers ---
+app.include_router(documents_router)
 
 
 # --- Endpoints ---
