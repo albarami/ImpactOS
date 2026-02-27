@@ -11,23 +11,23 @@ Deterministic — no LLM calls.
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from src.api.dependencies import get_scenario_version_repo
 from src.compiler.scenario_compiler import CompilationInput, ScenarioCompiler
-from src.compiler.versioning import ScenarioVersioningService
 from src.models.common import new_uuid7
 from src.models.document import BoQLineItem
 from src.models.mapping import DecisionType, MappingDecision
 from src.models.scenario import ScenarioSpec, TimeHorizon
+from src.repositories.scenarios import ScenarioVersionRepository
 
 router = APIRouter(prefix="/v1/scenarios", tags=["scenarios"])
 
 # ---------------------------------------------------------------------------
-# In-memory stores (MVP — replaced by PostgreSQL in production)
+# Stateless services (no DB needed)
 # ---------------------------------------------------------------------------
 
-_versioning = ScenarioVersioningService()
 _compiler = ScenarioCompiler()
 
 
@@ -109,12 +109,69 @@ class LockResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _spec_from_row(row) -> ScenarioSpec:
+    """Convert ScenarioSpecRow to ScenarioSpec Pydantic model."""
+    th = row.time_horizon or {}
+    return ScenarioSpec(
+        scenario_spec_id=row.scenario_spec_id,
+        version=row.version,
+        name=row.name,
+        workspace_id=row.workspace_id,
+        base_model_version_id=row.base_model_version_id,
+        base_year=row.base_year,
+        time_horizon=TimeHorizon(**th) if th else TimeHorizon(start_year=row.base_year, end_year=row.base_year),
+        shock_items=[],
+        assumption_ids=[],
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+async def _get_latest_or_404(
+    repo: ScenarioVersionRepository,
+    scenario_id: UUID,
+) -> ScenarioSpec:
+    """Fetch latest scenario version or raise 404."""
+    row = await repo.get_latest(scenario_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Scenario {scenario_id} not found.")
+    return _spec_from_row(row)
+
+
+async def _record_new_version(
+    repo: ScenarioVersionRepository,
+    spec: ScenarioSpec,
+) -> ScenarioSpec:
+    """Create a new version of a scenario in the DB."""
+    new_spec = spec.next_version()
+    await repo.create(
+        scenario_spec_id=new_spec.scenario_spec_id,
+        version=new_spec.version,
+        name=new_spec.name,
+        workspace_id=new_spec.workspace_id,
+        base_model_version_id=new_spec.base_model_version_id,
+        base_year=new_spec.base_year,
+        time_horizon=new_spec.time_horizon.model_dump(),
+        shock_items=[si.model_dump() for si in new_spec.shock_items] if new_spec.shock_items else [],
+        assumption_ids=[str(aid) for aid in new_spec.assumption_ids] if new_spec.assumption_ids else [],
+    )
+    return new_spec
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
 
 @router.post("", status_code=201, response_model=CreateScenarioResponse)
-async def create_scenario(body: CreateScenarioRequest) -> CreateScenarioResponse:
+async def create_scenario(
+    body: CreateScenarioRequest,
+    repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+) -> CreateScenarioResponse:
     """Create a new scenario (version 1)."""
     spec = ScenarioSpec(
         name=body.name,
@@ -123,7 +180,16 @@ async def create_scenario(body: CreateScenarioRequest) -> CreateScenarioResponse
         base_year=body.base_year,
         time_horizon=TimeHorizon(start_year=body.start_year, end_year=body.end_year),
     )
-    _versioning.register(spec)
+
+    await repo.create(
+        scenario_spec_id=spec.scenario_spec_id,
+        version=spec.version,
+        name=spec.name,
+        workspace_id=spec.workspace_id,
+        base_model_version_id=spec.base_model_version_id,
+        base_year=spec.base_year,
+        time_horizon=spec.time_horizon.model_dump(),
+    )
 
     return CreateScenarioResponse(
         scenario_spec_id=str(spec.scenario_spec_id),
@@ -133,12 +199,13 @@ async def create_scenario(body: CreateScenarioRequest) -> CreateScenarioResponse
 
 
 @router.post("/{scenario_id}/compile")
-async def compile_scenario(scenario_id: UUID, body: CompileRequest) -> dict:
+async def compile_scenario(
+    scenario_id: UUID,
+    body: CompileRequest,
+    repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+) -> dict:
     """Compile line items + decisions into shock items."""
-    try:
-        spec = _versioning.get_latest(scenario_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"Scenario {scenario_id} not found.") from exc
+    spec = await _get_latest_or_404(repo, scenario_id)
 
     # Build BoQLineItems (simplified for API — real items come from extraction)
     line_items: list[BoQLineItem] = []
@@ -187,8 +254,7 @@ async def compile_scenario(scenario_id: UUID, body: CompileRequest) -> dict:
 
     compiled = _compiler.compile(inp)
 
-    # Update version
-    new_spec = _versioning.record_change(scenario_id, "Compiled scenario", new_uuid7())
+    new_spec = await _record_new_version(repo, spec)
 
     return {
         "scenario_spec_id": str(scenario_id),
@@ -202,18 +268,11 @@ async def compile_scenario(scenario_id: UUID, body: CompileRequest) -> dict:
 async def bulk_mapping_decisions(
     scenario_id: UUID,
     body: MappingDecisionsBulkRequest,
+    repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> MappingDecisionsBulkResponse:
     """Submit bulk mapping decisions — creates new version."""
-    try:
-        _versioning.get_latest(scenario_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"Scenario {scenario_id} not found.") from exc
-
-    new_spec = _versioning.record_change(
-        scenario_id,
-        f"Bulk mapping decisions: {len(body.decisions)} items",
-        new_uuid7(),
-    )
+    spec = await _get_latest_or_404(repo, scenario_id)
+    new_spec = await _record_new_version(repo, spec)
 
     return MappingDecisionsBulkResponse(
         new_version=new_spec.version,
@@ -222,36 +281,32 @@ async def bulk_mapping_decisions(
 
 
 @router.get("/{scenario_id}/versions", response_model=VersionsResponse)
-async def get_versions(scenario_id: UUID) -> VersionsResponse:
+async def get_versions(
+    scenario_id: UUID,
+    repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+) -> VersionsResponse:
     """Get all versions of a scenario."""
-    try:
-        versions = _versioning.get_versions(scenario_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"Scenario {scenario_id} not found.") from exc
+    rows = await repo.get_versions(scenario_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"Scenario {scenario_id} not found.")
 
     return VersionsResponse(
         versions=[
-            VersionEntry(version=v.version, updated_at=v.updated_at.isoformat())
-            for v in versions
+            VersionEntry(version=r.version, updated_at=r.updated_at.isoformat())
+            for r in rows
         ]
     )
 
 
 @router.post("/{scenario_id}/lock", response_model=LockResponse)
-async def lock_scenario(scenario_id: UUID, body: LockRequest) -> LockResponse:
+async def lock_scenario(
+    scenario_id: UUID,
+    body: LockRequest,
+    repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+) -> LockResponse:
     """Lock mappings for governed run — creates new version."""
-    try:
-        _versioning.get_latest(scenario_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"Scenario {scenario_id} not found.") from exc
-
-    # In MVP, lock with no mapping state machines (simplified)
-    # Production would load all mapping SMs for this scenario
-    new_spec = _versioning.record_change(
-        scenario_id,
-        "Locked for governed run",
-        UUID(body.actor),
-    )
+    spec = await _get_latest_or_404(repo, scenario_id)
+    new_spec = await _record_new_version(repo, spec)
 
     return LockResponse(
         new_version=new_spec.version,

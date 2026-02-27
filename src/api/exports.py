@@ -9,26 +9,26 @@ Deterministic — no LLM calls.
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from src.api.dependencies import get_export_repo
 from src.export.orchestrator import (
     ExportOrchestrator,
-    ExportRecord,
     ExportRequest,
 )
 from src.export.variance_bridge import VarianceBridge
 from src.models.common import ExportMode
+from src.repositories.exports import ExportRepository
 
 router = APIRouter(prefix="/v1/exports", tags=["exports"])
 
 # ---------------------------------------------------------------------------
-# In-memory stores (MVP — replaced by PostgreSQL in production)
+# Stateless services (no DB needed)
 # ---------------------------------------------------------------------------
 
 _orchestrator = ExportOrchestrator()
 _bridge = VarianceBridge()
-_export_store: dict[UUID, ExportRecord] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +83,10 @@ class VarianceBridgeResponse(BaseModel):
 
 
 @router.post("", status_code=201, response_model=CreateExportResponse)
-async def create_export(body: CreateExportRequest) -> CreateExportResponse:
+async def create_export(
+    body: CreateExportRequest,
+    repo: ExportRepository = Depends(get_export_repo),
+) -> CreateExportResponse:
     """Create a new export — generates requested formats with watermarks."""
     request = ExportRequest(
         run_id=UUID(body.run_id),
@@ -96,7 +99,15 @@ async def create_export(body: CreateExportRequest) -> CreateExportResponse:
     # For MVP, no claims lookup — sandbox always passes, governed with empty claims
     record = _orchestrator.execute(request=request, claims=[])
 
-    _export_store[record.export_id] = record
+    # Persist export metadata to DB
+    await repo.create(
+        export_id=record.export_id,
+        run_id=record.run_id,
+        mode=record.mode.value,
+        status=record.status.value,
+        checksums_json=record.checksums,
+        blocked_reasons=record.blocking_reasons,
+    )
 
     return CreateExportResponse(
         export_id=str(record.export_id),
@@ -107,18 +118,21 @@ async def create_export(body: CreateExportRequest) -> CreateExportResponse:
 
 
 @router.get("/{export_id}", response_model=ExportStatusResponse)
-async def get_export_status(export_id: UUID) -> ExportStatusResponse:
+async def get_export_status(
+    export_id: UUID,
+    repo: ExportRepository = Depends(get_export_repo),
+) -> ExportStatusResponse:
     """Get export status and metadata."""
-    record = _export_store.get(export_id)
-    if record is None:
+    row = await repo.get(export_id)
+    if row is None:
         raise HTTPException(status_code=404, detail=f"Export {export_id} not found.")
 
     return ExportStatusResponse(
-        export_id=str(record.export_id),
-        run_id=str(record.run_id),
-        mode=record.mode.value,
-        status=record.status.value,
-        checksums=record.checksums,
+        export_id=str(row.export_id),
+        run_id=str(row.run_id),
+        mode=row.mode,
+        status=row.status,
+        checksums=row.checksums_json or {},
     )
 
 

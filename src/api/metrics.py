@@ -9,24 +9,24 @@ POST /v1/metrics/readiness               — pilot readiness check
 Deterministic — no LLM calls.
 """
 
-from enum import StrEnum
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from uuid_extensions import uuid7
 
+from src.api.dependencies import get_metric_event_repo
 from src.observability.dashboard import DashboardService, DashboardSummary
 from src.observability.health import HealthChecker
-from src.observability.metrics import MetricEvent, MetricType, MetricsStore
+from src.observability.metrics import MetricType
+from src.repositories.metrics import MetricEventRepository
 
 router = APIRouter(prefix="/v1/metrics", tags=["metrics"])
 
 # ---------------------------------------------------------------------------
-# In-memory stores (MVP — replaced by PostgreSQL in production)
+# Stateless services (no DB needed)
 # ---------------------------------------------------------------------------
 
-_store = MetricsStore()
 _dashboard_svc = DashboardService()
 _health_checker = HealthChecker()
 
@@ -103,42 +103,48 @@ class ReadinessResponse(BaseModel):
 
 
 @router.post("", status_code=201, response_model=RecordMetricResponse)
-async def record_metric(body: RecordMetricRequest) -> RecordMetricResponse:
+async def record_metric(
+    body: RecordMetricRequest,
+    repo: MetricEventRepository = Depends(get_metric_event_repo),
+) -> RecordMetricResponse:
     """Record a metric event."""
     eid = UUID(body.engagement_id)
-    event = MetricEvent(
+    event_id = uuid7()
+    row = await repo.create(
+        event_id=event_id,
         engagement_id=eid,
-        metric_type=body.metric_type,
+        metric_type=body.metric_type.value,
         value=body.value,
         unit=body.unit,
-        actor=body.actor,
     )
-    _store.record(event)
 
     return RecordMetricResponse(
-        event_id=str(event.event_id),
-        engagement_id=str(event.engagement_id),
-        metric_type=event.metric_type.value,
-        value=event.value,
-        unit=event.unit,
+        event_id=str(row.event_id),
+        engagement_id=str(row.engagement_id),
+        metric_type=row.metric_type,
+        value=row.value,
+        unit=row.unit,
     )
 
 
 @router.get("/engagement/{engagement_id}", response_model=EngagementMetricsResponse)
-async def get_engagement_metrics(engagement_id: str) -> EngagementMetricsResponse:
+async def get_engagement_metrics(
+    engagement_id: str,
+    repo: MetricEventRepository = Depends(get_metric_event_repo),
+) -> EngagementMetricsResponse:
     """Get all metric events for an engagement."""
     eid = UUID(engagement_id)
-    events = _store.get_by_engagement(eid)
+    rows = await repo.get_by_engagement(eid)
     return EngagementMetricsResponse(
         engagement_id=engagement_id,
         events=[
             MetricEventOut(
-                event_id=str(e.event_id),
-                metric_type=e.metric_type.value,
-                value=e.value,
-                unit=e.unit,
+                event_id=str(r.event_id),
+                metric_type=r.metric_type,
+                value=r.value,
+                unit=r.unit,
             )
-            for e in events
+            for r in rows
         ],
     )
 

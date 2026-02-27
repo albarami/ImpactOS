@@ -5,22 +5,8 @@ GET scenario versions, POST lock for governed run.
 """
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from uuid_extensions import uuid7
-
-from src.api.main import app
-
-
-@pytest.fixture
-def anyio_backend() -> str:
-    return "asyncio"
-
-
-@pytest.fixture
-async def client() -> AsyncClient:
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
-        yield ac
 
 
 def _scenario_create_payload() -> dict:

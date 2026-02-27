@@ -12,29 +12,24 @@ Deterministic — no LLM calls.
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from src.governance.assumption_registry import AssumptionRegistry
+from src.api.dependencies import get_assumption_repo, get_claim_repo
 from src.governance.claim_extractor import ClaimExtractor
 from src.governance.publication_gate import PublicationGate
-from src.models.common import AssumptionType, ClaimStatus
-from src.models.governance import Assumption, AssumptionRange
+from src.models.common import AssumptionStatus, AssumptionType, ClaimStatus, ClaimType, DisclosureTier
+from src.models.governance import Assumption, AssumptionRange, Claim
+from src.repositories.governance import AssumptionRepository, ClaimRepository
 
 router = APIRouter(prefix="/v1/governance", tags=["governance"])
 
 # ---------------------------------------------------------------------------
-# In-memory stores (MVP — replaced by PostgreSQL in production)
+# Stateless services (no DB needed)
 # ---------------------------------------------------------------------------
 
 _extractor = ClaimExtractor()
 _gate = PublicationGate()
-_assumption_registry = AssumptionRegistry()
-
-# In-memory claim store keyed by claim_id
-_claims: dict[UUID, dict] = {}
-# run_id → list of claim_ids
-_run_claims: dict[UUID, list[UUID]] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -118,12 +113,35 @@ class BlockingReasonsResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _row_to_claim(row) -> Claim:
+    """Convert ClaimRow to Claim Pydantic model for gate checks."""
+    return Claim(
+        claim_id=row.claim_id,
+        text=row.text,
+        claim_type=ClaimType(row.claim_type),
+        status=ClaimStatus(row.status),
+        disclosure_tier=DisclosureTier(row.disclosure_tier),
+        model_refs=[],
+        evidence_refs=[],
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
 
 @router.post("/claims/extract", response_model=ExtractClaimsResponse)
-async def extract_claims(body: ExtractClaimsRequest) -> ExtractClaimsResponse:
+async def extract_claims(
+    body: ExtractClaimsRequest,
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
+) -> ExtractClaimsResponse:
     """Extract atomic claims from draft narrative text."""
     result = _extractor.extract(
         draft_text=body.draft_text,
@@ -135,12 +153,16 @@ async def extract_claims(body: ExtractClaimsRequest) -> ExtractClaimsResponse:
     claim_responses: list[ClaimResponse] = []
 
     for claim in result.claims:
-        # Store claim for later retrieval
-        _claims[claim.claim_id] = {
-            "claim": claim,
-            "run_id": run_id,
-        }
-        _run_claims.setdefault(run_id, []).append(claim.claim_id)
+        await claim_repo.create(
+            claim_id=claim.claim_id,
+            text=claim.text,
+            claim_type=claim.claim_type.value,
+            status=claim.status.value,
+            disclosure_tier=claim.disclosure_tier.value,
+            model_refs=[mr.model_dump() for mr in claim.model_refs] if claim.model_refs else [],
+            evidence_refs=[str(er) for er in claim.evidence_refs] if claim.evidence_refs else [],
+            run_id=run_id,
+        )
 
         claim_responses.append(ClaimResponse(
             claim_id=str(claim.claim_id),
@@ -157,16 +179,17 @@ async def extract_claims(body: ExtractClaimsRequest) -> ExtractClaimsResponse:
 
 
 @router.post("/nff/check", response_model=NFFCheckResponse)
-async def nff_check(body: NFFCheckRequest) -> NFFCheckResponse:
+async def nff_check(
+    body: NFFCheckRequest,
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
+) -> NFFCheckResponse:
     """NFF gate: validate claims are supported or resolved."""
-    from src.models.governance import Claim as ClaimModel
-
-    claims: list[ClaimModel] = []
+    claims: list[Claim] = []
     for cid_str in body.claim_ids:
         cid = UUID(cid_str)
-        entry = _claims.get(cid)
-        if entry is not None:
-            claims.append(entry["claim"])
+        row = await claim_repo.get(cid)
+        if row is not None:
+            claims.append(_row_to_claim(row))
 
     gate_result = _gate.check(claims)
 
@@ -187,7 +210,10 @@ async def nff_check(body: NFFCheckRequest) -> NFFCheckResponse:
 
 
 @router.post("/assumptions", status_code=201, response_model=CreateAssumptionResponse)
-async def create_assumption(body: CreateAssumptionRequest) -> CreateAssumptionResponse:
+async def create_assumption(
+    body: CreateAssumptionRequest,
+    assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
+) -> CreateAssumptionResponse:
     """Create a new assumption (draft status)."""
     assumption = Assumption(
         type=AssumptionType(body.type),
@@ -195,7 +221,16 @@ async def create_assumption(body: CreateAssumptionRequest) -> CreateAssumptionRe
         units=body.units,
         justification=body.justification,
     )
-    _assumption_registry.register(assumption)
+
+    await assumption_repo.create(
+        assumption_id=assumption.assumption_id,
+        type=assumption.type.value,
+        value=assumption.value,
+        units=assumption.units,
+        justification=assumption.justification,
+        evidence_refs=[str(er) for er in assumption.evidence_refs],
+        status=assumption.status.value,
+    )
 
     return CreateAssumptionResponse(
         assumption_id=str(assumption.assumption_id),
@@ -207,6 +242,7 @@ async def create_assumption(body: CreateAssumptionRequest) -> CreateAssumptionRe
 async def approve_assumption(
     assumption_id: UUID,
     body: ApproveAssumptionRequest,
+    assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
 ) -> ApproveAssumptionResponse:
     """Approve an assumption — requires sensitivity range."""
     if body.range_min is None or body.range_max is None:
@@ -215,31 +251,40 @@ async def approve_assumption(
             detail="Approved assumptions must include range_min and range_max.",
         )
 
-    try:
-        approved = _assumption_registry.approve(
-            assumption_id=assumption_id,
-            range_=AssumptionRange(min=body.range_min, max=body.range_max),
-            actor=UUID(body.actor),
+    row = await assumption_repo.get(assumption_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Assumption {assumption_id} not found.")
+
+    if row.status != "DRAFT":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot approve: assumption {assumption_id} is not DRAFT (currently {row.status}).",
         )
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    range_json = {"min": body.range_min, "max": body.range_max}
+    updated = await assumption_repo.approve(
+        assumption_id=assumption_id,
+        range_json=range_json,
+        actor=UUID(body.actor),
+    )
 
     return ApproveAssumptionResponse(
-        assumption_id=str(approved.assumption_id),
-        status=approved.status.value,
-        range_min=approved.range.min if approved.range else None,
-        range_max=approved.range.max if approved.range else None,
+        assumption_id=str(updated.assumption_id),
+        status=updated.status,
+        range_min=updated.range_json.get("min") if updated.range_json else None,
+        range_max=updated.range_json.get("max") if updated.range_json else None,
     )
 
 
 @router.get("/status/{run_id}", response_model=GovernanceStatusResponse)
-async def get_governance_status(run_id: UUID) -> GovernanceStatusResponse:
+async def get_governance_status(
+    run_id: UUID,
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
+    assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
+) -> GovernanceStatusResponse:
     """Get governance status for a run."""
-    # Collect claims for this run
-    claim_ids = _run_claims.get(run_id, [])
-    claims = [_claims[cid]["claim"] for cid in claim_ids if cid in _claims]
+    claim_rows = await claim_repo.get_by_run(run_id)
+    claims = [_row_to_claim(r) for r in claim_rows]
 
     resolved_states = {
         ClaimStatus.SUPPORTED,
@@ -249,11 +294,9 @@ async def get_governance_status(run_id: UUID) -> GovernanceStatusResponse:
     }
     resolved = sum(1 for c in claims if c.status in resolved_states)
 
-    # Collect assumptions
-    all_assumptions = _assumption_registry.list_all()
-    approved_count = sum(1 for a in all_assumptions if a.status.value == "APPROVED")
+    all_assumptions = await assumption_repo.list_all()
+    approved_count = sum(1 for a in all_assumptions if a.status == "APPROVED")
 
-    # NFF check
     gate_result = _gate.check(claims)
 
     return GovernanceStatusResponse(
@@ -268,10 +311,13 @@ async def get_governance_status(run_id: UUID) -> GovernanceStatusResponse:
 
 
 @router.get("/blocking-reasons/{run_id}", response_model=BlockingReasonsResponse)
-async def get_blocking_reasons(run_id: UUID) -> BlockingReasonsResponse:
+async def get_blocking_reasons(
+    run_id: UUID,
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
+) -> BlockingReasonsResponse:
     """Get blocking reasons for a run."""
-    claim_ids = _run_claims.get(run_id, [])
-    claims = [_claims[cid]["claim"] for cid in claim_ids if cid in _claims]
+    claim_rows = await claim_repo.get_by_run(run_id)
+    claims = [_row_to_claim(r) for r in claim_rows]
 
     gate_result = _gate.check(claims)
 

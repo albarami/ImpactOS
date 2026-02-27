@@ -7,15 +7,23 @@ POST /v1/engine/batch            — batch runs
 GET  /v1/engine/batch/{batch_id} — batch status
 
 Deterministic only — no LLM calls.
-In-memory stores for MVP; production uses PostgreSQL.
+ModelStore kept as in-memory LRU cache for synchronous engine access.
+DB repos persist model metadata, run snapshots, result sets, batches.
 """
 
 from uuid import UUID
 
 import numpy as np
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from src.api.dependencies import (
+    get_batch_repo,
+    get_model_data_repo,
+    get_model_version_repo,
+    get_result_set_repo,
+    get_run_snapshot_repo,
+)
 from src.engine.batch import (
     BatchRequest,
     BatchRunner,
@@ -25,19 +33,21 @@ from src.engine.batch import (
 from src.engine.model_store import ModelStore
 from src.engine.satellites import SatelliteCoefficients
 from src.models.common import new_uuid7
+from src.repositories.engine import (
+    BatchRepository,
+    ModelDataRepository,
+    ModelVersionRepository,
+    ResultSetRepository,
+    RunSnapshotRepository,
+)
 
 router = APIRouter(prefix="/v1/engine", tags=["engine"])
 
 # ---------------------------------------------------------------------------
-# In-memory stores (MVP — replaced by PostgreSQL in production)
+# In-memory LRU cache for synchronous engine access (BatchRunner needs .get())
 # ---------------------------------------------------------------------------
 
 _model_store = ModelStore()
-
-# run_id -> SingleRunResult
-_run_results: dict[UUID, SingleRunResult] = {}
-# batch_id -> list of run_ids
-_batch_results: dict[UUID, list[UUID]] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -124,10 +134,7 @@ def _make_satellite_coefficients(payload: SatelliteCoeffsPayload) -> SatelliteCo
 
 
 def _make_version_refs() -> dict[str, UUID]:
-    """Generate placeholder version refs for MVP.
-
-    In production these would come from actual versioned data stores.
-    """
+    """Generate placeholder version refs for MVP."""
     return {
         "taxonomy_version_id": new_uuid7(),
         "concordance_version_id": new_uuid7(),
@@ -165,13 +172,69 @@ def _single_run_to_response(sr: SingleRunResult) -> RunResponse:
     )
 
 
+async def _persist_run_result(
+    sr: SingleRunResult,
+    snap_repo: RunSnapshotRepository,
+    rs_repo: ResultSetRepository,
+) -> None:
+    """Persist a SingleRunResult to DB (snapshot + result sets)."""
+    snap = sr.snapshot
+    await snap_repo.create(
+        run_id=snap.run_id,
+        model_version_id=snap.model_version_id,
+        taxonomy_version_id=snap.taxonomy_version_id,
+        concordance_version_id=snap.concordance_version_id,
+        mapping_library_version_id=snap.mapping_library_version_id,
+        assumption_library_version_id=snap.assumption_library_version_id,
+        prompt_pack_version_id=snap.prompt_pack_version_id,
+    )
+    for rs in sr.result_sets:
+        await rs_repo.create(
+            result_id=rs.result_id,
+            run_id=rs.run_id,
+            metric_type=rs.metric_type,
+            values=rs.values,
+        )
+
+
+async def _load_run_response(
+    run_id: UUID,
+    snap_repo: RunSnapshotRepository,
+    rs_repo: ResultSetRepository,
+) -> RunResponse | None:
+    """Load a RunResponse from DB."""
+    snap_row = await snap_repo.get(run_id)
+    if snap_row is None:
+        return None
+    rs_rows = await rs_repo.get_by_run(run_id)
+    return RunResponse(
+        run_id=str(snap_row.run_id),
+        result_sets=[
+            ResultSetResponse(
+                result_id=str(r.result_id),
+                metric_type=r.metric_type,
+                values=r.values,
+            )
+            for r in rs_rows
+        ],
+        snapshot=SnapshotResponse(
+            run_id=str(snap_row.run_id),
+            model_version_id=str(snap_row.model_version_id),
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
 
 @router.post("/models", status_code=201, response_model=RegisterModelResponse)
-async def register_model(body: RegisterModelRequest) -> RegisterModelResponse:
+async def register_model(
+    body: RegisterModelRequest,
+    mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
+    md_repo: ModelDataRepository = Depends(get_model_data_repo),
+) -> RegisterModelResponse:
     """Register an I-O model (Z, x, sector codes)."""
     try:
         mv = _model_store.register(
@@ -184,6 +247,21 @@ async def register_model(body: RegisterModelRequest) -> RegisterModelResponse:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    # Persist to DB
+    await mv_repo.create(
+        model_version_id=mv.model_version_id,
+        base_year=mv.base_year,
+        source=mv.source,
+        sector_count=mv.sector_count,
+        checksum=mv.checksum,
+    )
+    await md_repo.create(
+        model_version_id=mv.model_version_id,
+        z_matrix_json=[row.tolist() for row in np.array(body.Z)],
+        x_vector_json=list(body.x),
+        sector_codes=body.sector_codes,
+    )
+
     return RegisterModelResponse(
         model_version_id=str(mv.model_version_id),
         sector_count=mv.sector_count,
@@ -192,11 +270,15 @@ async def register_model(body: RegisterModelRequest) -> RegisterModelResponse:
 
 
 @router.post("/runs", response_model=RunResponse)
-async def create_run(body: RunRequest) -> RunResponse:
+async def create_run(
+    body: RunRequest,
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+) -> RunResponse:
     """Execute a single scenario run."""
     model_version_id = UUID(body.model_version_id)
     try:
-        loaded = _model_store.get(model_version_id)
+        _model_store.get(model_version_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"Model {body.model_version_id} not found.") from exc
 
@@ -221,22 +303,33 @@ async def create_run(body: RunRequest) -> RunResponse:
 
     result = runner.run(request)
     sr = result.run_results[0]
-    _run_results[sr.snapshot.run_id] = sr
+
+    # Persist to DB
+    await _persist_run_result(sr, snap_repo, rs_repo)
 
     return _single_run_to_response(sr)
 
 
 @router.get("/runs/{run_id}", response_model=RunResponse)
-async def get_run_results(run_id: UUID) -> RunResponse:
+async def get_run_results(
+    run_id: UUID,
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+) -> RunResponse:
     """Get results for a completed run."""
-    sr = _run_results.get(run_id)
-    if sr is None:
+    resp = await _load_run_response(run_id, snap_repo, rs_repo)
+    if resp is None:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found.")
-    return _single_run_to_response(sr)
+    return resp
 
 
 @router.post("/batch", response_model=BatchResponse)
-async def create_batch_run(body: BatchRunRequest) -> BatchResponse:
+async def create_batch_run(
+    body: BatchRunRequest,
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+    batch_repo: BatchRepository = Depends(get_batch_repo),
+) -> BatchResponse:
     """Execute a batch of scenario runs."""
     model_version_id = UUID(body.model_version_id)
     try:
@@ -268,30 +361,35 @@ async def create_batch_run(body: BatchRunRequest) -> BatchResponse:
     batch_result = runner.run(request)
     batch_id = new_uuid7()
 
-    # Store results
-    run_ids: list[UUID] = []
+    # Persist results
+    run_ids: list[str] = []
     responses: list[RunResponse] = []
     for sr in batch_result.run_results:
-        _run_results[sr.snapshot.run_id] = sr
-        run_ids.append(sr.snapshot.run_id)
+        await _persist_run_result(sr, snap_repo, rs_repo)
+        run_ids.append(str(sr.snapshot.run_id))
         responses.append(_single_run_to_response(sr))
 
-    _batch_results[batch_id] = run_ids
+    await batch_repo.create(batch_id=batch_id, run_ids=run_ids)
 
     return BatchResponse(batch_id=str(batch_id), results=responses)
 
 
 @router.get("/batch/{batch_id}", response_model=BatchResponse)
-async def get_batch_status(batch_id: UUID) -> BatchResponse:
+async def get_batch_status(
+    batch_id: UUID,
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+    batch_repo: BatchRepository = Depends(get_batch_repo),
+) -> BatchResponse:
     """Get batch run status and results."""
-    run_ids = _batch_results.get(batch_id)
-    if run_ids is None:
+    batch_row = await batch_repo.get(batch_id)
+    if batch_row is None:
         raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found.")
 
     responses: list[RunResponse] = []
-    for rid in run_ids:
-        sr = _run_results.get(rid)
-        if sr is not None:
-            responses.append(_single_run_to_response(sr))
+    for rid_str in batch_row.run_ids:
+        resp = await _load_run_response(UUID(rid_str), snap_repo, rs_repo)
+        if resp is not None:
+            responses.append(resp)
 
     return BatchResponse(batch_id=str(batch_id), results=responses)

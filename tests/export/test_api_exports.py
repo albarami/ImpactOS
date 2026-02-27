@@ -4,22 +4,8 @@ Covers: POST create export, GET export status, POST variance bridge.
 """
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from uuid_extensions import uuid7
-
-from src.api.main import app
-
-
-@pytest.fixture
-def anyio_backend() -> str:
-    return "asyncio"
-
-
-@pytest.fixture
-async def client() -> AsyncClient:
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
-        yield ac
 
 
 def _make_export_payload() -> dict:

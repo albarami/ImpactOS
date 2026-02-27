@@ -10,28 +10,28 @@ JSON. Agents propose mappings — they NEVER compute economic results.
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from uuid_extensions import uuid7
 
 from src.agents.assumption_agent import AssumptionDraftAgent
 from src.agents.mapping_agent import MappingSuggestionAgent
 from src.agents.split_agent import SplitAgent
+from src.api.dependencies import get_compilation_repo, get_override_pair_repo
 from src.compiler.ai_compiler import (
     AICompilationInput,
-    AICompilationResult,
     AICompiler,
     CompilationMode,
 )
-from src.compiler.learning import LearningLoop, OverridePair
 from src.models.document import BoQLineItem
 from src.models.mapping import MappingLibraryEntry
 from src.models.scenario import TimeHorizon
+from src.repositories.compiler import CompilationRepository, OverridePairRepository
 
 router = APIRouter(prefix="/v1/compiler", tags=["compiler"])
 
 # ---------------------------------------------------------------------------
-# In-memory stores (MVP — replaced by PostgreSQL in production)
+# Static reference data (stays — no DB needed)
 # ---------------------------------------------------------------------------
 
 _default_library = [
@@ -61,11 +61,6 @@ _ai_compiler = AICompiler(
     split_agent=SplitAgent(defaults=[]),
     assumption_agent=AssumptionDraftAgent(),
 )
-
-_learning_loop = LearningLoop()
-
-# compilation_id → AICompilationResult + metadata
-_compilation_store: dict[UUID, dict] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +132,10 @@ class BulkDecisionResponse(BaseModel):
 
 
 @router.post("/compile", status_code=201, response_model=CompileResponse)
-async def trigger_compilation(body: CompileRequest) -> CompileResponse:
+async def trigger_compilation(
+    body: CompileRequest,
+    comp_repo: CompilationRepository = Depends(get_compilation_repo),
+) -> CompileResponse:
     """Trigger AI-assisted compilation for a set of line items."""
     # Convert API line items to BoQLineItem models
     evidence_id = uuid7()  # Placeholder for MVP
@@ -170,13 +168,35 @@ async def trigger_compilation(body: CompileRequest) -> CompileResponse:
 
     result = _ai_compiler.compile(inp)
 
-    # Store for status/decision endpoints
-    comp_id = uuid7()
-    _compilation_store[comp_id] = {
-        "result": result,
-        "line_items": body.line_items,
-        "decisions": {},  # line_item_id → decision
+    # Serialize result for DB storage
+    result_json = {
+        "mapping_suggestions": [
+            {
+                "line_item_id": str(s.line_item_id),
+                "sector_code": s.sector_code,
+                "confidence": s.confidence,
+                "explanation": s.explanation,
+            }
+            for s in result.mapping_suggestions
+        ],
+        "split_proposals": [s.model_dump(mode="json") for s in result.split_proposals],
+        "assumption_drafts": [a.model_dump(mode="json") for a in result.assumption_drafts],
+        "high_confidence_count": result.high_confidence_count,
+        "medium_confidence_count": result.medium_confidence_count,
+        "low_confidence_count": result.low_confidence_count,
+        "mode": str(result.mode),
     }
+    metadata_json = {
+        "line_items": [li.model_dump(mode="json") for li in body.line_items],
+        "decisions": {},
+    }
+
+    comp_id = uuid7()
+    await comp_repo.create(
+        compilation_id=comp_id,
+        result_json=result_json,
+        metadata_json=metadata_json,
+    )
 
     suggestions_out = [
         SuggestionOut(
@@ -198,20 +218,23 @@ async def trigger_compilation(body: CompileRequest) -> CompileResponse:
 
 
 @router.get("/{compilation_id}/status", response_model=StatusResponse)
-async def get_status(compilation_id: UUID) -> StatusResponse:
+async def get_status(
+    compilation_id: UUID,
+    comp_repo: CompilationRepository = Depends(get_compilation_repo),
+) -> StatusResponse:
     """Get compilation suggestion status."""
-    record = _compilation_store.get(compilation_id)
-    if record is None:
+    row = await comp_repo.get(compilation_id)
+    if row is None:
         raise HTTPException(status_code=404, detail="Compilation not found.")
 
-    result: AICompilationResult = record["result"]
+    rj = row.result_json
     return StatusResponse(
         compilation_id=str(compilation_id),
-        total_suggestions=len(result.mapping_suggestions),
-        high_confidence=result.high_confidence_count,
-        medium_confidence=result.medium_confidence_count,
-        low_confidence=result.low_confidence_count,
-        assumption_drafts=len(result.assumption_drafts),
+        total_suggestions=len(rj.get("mapping_suggestions", [])),
+        high_confidence=rj.get("high_confidence_count", 0),
+        medium_confidence=rj.get("medium_confidence_count", 0),
+        low_confidence=rj.get("low_confidence_count", 0),
+        assumption_drafts=len(rj.get("assumption_drafts", [])),
     )
 
 
@@ -219,14 +242,17 @@ async def get_status(compilation_id: UUID) -> StatusResponse:
 async def bulk_decisions(
     compilation_id: UUID,
     body: BulkDecisionRequest,
+    comp_repo: CompilationRepository = Depends(get_compilation_repo),
+    override_repo: OverridePairRepository = Depends(get_override_pair_repo),
 ) -> BulkDecisionResponse:
     """Accept or reject suggestions in bulk."""
-    record = _compilation_store.get(compilation_id)
-    if record is None:
+    row = await comp_repo.get(compilation_id)
+    if row is None:
         raise HTTPException(status_code=404, detail="Compilation not found.")
 
-    result: AICompilationResult = record["result"]
-    suggestion_map = {str(s.line_item_id): s for s in result.mapping_suggestions}
+    suggestion_map = {
+        s["line_item_id"]: s for s in row.result_json.get("mapping_suggestions", [])
+    }
 
     accepted = 0
     rejected = 0
@@ -238,26 +264,25 @@ async def bulk_decisions(
 
         if decision.action == "accept":
             accepted += 1
-            # Record in learning loop
-            _learning_loop.record_override(OverridePair(
+            await override_repo.create(
+                override_id=uuid7(),
                 engagement_id=uuid7(),
                 line_item_id=UUID(decision.line_item_id),
-                line_item_text=suggestion.explanation,
-                suggested_sector_code=suggestion.sector_code,
-                final_sector_code=suggestion.sector_code,
-            ))
+                line_item_text=suggestion["explanation"],
+                suggested_sector_code=suggestion["sector_code"],
+                final_sector_code=suggestion["sector_code"],
+            )
         elif decision.action == "reject":
             rejected += 1
-            final_code = decision.override_sector_code or suggestion.sector_code
-            _learning_loop.record_override(OverridePair(
+            final_code = decision.override_sector_code or suggestion["sector_code"]
+            await override_repo.create(
+                override_id=uuid7(),
                 engagement_id=uuid7(),
                 line_item_id=UUID(decision.line_item_id),
-                line_item_text=suggestion.explanation,
-                suggested_sector_code=suggestion.sector_code,
+                line_item_text=suggestion["explanation"],
+                suggested_sector_code=suggestion["sector_code"],
                 final_sector_code=final_code,
-            ))
-
-        record["decisions"][decision.line_item_id] = decision.action
+            )
 
     return BulkDecisionResponse(
         accepted=accepted,
