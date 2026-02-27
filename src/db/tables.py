@@ -1,6 +1,6 @@
 """SQLAlchemy ORM table models for ImpactOS.
 
-All 20 tables defined in a single file. Uses FlexJSON (JSONB on Postgres,
+All 22 tables defined in a single file. Uses FlexJSON (JSONB on Postgres,
 JSON on SQLite) for complex nested types.
 
 Categories:
@@ -392,4 +392,49 @@ class EngagementRow(Base):
     name: Mapped[str] = mapped_column(String(500), nullable=False)
     current_phase: Mapped[str] = mapped_column(String(50), nullable=False)
     phase_transitions = mapped_column(FlexJSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Depth Engine — Al-Muhasabi 5-step reasoning
+# ---------------------------------------------------------------------------
+
+
+class DepthPlanRow(Base):
+    """Operational — status transitions through depth engine pipeline."""
+
+    __tablename__ = "depth_plans"
+
+    plan_id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    scenario_spec_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False)
+    current_step: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    degraded_steps = mapped_column(FlexJSON, nullable=False)
+    step_errors = mapped_column(FlexJSON, nullable=False)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class DepthArtifactRow(Base):
+    """Per-step artifact from the depth engine. One artifact per (plan, step).
+
+    payload stores the serialized typed output (FlexJSON).
+    metadata stores LLM audit info (provider, model, generation_mode, etc.).
+    """
+
+    __tablename__ = "depth_artifacts"
+    __table_args__ = (
+        UniqueConstraint("plan_id", "step", name="uq_depth_artifact_plan_step"),
+    )
+
+    artifact_id: Mapped[UUID] = mapped_column(primary_key=True)
+    plan_id: Mapped[UUID] = mapped_column(
+        ForeignKey("depth_plans.plan_id"), nullable=False, index=True,
+    )
+    step: Mapped[str] = mapped_column(String(50), nullable=False)
+    payload = mapped_column(FlexJSON, nullable=False)
+    disclosure_tier: Mapped[str] = mapped_column(String(20), nullable=False)
+    metadata_json = mapped_column(FlexJSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

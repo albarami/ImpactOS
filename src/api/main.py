@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from src.api.compiler import router as compiler_router
+from src.api.depth import router as depth_router
 from src.api.documents import router as documents_router
 from src.api.exports import router as exports_router
 from src.api.governance import router as governance_router
@@ -74,6 +75,7 @@ app.include_router(engine_models_router)
 
 # Workspace-scoped routers (all under /v1/workspaces/{workspace_id}/...)
 app.include_router(compiler_router)
+app.include_router(depth_router)
 app.include_router(documents_router)
 app.include_router(exports_router)
 app.include_router(governance_router)

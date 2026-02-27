@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.session import get_async_session
 from src.repositories.compiler import CompilationRepository, OverridePairRepository
+from src.repositories.depth import DepthArtifactRepository, DepthPlanRepository
 from src.repositories.documents import (
     DocumentRepository,
     ExtractionJobRepository,
@@ -155,3 +156,20 @@ async def get_batch_repo(
     session: AsyncSession = Depends(get_async_session),
 ) -> BatchRepository:
     return BatchRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Depth Engine
+# ---------------------------------------------------------------------------
+
+
+async def get_depth_plan_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> DepthPlanRepository:
+    return DepthPlanRepository(session)
+
+
+async def get_depth_artifact_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> DepthArtifactRepository:
+    return DepthArtifactRepository(session)
