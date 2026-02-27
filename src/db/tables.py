@@ -496,3 +496,100 @@ class DepthArtifactRow(Base):
     disclosure_tier: Mapped[str] = mapped_column(String(20), nullable=False)
     metadata_json = mapped_column(FlexJSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Workforce/Saudization Satellite — MVP-11
+# ---------------------------------------------------------------------------
+
+
+class EmploymentCoefficientsRow(Base):
+    """Append-only versioned employment coefficients. Surrogate PK (row_id)."""
+
+    __tablename__ = "employment_coefficients"
+    __table_args__ = (
+        UniqueConstraint(
+            "employment_coefficients_id", "version",
+            name="uq_employment_coefficients_version",
+        ),
+    )
+
+    row_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    employment_coefficients_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    model_version_id: Mapped[UUID] = mapped_column(nullable=False)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    output_unit: Mapped[str] = mapped_column(String(20), nullable=False)
+    base_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    coefficients = mapped_column(FlexJSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SectorOccupationBridgeRow(Base):
+    """Append-only versioned sector-occupation bridge. Surrogate PK (row_id)."""
+
+    __tablename__ = "sector_occupation_bridges"
+    __table_args__ = (
+        UniqueConstraint("bridge_id", "version", name="uq_bridge_version"),
+    )
+
+    row_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    bridge_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    model_version_id: Mapped[UUID] = mapped_column(nullable=False)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    entries = mapped_column(FlexJSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SaudizationRulesRow(Base):
+    """Append-only versioned saudization rules. Surrogate PK (row_id).
+
+    No model_version_id — rules are policy, not model-bound.
+    """
+
+    __tablename__ = "saudization_rules"
+    __table_args__ = (
+        UniqueConstraint("rules_id", "version", name="uq_rules_version"),
+    )
+
+    row_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    rules_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    tier_assignments = mapped_column(FlexJSON, nullable=False)
+    sector_targets = mapped_column(FlexJSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WorkforceResultRow(Base):
+    """Immutable workforce satellite result.
+
+    Amendment 9: UniqueConstraint for idempotency.
+    """
+
+    __tablename__ = "workforce_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "run_id", "employment_coefficients_id",
+            "employment_coefficients_version", "delta_x_source",
+            name="uq_workforce_result_idempotent",
+        ),
+    )
+
+    workforce_result_id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    run_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    employment_coefficients_id: Mapped[UUID] = mapped_column(nullable=False)
+    employment_coefficients_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    bridge_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    bridge_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rules_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    rules_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    results = mapped_column(FlexJSON, nullable=False)
+    confidence_summary = mapped_column(FlexJSON, nullable=False)
+    data_quality_notes = mapped_column(FlexJSON, nullable=False)
+    satellite_coefficients_hash: Mapped[str] = mapped_column(String(100), nullable=False)
+    delta_x_source: Mapped[str] = mapped_column(String(20), nullable=False)
+    feasibility_result_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

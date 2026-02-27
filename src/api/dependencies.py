@@ -30,6 +30,12 @@ from src.repositories.feasibility import (
 from src.repositories.governance import AssumptionRepository, ClaimRepository
 from src.repositories.metrics import EngagementRepository, MetricEventRepository
 from src.repositories.scenarios import ScenarioVersionRepository
+from src.repositories.workforce import (
+    EmploymentCoefficientsRepository,
+    SaudizationRulesRepository,
+    SectorOccupationBridgeRepository,
+    WorkforceResultRepository,
+)
 
 # ---------------------------------------------------------------------------
 # Export
@@ -199,3 +205,32 @@ async def get_depth_artifact_repo(
     session: AsyncSession = Depends(get_async_session),
 ) -> DepthArtifactRepository:
     return DepthArtifactRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Workforce
+# ---------------------------------------------------------------------------
+
+
+async def get_employment_coefficients_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> EmploymentCoefficientsRepository:
+    return EmploymentCoefficientsRepository(session)
+
+
+async def get_sector_occupation_bridge_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> SectorOccupationBridgeRepository:
+    return SectorOccupationBridgeRepository(session)
+
+
+async def get_saudization_rules_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> SaudizationRulesRepository:
+    return SaudizationRulesRepository(session)
+
+
+async def get_workforce_result_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> WorkforceResultRepository:
+    return WorkforceResultRepository(session)

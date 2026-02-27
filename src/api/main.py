@@ -20,6 +20,7 @@ from src.api.metrics import router as metrics_router
 from src.api.runs import models_router as engine_models_router
 from src.api.runs import router as engine_ws_router
 from src.api.scenarios import router as scenarios_router
+from src.api.workforce import router as workforce_router
 from src.config.settings import get_settings
 
 APP_VERSION = "0.1.0"
@@ -84,6 +85,7 @@ app.include_router(governance_router)
 app.include_router(metrics_router)
 app.include_router(engine_ws_router)
 app.include_router(scenarios_router)
+app.include_router(workforce_router)
 
 
 # --- Infrastructure Endpoints (global) ---
