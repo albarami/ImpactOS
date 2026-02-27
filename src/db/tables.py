@@ -99,6 +99,7 @@ class RunSnapshotRow(Base):
     assumption_library_version_id: Mapped[UUID] = mapped_column(nullable=False)
     prompt_pack_version_id: Mapped[UUID] = mapped_column(nullable=False)
     constraint_set_version_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    workspace_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)  # S0-1 Amendment 3
     source_checksums = mapped_column(FlexJSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -113,6 +114,7 @@ class ResultSetRow(Base):
     metric_type: Mapped[str] = mapped_column(String(100), nullable=False)
     values = mapped_column(FlexJSON, nullable=False)
     sector_breakdowns = mapped_column(FlexJSON, nullable=False)
+    workspace_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)  # S0-1 Amendment 3
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
