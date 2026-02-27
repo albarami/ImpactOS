@@ -755,3 +755,55 @@ class ScenarioPatternRow(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False,
     )
+
+
+# ---------------------------------------------------------------------------
+# Data Quality (MVP-13) — IMMUTABLE
+# ---------------------------------------------------------------------------
+
+
+class RunQualitySummaryRow(Base):
+    """Immutable run-level data quality summary.
+
+    One per run (unique on run_id). Publication gate is advisory —
+    NFF governance is the actual blocker.
+
+    Amendments: summary_version + summary_hash (5), mapping_coverage_pct (3),
+    publication_gate_mode (7).
+    """
+
+    __tablename__ = "run_quality_summaries"
+    __table_args__ = (
+        UniqueConstraint("run_id", name="uq_run_quality_summary_run_id"),
+    )
+
+    row_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+    summary_id: Mapped[UUID] = mapped_column(
+        unique=True, nullable=False, index=True,
+    )
+    run_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    overall_run_score: Mapped[float] = mapped_column(Float, nullable=False)
+    overall_run_grade: Mapped[str] = mapped_column(String(5), nullable=False)
+    coverage_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    mapping_coverage_pct: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+    )  # Amendment 3
+    publication_gate_pass: Mapped[bool] = mapped_column(
+        Boolean, nullable=False,
+    )
+    publication_gate_mode: Mapped[str] = mapped_column(
+        String(30), nullable=False,
+    )  # Amendment 7
+    summary_version: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="1.0.0",
+    )  # Amendment 5
+    summary_hash: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="",
+    )  # Amendment 5
+    payload = mapped_column(FlexJSON, nullable=False)  # Full RunQualitySummary JSON
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )

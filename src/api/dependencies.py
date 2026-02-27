@@ -35,6 +35,7 @@ from src.repositories.libraries import (
 )
 from src.repositories.metrics import EngagementRepository, MetricEventRepository
 from src.repositories.scenarios import ScenarioVersionRepository
+from src.repositories.data_quality import DataQualityRepository
 from src.repositories.workforce import (
     EmploymentCoefficientsRepository,
     SaudizationRulesRepository,
@@ -262,3 +263,14 @@ async def get_scenario_pattern_repo(
     session: AsyncSession = Depends(get_async_session),
 ) -> ScenarioPatternRepository:
     return ScenarioPatternRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Data Quality (MVP-13)
+# ---------------------------------------------------------------------------
+
+
+async def get_data_quality_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> DataQualityRepository:
+    return DataQualityRepository(session)
