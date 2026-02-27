@@ -1,18 +1,19 @@
 """FastAPI observability/metrics endpoints — MVP-7.
 
-POST /v1/metrics                         — record metric event
-GET  /v1/metrics/engagement/{id}         — engagement metrics
-GET  /v1/metrics/dashboard               — dashboard summary (empty data)
-POST /v1/metrics/dashboard               — dashboard summary (with data)
-POST /v1/metrics/readiness               — pilot readiness check
+POST /v1/workspaces/{workspace_id}/metrics                     — record metric
+GET  /v1/workspaces/{workspace_id}/metrics/engagement/{id}     — engagement metrics
+GET  /v1/workspaces/{workspace_id}/metrics/dashboard           — dashboard (empty)
+POST /v1/workspaces/{workspace_id}/metrics/dashboard           — dashboard (data)
+POST /v1/workspaces/{workspace_id}/metrics/readiness           — readiness check
 
+S0-4: Workspace-scoped routes.
 Deterministic — no LLM calls.
 """
 
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from uuid_extensions import uuid7
 
 from src.api.dependencies import get_metric_event_repo
@@ -21,7 +22,7 @@ from src.observability.health import HealthChecker
 from src.observability.metrics import MetricType
 from src.repositories.metrics import MetricEventRepository
 
-router = APIRouter(prefix="/v1/metrics", tags=["metrics"])
+router = APIRouter(prefix="/v1/workspaces", tags=["metrics"])
 
 # ---------------------------------------------------------------------------
 # Stateless services (no DB needed)
@@ -102,8 +103,9 @@ class ReadinessResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-@router.post("", status_code=201, response_model=RecordMetricResponse)
+@router.post("/{workspace_id}/metrics", status_code=201, response_model=RecordMetricResponse)
 async def record_metric(
+    workspace_id: UUID,
     body: RecordMetricRequest,
     repo: MetricEventRepository = Depends(get_metric_event_repo),
 ) -> RecordMetricResponse:
@@ -127,8 +129,12 @@ async def record_metric(
     )
 
 
-@router.get("/engagement/{engagement_id}", response_model=EngagementMetricsResponse)
+@router.get(
+    "/{workspace_id}/metrics/engagement/{engagement_id}",
+    response_model=EngagementMetricsResponse,
+)
 async def get_engagement_metrics(
+    workspace_id: UUID,
     engagement_id: str,
     repo: MetricEventRepository = Depends(get_metric_event_repo),
 ) -> EngagementMetricsResponse:
@@ -149,15 +155,15 @@ async def get_engagement_metrics(
     )
 
 
-@router.get("/dashboard", response_model=DashboardResponse)
-async def get_dashboard() -> DashboardResponse:
+@router.get("/{workspace_id}/metrics/dashboard", response_model=DashboardResponse)
+async def get_dashboard(workspace_id: UUID) -> DashboardResponse:
     """Get dashboard summary with empty data (default)."""
     summary = _dashboard_svc.compute_summary(engagements=[], library={})
     return _summary_to_response(summary)
 
 
-@router.post("/dashboard", response_model=DashboardResponse)
-async def post_dashboard(body: DashboardRequest) -> DashboardResponse:
+@router.post("/{workspace_id}/metrics/dashboard", response_model=DashboardResponse)
+async def post_dashboard(workspace_id: UUID, body: DashboardRequest) -> DashboardResponse:
     """Get dashboard summary with provided data."""
     summary = _dashboard_svc.compute_summary(
         engagements=body.engagements,
@@ -166,8 +172,8 @@ async def post_dashboard(body: DashboardRequest) -> DashboardResponse:
     return _summary_to_response(summary)
 
 
-@router.post("/readiness", response_model=ReadinessResponse)
-async def check_readiness(body: ReadinessRequest) -> ReadinessResponse:
+@router.post("/{workspace_id}/metrics/readiness", response_model=ReadinessResponse)
+async def check_readiness(workspace_id: UUID, body: ReadinessRequest) -> ReadinessResponse:
     """Run pilot readiness check against provided dependencies."""
     deps = {
         "database": body.database,

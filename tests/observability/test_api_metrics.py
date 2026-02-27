@@ -2,24 +2,28 @@
 
 Covers: POST record metric event, GET engagement metrics,
 GET dashboard summary, GET pilot readiness check.
+
+S0-4: All routes workspace-scoped under /v1/workspaces/{workspace_id}/metrics/...
 """
 
 import pytest
 from httpx import AsyncClient
 from uuid_extensions import uuid7
 
+WS_ID = "01961060-0000-7000-8000-000000000001"
+
 
 # ===================================================================
-# POST /v1/metrics — record metric event
+# POST /v1/workspaces/{workspace_id}/metrics — record metric event
 # ===================================================================
 
 
 class TestRecordMetric:
-    """POST /v1/metrics — record a metric event."""
+    """POST /v1/workspaces/{ws}/metrics — record a metric event."""
 
     @pytest.mark.anyio
     async def test_record_metric(self, client: AsyncClient) -> None:
-        resp = await client.post("/v1/metrics", json={
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/metrics", json={
             "engagement_id": str(uuid7()),
             "metric_type": "SCENARIO_REQUEST_TO_RESULTS",
             "value": 48.0,
@@ -32,7 +36,7 @@ class TestRecordMetric:
 
     @pytest.mark.anyio
     async def test_record_metric_invalid_type(self, client: AsyncClient) -> None:
-        resp = await client.post("/v1/metrics", json={
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/metrics", json={
             "engagement_id": str(uuid7()),
             "metric_type": "INVALID_TYPE",
             "value": 1.0,
@@ -42,29 +46,29 @@ class TestRecordMetric:
 
 
 # ===================================================================
-# GET /v1/metrics/engagement/{id} — engagement metrics
+# GET /v1/workspaces/{workspace_id}/metrics/engagement/{id} — engagement metrics
 # ===================================================================
 
 
 class TestEngagementMetrics:
-    """GET /v1/metrics/engagement/{id} — retrieve metrics for an engagement."""
+    """GET /v1/workspaces/{ws}/metrics/engagement/{id} — retrieve metrics for an engagement."""
 
     @pytest.mark.anyio
     async def test_get_engagement_metrics(self, client: AsyncClient) -> None:
         eid = str(uuid7())
-        await client.post("/v1/metrics", json={
+        await client.post(f"/v1/workspaces/{WS_ID}/metrics", json={
             "engagement_id": eid,
             "metric_type": "SCENARIO_REQUEST_TO_RESULTS",
             "value": 48.0,
             "unit": "hours",
         })
-        await client.post("/v1/metrics", json={
+        await client.post(f"/v1/workspaces/{WS_ID}/metrics", json={
             "engagement_id": eid,
             "metric_type": "SCENARIOS_PER_ENGAGEMENT",
             "value": 8.0,
             "unit": "count",
         })
-        resp = await client.get(f"/v1/metrics/engagement/{eid}")
+        resp = await client.get(f"/v1/workspaces/{WS_ID}/metrics/engagement/{eid}")
         assert resp.status_code == 200
         data = resp.json()
         assert data["engagement_id"] == eid
@@ -73,23 +77,23 @@ class TestEngagementMetrics:
     @pytest.mark.anyio
     async def test_empty_engagement_metrics(self, client: AsyncClient) -> None:
         eid = str(uuid7())
-        resp = await client.get(f"/v1/metrics/engagement/{eid}")
+        resp = await client.get(f"/v1/workspaces/{WS_ID}/metrics/engagement/{eid}")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["events"]) == 0
 
 
 # ===================================================================
-# GET /v1/metrics/dashboard — dashboard summary
+# GET /v1/workspaces/{workspace_id}/metrics/dashboard — dashboard summary
 # ===================================================================
 
 
 class TestDashboardEndpoint:
-    """GET /v1/metrics/dashboard — aggregated dashboard summary."""
+    """GET/POST /v1/workspaces/{ws}/metrics/dashboard — aggregated dashboard summary."""
 
     @pytest.mark.anyio
     async def test_dashboard_summary(self, client: AsyncClient) -> None:
-        resp = await client.get("/v1/metrics/dashboard")
+        resp = await client.get(f"/v1/workspaces/{WS_ID}/metrics/dashboard")
         assert resp.status_code == 200
         data = resp.json()
         assert "total_engagements" in data
@@ -99,7 +103,7 @@ class TestDashboardEndpoint:
 
     @pytest.mark.anyio
     async def test_dashboard_with_data(self, client: AsyncClient) -> None:
-        resp = await client.post("/v1/metrics/dashboard", json={
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/metrics/dashboard", json={
             "engagements": [
                 {
                     "scenarios_count": 8,
@@ -122,16 +126,16 @@ class TestDashboardEndpoint:
 
 
 # ===================================================================
-# GET /v1/metrics/readiness — pilot readiness check
+# POST /v1/workspaces/{workspace_id}/metrics/readiness — pilot readiness check
 # ===================================================================
 
 
 class TestReadinessEndpoint:
-    """GET /v1/metrics/readiness — pilot readiness."""
+    """POST /v1/workspaces/{ws}/metrics/readiness — pilot readiness."""
 
     @pytest.mark.anyio
     async def test_readiness_healthy(self, client: AsyncClient) -> None:
-        resp = await client.post("/v1/metrics/readiness", json={
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/metrics/readiness", json={
             "database": True,
             "object_storage": True,
             "model_versions_loaded": 3,
@@ -146,7 +150,7 @@ class TestReadinessEndpoint:
 
     @pytest.mark.anyio
     async def test_readiness_unhealthy(self, client: AsyncClient) -> None:
-        resp = await client.post("/v1/metrics/readiness", json={
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/metrics/readiness", json={
             "database": False,
             "object_storage": True,
             "model_versions_loaded": 0,
@@ -161,7 +165,7 @@ class TestReadinessEndpoint:
 
     @pytest.mark.anyio
     async def test_readiness_has_checks(self, client: AsyncClient) -> None:
-        resp = await client.post("/v1/metrics/readiness", json={
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/metrics/readiness", json={
             "database": True,
             "object_storage": True,
             "model_versions_loaded": 3,

@@ -1,28 +1,34 @@
 """FastAPI governance endpoints — MVP-5.
 
-POST /v1/governance/claims/extract           — extract claims from draft text
-POST /v1/governance/nff/check                — NFF gate check
-POST /v1/governance/assumptions              — create assumption
-POST /v1/governance/assumptions/{id}/approve — approve assumption
-GET  /v1/governance/status/{run_id}          — governance status for a run
-GET  /v1/governance/blocking-reasons/{run_id}— blocking reasons for a run
+POST /v1/workspaces/{workspace_id}/governance/claims/extract   — extract claims
+POST /v1/workspaces/{workspace_id}/governance/nff/check        — NFF gate check
+POST /v1/workspaces/{workspace_id}/governance/assumptions      — create assumption
+POST /v1/workspaces/{workspace_id}/governance/assumptions/{id}/approve — approve
+GET  /v1/workspaces/{workspace_id}/governance/status/{run_id}  — governance status
+GET  /v1/workspaces/{workspace_id}/governance/blocking-reasons/{run_id}
 
+S0-4: Workspace-scoped routes.
 Deterministic — no LLM calls.
 """
 
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.api.dependencies import get_assumption_repo, get_claim_repo
 from src.governance.claim_extractor import ClaimExtractor
 from src.governance.publication_gate import PublicationGate
-from src.models.common import AssumptionStatus, AssumptionType, ClaimStatus, ClaimType, DisclosureTier
-from src.models.governance import Assumption, AssumptionRange, Claim
+from src.models.common import (
+    AssumptionType,
+    ClaimStatus,
+    ClaimType,
+    DisclosureTier,
+)
+from src.models.governance import Assumption, Claim
 from src.repositories.governance import AssumptionRepository, ClaimRepository
 
-router = APIRouter(prefix="/v1/governance", tags=["governance"])
+router = APIRouter(prefix="/v1/workspaces", tags=["governance"])
 
 # ---------------------------------------------------------------------------
 # Stateless services (no DB needed)
@@ -39,7 +45,7 @@ _gate = PublicationGate()
 
 class ExtractClaimsRequest(BaseModel):
     draft_text: str
-    workspace_id: str
+    workspace_id: str | None = None  # Optional — workspace_id from path takes precedence
     run_id: str
 
 
@@ -137,15 +143,16 @@ def _row_to_claim(row) -> Claim:
 # ---------------------------------------------------------------------------
 
 
-@router.post("/claims/extract", response_model=ExtractClaimsResponse)
+@router.post("/{workspace_id}/governance/claims/extract", response_model=ExtractClaimsResponse)
 async def extract_claims(
+    workspace_id: UUID,
     body: ExtractClaimsRequest,
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> ExtractClaimsResponse:
     """Extract atomic claims from draft narrative text."""
     result = _extractor.extract(
         draft_text=body.draft_text,
-        workspace_id=UUID(body.workspace_id),
+        workspace_id=workspace_id,
         run_id=UUID(body.run_id),
     )
 
@@ -178,8 +185,9 @@ async def extract_claims(
     )
 
 
-@router.post("/nff/check", response_model=NFFCheckResponse)
+@router.post("/{workspace_id}/governance/nff/check", response_model=NFFCheckResponse)
 async def nff_check(
+    workspace_id: UUID,
     body: NFFCheckRequest,
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> NFFCheckResponse:
@@ -209,8 +217,13 @@ async def nff_check(
     )
 
 
-@router.post("/assumptions", status_code=201, response_model=CreateAssumptionResponse)
+@router.post(
+    "/{workspace_id}/governance/assumptions",
+    status_code=201,
+    response_model=CreateAssumptionResponse,
+)
 async def create_assumption(
+    workspace_id: UUID,
     body: CreateAssumptionRequest,
     assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
 ) -> CreateAssumptionResponse:
@@ -238,8 +251,12 @@ async def create_assumption(
     )
 
 
-@router.post("/assumptions/{assumption_id}/approve", response_model=ApproveAssumptionResponse)
+@router.post(
+    "/{workspace_id}/governance/assumptions/{assumption_id}/approve",
+    response_model=ApproveAssumptionResponse,
+)
 async def approve_assumption(
+    workspace_id: UUID,
     assumption_id: UUID,
     body: ApproveAssumptionRequest,
     assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
@@ -258,7 +275,10 @@ async def approve_assumption(
     if row.status != "DRAFT":
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot approve: assumption {assumption_id} is not DRAFT (currently {row.status}).",
+            detail=(
+                f"Cannot approve: assumption {assumption_id}"
+                f" is not DRAFT (currently {row.status})."
+            ),
         )
 
     range_json = {"min": body.range_min, "max": body.range_max}
@@ -276,8 +296,9 @@ async def approve_assumption(
     )
 
 
-@router.get("/status/{run_id}", response_model=GovernanceStatusResponse)
+@router.get("/{workspace_id}/governance/status/{run_id}", response_model=GovernanceStatusResponse)
 async def get_governance_status(
+    workspace_id: UUID,
     run_id: UUID,
     claim_repo: ClaimRepository = Depends(get_claim_repo),
     assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
@@ -310,8 +331,12 @@ async def get_governance_status(
     )
 
 
-@router.get("/blocking-reasons/{run_id}", response_model=BlockingReasonsResponse)
+@router.get(
+    "/{workspace_id}/governance/blocking-reasons/{run_id}",
+    response_model=BlockingReasonsResponse,
+)
 async def get_blocking_reasons(
+    workspace_id: UUID,
     run_id: UUID,
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> BlockingReasonsResponse:

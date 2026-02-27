@@ -21,6 +21,8 @@ from src.api.dependencies import (
     get_line_item_repo,
 )
 from src.config.settings import get_settings
+from src.ingestion.storage import DocumentStorageService
+from src.ingestion.tasks import dispatch_extraction, run_extraction
 from src.models.common import DataClassification
 from src.models.document import (
     BoQLineItem,
@@ -30,8 +32,6 @@ from src.models.document import (
     LanguageCode,
     SourceType,
 )
-from src.ingestion.storage import DocumentStorageService
-from src.ingestion.tasks import dispatch_extraction, run_extraction
 from src.repositories.documents import (
     DocumentRepository,
     ExtractionJobRepository,
@@ -175,7 +175,11 @@ async def extract_document(
         status=ExtractionStatus.QUEUED.value,
         extract_tables=job.extract_tables,
         extract_line_items=job.extract_line_items,
-        language_hint=job.language_hint.value if isinstance(job.language_hint, LanguageCode) else str(job.language_hint),
+        language_hint=(
+            job.language_hint.value
+            if isinstance(job.language_hint, LanguageCode)
+            else str(job.language_hint)
+        ),
         error_message=None,
     )
 

@@ -1,42 +1,27 @@
 """Tests for AI compiler API endpoints (MVP-8).
 
-Covers: POST trigger AI-assisted compilation, GET suggestion status,
-POST accept/reject suggestions in bulk.
+S0-4: Workspace-scoped routes.
 """
 
 import pytest
 from httpx import AsyncClient
 from uuid_extensions import uuid7
 
-
-# ===================================================================
-# POST /v1/compiler/compile — trigger AI-assisted compilation
-# ===================================================================
+WS_ID = str(uuid7())
 
 
 class TestTriggerCompilation:
-    """POST /v1/compiler/compile — trigger AI-assisted compilation."""
-
     @pytest.mark.anyio
     async def test_compile_returns_201(self, client: AsyncClient) -> None:
-        resp = await client.post("/v1/compiler/compile", json={
-            "workspace_id": str(uuid7()),
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/compiler/compile", json={
             "scenario_name": "NEOM Logistics Base",
             "base_model_version_id": str(uuid7()),
             "base_year": 2020,
             "start_year": 2026,
             "end_year": 2030,
             "line_items": [
-                {
-                    "line_item_id": str(uuid7()),
-                    "raw_text": "concrete works",
-                    "total_value": 2000000.0,
-                },
-                {
-                    "line_item_id": str(uuid7()),
-                    "raw_text": "steel reinforcement",
-                    "total_value": 1500000.0,
-                },
+                {"line_item_id": str(uuid7()), "raw_text": "concrete works", "total_value": 2000000.0},
+                {"line_item_id": str(uuid7()), "raw_text": "steel reinforcement", "total_value": 1500000.0},
             ],
             "phasing": {"2026": 0.3, "2027": 0.4, "2028": 0.3},
         })
@@ -47,19 +32,14 @@ class TestTriggerCompilation:
 
     @pytest.mark.anyio
     async def test_compile_returns_suggestions(self, client: AsyncClient) -> None:
-        resp = await client.post("/v1/compiler/compile", json={
-            "workspace_id": str(uuid7()),
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/compiler/compile", json={
             "scenario_name": "Test",
             "base_model_version_id": str(uuid7()),
             "base_year": 2020,
             "start_year": 2026,
             "end_year": 2028,
             "line_items": [
-                {
-                    "line_item_id": str(uuid7()),
-                    "raw_text": "concrete works",
-                    "total_value": 1000000.0,
-                },
+                {"line_item_id": str(uuid7()), "raw_text": "concrete works", "total_value": 1000000.0},
             ],
             "phasing": {"2026": 1.0},
         })
@@ -70,8 +50,7 @@ class TestTriggerCompilation:
 
     @pytest.mark.anyio
     async def test_compile_empty_items(self, client: AsyncClient) -> None:
-        resp = await client.post("/v1/compiler/compile", json={
-            "workspace_id": str(uuid7()),
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/compiler/compile", json={
             "scenario_name": "Empty",
             "base_model_version_id": str(uuid7()),
             "base_year": 2020,
@@ -84,36 +63,22 @@ class TestTriggerCompilation:
         assert len(resp.json()["suggestions"]) == 0
 
 
-# ===================================================================
-# GET /v1/compiler/{id}/status — suggestion status
-# ===================================================================
-
-
 class TestSuggestionStatus:
-    """GET /v1/compiler/{id}/status — retrieve suggestion status."""
-
     @pytest.mark.anyio
     async def test_get_status(self, client: AsyncClient) -> None:
-        # First create a compilation
-        create_resp = await client.post("/v1/compiler/compile", json={
-            "workspace_id": str(uuid7()),
+        create_resp = await client.post(f"/v1/workspaces/{WS_ID}/compiler/compile", json={
             "scenario_name": "Status Test",
             "base_model_version_id": str(uuid7()),
             "base_year": 2020,
             "start_year": 2026,
             "end_year": 2028,
             "line_items": [
-                {
-                    "line_item_id": str(uuid7()),
-                    "raw_text": "concrete works",
-                    "total_value": 1000000.0,
-                },
+                {"line_item_id": str(uuid7()), "raw_text": "concrete works", "total_value": 1000000.0},
             ],
             "phasing": {"2026": 1.0},
         })
         comp_id = create_resp.json()["compilation_id"]
-
-        resp = await client.get(f"/v1/compiler/{comp_id}/status")
+        resp = await client.get(f"/v1/workspaces/{WS_ID}/compiler/{comp_id}/status")
         assert resp.status_code == 200
         data = resp.json()
         assert data["compilation_id"] == comp_id
@@ -122,46 +87,28 @@ class TestSuggestionStatus:
 
     @pytest.mark.anyio
     async def test_status_not_found(self, client: AsyncClient) -> None:
-        resp = await client.get(f"/v1/compiler/{uuid7()}/status")
+        resp = await client.get(f"/v1/workspaces/{WS_ID}/compiler/{uuid7()}/status")
         assert resp.status_code == 404
 
 
-# ===================================================================
-# POST /v1/compiler/{id}/decisions — accept/reject suggestions
-# ===================================================================
-
-
 class TestBulkDecisions:
-    """POST /v1/compiler/{id}/decisions — accept/reject in bulk."""
-
     @pytest.mark.anyio
     async def test_bulk_accept(self, client: AsyncClient) -> None:
         li_id = str(uuid7())
-        create_resp = await client.post("/v1/compiler/compile", json={
-            "workspace_id": str(uuid7()),
+        create_resp = await client.post(f"/v1/workspaces/{WS_ID}/compiler/compile", json={
             "scenario_name": "Decision Test",
             "base_model_version_id": str(uuid7()),
             "base_year": 2020,
             "start_year": 2026,
             "end_year": 2028,
             "line_items": [
-                {
-                    "line_item_id": li_id,
-                    "raw_text": "concrete works",
-                    "total_value": 1000000.0,
-                },
+                {"line_item_id": li_id, "raw_text": "concrete works", "total_value": 1000000.0},
             ],
             "phasing": {"2026": 1.0},
         })
         comp_id = create_resp.json()["compilation_id"]
-
-        resp = await client.post(f"/v1/compiler/{comp_id}/decisions", json={
-            "decisions": [
-                {
-                    "line_item_id": li_id,
-                    "action": "accept",
-                },
-            ],
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/compiler/{comp_id}/decisions", json={
+            "decisions": [{"line_item_id": li_id, "action": "accept"}],
         })
         assert resp.status_code == 200
         data = resp.json()
@@ -170,32 +117,21 @@ class TestBulkDecisions:
     @pytest.mark.anyio
     async def test_bulk_reject(self, client: AsyncClient) -> None:
         li_id = str(uuid7())
-        create_resp = await client.post("/v1/compiler/compile", json={
-            "workspace_id": str(uuid7()),
+        create_resp = await client.post(f"/v1/workspaces/{WS_ID}/compiler/compile", json={
             "scenario_name": "Reject Test",
             "base_model_version_id": str(uuid7()),
             "base_year": 2020,
             "start_year": 2026,
             "end_year": 2028,
             "line_items": [
-                {
-                    "line_item_id": li_id,
-                    "raw_text": "concrete works",
-                    "total_value": 1000000.0,
-                },
+                {"line_item_id": li_id, "raw_text": "concrete works", "total_value": 1000000.0},
             ],
             "phasing": {"2026": 1.0},
         })
         comp_id = create_resp.json()["compilation_id"]
-
-        resp = await client.post(f"/v1/compiler/{comp_id}/decisions", json={
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/compiler/{comp_id}/decisions", json={
             "decisions": [
-                {
-                    "line_item_id": li_id,
-                    "action": "reject",
-                    "override_sector_code": "H",
-                    "note": "Should be transport",
-                },
+                {"line_item_id": li_id, "action": "reject", "override_sector_code": "H", "note": "Should be transport"},
             ],
         })
         assert resp.status_code == 200
@@ -204,7 +140,7 @@ class TestBulkDecisions:
 
     @pytest.mark.anyio
     async def test_decisions_not_found(self, client: AsyncClient) -> None:
-        resp = await client.post(f"/v1/compiler/{uuid7()}/decisions", json={
+        resp = await client.post(f"/v1/workspaces/{WS_ID}/compiler/{uuid7()}/decisions", json={
             "decisions": [],
         })
         assert resp.status_code == 404

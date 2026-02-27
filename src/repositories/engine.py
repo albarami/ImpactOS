@@ -118,9 +118,13 @@ class BatchRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(self, *, batch_id: UUID, run_ids: list) -> BatchRow:
+    async def create(self, *, batch_id: UUID, run_ids: list,
+                     status: str = "COMPLETED",
+                     workspace_id: UUID | None = None) -> BatchRow:
         row = BatchRow(
-            batch_id=batch_id, run_ids=run_ids, created_at=utc_now(),
+            batch_id=batch_id, run_ids=run_ids,
+            status=status, workspace_id=workspace_id,
+            created_at=utc_now(),
         )
         self._session.add(row)
         await self._session.flush()
@@ -128,3 +132,11 @@ class BatchRepository:
 
     async def get(self, batch_id: UUID) -> BatchRow | None:
         return await self._session.get(BatchRow, batch_id)
+
+    async def update_status(self, batch_id: UUID, status: str) -> BatchRow | None:
+        """Update batch status (PENDING → RUNNING → COMPLETED/FAILED)."""
+        row = await self.get(batch_id)
+        if row is not None:
+            row.status = status
+            await self._session.flush()
+        return row

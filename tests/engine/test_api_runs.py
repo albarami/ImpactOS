@@ -1,11 +1,16 @@
 """Tests for FastAPI run endpoints (MVP-3 Section 6.2.9/6.2.10).
 
 Covers: POST create run, GET run results, POST batch runs, GET batch status.
+
+S0-4: Model registration stays global at /v1/engine/models.
+Runs/batch are workspace-scoped under /v1/workspaces/{workspace_id}/engine/...
 """
 
 import pytest
 from httpx import AsyncClient
 from uuid_extensions import uuid7
+
+WS_ID = "01961060-0000-7000-8000-000000000001"
 
 
 def _register_model_payload() -> dict:
@@ -28,7 +33,7 @@ def _satellite_payload() -> dict:
 
 
 # ===================================================================
-# POST /v1/engine/models — register a model
+# POST /v1/engine/models — register a model (global, not workspace-scoped)
 # ===================================================================
 
 
@@ -50,7 +55,7 @@ class TestRegisterModelEndpoint:
 
 
 # ===================================================================
-# POST /v1/engine/runs — single run
+# POST /v1/workspaces/{workspace_id}/engine/runs — single run
 # ===================================================================
 
 
@@ -59,7 +64,7 @@ class TestCreateRunEndpoint:
 
     @pytest.mark.anyio
     async def test_run_returns_200(self, client: AsyncClient) -> None:
-        # Register model first
+        # Register model first (global endpoint)
         reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
         model_version_id = reg_resp.json()["model_version_id"]
 
@@ -69,7 +74,7 @@ class TestCreateRunEndpoint:
             "base_year": 2023,
             "satellite_coefficients": _satellite_payload(),
         }
-        response = await client.post("/v1/engine/runs", json=run_payload)
+        response = await client.post(f"/v1/workspaces/{WS_ID}/engine/runs", json=run_payload)
         assert response.status_code == 200
 
     @pytest.mark.anyio
@@ -83,7 +88,7 @@ class TestCreateRunEndpoint:
             "base_year": 2023,
             "satellite_coefficients": _satellite_payload(),
         }
-        response = await client.post("/v1/engine/runs", json=run_payload)
+        response = await client.post(f"/v1/workspaces/{WS_ID}/engine/runs", json=run_payload)
         data = response.json()
         assert "run_id" in data
         assert "result_sets" in data
@@ -100,7 +105,7 @@ class TestCreateRunEndpoint:
             "base_year": 2023,
             "satellite_coefficients": _satellite_payload(),
         }
-        response = await client.post("/v1/engine/runs", json=run_payload)
+        response = await client.post(f"/v1/workspaces/{WS_ID}/engine/runs", json=run_payload)
         data = response.json()
         assert "snapshot" in data
         assert data["snapshot"]["model_version_id"] == model_version_id
@@ -113,12 +118,12 @@ class TestCreateRunEndpoint:
             "base_year": 2023,
             "satellite_coefficients": _satellite_payload(),
         }
-        response = await client.post("/v1/engine/runs", json=run_payload)
+        response = await client.post(f"/v1/workspaces/{WS_ID}/engine/runs", json=run_payload)
         assert response.status_code == 404
 
 
 # ===================================================================
-# GET /v1/engine/runs/{run_id} — get run results
+# GET /v1/workspaces/{workspace_id}/engine/runs/{run_id} — get run results
 # ===================================================================
 
 
@@ -130,7 +135,7 @@ class TestGetRunResultsEndpoint:
         reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
         model_version_id = reg_resp.json()["model_version_id"]
 
-        run_resp = await client.post("/v1/engine/runs", json={
+        run_resp = await client.post(f"/v1/workspaces/{WS_ID}/engine/runs", json={
             "model_version_id": model_version_id,
             "annual_shocks": {"2026": [100.0, 0.0]},
             "base_year": 2023,
@@ -138,17 +143,17 @@ class TestGetRunResultsEndpoint:
         })
         run_id = run_resp.json()["run_id"]
 
-        response = await client.get(f"/v1/engine/runs/{run_id}")
+        response = await client.get(f"/v1/workspaces/{WS_ID}/engine/runs/{run_id}")
         assert response.status_code == 200
 
     @pytest.mark.anyio
     async def test_get_nonexistent_run_returns_404(self, client: AsyncClient) -> None:
-        response = await client.get(f"/v1/engine/runs/{uuid7()}")
+        response = await client.get(f"/v1/workspaces/{WS_ID}/engine/runs/{uuid7()}")
         assert response.status_code == 404
 
 
 # ===================================================================
-# POST /v1/engine/batch — batch runs
+# POST /v1/workspaces/{workspace_id}/engine/batch — batch runs
 # ===================================================================
 
 
@@ -169,7 +174,7 @@ class TestBatchRunEndpoint:
             ],
             "satellite_coefficients": _satellite_payload(),
         }
-        response = await client.post("/v1/engine/batch", json=batch_payload)
+        response = await client.post(f"/v1/workspaces/{WS_ID}/engine/batch", json=batch_payload)
         assert response.status_code == 200
 
     @pytest.mark.anyio
@@ -185,10 +190,27 @@ class TestBatchRunEndpoint:
             ],
             "satellite_coefficients": _satellite_payload(),
         }
-        response = await client.post("/v1/engine/batch", json=batch_payload)
+        response = await client.post(f"/v1/workspaces/{WS_ID}/engine/batch", json=batch_payload)
         data = response.json()
         assert "batch_id" in data
         assert len(data["results"]) == 2
+
+    @pytest.mark.anyio
+    async def test_batch_returns_completed_status(self, client: AsyncClient) -> None:
+        """S0-4: Batch response includes status field."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        model_version_id = reg_resp.json()["model_version_id"]
+
+        batch_payload = {
+            "model_version_id": model_version_id,
+            "scenarios": [
+                {"name": "Base", "annual_shocks": {"2026": [100.0, 0.0]}, "base_year": 2023},
+            ],
+            "satellite_coefficients": _satellite_payload(),
+        }
+        response = await client.post(f"/v1/workspaces/{WS_ID}/engine/batch", json=batch_payload)
+        data = response.json()
+        assert data["status"] == "COMPLETED"
 
     @pytest.mark.anyio
     async def test_batch_status_returns_200(self, client: AsyncClient) -> None:
@@ -202,13 +224,13 @@ class TestBatchRunEndpoint:
             ],
             "satellite_coefficients": _satellite_payload(),
         }
-        batch_resp = await client.post("/v1/engine/batch", json=batch_payload)
+        batch_resp = await client.post(f"/v1/workspaces/{WS_ID}/engine/batch", json=batch_payload)
         batch_id = batch_resp.json()["batch_id"]
 
-        response = await client.get(f"/v1/engine/batch/{batch_id}")
+        response = await client.get(f"/v1/workspaces/{WS_ID}/engine/batch/{batch_id}")
         assert response.status_code == 200
 
     @pytest.mark.anyio
     async def test_batch_nonexistent_returns_404(self, client: AsyncClient) -> None:
-        response = await client.get(f"/v1/engine/batch/{uuid7()}")
+        response = await client.get(f"/v1/workspaces/{WS_ID}/engine/batch/{uuid7()}")
         assert response.status_code == 404

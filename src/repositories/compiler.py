@@ -60,3 +60,16 @@ class OverridePairRepository:
             )
         )
         return list(result.scalars().all())
+
+    async def get_recent(self, *, limit: int = 200) -> list[OverridePairRow]:
+        """Get most recent override pairs for learning loop scoring.
+
+        For MVP, returns most recent pairs. Production would use pgvector
+        for semantic similarity search.
+        """
+        result = await self._session.execute(
+            select(OverridePairRow).order_by(
+                OverridePairRow.id.desc()
+            ).limit(limit)
+        )
+        return list(result.scalars().all())

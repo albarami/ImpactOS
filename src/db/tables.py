@@ -121,6 +121,8 @@ class BatchRow(Base):
 
     batch_id: Mapped[UUID] = mapped_column(primary_key=True)
     run_ids = mapped_column(FlexJSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="COMPLETED", nullable=False)
+    workspace_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

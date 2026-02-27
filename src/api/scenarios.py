@@ -1,18 +1,19 @@
 """FastAPI scenario endpoints — MVP-4.
 
-POST /v1/scenarios                          — create scenario
-POST /v1/scenarios/{id}/compile             — compile
-POST /v1/scenarios/{id}/mapping-decisions   — bulk mapping decisions
-GET  /v1/scenarios/{id}/versions            — version history
-POST /v1/scenarios/{id}/lock                — lock for governed run
+POST /v1/workspaces/{workspace_id}/scenarios                          — create
+POST /v1/workspaces/{workspace_id}/scenarios/{id}/compile             — compile
+POST /v1/workspaces/{workspace_id}/scenarios/{id}/mapping-decisions   — bulk
+GET  /v1/workspaces/{workspace_id}/scenarios/{id}/versions            — history
+POST /v1/workspaces/{workspace_id}/scenarios/{id}/lock                — lock
 
+S0-4: Workspace-scoped routes.
 Deterministic — no LLM calls.
 """
 
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.api.dependencies import get_scenario_version_repo
 from src.compiler.scenario_compiler import CompilationInput, ScenarioCompiler
@@ -22,7 +23,7 @@ from src.models.mapping import DecisionType, MappingDecision
 from src.models.scenario import ScenarioSpec, TimeHorizon
 from src.repositories.scenarios import ScenarioVersionRepository
 
-router = APIRouter(prefix="/v1/scenarios", tags=["scenarios"])
+router = APIRouter(prefix="/v1/workspaces", tags=["scenarios"])
 
 # ---------------------------------------------------------------------------
 # Stateless services (no DB needed)
@@ -38,7 +39,7 @@ _compiler = ScenarioCompiler()
 
 class CreateScenarioRequest(BaseModel):
     name: str
-    workspace_id: str
+    workspace_id: str | None = None  # Optional — workspace_id from path takes precedence
     base_model_version_id: str
     base_year: int
     start_year: int
@@ -123,7 +124,11 @@ def _spec_from_row(row) -> ScenarioSpec:
         workspace_id=row.workspace_id,
         base_model_version_id=row.base_model_version_id,
         base_year=row.base_year,
-        time_horizon=TimeHorizon(**th) if th else TimeHorizon(start_year=row.base_year, end_year=row.base_year),
+        time_horizon=(
+            TimeHorizon(**th)
+            if th
+            else TimeHorizon(start_year=row.base_year, end_year=row.base_year)
+        ),
         shock_items=[],
         assumption_ids=[],
         created_at=row.created_at,
@@ -156,8 +161,14 @@ async def _record_new_version(
         base_model_version_id=new_spec.base_model_version_id,
         base_year=new_spec.base_year,
         time_horizon=new_spec.time_horizon.model_dump(),
-        shock_items=[si.model_dump() for si in new_spec.shock_items] if new_spec.shock_items else [],
-        assumption_ids=[str(aid) for aid in new_spec.assumption_ids] if new_spec.assumption_ids else [],
+        shock_items=(
+            [si.model_dump() for si in new_spec.shock_items]
+            if new_spec.shock_items else []
+        ),
+        assumption_ids=(
+            [str(aid) for aid in new_spec.assumption_ids]
+            if new_spec.assumption_ids else []
+        ),
     )
     return new_spec
 
@@ -167,15 +178,16 @@ async def _record_new_version(
 # ---------------------------------------------------------------------------
 
 
-@router.post("", status_code=201, response_model=CreateScenarioResponse)
+@router.post("/{workspace_id}/scenarios", status_code=201, response_model=CreateScenarioResponse)
 async def create_scenario(
+    workspace_id: UUID,
     body: CreateScenarioRequest,
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> CreateScenarioResponse:
     """Create a new scenario (version 1)."""
     spec = ScenarioSpec(
         name=body.name,
-        workspace_id=UUID(body.workspace_id),
+        workspace_id=workspace_id,
         base_model_version_id=UUID(body.base_model_version_id),
         base_year=body.base_year,
         time_horizon=TimeHorizon(start_year=body.start_year, end_year=body.end_year),
@@ -198,8 +210,9 @@ async def create_scenario(
     )
 
 
-@router.post("/{scenario_id}/compile")
+@router.post("/{workspace_id}/scenarios/{scenario_id}/compile")
 async def compile_scenario(
+    workspace_id: UUID,
     scenario_id: UUID,
     body: CompileRequest,
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
@@ -240,7 +253,7 @@ async def compile_scenario(
     phasing = {int(year): share for year, share in body.phasing.items()}
 
     inp = CompilationInput(
-        workspace_id=spec.workspace_id,
+        workspace_id=workspace_id,
         scenario_name=spec.name,
         base_model_version_id=spec.base_model_version_id,
         base_year=spec.base_year,
@@ -260,12 +273,19 @@ async def compile_scenario(
         "scenario_spec_id": str(scenario_id),
         "version": new_spec.version,
         "shock_items": [si.model_dump() for si in compiled.shock_items],
-        "data_quality_summary": compiled.data_quality_summary.model_dump() if compiled.data_quality_summary else None,
+        "data_quality_summary": (
+            compiled.data_quality_summary.model_dump()
+            if compiled.data_quality_summary else None
+        ),
     }
 
 
-@router.post("/{scenario_id}/mapping-decisions", response_model=MappingDecisionsBulkResponse)
+@router.post(
+    "/{workspace_id}/scenarios/{scenario_id}/mapping-decisions",
+    response_model=MappingDecisionsBulkResponse,
+)
 async def bulk_mapping_decisions(
+    workspace_id: UUID,
     scenario_id: UUID,
     body: MappingDecisionsBulkRequest,
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
@@ -280,8 +300,9 @@ async def bulk_mapping_decisions(
     )
 
 
-@router.get("/{scenario_id}/versions", response_model=VersionsResponse)
+@router.get("/{workspace_id}/scenarios/{scenario_id}/versions", response_model=VersionsResponse)
 async def get_versions(
+    workspace_id: UUID,
     scenario_id: UUID,
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> VersionsResponse:
@@ -298,8 +319,9 @@ async def get_versions(
     )
 
 
-@router.post("/{scenario_id}/lock", response_model=LockResponse)
+@router.post("/{workspace_id}/scenarios/{scenario_id}/lock", response_model=LockResponse)
 async def lock_scenario(
+    workspace_id: UUID,
     scenario_id: UUID,
     body: LockRequest,
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),

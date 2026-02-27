@@ -4,24 +4,27 @@ Each factory takes AsyncSession via Depends(get_async_session) and returns
 a repository instance. API endpoints use these via Depends().
 """
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.session import get_async_session
-from src.repositories.exports import ExportRepository
-from src.repositories.metrics import MetricEventRepository, EngagementRepository
-from src.repositories.documents import DocumentRepository, ExtractionJobRepository, LineItemRepository
-from src.repositories.governance import AssumptionRepository, ClaimRepository
-from src.repositories.scenarios import ScenarioVersionRepository
 from src.repositories.compiler import CompilationRepository, OverridePairRepository
-from src.repositories.engine import (
-    ModelVersionRepository,
-    ModelDataRepository,
-    RunSnapshotRepository,
-    ResultSetRepository,
-    BatchRepository,
+from src.repositories.documents import (
+    DocumentRepository,
+    ExtractionJobRepository,
+    LineItemRepository,
 )
-
+from src.repositories.engine import (
+    BatchRepository,
+    ModelDataRepository,
+    ModelVersionRepository,
+    ResultSetRepository,
+    RunSnapshotRepository,
+)
+from src.repositories.exports import ExportRepository
+from src.repositories.governance import AssumptionRepository, ClaimRepository
+from src.repositories.metrics import EngagementRepository, MetricEventRepository
+from src.repositories.scenarios import ScenarioVersionRepository
 
 # ---------------------------------------------------------------------------
 # Export

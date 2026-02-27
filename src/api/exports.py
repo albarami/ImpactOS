@@ -1,9 +1,10 @@
 """FastAPI export endpoints — MVP-6.
 
-POST /v1/exports                    — create export
-GET  /v1/exports/{export_id}        — export status
-POST /v1/exports/variance-bridge    — variance bridge between two runs
+POST /v1/workspaces/{workspace_id}/exports                    — create export
+GET  /v1/workspaces/{workspace_id}/exports/{export_id}        — export status
+POST /v1/workspaces/{workspace_id}/exports/variance-bridge    — variance bridge
 
+S0-4: Workspace-scoped routes. NFF claims now fetched from DB (not empty).
 Deterministic — no LLM calls.
 """
 
@@ -12,16 +13,18 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from src.api.dependencies import get_export_repo
+from src.api.dependencies import get_claim_repo, get_export_repo
 from src.export.orchestrator import (
     ExportOrchestrator,
     ExportRequest,
 )
 from src.export.variance_bridge import VarianceBridge
-from src.models.common import ExportMode
+from src.models.common import ClaimStatus, ClaimType, DisclosureTier, ExportMode
+from src.models.governance import Claim
 from src.repositories.exports import ExportRepository
+from src.repositories.governance import ClaimRepository
 
-router = APIRouter(prefix="/v1/exports", tags=["exports"])
+router = APIRouter(prefix="/v1/workspaces", tags=["exports"])
 
 # ---------------------------------------------------------------------------
 # Stateless services (no DB needed)
@@ -38,7 +41,7 @@ _bridge = VarianceBridge()
 
 class CreateExportRequest(BaseModel):
     run_id: str
-    workspace_id: str
+    workspace_id: str | None = None  # Optional — workspace_id from path takes precedence
     mode: str
     export_formats: list[str]
     pack_data: dict
@@ -78,26 +81,55 @@ class VarianceBridgeResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _claim_row_to_model(row) -> Claim:
+    """Convert ClaimRow to Claim Pydantic model for NFF gate checks."""
+    return Claim(
+        claim_id=row.claim_id,
+        text=row.text,
+        claim_type=ClaimType(row.claim_type),
+        status=ClaimStatus(row.status),
+        disclosure_tier=DisclosureTier(row.disclosure_tier),
+        model_refs=[],
+        evidence_refs=[],
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
 
-@router.post("", status_code=201, response_model=CreateExportResponse)
+@router.post("/{workspace_id}/exports", status_code=201, response_model=CreateExportResponse)
 async def create_export(
+    workspace_id: UUID,
     body: CreateExportRequest,
     repo: ExportRepository = Depends(get_export_repo),
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> CreateExportResponse:
-    """Create a new export — generates requested formats with watermarks."""
+    """Create a new export — generates requested formats with watermarks.
+
+    S0-4: NFF claims now fetched from DB by run_id (not empty list).
+    Governed exports will be properly blocked if claims are unresolved.
+    """
     request = ExportRequest(
         run_id=UUID(body.run_id),
-        workspace_id=UUID(body.workspace_id),
+        workspace_id=workspace_id,
         mode=ExportMode(body.mode),
         export_formats=body.export_formats,
         pack_data=body.pack_data,
     )
 
-    # For MVP, no claims lookup — sandbox always passes, governed with empty claims
-    record = _orchestrator.execute(request=request, claims=[])
+    # Fetch claims associated with this run from DB for NFF gate
+    claim_rows = await claim_repo.get_by_run(UUID(body.run_id))
+    claims = [_claim_row_to_model(r) for r in claim_rows]
+
+    record = _orchestrator.execute(request=request, claims=claims)
 
     # Persist export metadata to DB
     await repo.create(
@@ -117,8 +149,9 @@ async def create_export(
     )
 
 
-@router.get("/{export_id}", response_model=ExportStatusResponse)
+@router.get("/{workspace_id}/exports/{export_id}", response_model=ExportStatusResponse)
 async def get_export_status(
+    workspace_id: UUID,
     export_id: UUID,
     repo: ExportRepository = Depends(get_export_repo),
 ) -> ExportStatusResponse:
@@ -136,8 +169,11 @@ async def get_export_status(
     )
 
 
-@router.post("/variance-bridge", response_model=VarianceBridgeResponse)
-async def variance_bridge(body: VarianceBridgeRequest) -> VarianceBridgeResponse:
+@router.post("/{workspace_id}/exports/variance-bridge", response_model=VarianceBridgeResponse)
+async def variance_bridge(
+    workspace_id: UUID,
+    body: VarianceBridgeRequest,
+) -> VarianceBridgeResponse:
     """Compare two runs and decompose changes into drivers."""
     result = _bridge.compare(run_a=body.run_a, run_b=body.run_b)
 

@@ -1,10 +1,13 @@
 """FastAPI engine/run endpoints — MVP-3 Sections 6.2.9, 6.2.10.
 
-POST /v1/engine/models           — register a model
-POST /v1/engine/runs             — single run
-GET  /v1/engine/runs/{run_id}    — get run results
-POST /v1/engine/batch            — batch runs
-GET  /v1/engine/batch/{batch_id} — batch status
+POST /v1/engine/models                                       — register (global)
+POST /v1/workspaces/{workspace_id}/engine/runs               — single run
+GET  /v1/workspaces/{workspace_id}/engine/runs/{run_id}      — get results
+POST /v1/workspaces/{workspace_id}/engine/batch              — batch runs
+GET  /v1/workspaces/{workspace_id}/engine/batch/{batch_id}   — batch status
+
+S0-4: Workspace-scoped runs/batch. Model registration stays global.
+Batch status tracking (PENDING → RUNNING → COMPLETED/FAILED).
 
 Deterministic only — no LLM calls.
 ModelStore kept as in-memory LRU cache for synchronous engine access.
@@ -15,7 +18,7 @@ from uuid import UUID
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.api.dependencies import (
     get_batch_repo,
@@ -41,7 +44,11 @@ from src.repositories.engine import (
     RunSnapshotRepository,
 )
 
-router = APIRouter(prefix="/v1/engine", tags=["engine"])
+# Global model registration router (not workspace-scoped)
+models_router = APIRouter(prefix="/v1/engine", tags=["engine"])
+
+# Workspace-scoped engine router for runs/batch
+router = APIRouter(prefix="/v1/workspaces", tags=["engine"])
 
 # ---------------------------------------------------------------------------
 # In-memory LRU cache for synchronous engine access (BatchRunner needs .get())
@@ -116,6 +123,7 @@ class RunResponse(BaseModel):
 
 class BatchResponse(BaseModel):
     batch_id: str
+    status: str = "COMPLETED"
     results: list[RunResponse]
 
 
@@ -225,11 +233,11 @@ async def _load_run_response(
 
 
 # ---------------------------------------------------------------------------
-# Endpoints
+# Global Endpoints (model registration — not workspace-scoped)
 # ---------------------------------------------------------------------------
 
 
-@router.post("/models", status_code=201, response_model=RegisterModelResponse)
+@models_router.post("/models", status_code=201, response_model=RegisterModelResponse)
 async def register_model(
     body: RegisterModelRequest,
     mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
@@ -269,8 +277,14 @@ async def register_model(
     )
 
 
-@router.post("/runs", response_model=RunResponse)
+# ---------------------------------------------------------------------------
+# Workspace-scoped Endpoints (runs / batch)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{workspace_id}/engine/runs", response_model=RunResponse)
 async def create_run(
+    workspace_id: UUID,
     body: RunRequest,
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
@@ -280,7 +294,10 @@ async def create_run(
     try:
         _model_store.get(model_version_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"Model {body.model_version_id} not found.") from exc
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model {body.model_version_id} not found.",
+        ) from exc
 
     coeffs = _make_satellite_coefficients(body.satellite_coefficients)
 
@@ -310,8 +327,9 @@ async def create_run(
     return _single_run_to_response(sr)
 
 
-@router.get("/runs/{run_id}", response_model=RunResponse)
+@router.get("/{workspace_id}/engine/runs/{run_id}", response_model=RunResponse)
 async def get_run_results(
+    workspace_id: UUID,
     run_id: UUID,
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
@@ -323,19 +341,33 @@ async def get_run_results(
     return resp
 
 
-@router.post("/batch", response_model=BatchResponse)
+@router.post("/{workspace_id}/engine/batch", response_model=BatchResponse)
 async def create_batch_run(
+    workspace_id: UUID,
     body: BatchRunRequest,
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
     batch_repo: BatchRepository = Depends(get_batch_repo),
 ) -> BatchResponse:
-    """Execute a batch of scenario runs."""
+    """Execute a batch of scenario runs with status tracking."""
     model_version_id = UUID(body.model_version_id)
     try:
         _model_store.get(model_version_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"Model {body.model_version_id} not found.") from exc
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model {body.model_version_id} not found.",
+        ) from exc
+
+    batch_id = new_uuid7()
+
+    # Create batch record as RUNNING
+    await batch_repo.create(
+        batch_id=batch_id,
+        run_ids=[],
+        status="RUNNING",
+        workspace_id=workspace_id,
+    )
 
     coeffs = _make_satellite_coefficients(body.satellite_coefficients)
     scenarios: list[ScenarioInput] = []
@@ -358,24 +390,34 @@ async def create_batch_run(
         version_refs=_make_version_refs(),
     )
 
-    batch_result = runner.run(request)
-    batch_id = new_uuid7()
+    try:
+        batch_result = runner.run(request)
 
-    # Persist results
-    run_ids: list[str] = []
-    responses: list[RunResponse] = []
-    for sr in batch_result.run_results:
-        await _persist_run_result(sr, snap_repo, rs_repo)
-        run_ids.append(str(sr.snapshot.run_id))
-        responses.append(_single_run_to_response(sr))
+        # Persist results
+        run_ids: list[str] = []
+        responses: list[RunResponse] = []
+        for sr in batch_result.run_results:
+            await _persist_run_result(sr, snap_repo, rs_repo)
+            run_ids.append(str(sr.snapshot.run_id))
+            responses.append(_single_run_to_response(sr))
 
-    await batch_repo.create(batch_id=batch_id, run_ids=run_ids)
+        # Update batch to COMPLETED with run IDs
+        batch_row = await batch_repo.get(batch_id)
+        if batch_row is not None:
+            batch_row.run_ids = run_ids
+            batch_row.status = "COMPLETED"
+            await batch_repo._session.flush()
 
-    return BatchResponse(batch_id=str(batch_id), results=responses)
+        return BatchResponse(batch_id=str(batch_id), status="COMPLETED", results=responses)
+
+    except Exception:
+        await batch_repo.update_status(batch_id, "FAILED")
+        raise
 
 
-@router.get("/batch/{batch_id}", response_model=BatchResponse)
+@router.get("/{workspace_id}/engine/batch/{batch_id}", response_model=BatchResponse)
 async def get_batch_status(
+    workspace_id: UUID,
     batch_id: UUID,
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
@@ -392,4 +434,8 @@ async def get_batch_status(
         if resp is not None:
             responses.append(resp)
 
-    return BatchResponse(batch_id=str(batch_id), results=responses)
+    return BatchResponse(
+        batch_id=str(batch_id),
+        status=batch_row.status,
+        results=responses,
+    )

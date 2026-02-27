@@ -1,9 +1,10 @@
 """FastAPI AI compiler endpoints — MVP-8.
 
-POST /v1/compiler/compile              — trigger AI-assisted compilation
-GET  /v1/compiler/{id}/status          — suggestion status
-POST /v1/compiler/{id}/decisions       — accept/reject suggestions in bulk
+POST /v1/workspaces/{workspace_id}/compiler/compile              — trigger compilation
+GET  /v1/workspaces/{workspace_id}/compiler/{id}/status          — suggestion status
+POST /v1/workspaces/{workspace_id}/compiler/{id}/decisions       — accept/reject bulk
 
+S0-4: Workspace-scoped routes.
 CRITICAL: Agent-to-Math Boundary enforced. All outputs are Pydantic-validated
 JSON. Agents propose mappings — they NEVER compute economic results.
 """
@@ -21,14 +22,13 @@ from src.api.dependencies import get_compilation_repo, get_override_pair_repo
 from src.compiler.ai_compiler import (
     AICompilationInput,
     AICompiler,
-    CompilationMode,
 )
 from src.models.document import BoQLineItem
 from src.models.mapping import MappingLibraryEntry
 from src.models.scenario import TimeHorizon
 from src.repositories.compiler import CompilationRepository, OverridePairRepository
 
-router = APIRouter(prefix="/v1/compiler", tags=["compiler"])
+router = APIRouter(prefix="/v1/workspaces", tags=["compiler"])
 
 # ---------------------------------------------------------------------------
 # Static reference data (stays — no DB needed)
@@ -75,7 +75,7 @@ class CompileLineItem(BaseModel):
 
 
 class CompileRequest(BaseModel):
-    workspace_id: str
+    workspace_id: str | None = None  # Optional — workspace_id from path takes precedence
     scenario_name: str
     base_model_version_id: str
     base_year: int
@@ -131,8 +131,9 @@ class BulkDecisionResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-@router.post("/compile", status_code=201, response_model=CompileResponse)
+@router.post("/{workspace_id}/compiler/compile", status_code=201, response_model=CompileResponse)
 async def trigger_compilation(
+    workspace_id: UUID,
     body: CompileRequest,
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
 ) -> CompileResponse:
@@ -156,7 +157,7 @@ async def trigger_compilation(
     phasing = {int(k): v for k, v in body.phasing.items()}
 
     inp = AICompilationInput(
-        workspace_id=UUID(body.workspace_id),
+        workspace_id=workspace_id,
         scenario_name=body.scenario_name,
         base_model_version_id=UUID(body.base_model_version_id),
         base_year=body.base_year,
@@ -217,8 +218,9 @@ async def trigger_compilation(
     )
 
 
-@router.get("/{compilation_id}/status", response_model=StatusResponse)
+@router.get("/{workspace_id}/compiler/{compilation_id}/status", response_model=StatusResponse)
 async def get_status(
+    workspace_id: UUID,
     compilation_id: UUID,
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
 ) -> StatusResponse:
@@ -238,8 +240,12 @@ async def get_status(
     )
 
 
-@router.post("/{compilation_id}/decisions", response_model=BulkDecisionResponse)
+@router.post(
+    "/{workspace_id}/compiler/{compilation_id}/decisions",
+    response_model=BulkDecisionResponse,
+)
 async def bulk_decisions(
+    workspace_id: UUID,
     compilation_id: UUID,
     body: BulkDecisionRequest,
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
