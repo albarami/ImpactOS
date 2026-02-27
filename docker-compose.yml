@@ -57,6 +57,22 @@ services:
     networks:
       - impactos
 
+  celery-worker:
+    build: .
+    container_name: impactos-celery-worker
+    command: celery -A src.ingestion.tasks:get_celery_app worker --loglevel=info --concurrency=2
+    environment:
+      DATABASE_URL: postgresql+asyncpg://impactos:impactos@postgres:5432/impactos
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - impactos
+
 volumes:
   pgdata:
   redisdata:

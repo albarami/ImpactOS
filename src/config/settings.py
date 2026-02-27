@@ -63,6 +63,28 @@ class Settings(BaseSettings):
         description="OpenRouter API key for model routing.",
     )
 
+    # --- Azure Document Intelligence ---
+    AZURE_DI_ENDPOINT: str = Field(
+        default="",
+        description="Azure Document Intelligence endpoint URL.",
+    )
+    AZURE_DI_KEY: str = Field(
+        default="",
+        description="Azure Document Intelligence API key.",
+    )
+
+    # --- Extraction ---
+    EXTRACTION_PROVIDER: str = Field(
+        default="local",
+        description="Default extraction provider (local or azure_di). Router overrides per classification.",
+    )
+
+    # --- Celery ---
+    CELERY_BROKER_URL: str = Field(
+        default="",
+        description="Celery broker URL. Empty = synchronous extraction (dev/test).",
+    )
+
     # --- Object Storage ---
     OBJECT_STORAGE_PATH: str = Field(
         default="./uploads",

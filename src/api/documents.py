@@ -1,11 +1,13 @@
-"""FastAPI document endpoints — MVP-2 Section 6.2.5.
+"""FastAPI document endpoints — MVP-2 Section 6.2.5 + S0-3 async jobs.
 
 POST /v1/workspaces/{workspace_id}/documents               — upload
 POST /v1/workspaces/{workspace_id}/documents/{doc_id}/extract  — trigger extraction
 GET  /v1/workspaces/{workspace_id}/jobs/{job_id}           — job status
 GET  /v1/workspaces/{workspace_id}/documents/{doc_id}/line-items — extracted items
 
-This is a deterministic pipeline — no LLM calls.
+S0-3: Extraction uses ExtractionProvider interface with classification-based
+routing. When CELERY_BROKER_URL is set, extraction runs async via Celery.
+Otherwise runs synchronously (dev/test mode).
 """
 
 from uuid import UUID
@@ -18,6 +20,7 @@ from src.api.dependencies import (
     get_extraction_job_repo,
     get_line_item_repo,
 )
+from src.config.settings import get_settings
 from src.models.common import DataClassification
 from src.models.document import (
     BoQLineItem,
@@ -27,9 +30,8 @@ from src.models.document import (
     LanguageCode,
     SourceType,
 )
-from src.ingestion.boq_structuring import BoQStructuringPipeline
-from src.ingestion.extraction import ExtractionService
 from src.ingestion.storage import DocumentStorageService
+from src.ingestion.tasks import dispatch_extraction, run_extraction
 from src.repositories.documents import (
     DocumentRepository,
     ExtractionJobRepository,
@@ -43,8 +45,6 @@ router = APIRouter(prefix="/v1/workspaces", tags=["documents"])
 # ---------------------------------------------------------------------------
 
 _storage = DocumentStorageService(storage_root="./uploads")
-_extraction_service = ExtractionService()
-_boq_pipeline = BoQStructuringPipeline()
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +150,11 @@ async def extract_document(
     job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
     line_item_repo: LineItemRepository = Depends(get_line_item_repo),
 ) -> ExtractResponse:
-    """Trigger extraction (Section 6.2.5). Runs synchronously for MVP."""
+    """Trigger extraction (Section 6.2.5).
+
+    Sync mode (dev/test): runs extraction inline, returns final status.
+    Async mode (CELERY_BROKER_URL set): dispatches to Celery, returns QUEUED.
+    """
     doc_row = await doc_repo.get(doc_id)
     if doc_row is None:
         raise HTTPException(status_code=404, detail=f"Document {doc_id} not found.")
@@ -163,70 +167,69 @@ async def extract_document(
         language_hint=LanguageCode(body.language_hint) if body.language_hint else LanguageCode.EN,
     )
 
-    # For MVP, run extraction synchronously
-    try:
-        content = _storage.retrieve(doc_row.storage_key)
-
-        # Determine extraction method from MIME type
-        mime = doc_row.mime_type.lower()
-        if "csv" in mime or doc_row.filename.endswith(".csv"):
-            graph = _extraction_service.extract_csv(
-                doc_id=doc_id, content=content, doc_checksum=doc_row.hash_sha256,
-            )
-        elif "spreadsheet" in mime or "excel" in mime or doc_row.filename.endswith((".xlsx", ".xls")):
-            graph = _extraction_service.extract_excel(
-                doc_id=doc_id, content=content, doc_checksum=doc_row.hash_sha256,
-            )
-        else:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Unsupported file type: {doc_row.mime_type}",
-            )
-
-        snippets = _extraction_service.generate_evidence_snippets(
-            document_graph=graph, source_id=doc_id, doc_checksum=doc_row.hash_sha256,
-        )
-
-        if body.extract_line_items:
-            items = _boq_pipeline.structure(
-                document_graph=graph,
-                evidence_snippets=snippets,
-                extraction_job_id=job.job_id,
-            )
-            # Persist line items to DB
-            line_item_dicts = []
-            for item in items:
-                d = item.model_dump()
-                # Convert UUID list to string list for JSON storage
-                d["evidence_snippet_ids"] = [str(uid) for uid in d["evidence_snippet_ids"]]
-                line_item_dicts.append(d)
-            await line_item_repo.create_many(line_item_dicts)
-
-        job = job.model_copy(update={"status": ExtractionStatus.COMPLETED})
-
-    except HTTPException:
-        raise
-    except Exception as exc:
-        job = job.model_copy(update={
-            "status": ExtractionStatus.FAILED,
-            "error_message": str(exc),
-        })
-
-    # Persist job to DB
+    # Persist job as QUEUED
     await job_repo.create(
         job_id=job.job_id,
         doc_id=job.doc_id,
         workspace_id=job.workspace_id,
-        status=job.status.value,
+        status=ExtractionStatus.QUEUED.value,
         extract_tables=job.extract_tables,
         extract_line_items=job.extract_line_items,
         language_hint=job.language_hint.value if isinstance(job.language_hint, LanguageCode) else str(job.language_hint),
-        error_message=job.error_message,
+        error_message=None,
     )
+
+    settings = get_settings()
+
+    if settings.CELERY_BROKER_URL:
+        # Async mode: dispatch to Celery worker and return immediately
+        content = _storage.retrieve(doc_row.storage_key)
+        dispatch_extraction(
+            job_id=job.job_id,
+            doc_id=doc_id,
+            workspace_id=workspace_id,
+            document_bytes=content,
+            mime_type=doc_row.mime_type,
+            filename=doc_row.filename,
+            classification=doc_row.classification,
+            doc_checksum=doc_row.hash_sha256,
+            extract_tables=body.extract_tables,
+            extract_line_items=body.extract_line_items,
+            language_hint=body.language_hint or "en",
+        )
+        return ExtractResponse(
+            job_id=str(job.job_id),
+            status=ExtractionStatus.QUEUED.value,
+        )
+
+    # Sync mode (dev/test): run extraction inline via provider router
+    try:
+        content = _storage.retrieve(doc_row.storage_key)
+
+        final_status = await run_extraction(
+            job_id=job.job_id,
+            doc_id=doc_id,
+            workspace_id=workspace_id,
+            document_bytes=content,
+            mime_type=doc_row.mime_type,
+            filename=doc_row.filename,
+            classification=doc_row.classification,
+            doc_checksum=doc_row.hash_sha256,
+            extract_tables=body.extract_tables,
+            extract_line_items=body.extract_line_items,
+            language_hint=body.language_hint or "en",
+            job_repo=job_repo,
+            line_item_repo=line_item_repo,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        final_status = "FAILED"
+        await job_repo.update_status(job.job_id, "FAILED", error_message=str(exc))
 
     return ExtractResponse(
         job_id=str(job.job_id),
-        status=job.status.value,
+        status=final_status,
     )
 
 

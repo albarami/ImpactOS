@@ -58,6 +58,7 @@ See [docs/LOCAL_RUNBOOK.md](docs/LOCAL_RUNBOOK.md) for detailed setup instructio
 | MVP-8: AI-Powered Scenario Compiler | 103 | Done |
 | S0-1: Repository Layer + Persistence | 838 | Done |
 | S0-2: Docker Compose + Local Runtime | 852+ | Done |
+| S0-3: PDF Extraction + Async Jobs | 945 | Done |
 
 ## Tech Stack
 
