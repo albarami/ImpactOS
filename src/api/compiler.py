@@ -1,4 +1,4 @@
-"""FastAPI AI compiler endpoints — MVP-8.
+"""FastAPI AI compiler endpoints — MVP-8, amended MVP-12.
 
 POST /v1/workspaces/{workspace_id}/compiler/compile              — trigger compilation
 GET  /v1/workspaces/{workspace_id}/compiler/{id}/status          — suggestion status
@@ -7,8 +7,12 @@ POST /v1/workspaces/{workspace_id}/compiler/{id}/decisions       — accept/reje
 S0-4: Workspace-scoped routes.
 CRITICAL: Agent-to-Math Boundary enforced. All outputs are Pydantic-validated
 JSON. Agents propose mappings — they NEVER compute economic results.
+
+Amendment 3 (MVP-12): bulk_decisions auto-captures to LibraryLearningLoop.
+Amendment 4 (MVP-12): compile uses list_for_agent() when available.
 """
 
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,7 +22,11 @@ from uuid_extensions import uuid7
 from src.agents.assumption_agent import AssumptionDraftAgent
 from src.agents.mapping_agent import MappingSuggestionAgent
 from src.agents.split_agent import SplitAgent
-from src.api.dependencies import get_compilation_repo, get_override_pair_repo
+from src.api.dependencies import (
+    get_compilation_repo,
+    get_mapping_library_repo,
+    get_override_pair_repo,
+)
 from src.compiler.ai_compiler import (
     AICompilationInput,
     AICompiler,
@@ -27,6 +35,9 @@ from src.models.document import BoQLineItem
 from src.models.mapping import MappingLibraryEntry
 from src.models.scenario import TimeHorizon
 from src.repositories.compiler import CompilationRepository, OverridePairRepository
+from src.repositories.libraries import MappingLibraryRepository
+
+_logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/workspaces", tags=["compiler"])
 
@@ -136,8 +147,34 @@ async def trigger_compilation(
     workspace_id: UUID,
     body: CompileRequest,
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
+    mapping_repo: MappingLibraryRepository = Depends(
+        get_mapping_library_repo,
+    ),
 ) -> CompileResponse:
-    """Trigger AI-assisted compilation for a set of line items."""
+    """Trigger AI-assisted compilation for a set of line items.
+
+    Amendment 4 (MVP-12): Uses workspace library entries via list_for_agent()
+    when available, falling back to _default_library.
+    """
+    # Amendment 4: Try workspace library first, fallback to defaults
+    try:
+        library = await mapping_repo.list_for_agent(workspace_id)
+    except Exception:
+        _logger.warning(
+            "list_for_agent failed for %s, using default library",
+            workspace_id,
+        )
+        library = []
+
+    if not library:
+        library = _default_library
+
+    compiler = AICompiler(
+        mapping_agent=MappingSuggestionAgent(library=library),
+        split_agent=SplitAgent(defaults=[]),
+        assumption_agent=AssumptionDraftAgent(),
+    )
+
     # Convert API line items to BoQLineItem models
     evidence_id = uuid7()  # Placeholder for MVP
     boq_items: list[BoQLineItem] = []
@@ -167,7 +204,7 @@ async def trigger_compilation(
         phasing=phasing,
     )
 
-    result = _ai_compiler.compile(inp)
+    result = compiler.compile(inp)
 
     # Serialize result for DB storage
     result_json = {
@@ -250,18 +287,27 @@ async def bulk_decisions(
     body: BulkDecisionRequest,
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
     override_repo: OverridePairRepository = Depends(get_override_pair_repo),
+    mapping_repo: MappingLibraryRepository = Depends(
+        get_mapping_library_repo,
+    ),
 ) -> BulkDecisionResponse:
-    """Accept or reject suggestions in bulk."""
+    """Accept or reject suggestions in bulk.
+
+    Amendment 3 (MVP-12): Auto-captures to mapping library via repository.
+    Wrapped in try/except — library failure never blocks decisions.
+    """
     row = await comp_repo.get(compilation_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Compilation not found.")
 
     suggestion_map = {
-        s["line_item_id"]: s for s in row.result_json.get("mapping_suggestions", [])
+        s["line_item_id"]: s
+        for s in row.result_json.get("mapping_suggestions", [])
     }
 
     accepted = 0
     rejected = 0
+    engagement_id = uuid7()
 
     for decision in body.decisions:
         suggestion = suggestion_map.get(decision.line_item_id)
@@ -272,23 +318,62 @@ async def bulk_decisions(
             accepted += 1
             await override_repo.create(
                 override_id=uuid7(),
-                engagement_id=uuid7(),
+                engagement_id=engagement_id,
                 line_item_id=UUID(decision.line_item_id),
                 line_item_text=suggestion["explanation"],
                 suggested_sector_code=suggestion["sector_code"],
                 final_sector_code=suggestion["sector_code"],
             )
+            # Amendment 3: auto-capture approved mapping to library
+            try:
+                from src.models.common import new_uuid7
+                await mapping_repo.create_entry(
+                    entry_id=new_uuid7(),
+                    workspace_id=workspace_id,
+                    pattern=suggestion["explanation"],
+                    sector_code=suggestion["sector_code"],
+                    confidence=suggestion.get("confidence", 0.8),
+                    source_engagement_id=engagement_id,
+                    status="DRAFT",
+                )
+            except Exception:
+                _logger.warning(
+                    "Library auto-capture failed for accept %s",
+                    decision.line_item_id,
+                    exc_info=True,
+                )
         elif decision.action == "reject":
             rejected += 1
-            final_code = decision.override_sector_code or suggestion["sector_code"]
+            final_code = (
+                decision.override_sector_code or suggestion["sector_code"]
+            )
             await override_repo.create(
                 override_id=uuid7(),
-                engagement_id=uuid7(),
+                engagement_id=engagement_id,
                 line_item_id=UUID(decision.line_item_id),
                 line_item_text=suggestion["explanation"],
                 suggested_sector_code=suggestion["sector_code"],
                 final_sector_code=final_code,
             )
+            # Amendment 3: auto-capture override (high-value signal)
+            if decision.override_sector_code:
+                try:
+                    from src.models.common import new_uuid7
+                    await mapping_repo.create_entry(
+                        entry_id=new_uuid7(),
+                        workspace_id=workspace_id,
+                        pattern=suggestion["explanation"],
+                        sector_code=final_code,
+                        confidence=0.9,
+                        source_engagement_id=engagement_id,
+                        status="DRAFT",
+                    )
+                except Exception:
+                    _logger.warning(
+                        "Library auto-capture failed for override %s",
+                        decision.line_item_id,
+                        exc_info=True,
+                    )
 
     return BulkDecisionResponse(
         accepted=accepted,

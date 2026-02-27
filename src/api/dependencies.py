@@ -28,6 +28,11 @@ from src.repositories.feasibility import (
     FeasibilityResultRepository,
 )
 from src.repositories.governance import AssumptionRepository, ClaimRepository
+from src.repositories.libraries import (
+    AssumptionLibraryRepository,
+    MappingLibraryRepository,
+    ScenarioPatternRepository,
+)
 from src.repositories.metrics import EngagementRepository, MetricEventRepository
 from src.repositories.scenarios import ScenarioVersionRepository
 from src.repositories.workforce import (
@@ -234,3 +239,26 @@ async def get_workforce_result_repo(
     session: AsyncSession = Depends(get_async_session),
 ) -> WorkforceResultRepository:
     return WorkforceResultRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Knowledge Flywheel (Libraries)
+# ---------------------------------------------------------------------------
+
+
+async def get_mapping_library_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> MappingLibraryRepository:
+    return MappingLibraryRepository(session)
+
+
+async def get_assumption_library_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> AssumptionLibraryRepository:
+    return AssumptionLibraryRepository(session)
+
+
+async def get_scenario_pattern_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> ScenarioPatternRepository:
+    return ScenarioPatternRepository(session)

@@ -593,3 +593,165 @@ class WorkforceResultRow(Base):
     delta_x_source: Mapped[str] = mapped_column(String(20), nullable=False)
     feasibility_result_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Knowledge Flywheel Libraries — MVP-12
+# ---------------------------------------------------------------------------
+
+
+class MappingLibraryEntryRow(Base):
+    """Mapping library entry. Content-immutable after creation (Amendment 2).
+
+    Only usage_count, last_used_at, status may be updated.
+    """
+
+    __tablename__ = "mapping_library_entries"
+
+    row_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+    entry_id: Mapped[UUID] = mapped_column(unique=True, nullable=False, index=True)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    pattern: Mapped[str] = mapped_column(Text, nullable=False)
+    sector_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    usage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    source_engagement_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+    tags = mapped_column(FlexJSON, nullable=False)
+    created_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="DRAFT",
+    )
+
+
+class MappingLibraryVersionRow(Base):
+    """Append-only versioned mapping library snapshot.
+
+    Amendment 1: Business key = (workspace_id, version).
+    Amendment 7: Only PUBLISHED entries included.
+    """
+
+    __tablename__ = "mapping_library_versions"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id", "version",
+            name="uq_mapping_library_ws_version",
+        ),
+    )
+
+    row_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+    library_version_id: Mapped[UUID] = mapped_column(
+        nullable=False, index=True,
+    )
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    entry_ids = mapped_column(FlexJSON, nullable=False)
+    entry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    published_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
+
+
+class AssumptionLibraryEntryRow(Base):
+    """Assumption library entry. Content-immutable after creation.
+
+    Amendment 6: evidence_refs for NFF alignment.
+    """
+
+    __tablename__ = "assumption_library_entries"
+
+    row_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+    entry_id: Mapped[UUID] = mapped_column(unique=True, nullable=False, index=True)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    assumption_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    sector_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    default_value: Mapped[float] = mapped_column(Float, nullable=False)
+    range_low: Mapped[float] = mapped_column(Float, nullable=False)
+    range_high: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(50), nullable=False)
+    justification: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(500), default="")
+    source_engagement_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    usage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+    confidence: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
+    evidence_refs = mapped_column(FlexJSON, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="DRAFT",
+    )
+
+
+class AssumptionLibraryVersionRow(Base):
+    """Append-only versioned assumption library snapshot.
+
+    Amendment 1: Business key = (workspace_id, version).
+    """
+
+    __tablename__ = "assumption_library_versions"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id", "version",
+            name="uq_assumption_library_ws_version",
+        ),
+    )
+
+    row_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+    library_version_id: Mapped[UUID] = mapped_column(
+        nullable=False, index=True,
+    )
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    entry_ids = mapped_column(FlexJSON, nullable=False)
+    entry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    published_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
+
+
+class ScenarioPatternRow(Base):
+    """Scenario pattern for reusable engagement templates."""
+
+    __tablename__ = "scenario_patterns"
+
+    row_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+    pattern_id: Mapped[UUID] = mapped_column(
+        unique=True, nullable=False, index=True,
+    )
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="")
+    sector_focus = mapped_column(FlexJSON, nullable=False)
+    typical_shock_types = mapped_column(FlexJSON, nullable=False)
+    typical_assumptions = mapped_column(FlexJSON, nullable=False)
+    recommended_sensitivities = mapped_column(FlexJSON, nullable=False)
+    recommended_contrarian_angles = mapped_column(FlexJSON, nullable=False)
+    source_engagement_ids = mapped_column(FlexJSON, nullable=False)
+    usage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    tags = mapped_column(FlexJSON, nullable=False)
+    created_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )

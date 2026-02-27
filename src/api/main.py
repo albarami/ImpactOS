@@ -16,6 +16,7 @@ from src.api.documents import router as documents_router
 from src.api.exports import router as exports_router
 from src.api.feasibility import router as feasibility_router
 from src.api.governance import router as governance_router
+from src.api.libraries import router as libraries_router
 from src.api.metrics import router as metrics_router
 from src.api.runs import models_router as engine_models_router
 from src.api.runs import router as engine_ws_router
@@ -82,6 +83,7 @@ app.include_router(documents_router)
 app.include_router(exports_router)
 app.include_router(feasibility_router)
 app.include_router(governance_router)
+app.include_router(libraries_router)
 app.include_router(metrics_router)
 app.include_router(engine_ws_router)
 app.include_router(scenarios_router)
