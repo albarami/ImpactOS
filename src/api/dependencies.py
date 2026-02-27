@@ -23,6 +23,10 @@ from src.repositories.engine import (
     RunSnapshotRepository,
 )
 from src.repositories.exports import ExportRepository
+from src.repositories.feasibility import (
+    ConstraintSetRepository,
+    FeasibilityResultRepository,
+)
 from src.repositories.governance import AssumptionRepository, ClaimRepository
 from src.repositories.metrics import EngagementRepository, MetricEventRepository
 from src.repositories.scenarios import ScenarioVersionRepository
@@ -156,6 +160,28 @@ async def get_batch_repo(
     session: AsyncSession = Depends(get_async_session),
 ) -> BatchRepository:
     return BatchRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Depth Engine
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Feasibility
+# ---------------------------------------------------------------------------
+
+
+async def get_constraint_set_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> ConstraintSetRepository:
+    return ConstraintSetRepository(session)
+
+
+async def get_feasibility_result_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> FeasibilityResultRepository:
+    return FeasibilityResultRepository(session)
 
 
 # ---------------------------------------------------------------------------

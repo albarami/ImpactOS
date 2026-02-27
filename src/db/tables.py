@@ -400,6 +400,64 @@ class EngagementRow(Base):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Feasibility — VERSIONED constraint sets + immutable results
+# ---------------------------------------------------------------------------
+
+
+class ConstraintSetRow(Base):
+    """Append-only versioned constraint set. Surrogate PK (row_id)."""
+
+    __tablename__ = "constraint_sets"
+    __table_args__ = (
+        UniqueConstraint("constraint_set_id", "version", name="uq_constraint_set_version"),
+    )
+
+    row_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    constraint_set_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    model_version_id: Mapped[UUID] = mapped_column(nullable=False)
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
+    constraints = mapped_column(FlexJSON, nullable=False)  # list[Constraint dict]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_by: Mapped[UUID | None] = mapped_column(nullable=True)
+
+
+class FeasibilityResultRow(Base):
+    """Immutable feasibility solve result — supplementary analysis on an existing run."""
+
+    __tablename__ = "feasibility_results"
+
+    feasibility_result_id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    unconstrained_run_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    constraint_set_id: Mapped[UUID] = mapped_column(nullable=False)
+    constraint_set_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    feasible_delta_x = mapped_column(FlexJSON, nullable=False)
+    unconstrained_delta_x = mapped_column(FlexJSON, nullable=False)
+    gap_vs_unconstrained = mapped_column(FlexJSON, nullable=False)
+    total_feasible_output: Mapped[float] = mapped_column(Float, nullable=False)
+    total_unconstrained_output: Mapped[float] = mapped_column(Float, nullable=False)
+    total_gap: Mapped[float] = mapped_column(Float, nullable=False)
+    binding_constraints = mapped_column(FlexJSON, nullable=False)
+    slack_constraint_ids = mapped_column(FlexJSON, nullable=False)
+    enabler_recommendations = mapped_column(FlexJSON, nullable=False)
+    confidence_summary = mapped_column(FlexJSON, nullable=False)
+    satellite_coefficients_hash: Mapped[str] = mapped_column(String(100), nullable=False)
+    satellite_coefficients_snapshot = mapped_column(FlexJSON, nullable=False)
+    solver_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    solver_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    lp_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    fallback_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Depth Engine — Al-Muhasabi 5-step reasoning
+# ---------------------------------------------------------------------------
+
+
 class DepthPlanRow(Base):
     """Operational — status transitions through depth engine pipeline."""
 
