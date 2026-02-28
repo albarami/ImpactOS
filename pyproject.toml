@@ -61,6 +61,7 @@ dev = [
     "ruff>=0.2.0",
     "mypy>=1.8.0",
     "pre-commit>=3.6.0",
+    "fpdf2>=2.7.0",
 ]
 
 [tool.ruff]
