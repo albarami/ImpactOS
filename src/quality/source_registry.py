@@ -20,19 +20,7 @@ from src.models.common import (
     new_uuid7,
     utc_now,
 )
-from src.quality.models import SourceAge, SourceUpdateFrequency
-
-# ---------------------------------------------------------------------------
-# Frequency -> expected days mapping
-# ---------------------------------------------------------------------------
-
-_FREQUENCY_DAYS: dict[SourceUpdateFrequency, int] = {
-    SourceUpdateFrequency.QUARTERLY: 90,
-    SourceUpdateFrequency.ANNUAL: 365,
-    SourceUpdateFrequency.BIENNIAL: 730,
-    SourceUpdateFrequency.TRIENNIAL: 1095,
-    SourceUpdateFrequency.QUINQUENNIAL: 1825,
-}
+from src.quality.models import FREQUENCY_DAYS, SourceAge, SourceUpdateFrequency
 
 # ---------------------------------------------------------------------------
 # DataSource model
@@ -107,7 +95,7 @@ class SourceFreshnessRegistry:
         for source in self._sources.values():
             if source.expected_update_frequency == SourceUpdateFrequency.PER_ENGAGEMENT:
                 continue
-            expected_days = _FREQUENCY_DAYS.get(source.expected_update_frequency)
+            expected_days = FREQUENCY_DAYS.get(source.expected_update_frequency)
             if expected_days is None:
                 continue
             age_days = (as_of - source.last_updated).days

@@ -10,6 +10,7 @@ Deterministic -- no LLM calls.
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
 
 from src.quality.config import QualityScoringConfig
 from src.quality.models import (
@@ -38,9 +39,10 @@ class WarningEngine:
     def check_vintage(self, da: DimensionAssessment) -> list[QualityWarning]:
         """Check model vintage age and produce warnings.
 
-        * age >= 8 -> CRITICAL
-        * age >= 5 -> WARNING
-        * age < 5  -> no warning
+        Thresholds from config:
+        * age >= vintage_critical_age -> CRITICAL
+        * age >= vintage_warning_age  -> WARNING
+        * otherwise                   -> no warning
 
         Recommendation: update to a more recent IO table.
         """
@@ -48,7 +50,7 @@ class WarningEngine:
         age: int = int(da.inputs_used["age_years"])  # type: ignore[arg-type]
         recommendation = "Consider updating to a more recent IO table"
 
-        if age >= 8:
+        if age >= self._config.vintage_critical_age:
             warnings.append(
                 QualityWarning(
                     dimension=QualityDimension.VINTAGE,
@@ -57,7 +59,7 @@ class WarningEngine:
                     recommendation=recommendation,
                 )
             )
-        elif age >= 5:
+        elif age >= self._config.vintage_warning_age:
             warnings.append(
                 QualityWarning(
                     dimension=QualityDimension.VINTAGE,
@@ -72,20 +74,20 @@ class WarningEngine:
     def check_mapping(self, da: DimensionAssessment) -> list[QualityWarning]:
         """Check mapping quality and produce warnings.
 
-        Unresolved spend percentage thresholds:
-        * >5.0% -> WAIVER_REQUIRED
-        * >1.0% -> CRITICAL
-        * >0.0% -> WARNING
+        Unresolved spend percentage thresholds (from config):
+        * > mapping_spend_waiver_pct  -> WAIVER_REQUIRED
+        * > mapping_spend_critical_pct -> CRITICAL
+        * > 0.0%                       -> WARNING
 
-        Coverage check:
-        * coverage_pct < 0.8 -> WARNING
+        Coverage check (from config):
+        * coverage_pct < mapping_coverage_warning_pct -> WARNING
         """
         warnings: list[QualityWarning] = []
         unresolved_spend_pct: float = float(da.inputs_used["unresolved_spend_pct"])  # type: ignore[arg-type]
         coverage_pct: float = float(da.inputs_used["coverage_pct"])  # type: ignore[arg-type]
 
         # Spend-based warnings (mutually exclusive tiers).
-        if unresolved_spend_pct > 5.0:
+        if unresolved_spend_pct > self._config.mapping_spend_waiver_pct:
             warnings.append(
                 QualityWarning(
                     dimension=QualityDimension.MAPPING,
@@ -93,7 +95,7 @@ class WarningEngine:
                     message=f"Unresolved mapping covers {unresolved_spend_pct}% of spend",
                 )
             )
-        elif unresolved_spend_pct > 1.0:
+        elif unresolved_spend_pct > self._config.mapping_spend_critical_pct:
             warnings.append(
                 QualityWarning(
                     dimension=QualityDimension.MAPPING,
@@ -111,7 +113,7 @@ class WarningEngine:
             )
 
         # Coverage-based warning.
-        if coverage_pct < 0.8:
+        if coverage_pct < self._config.mapping_coverage_warning_pct:
             pct_display = coverage_pct * 100
             warnings.append(
                 QualityWarning(
@@ -249,15 +251,12 @@ class WarningEngine:
         ``da.dimension``, then runs ``check_nowcast``.
         """
         # Dimension -> check method routing table.
-        dispatch: dict[
-            QualityDimension,
-            type[object],
-        ] = {
-            QualityDimension.VINTAGE: self.check_vintage,  # type: ignore[dict-item]
-            QualityDimension.MAPPING: self.check_mapping,  # type: ignore[dict-item]
-            QualityDimension.ASSUMPTIONS: self.check_assumptions,  # type: ignore[dict-item]
-            QualityDimension.CONSTRAINTS: self.check_constraints,  # type: ignore[dict-item]
-            QualityDimension.FRESHNESS: self.check_freshness,  # type: ignore[dict-item]
+        dispatch: dict[QualityDimension, Callable[[DimensionAssessment], list[QualityWarning]]] = {
+            QualityDimension.VINTAGE: self.check_vintage,
+            QualityDimension.MAPPING: self.check_mapping,
+            QualityDimension.ASSUMPTIONS: self.check_assumptions,
+            QualityDimension.CONSTRAINTS: self.check_constraints,
+            QualityDimension.FRESHNESS: self.check_freshness,
         }
 
         all_warnings: list[QualityWarning] = []
@@ -265,7 +264,7 @@ class WarningEngine:
         for da in dimension_assessments:
             check_fn = dispatch.get(da.dimension)
             if check_fn is not None:
-                all_warnings.extend(check_fn(da))  # type: ignore[operator]
+                all_warnings.extend(check_fn(da))
 
         # Always run nowcast check.
         all_warnings.extend(self.check_nowcast(model_source))

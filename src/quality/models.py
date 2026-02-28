@@ -88,6 +88,16 @@ class SourceUpdateFrequency(StrEnum):
     PER_ENGAGEMENT = "PER_ENGAGEMENT"
 
 
+# Cadence mapping: SourceUpdateFrequency -> expected days between updates.
+FREQUENCY_DAYS: dict[SourceUpdateFrequency, int] = {
+    SourceUpdateFrequency.QUARTERLY: 90,
+    SourceUpdateFrequency.ANNUAL: 365,
+    SourceUpdateFrequency.BIENNIAL: 730,
+    SourceUpdateFrequency.TRIENNIAL: 1095,
+    SourceUpdateFrequency.QUINQUENNIAL: 1825,
+}
+
+
 # ---------------------------------------------------------------------------
 # Frozen dataclass
 # ---------------------------------------------------------------------------

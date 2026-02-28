@@ -65,3 +65,7 @@ class QualityScoringConfig(ImpactOSBase):
 
     mapping_spend_waiver_pct: float = 5.0
     mapping_spend_critical_pct: float = 1.0
+    mapping_coverage_warning_pct: float = 0.8
+
+    vintage_warning_age: int = 5
+    vintage_critical_age: int = 8
