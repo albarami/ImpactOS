@@ -105,6 +105,42 @@ _SOURCE_CATALOG: dict[str, dict] = {
         "metadata_key": None,
         "description": "Consumer price index and sector deflators",
     },
+    # D-4 workforce data sources
+    "gosi_employment": {
+        "label": "GOSI Employment Data",
+        "provider": "GOSI / DataSaudi",
+        "raw_dir": "data/curated",
+        "metadata_key": None,
+        "description": "Saudi vs non-Saudi employment counts by sector",
+    },
+    "nitaqat_rule_catalog": {
+        "label": "Nitaqat Rule Catalog",
+        "provider": "MHRSD",
+        "raw_dir": "data/curated",
+        "metadata_key": None,
+        "description": "Published Saudization rules (sector/profession quotas, counting rules)",
+    },
+    "nitaqat_macro_targets": {
+        "label": "Nitaqat Macro Targets",
+        "provider": "Derived from rule catalog",
+        "raw_dir": "data/curated",
+        "metadata_key": None,
+        "description": "Simplified sector-level Saudization targets for macro analysis",
+    },
+    "occupation_bridge": {
+        "label": "Occupation Bridge Matrix",
+        "provider": "Expert judgment / ILO",
+        "raw_dir": "data/curated",
+        "metadata_key": None,
+        "description": "Sector-to-occupation distribution (ISIC section x ISCO major group)",
+    },
+    "nationality_classification": {
+        "label": "Nationality Classification",
+        "provider": "Expert judgment",
+        "raw_dir": "data/curated",
+        "metadata_key": None,
+        "description": "Three-tier classification: Saudi-ready / trainable / expat-reliant",
+    },
 }
 
 

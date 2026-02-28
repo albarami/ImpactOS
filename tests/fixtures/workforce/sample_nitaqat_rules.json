@@ -1,0 +1,55 @@
+{
+  "effective_as_of": "2025-02-28",
+  "total_rules": 3,
+  "rules": [
+    {
+      "rule_id": "TEST-HOSPITAL",
+      "rule_type": "profession_quota",
+      "sector_code": "Q",
+      "profession": "Hospitals",
+      "description": "Hospitals must be 65% Saudi",
+      "value": 0.65,
+      "effective_date": "2025-04-01",
+      "expiry_date": null,
+      "phase": "phase_1",
+      "company_size_min": null,
+      "source": "test_source",
+      "source_url": null,
+      "source_confidence": "HARD",
+      "notes": null
+    },
+    {
+      "rule_id": "TEST-COUNT-DISABILITY",
+      "rule_type": "counting_rule",
+      "sector_code": null,
+      "profession": null,
+      "description": "Disability counts 4x",
+      "value": 4.0,
+      "effective_date": "2021-01-01",
+      "expiry_date": null,
+      "phase": null,
+      "company_size_min": null,
+      "source": "test_source",
+      "source_url": null,
+      "source_confidence": "HARD",
+      "notes": null
+    },
+    {
+      "rule_id": "TEST-ACCT-P1",
+      "rule_type": "profession_quota",
+      "sector_code": null,
+      "profession": "Accounting",
+      "description": "Accounting 40% Saudi",
+      "value": 0.40,
+      "effective_date": "2025-10-01",
+      "expiry_date": "2026-09-30",
+      "phase": "phase_1",
+      "company_size_min": 5,
+      "source": "test_source",
+      "source_url": null,
+      "source_confidence": "HARD",
+      "notes": null
+    }
+  ],
+  "metadata": {"note": "Test fixture"}
+}
