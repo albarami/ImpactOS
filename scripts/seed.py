@@ -6,17 +6,21 @@ Creates:
 3. Satellite coefficients (jobs, imports, value-added)
 4. Employment coefficients (direct jobs, indirect multiplier)
 5. A sample BoQ document with 12 realistic line items
+6. (--profile saudi20) A 20-sector Saudi IO model from curated JSON
 
 Idempotent: safe to run multiple times — skips if demo workspace already exists.
 
 Usage:
-    python -m scripts.seed          # against DATABASE_URL from .env
-    pytest tests/scripts/test_seed.py  # against aiosqlite in-memory
+    python -m scripts.seed                     # default 5-sector demo
+    python -m scripts.seed --profile saudi20   # 20-sector Saudi benchmark
+    pytest tests/scripts/test_seed.py          # against aiosqlite in-memory
 """
 
+import argparse
 import asyncio
 import hashlib
 import sys
+from pathlib import Path
 from uuid import UUID
 
 import numpy as np
@@ -281,31 +285,134 @@ async def seed_demo(session: AsyncSession) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# CLI entry point: python -m scripts.seed
+# D-1: 20-sector Saudi IO model seed
+# ---------------------------------------------------------------------------
+
+SAUDI20_DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "curated"
+SAUDI20_MODEL_FILE = "saudi_io_synthetic_v1.json"
+SAUDI20_ENGAGEMENT_CODE = "SG-SAUDI20-2026"
+
+
+async def seed_saudi20_model(
+    session: AsyncSession,
+) -> tuple[ModelVersionRow, ModelDataRow]:
+    """Register the 20-sector Saudi IO model from curated JSON.
+
+    Amendment 2: Uses canonical ModelStore.register() for validation,
+    same as the API endpoint POST /v1/engine/models.
+    """
+    from src.data.io_loader import load_from_json
+    from src.engine.model_store import ModelStore
+
+    model_path = SAUDI20_DATA_DIR / SAUDI20_MODEL_FILE
+    model_data = load_from_json(model_path)
+
+    # Amendment 2: Use canonical ModelStore.register() for validation
+    store = ModelStore()
+    mv = store.register(
+        Z=model_data.Z,
+        x=model_data.x,
+        sector_codes=model_data.sector_codes,
+        base_year=model_data.base_year,
+        source=model_data.source,
+    )
+
+    # Persist to DB (same as API endpoint does after ModelStore.register)
+    mv_repo = ModelVersionRepository(session)
+    md_repo = ModelDataRepository(session)
+
+    mv_row = await mv_repo.create(
+        model_version_id=mv.model_version_id,
+        base_year=mv.base_year,
+        source=mv.source,
+        sector_count=mv.sector_count,
+        checksum=mv.checksum,
+    )
+    md_row = await md_repo.create(
+        model_version_id=mv.model_version_id,
+        z_matrix_json=model_data.Z.tolist(),
+        x_vector_json=model_data.x.tolist(),
+        sector_codes=model_data.sector_codes,
+    )
+    return mv_row, md_row
+
+
+async def seed_saudi20_demo(session: AsyncSession) -> dict:
+    """Idempotent 20-sector Saudi model seed.
+
+    Keyed on engagement code SG-SAUDI20-2026.
+    """
+    result = await session.execute(
+        select(WorkspaceRow).where(
+            WorkspaceRow.engagement_code == SAUDI20_ENGAGEMENT_CODE,
+        ),
+    )
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        return {
+            "created": False,
+            "workspace_id": existing.workspace_id,
+            "model_version_id": None,
+        }
+
+    # Create workspace
+    ws_repo = WorkspaceRepository(session)
+    ws = await ws_repo.create(
+        workspace_id=uuid7(),
+        client_name="Strategic Gears (Saudi 20-Sector)",
+        engagement_code=SAUDI20_ENGAGEMENT_CODE,
+        classification="INTERNAL",
+        description="20-sector Saudi IO model workspace for demos and validation.",
+        created_by=uuid7(),
+    )
+
+    # Register 20-sector model
+    mv_row, _md = await seed_saudi20_model(session)
+
+    return {
+        "created": True,
+        "workspace_id": ws.workspace_id,
+        "model_version_id": mv_row.model_version_id,
+        "model_sector_count": mv_row.sector_count,
+    }
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point: python -m scripts.seed [--profile demo|saudi20]
 # ---------------------------------------------------------------------------
 
 
-async def _run_seed() -> None:
-    """Run the full seed against the real database (5-sector, idempotent)."""
+async def _run_seed(profile: str = "demo") -> None:
+    """Run the full seed against the real database."""
     from src.db.session import async_session_factory
 
     async with async_session_factory() as session:
-        result = await seed_demo(session)
+        if profile == "saudi20":
+            result = await seed_saudi20_demo(session)
+            label = "Saudi 20-sector"
+        else:
+            result = await seed_demo(session)
+            label = "5-sector demo"
 
         if not result["created"]:
-            print("Demo data already seeded (workspace SG-DEMO-2026 exists). Skipping.")
+            print(f"{label} data already seeded. Skipping.")
             print(f"  Workspace: {result['workspace_id']}")
             return
 
         await session.commit()
 
-        print("Seed complete.")
+        print(f"Seed complete ({label}).")
         print(f"  Workspace:    {result['workspace_id']}")
         print(f"  Model:        {result['model_version_id']}"
               f" ({result['model_sector_count']} sectors)")
-        print(f"  BoQ items:    {result['boq_item_count']}")
+        if "boq_item_count" in result:
+            print(f"  BoQ items:    {result['boq_item_count']}")
         print()
-        _print_summary()
+
+        if profile == "saudi20":
+            _print_saudi20_summary()
+        else:
+            _print_summary()
 
 
 def _print_summary() -> None:
@@ -313,7 +420,7 @@ def _print_summary() -> None:
     print("5-sector Saudi IO model:")
     print(f"  {'Sector':<12} {'Output (SAR B)':>15} {'Jobs coeff':>12}"
           f" {'Import %':>10} {'VA %':>8}")
-    print(f"  {'─' * 12} {'─' * 15} {'─' * 12} {'─' * 10} {'─' * 8}")
+    print(f"  {'-' * 12} {'-' * 15} {'-' * 12} {'-' * 10} {'-' * 8}")
     for i, code in enumerate(DEMO_SECTOR_CODES):
         jobs = DEMO_SATELLITE_COEFFICIENTS["jobs_coeff"][i]
         imp = DEMO_SATELLITE_COEFFICIENTS["import_ratio"][i]
@@ -324,8 +431,35 @@ def _print_summary() -> None:
     print(f"  {'TOTAL':<12} {total_output:>15,.1f}")
 
 
+def _print_saudi20_summary() -> None:
+    """Print multiplier summary for the 20-sector model."""
+    from src.data.io_loader import load_from_json, validate_model
+
+    model_path = SAUDI20_DATA_DIR / SAUDI20_MODEL_FILE
+    model_data = load_from_json(model_path)
+    result = validate_model(model_data.Z, model_data.x, model_data.sector_codes)
+
+    print("20-sector Saudi IO model (SYNTHETIC):")
+    print(f"  Spectral radius: {result.spectral_radius:.6f}")
+    print(f"  {'Sector':<6} {'Output (SAR M)':>15} {'Multiplier':>11} {'VA Ratio':>9}")
+    print(f"  {'-' * 6} {'-' * 15} {'-' * 11} {'-' * 9}")
+    for code in model_data.sector_codes:
+        idx = model_data.sector_codes.index(code)
+        mult = result.output_multipliers.get(code, 0.0)
+        va = result.va_ratios.get(code, 0.0)
+        print(f"  {code:<6} {model_data.x[idx]:>15,.0f} {mult:>11.4f} {va:>9.4f}")
+    print(f"  Total VA (~ GDP): SAR {result.total_value_added:,.0f}M")
+    print(f"  Total output:     SAR {result.total_output:,.0f}M")
+
+
 if __name__ == "__main__":
-    asyncio.run(_run_seed())
+    _parser = argparse.ArgumentParser(description="Seed ImpactOS database")
+    _parser.add_argument(
+        "--profile", default="demo", choices=["demo", "saudi20"],
+        help="Data profile to seed (default: demo)",
+    )
+    _args = _parser.parse_args()
+    asyncio.run(_run_seed(profile=_args.profile))
 
 
 def __getattr__(name: str):  # type: ignore[misc]

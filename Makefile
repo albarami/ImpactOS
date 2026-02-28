@@ -2,7 +2,7 @@
 # Run `make help` to see available targets.
 
 .DEFAULT_GOAL := help
-.PHONY: help up down nuke reset-db migrate seed serve test test-fast lint fmt restart-api logs logs-api
+.PHONY: help up down nuke reset-db migrate seed seed-saudi20 serve test test-fast lint fmt restart-api logs logs-api build-model validate-model
 
 # ---------------------------------------------------------------------------
 # Docker Compose — Full Stack
@@ -51,6 +51,15 @@ reset-db: ## Drop and recreate database (destroys all data)
 
 seed: ## Load 5-sector Saudi IO model + sample BoQ into database
 	docker compose exec api python -m scripts.seed
+
+seed-saudi20: ## Load 20-sector Saudi IO model into database
+	docker compose exec api python -m scripts.seed --profile saudi20
+
+build-model: ## Rebuild synthetic 20-sector model from assumptions
+	python -m scripts.build_synthetic_model
+
+validate-model: ## Validate synthetic model (data/curated/saudi_io_synthetic_v1.json)
+	python -m scripts.validate_model data/curated/saudi_io_synthetic_v1.json
 
 # ---------------------------------------------------------------------------
 # Development (host-based — for faster reload during coding)

@@ -1,0 +1,187 @@
+{
+  "classification": "ISIC_REV4_SECTION",
+  "version": "1.0",
+  "source": "UN Statistics Division — ISIC Rev.4 (2008)",
+  "sectors": [
+    {
+      "sector_code": "A",
+      "sector_name_en": "Agriculture, forestry and fishing",
+      "sector_name_ar": "\u0627\u0644\u0632\u0631\u0627\u0639\u0629 \u0648\u0627\u0644\u062d\u0631\u0627\u062c\u0629 \u0648\u0635\u064a\u062f \u0627\u0644\u0623\u0633\u0645\u0627\u0643",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Crop and animal production, forestry and logging, fishing and aquaculture"
+    },
+    {
+      "sector_code": "B",
+      "sector_name_en": "Mining and quarrying",
+      "sector_name_ar": "\u0627\u0644\u062a\u0639\u062f\u064a\u0646 \u0648\u0627\u0633\u062a\u063a\u0644\u0627\u0644 \u0627\u0644\u0645\u062d\u0627\u062c\u0631",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Mining of coal, crude petroleum and natural gas, metal ores, and other mining and quarrying"
+    },
+    {
+      "sector_code": "C",
+      "sector_name_en": "Manufacturing",
+      "sector_name_ar": "\u0627\u0644\u0635\u0646\u0627\u0639\u0629 \u0627\u0644\u062a\u062d\u0648\u064a\u0644\u064a\u0629",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Manufacture of food, textiles, chemicals, metals, machinery, electronics, and other products"
+    },
+    {
+      "sector_code": "D",
+      "sector_name_en": "Electricity, gas, steam and air conditioning supply",
+      "sector_name_ar": "\u0625\u0645\u062f\u0627\u062f\u0627\u062a \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0621 \u0648\u0627\u0644\u063a\u0627\u0632 \u0648\u0627\u0644\u0628\u062e\u0627\u0631 \u0648\u062a\u0643\u064a\u064a\u0641 \u0627\u0644\u0647\u0648\u0627\u0621",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Electric power generation, transmission and distribution; gas, steam and hot water supply"
+    },
+    {
+      "sector_code": "E",
+      "sector_name_en": "Water supply; sewerage, waste management and remediation",
+      "sector_name_ar": "\u0625\u0645\u062f\u0627\u062f\u0627\u062a \u0627\u0644\u0645\u064a\u0627\u0647 \u0648\u0627\u0644\u0635\u0631\u0641 \u0627\u0644\u0635\u062d\u064a \u0648\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0646\u0641\u0627\u064a\u0627\u062a",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Water collection, treatment and supply; sewerage; waste collection, treatment and disposal"
+    },
+    {
+      "sector_code": "F",
+      "sector_name_en": "Construction",
+      "sector_name_ar": "\u0627\u0644\u062a\u0634\u064a\u064a\u062f",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Construction of buildings, civil engineering, specialized construction activities"
+    },
+    {
+      "sector_code": "G",
+      "sector_name_en": "Wholesale and retail trade; repair of motor vehicles",
+      "sector_name_ar": "\u062a\u062c\u0627\u0631\u0629 \u0627\u0644\u062c\u0645\u0644\u0629 \u0648\u0627\u0644\u062a\u062c\u0632\u0626\u0629 \u0648\u0625\u0635\u0644\u0627\u062d \u0627\u0644\u0645\u0631\u0643\u0628\u0627\u062a",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Wholesale and retail trade, repair of motor vehicles and motorcycles"
+    },
+    {
+      "sector_code": "H",
+      "sector_name_en": "Transportation and storage",
+      "sector_name_ar": "\u0627\u0644\u0646\u0642\u0644 \u0648\u0627\u0644\u062a\u062e\u0632\u064a\u0646",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Land transport, water transport, air transport, warehousing, postal and courier"
+    },
+    {
+      "sector_code": "I",
+      "sector_name_en": "Accommodation and food service activities",
+      "sector_name_ar": "\u0623\u0646\u0634\u0637\u0629 \u0627\u0644\u0625\u0642\u0627\u0645\u0629 \u0648\u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u063a\u0630\u0627\u0626\u064a\u0629",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Short-term accommodation; food and beverage service activities"
+    },
+    {
+      "sector_code": "J",
+      "sector_name_en": "Information and communication",
+      "sector_name_ar": "\u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0648\u0627\u0644\u0627\u062a\u0635\u0627\u0644\u0627\u062a",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Publishing, broadcasting, telecommunications, IT services, information services"
+    },
+    {
+      "sector_code": "K",
+      "sector_name_en": "Financial and insurance activities",
+      "sector_name_ar": "\u0627\u0644\u0623\u0646\u0634\u0637\u0629 \u0627\u0644\u0645\u0627\u0644\u064a\u0629 \u0648\u0627\u0644\u062a\u0623\u0645\u064a\u0646\u064a\u0629",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Financial service activities, insurance, pension funding, auxiliary financial services"
+    },
+    {
+      "sector_code": "L",
+      "sector_name_en": "Real estate activities",
+      "sector_name_ar": "\u0627\u0644\u0623\u0646\u0634\u0637\u0629 \u0627\u0644\u0639\u0642\u0627\u0631\u064a\u0629",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Real estate activities with own or leased property, on a fee or contract basis"
+    },
+    {
+      "sector_code": "M",
+      "sector_name_en": "Professional, scientific and technical activities",
+      "sector_name_ar": "\u0627\u0644\u0623\u0646\u0634\u0637\u0629 \u0627\u0644\u0645\u0647\u0646\u064a\u0629 \u0648\u0627\u0644\u0639\u0644\u0645\u064a\u0629 \u0648\u0627\u0644\u062a\u0642\u0646\u064a\u0629",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Legal, accounting, management consulting, architecture, engineering, R&D, advertising"
+    },
+    {
+      "sector_code": "N",
+      "sector_name_en": "Administrative and support service activities",
+      "sector_name_ar": "\u0623\u0646\u0634\u0637\u0629 \u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u0625\u062f\u0627\u0631\u064a\u0629 \u0648\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u062f\u0639\u0645",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Rental and leasing, employment activities, travel agencies, security, cleaning, office support"
+    },
+    {
+      "sector_code": "O",
+      "sector_name_en": "Public administration and defence; compulsory social security",
+      "sector_name_ar": "\u0627\u0644\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0639\u0627\u0645\u0629 \u0648\u0627\u0644\u062f\u0641\u0627\u0639 \u0648\u0627\u0644\u0636\u0645\u0627\u0646 \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639\u064a",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Administration of the state, provision of services to the community, compulsory social security"
+    },
+    {
+      "sector_code": "P",
+      "sector_name_en": "Education",
+      "sector_name_ar": "\u0627\u0644\u062a\u0639\u0644\u064a\u0645",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Pre-primary, primary, secondary, higher education, other education, educational support"
+    },
+    {
+      "sector_code": "Q",
+      "sector_name_en": "Human health and social work activities",
+      "sector_name_ar": "\u0623\u0646\u0634\u0637\u0629 \u0627\u0644\u0635\u062d\u0629 \u0627\u0644\u0628\u0634\u0631\u064a\u0629 \u0648\u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639\u064a",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Human health activities, residential care, social work without accommodation"
+    },
+    {
+      "sector_code": "R",
+      "sector_name_en": "Arts, entertainment and recreation",
+      "sector_name_ar": "\u0627\u0644\u0641\u0646\u0648\u0646 \u0648\u0627\u0644\u062a\u0631\u0641\u064a\u0647 \u0648\u0627\u0644\u062a\u0633\u0644\u064a\u0629",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Creative, arts and entertainment, libraries, museums, gambling, sports, amusement"
+    },
+    {
+      "sector_code": "S",
+      "sector_name_en": "Other service activities",
+      "sector_name_ar": "\u0623\u0646\u0634\u0637\u0629 \u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u0623\u062e\u0631\u0649",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Activities of membership organizations, repair of goods, other personal services"
+    },
+    {
+      "sector_code": "T",
+      "sector_name_en": "Activities of households as employers",
+      "sector_name_ar": "\u0623\u0646\u0634\u0637\u0629 \u0627\u0644\u0623\u0633\u0631 \u0627\u0644\u0645\u0639\u064a\u0634\u064a\u0629 \u0628\u0648\u0635\u0641\u0647\u0627 \u062c\u0647\u0627\u062a \u0645\u0648\u0638\u0641\u0629",
+      "level": "section",
+      "parent_sector_code": null,
+      "is_active": true,
+      "description": "Activities of households as employers of domestic personnel (drivers, maids, cooks, etc.)"
+    }
+  ]
+}
