@@ -1,0 +1,64 @@
+{
+  "dataSets": [
+    {
+      "series": {
+        "0:0:0:0": {
+          "observations": {
+            "0": [13500.0],
+            "1": [14200.0],
+            "2": [14800.0]
+          }
+        },
+        "0:0:0:1": {
+          "observations": {
+            "0": [350.0],
+            "1": [360.0],
+            "2": [370.0]
+          }
+        },
+        "0:0:0:2": {
+          "observations": {
+            "0": [2100.0],
+            "1": [2200.0],
+            "2": [2350.0]
+          }
+        },
+        "0:0:0:3": {
+          "observations": {
+            "0": [1800.0],
+            "1": [1900.0],
+            "2": [2050.0]
+          }
+        }
+      }
+    }
+  ],
+  "structure": {
+    "dimensions": {
+      "series": [
+        {"id": "REF_AREA", "values": [{"id": "SAU", "name": "Saudi Arabia"}]},
+        {"id": "SOURCE", "values": [{"id": "BA", "name": "Labour force survey"}]},
+        {"id": "SEX", "values": [{"id": "SEX_T", "name": "Total"}]},
+        {
+          "id": "CLASSIF1",
+          "values": [
+            {"id": "ECO_ISIC4_TOTAL", "name": "Total"},
+            {"id": "ECO_ISIC4_A", "name": "Agriculture; forestry and fishing"},
+            {"id": "ECO_ISIC4_B", "name": "Mining and quarrying"},
+            {"id": "ECO_ISIC4_C", "name": "Manufacturing"}
+          ]
+        }
+      ],
+      "observation": [
+        {
+          "id": "TIME_PERIOD",
+          "values": [
+            {"id": "2021", "name": "2021"},
+            {"id": "2022", "name": "2022"},
+            {"id": "2023", "name": "2023"}
+          ]
+        }
+      ]
+    }
+  }
+}
