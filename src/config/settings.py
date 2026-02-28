@@ -91,6 +91,38 @@ class Settings(BaseSettings):
         description="Local path for dev, S3 URI for prod.",
     )
 
+    # --- MinIO (S3-compatible) ---
+    MINIO_ENDPOINT: str = Field(
+        default="localhost:9000",
+        description="MinIO server endpoint (host:port).",
+    )
+    MINIO_ACCESS_KEY: str = Field(
+        default="impactos",
+        description="MinIO access key.",
+    )
+    MINIO_SECRET_KEY: str = Field(
+        default="impactos-secret",
+        description="MinIO secret key.",
+    )
+    MINIO_BUCKET: str = Field(
+        default="impactos-data",
+        description="Default MinIO bucket name.",
+    )
+    MINIO_USE_SSL: bool = Field(
+        default=False,
+        description="Use SSL for MinIO connections.",
+    )
+
+    # --- Security ---
+    SECRET_KEY: str = Field(
+        default="dev-secret-change-in-production",
+        description="Application secret key for signing tokens.",
+    )
+    ALLOWED_ORIGINS: str = Field(
+        default="http://localhost:3000",
+        description="Comma-separated CORS allowed origins.",
+    )
+
     # --- Logging ---
     LOG_LEVEL: LogLevel = Field(
         default=LogLevel.INFO,

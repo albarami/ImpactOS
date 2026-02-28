@@ -1,0 +1,50 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing & Quality
+tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Documentation
+docs/
+
+# Node (frontend — Phase 2+)
+node_modules/
+
+# Local uploads & data
+uploads/
+
+# Claude / AI tooling
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db

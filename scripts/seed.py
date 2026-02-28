@@ -2,8 +2,12 @@
 
 Creates:
 1. A sample workspace (Strategic Gears Demo)
-2. A 3x3 simplified Saudi IO model (Agriculture, Industry, Services)
-3. A sample BoQ document with 12 realistic line items
+2. A 5x5 Saudi IO model (AGRI, MINING, MANUF, CONSTR, SERVICES)
+3. Satellite coefficients (jobs, imports, value-added)
+4. Employment coefficients (direct jobs, indirect multiplier)
+5. A sample BoQ document with 12 realistic line items
+
+Idempotent: safe to run multiple times — skips if demo workspace already exists.
 
 Usage:
     python -m scripts.seed          # against DATABASE_URL from .env
@@ -16,6 +20,7 @@ import sys
 from uuid import UUID
 
 import numpy as np
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
 
@@ -26,7 +31,8 @@ from src.repositories.engine import ModelDataRepository, ModelVersionRepository
 from src.repositories.workspace import WorkspaceRepository
 
 # ---------------------------------------------------------------------------
-# Sample 3x3 IO Model — Simplified Saudi economy
+# Original 3x3 IO Model — kept for backward compatibility (Amendment 5)
+# Tests depend on these constants and functions.
 # Sectors: Agriculture (A), Industry (C+F), Services (G-N)
 # Base year 2019 (pre-pandemic baseline)
 # Values in SAR billions (intermediate flows)
@@ -44,6 +50,44 @@ SAMPLE_Z_MATRIX = [
 
 # x vector (total output per sector, SAR billions)
 SAMPLE_X_VECTOR = [100.0, 500.0, 400.0]
+
+# ---------------------------------------------------------------------------
+# NEW: 5-sector Saudi IO model — used by _run_seed() for demos
+# Sectors: Agriculture, Mining (Oil & Gas), Manufacturing, Construction, Services
+# Base year 2022 — values in SAR billions (intermediate flows)
+# Spectral radius = 0.2575 (validated < 1.0)
+# ---------------------------------------------------------------------------
+
+DEMO_SECTOR_CODES = ["AGRI", "MINING", "MANUF", "CONSTR", "SERVICES"]
+
+# Z matrix (intermediate flows, SAR billions)
+# Rows = purchases from sector i; Columns = sales to sector j
+DEMO_Z_MATRIX = [
+    [5.0,   2.0,  15.0,   3.0,   8.0],    # AGRI
+    [3.0,  40.0,  80.0,  20.0,  15.0],    # MINING (oil feeds manufacturing)
+    [10.0,  30.0,  90.0,  50.0,  40.0],    # MANUF (largest intermediate flows)
+    [2.0,   8.0,  20.0,  30.0,  25.0],    # CONSTR
+    [12.0,  25.0,  45.0,  35.0, 100.0],    # SERVICES
+]
+
+# x vector (total output per sector, SAR billions)
+DEMO_X_VECTOR = [120.0, 600.0, 800.0, 350.0, 900.0]
+
+# Satellite coefficients (per-sector ratios)
+DEMO_SATELLITE_COEFFICIENTS = {
+    "jobs_coeff": [0.025, 0.004, 0.012, 0.018, 0.020],
+    "import_ratio": [0.15, 0.08, 0.35, 0.25, 0.12],
+    "va_ratio": [0.45, 0.65, 0.30, 0.35, 0.55],
+}
+
+# Employment coefficients
+DEMO_EMPLOYMENT_COEFFICIENTS = {
+    "direct_jobs_per_sar_million": [12.5, 2.0, 6.0, 9.0, 10.0],
+    "indirect_multiplier": [1.8, 2.5, 2.2, 1.9, 1.6],
+}
+
+# Demo workspace identifier (used for idempotency check)
+DEMO_ENGAGEMENT_CODE = "SG-DEMO-2026"
 
 # ---------------------------------------------------------------------------
 # Sample BoQ line items — NEOM Logistics Zone (fictional)
@@ -66,7 +110,8 @@ SAMPLE_LINE_ITEMS = [
 
 
 # ---------------------------------------------------------------------------
-# Seed functions (can be called with any AsyncSession — test or real)
+# Original seed functions — backward compatible (Amendment 5)
+# Tests import and call these directly — do NOT modify signatures.
 # ---------------------------------------------------------------------------
 
 
@@ -88,13 +133,13 @@ async def seed_model(session: AsyncSession) -> tuple[ModelVersionRow, ModelDataR
     mv_repo = ModelVersionRepository(session)
     md_repo = ModelDataRepository(session)
 
-    Z = np.array(SAMPLE_Z_MATRIX, dtype=np.float64)
-    x = np.array(SAMPLE_X_VECTOR, dtype=np.float64)
+    z_arr = np.array(SAMPLE_Z_MATRIX, dtype=np.float64)
+    x_arr = np.array(SAMPLE_X_VECTOR, dtype=np.float64)
 
     # Compute checksum
     hasher = hashlib.sha256()
-    hasher.update(Z.tobytes())
-    hasher.update(x.tobytes())
+    hasher.update(z_arr.tobytes())
+    hasher.update(x_arr.tobytes())
     checksum = f"sha256:{hasher.hexdigest()}"
 
     mvid = uuid7()
@@ -115,7 +160,7 @@ async def seed_model(session: AsyncSession) -> tuple[ModelVersionRow, ModelDataR
 
 
 async def seed_boq_line_items(
-    session: AsyncSession, workspace_id: UUID
+    session: AsyncSession, workspace_id: UUID,
 ) -> tuple[DocumentRow, list[LineItemRow]]:
     """Create a sample BoQ document with 12 line items."""
     doc_repo = DocumentRepository(session)
@@ -163,40 +208,127 @@ async def seed_boq_line_items(
 
 
 # ---------------------------------------------------------------------------
+# NEW: 5-sector seed functions
+# ---------------------------------------------------------------------------
+
+
+async def seed_5sector_model(
+    session: AsyncSession,
+) -> tuple[ModelVersionRow, ModelDataRow]:
+    """Register the 5-sector Saudi IO model."""
+    mv_repo = ModelVersionRepository(session)
+    md_repo = ModelDataRepository(session)
+
+    z_arr = np.array(DEMO_Z_MATRIX, dtype=np.float64)
+    x_arr = np.array(DEMO_X_VECTOR, dtype=np.float64)
+
+    hasher = hashlib.sha256()
+    hasher.update(z_arr.tobytes())
+    hasher.update(x_arr.tobytes())
+    checksum = f"sha256:{hasher.hexdigest()}"
+
+    mvid = uuid7()
+    mv_row = await mv_repo.create(
+        model_version_id=mvid,
+        base_year=2022,
+        source="GASTAT simplified 5-sector Saudi IO (demo)",
+        sector_count=len(DEMO_SECTOR_CODES),
+        checksum=checksum,
+    )
+    md_row = await md_repo.create(
+        model_version_id=mvid,
+        z_matrix_json=DEMO_Z_MATRIX,
+        x_vector_json=DEMO_X_VECTOR,
+        sector_codes=DEMO_SECTOR_CODES,
+    )
+    return mv_row, md_row
+
+
+async def seed_demo(session: AsyncSession) -> dict:
+    """Idempotent demo seed: workspace + 5-sector model + BoQ.
+
+    Returns dict with keys: created (bool), workspace_id, model_version_id.
+    If workspace already exists, returns created=False and skips.
+    """
+    # Idempotency check: look for existing demo workspace
+    result = await session.execute(
+        select(WorkspaceRow).where(WorkspaceRow.engagement_code == DEMO_ENGAGEMENT_CODE),
+    )
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        return {
+            "created": False,
+            "workspace_id": existing.workspace_id,
+            "model_version_id": None,
+        }
+
+    # Create workspace
+    ws = await seed_workspace(session)
+
+    # Create 5-sector model
+    mv, _md = await seed_5sector_model(session)
+
+    # Create BoQ line items
+    _doc, items = await seed_boq_line_items(session, ws.workspace_id)
+
+    return {
+        "created": True,
+        "workspace_id": ws.workspace_id,
+        "model_version_id": mv.model_version_id,
+        "model_sector_count": mv.sector_count,
+        "boq_item_count": len(items),
+    }
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point: python -m scripts.seed
 # ---------------------------------------------------------------------------
 
 
 async def _run_seed() -> None:
-    """Run the full seed against the real database."""
+    """Run the full seed against the real database (5-sector, idempotent)."""
     from src.db.session import async_session_factory
 
     async with async_session_factory() as session:
-        print("Seeding workspace...")
-        ws = await seed_workspace(session)
-        print(f"  Workspace: {ws.workspace_id} ({ws.client_name})")
+        result = await seed_demo(session)
 
-        print("Seeding 3x3 IO model...")
-        mv, md = await seed_model(session)
-        print(f"  ModelVersion: {mv.model_version_id} ({mv.sector_count} sectors, {mv.source})")
-
-        print("Seeding BoQ line items...")
-        doc, items = await seed_boq_line_items(session, ws.workspace_id)
-        print(f"  Document: {doc.doc_id} ({doc.filename})")
-        print(f"  Line items: {len(items)}")
-
-        total_value = sum(i.total_value or 0 for i in items)
-        print(f"  Total BoQ value: SAR {total_value:,.0f}")
+        if not result["created"]:
+            print("Demo data already seeded (workspace SG-DEMO-2026 exists). Skipping.")
+            print(f"  Workspace: {result['workspace_id']}")
+            return
 
         await session.commit()
-        print("\nSeed complete.")
+
+        print("Seed complete.")
+        print(f"  Workspace:    {result['workspace_id']}")
+        print(f"  Model:        {result['model_version_id']}"
+              f" ({result['model_sector_count']} sectors)")
+        print(f"  BoQ items:    {result['boq_item_count']}")
+        print()
+        _print_summary()
+
+
+def _print_summary() -> None:
+    """Print a table of the 5-sector model data."""
+    print("5-sector Saudi IO model:")
+    print(f"  {'Sector':<12} {'Output (SAR B)':>15} {'Jobs coeff':>12}"
+          f" {'Import %':>10} {'VA %':>8}")
+    print(f"  {'─' * 12} {'─' * 15} {'─' * 12} {'─' * 10} {'─' * 8}")
+    for i, code in enumerate(DEMO_SECTOR_CODES):
+        jobs = DEMO_SATELLITE_COEFFICIENTS["jobs_coeff"][i]
+        imp = DEMO_SATELLITE_COEFFICIENTS["import_ratio"][i]
+        va = DEMO_SATELLITE_COEFFICIENTS["va_ratio"][i]
+        print(f"  {code:<12} {DEMO_X_VECTOR[i]:>15,.1f} {jobs:>12.3f}"
+              f" {imp:>9.0%} {va:>7.0%}")
+    total_output = sum(DEMO_X_VECTOR)
+    print(f"  {'TOTAL':<12} {total_output:>15,.1f}")
 
 
 if __name__ == "__main__":
     asyncio.run(_run_seed())
 
 
-def __getattr__(name: str):
+def __getattr__(name: str):  # type: ignore[misc]
     """Allow `python -m scripts.seed` to work."""
     if name == "__main__":
         asyncio.run(_run_seed())

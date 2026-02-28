@@ -2,20 +2,43 @@
 # Run `make help` to see available targets.
 
 .DEFAULT_GOAL := help
-.PHONY: help up down reset-db migrate seed test lint fmt serve
+.PHONY: help up down nuke reset-db migrate seed serve test test-fast lint fmt restart-api logs logs-api
 
 # ---------------------------------------------------------------------------
-# Docker Compose
+# Docker Compose — Full Stack
 # ---------------------------------------------------------------------------
 
-up: ## Start Docker stack (Postgres, Redis, MinIO)
-	docker compose up -d
-	@echo "Waiting for services..."
-	@docker compose exec postgres pg_isready -U impactos -q && echo "Postgres ready" || echo "Postgres not ready yet"
-	@echo "Stack running. Postgres :5432  Redis :6379  MinIO :9000 (console :9001)"
+up: ## Start full stack + run migrations (one command)
+	docker compose up -d --build
+	@echo "Waiting for API to be healthy..."
+	@timeout=60; while [ $$timeout -gt 0 ]; do \
+		docker compose exec api python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" 2>/dev/null && break; \
+		sleep 2; timeout=$$((timeout - 2)); \
+	done
+	@docker compose exec api alembic upgrade head
+	@echo ""
+	@echo "Stack ready:"
+	@echo "  API:          http://localhost:8000/docs"
+	@echo "  MinIO:        http://localhost:9001  (impactos / impactos-secret)"
+	@echo "  Postgres:     localhost:5432"
+	@echo "  Redis:        localhost:6379"
 
-down: ## Stop Docker stack
+down: ## Stop Docker stack (keep volumes)
 	docker compose down
+
+nuke: ## Stop stack AND destroy all data volumes
+	docker compose down -v
+	@echo "All volumes destroyed. Run 'make up' to rebuild from scratch."
+
+restart-api: ## Restart API container only (fast reload)
+	docker compose restart api
+
+# ---------------------------------------------------------------------------
+# Database Migrations
+# ---------------------------------------------------------------------------
+
+migrate: ## Run alembic upgrade head (in API container)
+	docker compose exec api alembic upgrade head
 
 reset-db: ## Drop and recreate database (destroys all data)
 	docker compose exec postgres dropdb -U impactos --if-exists impactos
@@ -23,28 +46,24 @@ reset-db: ## Drop and recreate database (destroys all data)
 	@echo "Database reset. Run 'make migrate' to recreate tables."
 
 # ---------------------------------------------------------------------------
-# Database Migrations
-# ---------------------------------------------------------------------------
-
-migrate: ## Run alembic upgrade head
-	python -m alembic upgrade head
-
-# ---------------------------------------------------------------------------
 # Seed Data
 # ---------------------------------------------------------------------------
 
-seed: ## Load sample 3x3 IO model + sample BoQ into database
-	python -m scripts.seed
+seed: ## Load 5-sector Saudi IO model + sample BoQ into database
+	docker compose exec api python -m scripts.seed
 
 # ---------------------------------------------------------------------------
-# Development
+# Development (host-based — for faster reload during coding)
 # ---------------------------------------------------------------------------
 
-serve: ## Start FastAPI dev server on :8000
+serve: ## Start FastAPI dev server on :8000 (host, not Docker)
 	uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 
 test: ## Run pytest (uses aiosqlite — no Docker needed)
 	python -m pytest tests/
+
+test-fast: ## Run pytest, stop on first failure
+	python -m pytest tests/ -x -q
 
 lint: ## Run ruff check + mypy
 	ruff check src/ tests/
@@ -53,6 +72,16 @@ lint: ## Run ruff check + mypy
 fmt: ## Auto-format with ruff
 	ruff check --fix src/ tests/
 	ruff format src/ tests/
+
+# ---------------------------------------------------------------------------
+# Logs
+# ---------------------------------------------------------------------------
+
+logs: ## Tail all container logs
+	docker compose logs -f
+
+logs-api: ## Tail API container logs
+	docker compose logs -f api
 
 # ---------------------------------------------------------------------------
 # Help
