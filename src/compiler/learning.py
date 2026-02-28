@@ -8,7 +8,9 @@ Analyst overrides are training signals — used to improve mapping
 suggestions in later engagements.
 """
 
-from collections import defaultdict
+from __future__ import annotations
+
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from uuid import UUID
 
@@ -16,6 +18,7 @@ from pydantic import BaseModel, Field
 from uuid_extensions import uuid7
 
 from src.models.common import utc_now
+from src.models.mapping import MappingLibraryEntry
 
 
 # ---------------------------------------------------------------------------
@@ -150,3 +153,111 @@ class LearningLoop:
                 incorrect=total - correct,
             )
         return result
+
+    # ----- Flywheel integration (Task 6) -----
+
+    def extract_new_patterns(
+        self,
+        overrides: list[OverridePair],
+        existing_library: list[MappingLibraryEntry],
+        min_frequency: int = 2,
+    ) -> list[MappingLibraryEntry]:
+        """Extract new mapping patterns from analyst overrides.
+
+        Logic:
+        - Group overrides by final_sector_code
+        - For each group, use the most common line_item_text as the pattern
+        - Patterns appearing >= min_frequency become new entries
+        - Confidence = fraction of correct suggestions in that group
+        - New entries must NOT duplicate existing library entries
+          (check by pattern text + sector_code)
+        """
+        if not overrides:
+            return []
+
+        # Build set of existing (pattern, sector_code) for dedup
+        existing_keys: set[tuple[str, str]] = {
+            (e.pattern, e.sector_code) for e in existing_library
+        }
+
+        # Group overrides by final_sector_code
+        by_sector: dict[str, list[OverridePair]] = defaultdict(list)
+        for ovr in overrides:
+            by_sector[ovr.final_sector_code].append(ovr)
+
+        new_entries: list[MappingLibraryEntry] = []
+        for sector_code, group in by_sector.items():
+            if len(group) < min_frequency:
+                continue
+
+            # Most common line_item_text as the pattern
+            text_counts: Counter[str] = Counter(ovr.line_item_text for ovr in group)
+            most_common_text, _count = text_counts.most_common(1)[0]
+
+            # Skip if this (pattern, sector) already exists
+            if (most_common_text, sector_code) in existing_keys:
+                continue
+
+            # Confidence = fraction of correct suggestions in this group
+            correct = sum(1 for ovr in group if ovr.was_correct)
+            confidence = correct / len(group)
+
+            new_entries.append(
+                MappingLibraryEntry(
+                    pattern=most_common_text,
+                    sector_code=sector_code,
+                    confidence=confidence,
+                )
+            )
+
+        return new_entries
+
+    def update_confidence_scores(
+        self,
+        overrides: list[OverridePair],
+        existing_entries: list[MappingLibraryEntry],
+    ) -> list[MappingLibraryEntry]:
+        """Update confidence scores for existing patterns based on override accuracy.
+
+        For each existing entry:
+        - Find overrides where the suggestion matched this entry's sector_code
+        - If >= 1 relevant override: new_confidence = (old_confidence + override_accuracy) / 2
+        - If no relevant overrides: keep original confidence
+        - Return NEW list of entries (don't modify originals)
+        """
+        # Group overrides by suggested_sector_code for fast lookup
+        by_suggested: dict[str, list[OverridePair]] = defaultdict(list)
+        for ovr in overrides:
+            by_suggested[ovr.suggested_sector_code].append(ovr)
+
+        updated: list[MappingLibraryEntry] = []
+        for entry in existing_entries:
+            relevant = by_suggested.get(entry.sector_code, [])
+            if relevant:
+                correct = sum(1 for ovr in relevant if ovr.was_correct)
+                override_accuracy = correct / len(relevant)
+                new_confidence = (entry.confidence + override_accuracy) / 2.0
+                updated.append(
+                    MappingLibraryEntry(
+                        entry_id=entry.entry_id,
+                        pattern=entry.pattern,
+                        sector_code=entry.sector_code,
+                        confidence=new_confidence,
+                        usage_count=entry.usage_count,
+                        created_at=entry.created_at,
+                    )
+                )
+            else:
+                # No relevant overrides, copy with same values (new object)
+                updated.append(
+                    MappingLibraryEntry(
+                        entry_id=entry.entry_id,
+                        pattern=entry.pattern,
+                        sector_code=entry.sector_code,
+                        confidence=entry.confidence,
+                        usage_count=entry.usage_count,
+                        created_at=entry.created_at,
+                    )
+                )
+
+        return updated
