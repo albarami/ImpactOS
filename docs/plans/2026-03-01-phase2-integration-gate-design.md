@@ -26,6 +26,7 @@ Prove that all Phase 2 modules work together as an integrated system. MVP-14 pro
 | Core: BatchRunner | `src/engine/batch.py` | `BatchRunner.run(request) -> BatchResult` |
 | Core: RAS | `src/engine/ras.py` | `RASBalancer.balance() -> RASResult` |
 | MVP-8: Compiler | `src/compiler/scenario_compiler.py` | `ScenarioCompiler.compile(CompilationInput) -> ScenarioSpec` |
+| MVP-8: Mapping Agent | `src/compiler/mapping_agent.py` | `MappingSuggestionAgent.suggest_batch(items, taxonomy) -> list[MappingSuggestion]` |
 | MVP-9: Depth Engine | `src/agents/depth/orchestrator.py` | `DepthOrchestrator.run(plan_id, ...)` (async, uses LLM) |
 | MVP-10: Constraints | `src/engine/constraints/solver.py` | `FeasibilitySolver.solve(...) -> FeasibilityResult` |
 | MVP-11: Workforce | `src/engine/workforce_satellite/satellite.py` | `WorkforceSatellite.analyze(...) -> WorkforceResult` |
@@ -39,7 +40,7 @@ Prove that all Phase 2 modules work together as an integrated system. MVP-14 pro
 
 The xenodochial merge brought API-level integration tests in `tests/integration/`:
 
-- `test_full_pipeline.py` — Register → Run → Feasibility → Workforce → Quality → Export (via HTTP)
+- `test_full_pipeline.py` — Register -> Run -> Feasibility -> Workforce -> Quality -> Export (via HTTP)
 - `test_phase2_gate.py` — Phase 2 gate checks via API
 - `test_depth_engine.py` — Depth engine plan creation + disclosure tiers
 - `test_governance_chain.py` — Governance chain via API
@@ -63,69 +64,93 @@ MVP-14 tests call Python classes directly (not via HTTP). This:
 
 ```
 Path 1: Core Engine
-  IOModelData → ModelStore.register → LoadedModel →
-  LeontiefSolver.solve → SolveResult (delta_x) →
-  SatelliteAccounts.compute → SatelliteResult →
-  FeasibilitySolver.solve → FeasibilityResult
+  IOModelData (20-sector ISIC A-T via load_real_saudi_io()) ->
+  ModelStore.register -> LoadedModel ->
+  LeontiefSolver.solve -> SolveResult (delta_x) ->
+  SatelliteAccounts.compute -> SatelliteResult ->
+  FeasibilitySolver.solve -> FeasibilityResult
 
-Path 2: Compiler → Engine
-  BoQ line items + MappingDecisions →
-  ScenarioCompiler.compile → ScenarioSpec →
-  Extract delta_d → LeontiefSolver.solve
+Path 2: Compiler -> Engine
+  BoQ line items + MappingSuggestionAgent.suggest_batch(items, taxonomy) ->
+  ScenarioCompiler.compile -> ScenarioSpec ->
+  Extract delta_d -> LeontiefSolver.solve
 
-Path 3: Engine → Workforce
-  SatelliteResult (delta_jobs) →
-  WorkforceSatellite.analyze → WorkforceResult
-  (occupation decomposition → nationality splits → Nitaqat)
+Path 3: Engine -> Workforce
+  SatelliteResult (delta_jobs) ->
+  WorkforceSatellite.analyze -> WorkforceResult
+  (occupation decomposition -> nationality splits -> Nitaqat)
 
 Path 4: Depth Engine (upstream, Amendment 2)
-  DepthOrchestrator.run → DepthPlan + artifacts
+  DepthOrchestrator.run -> DepthPlan + artifacts
   (produces suite plans; does NOT consume engine results as primary mode)
-  Mock LLM for deterministic testing.
+  Mock LLM returns step-specific typed outputs for deterministic testing.
 
 Path 5: Flywheel Learning Loop
-  Analyst override → LearningLoop.record_override →
-  extract_new_patterns → MappingLibraryManager.build_draft →
-  FlywheelPublicationService.publish_new_cycle → new versions
+  Analyst override -> LearningLoop.record_override ->
+  extract_new_patterns -> MappingLibraryManager.build_draft ->
+  FlywheelPublicationService.publish_new_cycle -> new versions
 
 Path 6: Quality Assessment
   Module signals (mapping confidence, constraint summary,
-  workforce confidence, source ages, plausibility) →
-  QualityAssessmentService.assess → RunQualityAssessment
+  workforce confidence, source ages, plausibility) ->
+  QualityAssessmentService.assess -> RunQualityAssessment
+  One test feeds REAL compiler output -> REAL engine output ->
+  REAL constraint summary -> QualityAssessmentService (no mocks).
 
-Path 7: Doc → Export (Amendment 3)
-  Pre-extracted BoQ → ScenarioCompiler → Engine → Constraints →
-  Workforce → Quality → PublicationGate.check → ExportOrchestrator.execute
+Path 7: Doc -> Export (Amendment 3)
+  Extraction fixture (committed JSON, not hand-constructed) ->
+  MappingSuggestionAgent.suggest_batch (REAL suggestions) ->
+  ScenarioCompiler -> Engine -> Constraints ->
+  Workforce -> Quality -> PublicationGate.check (with resolved claims, governed export) ->
+  ExportOrchestrator.execute
+
+Path 8: SG Parser -> Concordance -> Compiler (Amendment A)
+  SGTemplateParser(concordance).parse() -> parsed line items ->
+  ConcordanceService maps division-level codes to D-1 sections ->
+  ScenarioCompiler.compile -> ScenarioSpec with valid ISIC sector codes
+  Verifies parser output flows through concordance into compiler
+  without orphan codes or unmapped divisions.
+
+Path 9: Benchmark Validator Integration (Amendment B)
+  load_real_saudi_io() -> IOModelData (20-sector) ->
+  LeontiefSolver.solve -> SolveResult ->
+  BenchmarkValidator.validate_multipliers(solve_result, model) ->
+  Plausibility report: multiplier ranges, outlier flags, comparison
+  against known Saudi economic benchmarks.
 ```
 
 ### File Structure
 
 ```
 tests/integration/
-├── conftest.py                      # Extended with module-level fixtures
+├── conftest.py                      # Fixture definitions ONLY
 ├── golden_scenarios/
 │   ├── __init__.py
-│   ├── industrial_zone.py           # Golden Scenario 1: full happy path
-│   ├── mega_project_gaps.py         # Golden Scenario 2: data gaps
-│   ├── contraction.py               # Golden Scenario 3: negative shocks
-│   └── snapshots/                   # Toleranced JSON golden values
+│   ├── shared.py                    # Constants and helpers (NOT in conftest.py)
+│   ├── industrial_zone.py           # Golden Scenario 1: full happy path (20-sector ISIC)
+│   ├── mega_project_gaps.py         # Golden Scenario 2: data gaps (20-sector ISIC)
+│   ├── contraction.py               # Golden Scenario 3: negative shocks (20-sector ISIC)
+│   └── snapshots/                   # Frozen golden JSON values (computed once, committed)
 │       ├── industrial_zone_outputs.json
 │       ├── mega_project_gaps_outputs.json
 │       └── contraction_outputs.json
-├── test_path_engine.py              # Path 1: Leontief → Satellite → Constraints
-├── test_path_compiler_engine.py     # Path 2: Compiler → Engine
-├── test_path_workforce.py           # Path 3: Engine → Workforce
+├── test_path_engine.py              # Path 1: Leontief -> Satellite -> Constraints
+├── test_path_compiler_engine.py     # Path 2: Compiler -> Engine
+├── test_path_workforce.py           # Path 3: Engine -> Workforce
 ├── test_path_depth.py               # Path 4: Depth Engine (Amendment 2)
 ├── test_path_flywheel.py            # Path 5: Flywheel learning loop
 ├── test_path_quality.py             # Path 6: Quality assessment
-├── test_path_doc_to_export.py       # Path 7: Doc → Export (Amendment 3)
+├── test_path_doc_to_export.py       # Path 7: Doc -> Export (Amendment 3)
+├── test_path_sg_concordance.py      # Path 8: SG Parser -> Concordance -> Compiler
+├── test_path_benchmark.py           # Path 9: Benchmark Validator integration
 ├── test_e2e_golden.py               # End-to-end golden tests
-├── test_mathematical_accuracy.py    # Algebraic verification
+├── test_mathematical_accuracy.py    # Algebraic verification (2-3 sector toy model, ISIC F/C/G)
+├── test_real_data_smoke.py          # Real data smoke test (Amendment 5)
 ├── test_performance.py              # Performance benchmarks (Amendment 6)
 ├── test_phase2_gate_formal.py       # Formal gate criteria (Amendment 4)
 ├── test_regression.py               # Toleranced snapshots (Amendment 7)
 ├── test_api_schema.py               # Pydantic serialization
-├── test_cross_module_consistency.py  # Shared vocabulary (Amendment 8)
+├── test_cross_module_consistency.py # Shared vocabulary (Amendment 8)
 │
 ├── # Existing files (untouched):
 ├── test_full_pipeline.py
@@ -141,55 +166,80 @@ scripts/
 
 docs/
 ├── mvp14_phase2_integration_gate.md # Technical documentation
-└── phase2_gate_report.md            # Formal gate report
+└── phase2_gate_report.md            # Formal gate report (Amendment 12)
 ```
+
+**Separation of concerns:** `conftest.py` contains ONLY pytest fixture definitions (`@pytest.fixture`). All shared constants (sector code lists, tolerance values, common builder helpers) live in `tests/integration/golden_scenarios/shared.py` and are imported explicitly. This keeps conftest small and avoids circular import issues.
 
 ## Golden Test Scenarios
 
+All golden scenarios use the D-1 20-sector IO model (ISIC sections A through T) loaded via `load_real_saudi_io()` from `data/curated/saudi_io_synthetic_v1.json`. This ensures integration tests exercise the real sector structure, not a toy model.
+
+A SEPARATE 2-3 sector toy model (using valid ISIC codes F=Construction, C=Manufacturing, G=Wholesale/Retail Trade) is used ONLY in `test_mathematical_accuracy.py` where hand-calculation verification requires a small, tractable matrix.
+
 ### Scenario 1: Industrial Zone CAPEX (Full Happy Path)
 
-A small but complete IO model with known, hand-verified values.
+A complete 20-sector scenario with known, verified values.
 
-- **IO Model:** 3-sector synthetic model (Construction, Manufacturing, Services)
-  - Z matrix, x vector, sector codes — small enough for hand calculation
+- **IO Model:** D-1 20-sector model (ISIC sections A-T) via `load_real_saudi_io()`
+  - Z matrix, x vector, sector codes for all 20 ISIC sections
   - Known A matrix coefficients, known B = (I-A)^-1
-- **BoQ:** 15-20 line items across 3 sectors with HIGH confidence mappings
+- **BoQ:** 15-20 line items spanning multiple ISIC sections with HIGH confidence mappings
+  - Demand shocks concentrated in sections F (Construction), C (Manufacturing), G (Wholesale/Retail)
+  - Remaining sectors present in model but receive zero or small indirect shocks
 - **Phasing:** 3-year CAPEX schedule (40%/35%/25%)
 - **Constraints:** Capacity + labor constraints, at least one binding
 - **Workforce:** Full occupation bridge, nationality classifications
-- **Expected outputs:** Hand-verified delta_x, GDP, employment, binding constraints
+- **Expected outputs:** Verified delta_x across all 20 sectors, GDP, employment, binding constraints
 - **Quality:** Grade A or B (all data present, recent model)
 - **Tolerances:** rtol=1e-6 for floats, abs=10 for jobs
 
 ### Scenario 2: Mega-Project with Data Gaps
 
-Same 3-sector model but with intentional gaps:
-- Model vintage: 6+ years old → vintage WARNING
-- Some LOW confidence mappings → mapping WARNING
-- No occupation bridge for 1 sector → workforce null with caveats
-- Constraints mostly ASSUMED → constraint WARNING
+Same 20-sector model but with intentional gaps:
+- Model vintage: 6+ years old -> vintage WARNING
+- Some LOW confidence mappings -> mapping WARNING
+- No occupation bridge for 1 sector -> workforce null with caveats
+- Constraints mostly ASSUMED -> constraint WARNING
 - Expected quality grade: C or D (not A!)
 
 ### Scenario 3: Contraction Scenario
 
 Negative demand shocks through the full pipeline:
-- Negative delta_d → negative delta_x → negative jobs
+- Negative delta_d -> negative delta_x -> negative jobs
 - Nationality min/mid/max must stay in numeric order (Amendment 3 of MVP-11)
 - No binding capacity constraints (contraction doesn't hit capacity)
 - Quality assessment handles negative impacts correctly
 
 ### Golden Snapshot Format (Amendment 7)
 
+Golden snapshots are **frozen values**: computed ONCE, committed to the repository as JSON files under `golden_scenarios/snapshots/`, and loaded for comparison in every subsequent test run. Tests compare current outputs against these frozen values using toleranced assertions. Golden values are NEVER recomputed automatically.
+
+To intentionally update golden snapshots (e.g., after a legitimate algorithm change), run:
+
+```bash
+pytest tests/integration/test_e2e_golden.py --update-golden
+```
+
+This flag causes the test to overwrite snapshot files with freshly computed values. The updated JSON files must then be reviewed and committed. Without `--update-golden`, any deviation from frozen values is a test failure.
+
 ```json
 {
   "scenario": "industrial_zone",
   "computed_at": "2026-03-01T00:00:00Z",
+  "model": "D-1 20-sector ISIC A-T",
+  "model_source": "data/curated/saudi_io_synthetic_v1.json",
   "tolerances": {"rtol": 1e-6, "employment_atol": 10, "gdp_rtol": 0.01},
   "total_output_impact": 1234.567,
   "gdp_impact": 456.789,
   "employment_total": 150,
-  "sector_outputs": {"Construction": 500.0, "Manufacturing": 400.0, "Services": 334.567},
-  "binding_constraints": ["labor_construction"],
+  "sector_outputs": {
+    "A": 12.3, "B": 45.6, "C": 400.0, "D": 23.1, "E": 15.7,
+    "F": 500.0, "G": 134.567, "H": 28.9, "I": 11.2, "J": 8.4,
+    "K": 6.1, "L": 3.2, "M": 18.5, "N": 7.8, "O": 2.1,
+    "P": 4.3, "Q": 1.9, "R": 0.8, "S": 0.5, "T": 0.1
+  },
+  "binding_constraints": ["labor_F"],
   "quality_grade": "B"
 }
 ```
@@ -198,33 +248,72 @@ Compared with `numpy.testing.assert_allclose` and `pytest.approx`, not hash-base
 
 ## Compiler Gate Metric (Amendment 4)
 
-The labeled BoQ fixture defines ground-truth sector mappings:
+The compiler gate test uses **actual auto-mapping** via `MappingSuggestionAgent.suggest_batch()`, not hand-authored MappingDecisions.
+
+### Setup
+
+A labeled BoQ fixture defines ground-truth ISIC sector mappings. A seeded `MappingLibraryEntry` list provides the mapping agent with a known library to draw from:
 
 ```python
+# Seeded mapping library (committed fixture)
+SEED_LIBRARY = [
+    MappingLibraryEntry(text_pattern="concrete", isic_section="F", confidence=0.95),
+    MappingLibraryEntry(text_pattern="steel supply", isic_section="C", confidence=0.90),
+    MappingLibraryEntry(text_pattern="consulting", isic_section="M", confidence=0.85),
+    # ... enough entries to cover labeled BoQ items
+]
+
 LABELED_BOQ = [
-    {"text": "reinforced concrete foundation", "ground_truth_sector": "Construction", "value": 5_000_000},
-    {"text": "structural steel supply", "ground_truth_sector": "Manufacturing", "value": 3_000_000},
-    # ... 30 items total
+    {"text": "reinforced concrete foundation", "ground_truth_isic": "F", "value": 5_000_000},
+    {"text": "structural steel supply", "ground_truth_isic": "C", "value": 3_000_000},
+    {"text": "project management consulting", "ground_truth_isic": "M", "value": 1_500_000},
+    # ... 30 items total, spanning multiple ISIC sections
 ]
 ```
 
+### Test Flow
+
+```python
+def test_compiler_auto_mapping_gate():
+    taxonomy = load_taxonomy()
+    agent = MappingSuggestionAgent(library=SEED_LIBRARY)
+    suggestions = agent.suggest_batch(
+        items=[item["text"] for item in LABELED_BOQ],
+        taxonomy=taxonomy,
+    )
+    # Compute coverage and accuracy against ground truth
+    covered = [s for s in suggestions if s.suggested_section is not None]
+    correct = [
+        s for s, item in zip(covered, LABELED_BOQ)
+        if s.suggested_section == item["ground_truth_isic"]
+    ]
+    coverage = len(covered) / len(LABELED_BOQ)
+    accuracy = len(correct) / len(covered) if covered else 0.0
+
+    assert coverage >= 0.60, f"Coverage {coverage:.0%} < 60%"
+    assert accuracy >= 0.80, f"Accuracy {accuracy:.0%} < 80%"
+```
+
 Gate metric:
-- **Auto-suggestion coverage:** % of items where compiler proposes a mapping
-- **Accuracy:** % of auto-mapped items matching ground truth
+- **Auto-suggestion coverage:** % of items where `MappingSuggestionAgent` proposes a mapping
+- **Accuracy:** % of auto-mapped items matching ground truth ISIC section
 - **Threshold:** >= 60% coverage with >= 80% accuracy on suggested items
 - Denominator: line item count (not spend-weighted)
 
 ## Mathematical Accuracy Tests
 
-Small 2-3 sector matrices where hand calculation is feasible:
-1. Leontief identity: x = A.x + d → delta_x = B.delta_d
+Small 2-3 sector toy model using valid ISIC codes (F=Construction, C=Manufacturing, G=Wholesale/Retail) where hand calculation is feasible:
+
+1. Leontief identity: x = A.x + d -> delta_x = B.delta_d
 2. Output multiplier = column sum of B
 3. GDP = value_added_coefficients . delta_x
 4. Employment = employment_coefficients . delta_x
 5. Feasibility: feasible_delta_x <= unconstrained_delta_x per sector
 6. IO accounting identity: row sums of Z + final demand = gross output
-7. Import leakage: higher import share → lower domestic multiplier
+7. Import leakage: higher import share -> lower domestic multiplier
 8. Numerical stability: 10 serial computations, drift < 1e-10
+
+This toy model is the ONLY place where a reduced-sector model is used. All other integration tests use the full 20-sector D-1 model.
 
 ## Performance Benchmarks (Amendment 6)
 
@@ -240,34 +329,115 @@ Reference measurements (not hard gates):
 
 Gate report includes measured times as informational, not as pass/fail criteria.
 
+## Real Data Smoke Test (Amendment 5)
+
+Marked `@pytest.mark.real_data`. Lives in `test_real_data_smoke.py`.
+
+This test loads the actual D-1 20-sector Saudi IO model and runs it through the core computation stack with plausibility validation:
+
+```python
+@pytest.mark.real_data
+class TestRealDataSmoke:
+    def test_leontief_satellite_on_real_model(self):
+        """Load D-1 20-sector, run Leontief + Satellite, check plausibility."""
+        model = load_real_saudi_io()  # from data/curated/saudi_io_synthetic_v1.json
+        assert len(model.sector_codes) == 20
+
+        # Run Leontief
+        delta_d = build_unit_shock(model, target_section="F")
+        solve_result = LeontiefSolver.solve(model, delta_d)
+        assert solve_result.delta_x is not None
+        assert all(numpy.isfinite(solve_result.delta_x))
+
+        # Run Satellite
+        satellite_result = SatelliteAccounts.compute(
+            solve_result.delta_x, model.satellite_coefficients
+        )
+
+        # Plausibility via BenchmarkValidator
+        validation = BenchmarkValidator.validate_multipliers(
+            solve_result=solve_result,
+            model=model,
+        )
+        assert validation.all_in_range, f"Multiplier outliers: {validation.outliers}"
+
+    def test_quality_assessment_with_real_sources(self):
+        """Run quality assessment with real source registry."""
+        # Uses real model + real source metadata (ages, provenance)
+        model = load_real_saudi_io()
+        quality = QualityAssessmentService.assess(
+            model_vintage=model.metadata.vintage,
+            source_registry=model.metadata.sources,
+            # ... remaining signals from real computation
+        )
+        assert quality.grade is not None
+        assert quality.signals  # non-empty signal list
+```
+
 ## Phase 2 Gate Criteria
 
 From tech spec Section 15.5.2, verified programmatically:
 
 | # | Criterion | Evidence |
 |---|-----------|----------|
-| 1 | Compiler >= 60% auto-mapping (Amendment 4) | Labeled BoQ fixture |
+| 1 | Compiler >= 60% auto-mapping (Amendment 4) | `MappingSuggestionAgent.suggest_batch` vs labeled BoQ |
 | 2 | Feasibility dual-output with diagnostics | FeasibilityResult assertions |
 | 3 | Workforce confidence-labeled splits with ranges | WorkforceResult assertions |
 | 4 | Full pipeline completes | Golden Scenario 1 end-to-end |
-| 5 | Flywheel captures learning | Override → publish cycle test |
+| 5 | Flywheel captures learning + publish cycle | Override -> publish cycle test |
 | 6 | Quality assessment produced | RunQualityAssessment assertions |
 
 Performance results reported separately (Amendment 6).
 
+### Gate Criteria Map
+
+The gate report maps test class names to gate criteria using an explicit `GATE_CRITERIA_MAP`. This ensures every criterion's pass/fail status is derived from actual test outcomes, not inferred:
+
+```python
+GATE_CRITERIA_MAP: dict[str, int] = {
+    # test class/function name -> gate criterion number
+    "TestCompilerAutoMapping": 1,
+    "test_compiler_auto_mapping_gate": 1,
+    "TestFeasibilityDualOutput": 2,
+    "test_feasibility_produces_dual_output_with_diagnostics": 2,
+    "TestWorkforceConfidenceLabeled": 3,
+    "test_workforce_splits_have_confidence_and_ranges": 3,
+    "TestGoldenScenario1EndToEnd": 4,
+    "test_industrial_zone_full_pipeline": 4,
+    "TestFlywheelLearning": 5,
+    "test_override_to_publish_cycle": 5,
+    "TestQualityAssessment": 6,
+    "test_quality_assessment_produced": 6,
+}
+```
+
+The gate report iterates over pytest JSON results, matches each test node ID against `GATE_CRITERIA_MAP`, and reports pass/fail **per criterion**:
+
+```
+Gate Criterion 1 (Compiler >= 60% auto-mapping): PASS (2/2 tests passed)
+Gate Criterion 2 (Feasibility dual-output):       PASS (3/3 tests passed)
+Gate Criterion 3 (Workforce confidence-labeled):   PASS (2/2 tests passed)
+Gate Criterion 4 (Full pipeline completes):        PASS (1/1 tests passed)
+Gate Criterion 5 (Flywheel captures learning):     PASS (2/2 tests passed)
+Gate Criterion 6 (Quality assessment produced):    PASS (1/1 tests passed)
+```
+
+A criterion PASSES only when ALL mapped tests pass. The gate PASSES only when ALL criteria pass.
+
 ## Concordance Tests (Amendment 8)
 
 The sector code consistency test accounts for the actual hierarchy:
-- D-1: 20 sections
+- D-1: 20 sections (ISIC A-T)
 - D-2: 84 divisions
 - Compiler/SG parser: may work at division-level
 - Workforce bridge: section-level
 
-Tests verify concordance contracts, not code equality:
-- Every D-1 section has at least one D-2 division mapping
-- No orphan codes in compiler output
-- Division-level results aggregate to section-level within tolerance
-- Bidirectional concordance consistency
+Tests verify concordance contracts with specific test names:
+
+- **`test_every_model_section_has_division_mapping`** — Every D-1 section (A-T) has at least one D-2 division mapping in the concordance table.
+- **`test_no_orphan_codes_in_sg_parser`** — Every code emitted by `SGTemplateParser` exists in the concordance table; no orphan division or section codes.
+- **`test_aggregation_consistency`** — Division-level results aggregate to section-level within tolerance (rtol=1e-6).
+- **`test_concordance_bidirectional`** — Bidirectional concordance consistency: section -> divisions -> section round-trip preserves identity.
 
 ## RunSnapshot Fields (Amendment 10)
 
@@ -284,14 +454,67 @@ Do NOT add new fields. Log any missing fields as Phase 3 enhancement.
 
 Depth Engine is primarily UPSTREAM — produces structured reasoning artifacts.
 
-Tests verify:
-- DepthOrchestrator produces valid plan + artifacts (mocked LLM)
-- Artifacts preserve disclosure tiers
-- Suite plans can be transformed into executable scenarios
-- Depth outputs do NOT mutate deterministic engine results
-- If post-run interpretive mode exists, test that too (secondary)
+Tests verify with specific test names:
 
-LLM calls are mocked with deterministic responses for reproducibility.
+- **`test_each_artifact_has_disclosure_tier`** — Every artifact produced by `DepthOrchestrator` carries a valid disclosure tier annotation.
+- **`test_pipeline_produces_expected_step_sequence`** — The orchestrator produces steps in the expected sequence (e.g., context_gathering -> analysis -> synthesis -> recommendation), and each step produces a typed output matching its step type.
+- **`test_suite_plan_contains_executable_scenarios`** — Suite plans generated by depth can be transformed into executable `ScenarioSpec` objects that the compiler accepts.
+- Depth outputs do NOT mutate deterministic engine results.
+- If post-run interpretive mode exists, test that too (secondary).
+
+Mock LLM returns **step-specific typed outputs** for reproducibility. Each mock response is tailored to the step type (e.g., a context-gathering step returns a `ContextGatheringResult`, an analysis step returns an `AnalysisResult`), not generic text.
+
+## Quality Assessment Tests
+
+Quality assessment integration covers two modes:
+
+### Mocked Signal Tests (Path 6)
+Module signals (mapping confidence, constraint summary, workforce confidence, source ages, plausibility) fed via constructed inputs into `QualityAssessmentService.assess` to verify grading logic.
+
+### Real Upstream Quality Test
+One test feeds **real** upstream outputs through the full chain with no mocks:
+
+```python
+def test_quality_from_real_upstream():
+    """Feed REAL compiler -> REAL engine -> REAL constraints -> QualityAssessmentService."""
+    model = load_real_saudi_io()
+    # Real compilation
+    spec = ScenarioCompiler.compile(real_compilation_input)
+    # Real engine run
+    solve_result = LeontiefSolver.solve(model, spec.delta_d)
+    satellite = SatelliteAccounts.compute(solve_result.delta_x, model.satellite_coefficients)
+    # Real constraints
+    feasibility = FeasibilitySolver.solve(solve_result, constraints)
+    # Real quality assessment
+    quality = QualityAssessmentService.assess(
+        mapping_confidence=spec.mapping_confidence,
+        constraint_summary=feasibility.summary,
+        workforce_confidence=satellite.workforce_confidence,
+        source_registry=model.metadata.sources,
+        plausibility=BenchmarkValidator.validate_multipliers(solve_result, model),
+    )
+    assert quality.grade in ("A", "B", "C", "D", "F")
+    assert len(quality.signals) > 0
+    assert quality.explanation is not None
+```
+
+## Confidence Vocabulary
+
+Multiple modules define confidence enumerations. This section documents each to prevent confusion during integration:
+
+| Enum | Location | Values | Case |
+|------|----------|--------|------|
+| `ConstraintConfidence` | `src/models/common.py` | `HARD`, `ESTIMATED`, `ASSUMED` | UPPERCASE |
+| `MappingConfidenceBand` | `src/models/common.py` | `HIGH`, `MEDIUM`, `LOW` | UPPERCASE |
+| `WorkforceConfidenceLevel` | `src/models/workforce.py` | `HIGH`, `MEDIUM`, `LOW` | UPPERCASE |
+| `QualityConfidence` | `src/data/workforce/unit_registry.py` | `high`, `medium`, `low` | lowercase |
+| `ConfidenceBand` | `src/compiler/confidence.py` | `HIGH`, `MEDIUM`, `LOW` | UPPERCASE |
+
+**Normalization rules:**
+- The workforce pipeline normalizes to uppercase via `confidence_to_str()` before emitting results.
+- The quality scorer expects uppercase strings: `"HIGH"`, `"MEDIUM"`, `"LOW"`.
+- `QualityConfidence` in the unit registry is the only lowercase variant. It must be uppercased before passing to `QualityAssessmentService`.
+- Integration tests in `test_cross_module_consistency.py` verify that all confidence values crossing module boundaries conform to the expected case.
 
 ## Gate Report (Amendment 1)
 
@@ -302,12 +525,28 @@ LLM calls are mocked with deterministic responses for reproducibility.
 class GateResult:
     gate_passed: bool
     criteria_results: list[GateCriterionResult]
+    criteria_map: dict[str, int]          # test name -> criterion number
     total_tests: int
     total_failures: int
     performance_results: list[PerformanceMetric]  # Informational only
     summary: str
     timestamp: str
 ```
+
+Each `GateCriterionResult` includes:
+```python
+@dataclass
+class GateCriterionResult:
+    criterion_number: int
+    description: str
+    passed: bool
+    test_count: int
+    pass_count: int
+    fail_count: int
+    failed_tests: list[str]              # node IDs of failures
+```
+
+The report is written to `docs/phase2_gate_report.md` with per-criterion pass/fail status derived from `GATE_CRITERIA_MAP` (see Gate Criteria Map section above).
 
 Performance metrics are informational, not part of `gate_passed` logic.
 
@@ -334,9 +573,9 @@ markers = [
 - All ~3,049 existing tests continue passing
 - Deterministic: no LLM calls (mock DepthOrchestrator's LLM client)
 - Numerical tolerances explicit and documented
-- Golden baselines frozen once computed
+- Golden baselines frozen once computed (see `--update-golden` flag)
 - Python 3.11+, type hints, docstrings
-- Minimum 80+ new integration tests
+- Minimum 90+ new integration tests
 - Fix wiring bugs found during integration (backward compatible)
 
 ## Amendments Applied
@@ -344,14 +583,17 @@ markers = [
 | # | Amendment | Status |
 |---|-----------|--------|
 | 1 | Gate report not in src/ | Applied: `scripts/generate_phase2_gate_report.py` |
-| 2 | Depth Engine upstream direction | Applied: tests verify artifact production, not result consumption |
-| 3 | Doc → Export path added | Applied: `test_path_doc_to_export.py` |
-| 4 | Compiler gate metric precision | Applied: labeled BoQ fixture with ground-truth mappings |
-| 5 | One sanitized real-data fixture | Applied: D-1/D-3 real IO model + sanitized BoQ, marked `@pytest.mark.real_data` |
+| 2 | Depth Engine upstream direction | Applied: tests verify artifact production with step-specific typed outputs |
+| 3 | Doc -> Export path added | Applied: `test_path_doc_to_export.py` with real mapping suggestions + governed export |
+| 4 | Compiler gate metric precision | Applied: `MappingSuggestionAgent.suggest_batch` with seeded library vs ground-truth |
+| 5 | One sanitized real-data fixture | Applied: D-1 20-sector `load_real_saudi_io()` + `BenchmarkValidator` + quality, `@pytest.mark.real_data` |
 | 6 | Performance = reference, not gate | Applied: `@pytest.mark.slow`, skip by default, informational in report |
-| 7 | Toleranced snapshots, not hashes | Applied: JSON snapshots + `assert_allclose` |
-| 8 | Concordance contracts, not code equality | Applied: bidirectional concordance tests |
+| 7 | Toleranced snapshots, not hashes | Applied: frozen JSON snapshots + `assert_allclose` + `--update-golden` flag |
+| 8 | Concordance contracts, not code equality | Applied: 4 named tests for bidirectional concordance contracts |
 | 9 | Normalize file paths | Applied: verified all paths against actual repo |
 | 10 | Verify RunSnapshot fields, don't expand | Applied: assert existing fields only |
-| 11 | Shared fixture layer | Applied: extended `conftest.py` with module-level fixtures |
+| 11 | Shared fixture layer | Applied: `shared.py` for constants/helpers; `conftest.py` for fixtures only |
 | 12 | Pytest markers | Applied: 7 markers registered in `pyproject.toml` |
+| A | SG Parser -> Concordance -> Compiler path | Applied: Path 8 in `test_path_sg_concordance.py` |
+| B | Benchmark Validator integration | Applied: Path 9 in `test_path_benchmark.py` |
+| C | Gate 5 (Flywheel) in formal gate | Applied: criterion 5 in gate criteria table |
