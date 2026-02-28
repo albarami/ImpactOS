@@ -34,6 +34,10 @@ class RunSnapshot(ImpactOSBase, frozen=True):
     assumption_library_version_id: UUID
     prompt_pack_version_id: UUID
     constraint_set_version_id: UUID | None = None
+    # Amendment 5: workforce version references
+    occupation_bridge_version_id: UUID | None = None
+    nationality_classification_version_id: UUID | None = None
+    nitaqat_target_version_id: UUID | None = None
     source_checksums: list[str] = Field(default_factory=list)
     created_at: UTCTimestamp = Field(default_factory=utc_now)
 
