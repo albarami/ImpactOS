@@ -12,8 +12,10 @@ from src.quality.config import QualityScoringConfig
 from src.quality.models import (
     DimensionAssessment,
     QualityDimension,
+    QualityGrade,
     QualitySeverity,
     QualityWarning,
+    RunQualityAssessment,
     SourceAge,
     SourceUpdateFrequency,
 )
@@ -372,4 +374,125 @@ class QualityScorer:
             applicable=True,
             inputs_used={"source_ratios": source_ratios},
             rules_triggered=["freshness_ratio_average"],
+        )
+
+    # ---------------------------------------------------------------
+    # Composite Score
+    # ---------------------------------------------------------------
+
+    # Grade ordering for completeness cap comparisons (best -> worst).
+    _GRADE_ORDER: list[QualityGrade] = [
+        QualityGrade.A,
+        QualityGrade.B,
+        QualityGrade.C,
+        QualityGrade.D,
+        QualityGrade.F,
+    ]
+
+    def composite_score(
+        self,
+        dimension_assessments: list[DimensionAssessment],
+    ) -> RunQualityAssessment:
+        """Compute a composite quality score from per-dimension assessments.
+
+        1. Separate applicable vs not-applicable dimensions.
+        2. Compute completeness_pct.
+        3. Compute weighted average of applicable scores (normalized weights).
+        4. Determine grade from config.grade_thresholds.
+        5. Apply completeness cap (Amendment 1).
+        6. Collect all warnings and count by severity.
+        7. Return RunQualityAssessment.
+        """
+        total = len(dimension_assessments)
+
+        # Separate applicable vs not-applicable.
+        applicable = [da for da in dimension_assessments if da.applicable]
+        not_applicable = [da for da in dimension_assessments if not da.applicable]
+
+        # Completeness.
+        completeness_pct = (len(applicable) / total * 100.0) if total > 0 else 0.0
+
+        # Weighted average of applicable scores.
+        if applicable:
+            raw_weights = {
+                da.dimension.value: self._config.dimension_weights.get(
+                    da.dimension.value, 0.0
+                )
+                for da in applicable
+            }
+            weight_sum = sum(raw_weights.values())
+            if weight_sum > 0:
+                score = sum(
+                    da.score * raw_weights[da.dimension.value] / weight_sum
+                    for da in applicable
+                )
+            else:
+                score = 0.0
+        else:
+            score = 0.0
+
+        # Determine grade from thresholds.
+        grade = QualityGrade.F
+        for grade_letter in ("A", "B", "C", "D"):
+            threshold = self._config.grade_thresholds[grade_letter]
+            if score >= threshold:
+                grade = QualityGrade(grade_letter)
+                break
+
+        # Completeness cap (Amendment 1).
+        if completeness_pct < 30:
+            cap = QualityGrade(self._config.completeness_cap_30)
+        elif completeness_pct < 50:
+            cap = QualityGrade(self._config.completeness_cap_50)
+        else:
+            cap = None
+
+        if cap is not None:
+            cap_idx = self._GRADE_ORDER.index(cap)
+            grade_idx = self._GRADE_ORDER.index(grade)
+            if grade_idx < cap_idx:
+                # Grade is better than cap — clamp it.
+                grade = cap
+
+        # Collect all warnings from all dimension assessments.
+        all_warnings: list[QualityWarning] = []
+        for da in dimension_assessments:
+            all_warnings.extend(da.warnings)
+
+        # Count warnings by severity.
+        waiver_required_count = sum(
+            1 for w in all_warnings if w.severity == QualitySeverity.WAIVER_REQUIRED
+        )
+        critical_count = sum(
+            1 for w in all_warnings if w.severity == QualitySeverity.CRITICAL
+        )
+        warning_count = sum(
+            1 for w in all_warnings if w.severity == QualitySeverity.WARNING
+        )
+        info_count = sum(
+            1 for w in all_warnings if w.severity == QualitySeverity.INFO
+        )
+
+        # Build dimension lists.
+        assessed_dims = [da.dimension for da in dimension_assessments]
+        applicable_dims = [da.dimension for da in applicable]
+        all_dims = set(QualityDimension)
+        missing_dims = sorted(
+            all_dims - set(assessed_dims), key=lambda d: d.value
+        )
+
+        return RunQualityAssessment(
+            assessment_version=1,
+            dimension_assessments=dimension_assessments,
+            applicable_dimensions=applicable_dims,
+            assessed_dimensions=assessed_dims,
+            missing_dimensions=missing_dims,
+            completeness_pct=completeness_pct,
+            composite_score=score,
+            grade=grade,
+            warnings=all_warnings,
+            waiver_required_count=waiver_required_count,
+            critical_count=critical_count,
+            warning_count=warning_count,
+            info_count=info_count,
         )

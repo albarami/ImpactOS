@@ -14,7 +14,10 @@ from src.quality.config import QualityScoringConfig
 from src.quality.models import (
     DimensionAssessment,
     QualityDimension,
+    QualityGrade,
     QualitySeverity,
+    QualityWarning,
+    RunQualityAssessment,
     SourceAge,
     SourceUpdateFrequency,
 )
@@ -503,3 +506,188 @@ class TestScoreFreshness:
         ]
         result = scorer.score_freshness(source_ages=sources)
         assert result.score == pytest.approx(1.0)
+
+
+# ===================================================================
+# Composite Score
+# ===================================================================
+
+
+def _make_assessment(
+    dimension: QualityDimension,
+    score: float,
+    *,
+    applicable: bool = True,
+    warnings: list[QualityWarning] | None = None,
+) -> DimensionAssessment:
+    """Helper to build a DimensionAssessment for composite tests."""
+    return DimensionAssessment(
+        dimension=dimension,
+        score=score,
+        applicable=applicable,
+        inputs_used={"test": True},
+        rules_triggered=["test_rule"],
+        warnings=warnings or [],
+    )
+
+
+class TestCompositeScore:
+    """composite_score: weighted aggregate with grade and completeness cap."""
+
+    def test_all_perfect(self, scorer: QualityScorer) -> None:
+        """7 dimensions all score 1.0 -> composite 1.0, grade A."""
+        assessments = [
+            _make_assessment(dim, 1.0)
+            for dim in QualityDimension
+        ]
+        result = scorer.composite_score(assessments)
+
+        assert isinstance(result, RunQualityAssessment)
+        assert result.composite_score == pytest.approx(1.0)
+        assert result.grade == QualityGrade.A
+
+    def test_completeness_cap_below_50(self, scorer: QualityScorer) -> None:
+        """3 dims, only 1 applicable (33%) -> grade capped at D."""
+        assessments = [
+            _make_assessment(QualityDimension.VINTAGE, 1.0, applicable=True),
+            _make_assessment(QualityDimension.MAPPING, 0.0, applicable=False),
+            _make_assessment(QualityDimension.ASSUMPTIONS, 0.0, applicable=False),
+        ]
+        result = scorer.composite_score(assessments)
+
+        # completeness = 1/3 * 100 = 33.3%  -> cap at C (< 50%)
+        # But the applicable score is 1.0 which would be A.
+        # Capped to C.
+        assert result.completeness_pct == pytest.approx(100.0 / 3.0)
+        assert result.grade == QualityGrade.C
+
+    def test_completeness_cap_below_30(self, scorer: QualityScorer) -> None:
+        """10 dims, 2 applicable (20%) -> grade capped at D."""
+        # We can only have 7 real dimensions, so use 7 with 2 applicable.
+        # 2/7 = 28.6% < 30 -> cap at D.
+        dims = list(QualityDimension)
+        assessments = [
+            _make_assessment(dims[0], 1.0, applicable=True),
+            _make_assessment(dims[1], 1.0, applicable=True),
+        ] + [
+            _make_assessment(dims[i], 0.0, applicable=False)
+            for i in range(2, 7)
+        ]
+        result = scorer.composite_score(assessments)
+
+        # completeness = 2/7 * 100 = 28.6% < 30 -> cap at D
+        assert result.completeness_pct == pytest.approx(200.0 / 7.0)
+        assert result.grade == QualityGrade.D
+
+    def test_completeness_50_to_100(self, scorer: QualityScorer) -> None:
+        """4 dims, 3 applicable (75%) -> no cap."""
+        assessments = [
+            _make_assessment(QualityDimension.VINTAGE, 1.0, applicable=True),
+            _make_assessment(QualityDimension.MAPPING, 1.0, applicable=True),
+            _make_assessment(QualityDimension.ASSUMPTIONS, 1.0, applicable=True),
+            _make_assessment(QualityDimension.CONSTRAINTS, 0.0, applicable=False),
+        ]
+        result = scorer.composite_score(assessments)
+
+        # completeness = 3/4 * 100 = 75% -> no cap
+        assert result.completeness_pct == pytest.approx(75.0)
+        # All applicable score 1.0 -> grade A, no cap applied
+        assert result.grade == QualityGrade.A
+
+    def test_grade_b(self, scorer: QualityScorer) -> None:
+        """All applicable, scores around 0.7-0.8 -> grade B."""
+        assessments = [
+            _make_assessment(QualityDimension.VINTAGE, 0.75),
+            _make_assessment(QualityDimension.MAPPING, 0.75),
+            _make_assessment(QualityDimension.ASSUMPTIONS, 0.75),
+            _make_assessment(QualityDimension.CONSTRAINTS, 0.75),
+            _make_assessment(QualityDimension.WORKFORCE, 0.75),
+            _make_assessment(QualityDimension.PLAUSIBILITY, 0.75),
+            _make_assessment(QualityDimension.FRESHNESS, 0.75),
+        ]
+        result = scorer.composite_score(assessments)
+
+        # Weighted average = 0.75 (all same). 0.75 >= 0.70 -> B
+        assert result.composite_score == pytest.approx(0.75)
+        assert result.grade == QualityGrade.B
+
+    def test_grade_f(self, scorer: QualityScorer) -> None:
+        """All applicable, scores very low -> grade F."""
+        assessments = [
+            _make_assessment(dim, 0.1)
+            for dim in QualityDimension
+        ]
+        result = scorer.composite_score(assessments)
+
+        # Weighted average = 0.1. 0.1 < 0.40 -> F
+        assert result.composite_score == pytest.approx(0.1)
+        assert result.grade == QualityGrade.F
+
+    def test_warnings_aggregated(self, scorer: QualityScorer) -> None:
+        """Dims with warnings -> all collected in assessment."""
+        w1 = QualityWarning(
+            dimension=QualityDimension.MAPPING,
+            severity=QualitySeverity.WARNING,
+            message="mapping warning",
+        )
+        w2 = QualityWarning(
+            dimension=QualityDimension.MAPPING,
+            severity=QualitySeverity.CRITICAL,
+            message="mapping critical",
+        )
+        w3 = QualityWarning(
+            dimension=QualityDimension.VINTAGE,
+            severity=QualitySeverity.INFO,
+            message="vintage info",
+        )
+        assessments = [
+            _make_assessment(QualityDimension.MAPPING, 0.8, warnings=[w1, w2]),
+            _make_assessment(QualityDimension.VINTAGE, 0.9, warnings=[w3]),
+            _make_assessment(QualityDimension.ASSUMPTIONS, 0.7),
+        ]
+        result = scorer.composite_score(assessments)
+
+        assert len(result.warnings) == 3
+        assert result.warning_count == 1
+        assert result.critical_count == 1
+        assert result.info_count == 1
+
+    def test_assessment_version_defaults_to_1(self, scorer: QualityScorer) -> None:
+        """First assessment has version 1."""
+        assessments = [
+            _make_assessment(QualityDimension.VINTAGE, 0.9),
+        ]
+        result = scorer.composite_score(assessments)
+        assert result.assessment_version == 1
+
+    def test_applicable_dimensions_tracked(self, scorer: QualityScorer) -> None:
+        """applicable/assessed/missing lists correct."""
+        assessments = [
+            _make_assessment(QualityDimension.VINTAGE, 1.0, applicable=True),
+            _make_assessment(QualityDimension.MAPPING, 0.8, applicable=True),
+            _make_assessment(QualityDimension.CONSTRAINTS, 0.0, applicable=False),
+        ]
+        result = scorer.composite_score(assessments)
+
+        assert QualityDimension.VINTAGE in result.applicable_dimensions
+        assert QualityDimension.MAPPING in result.applicable_dimensions
+        assert QualityDimension.CONSTRAINTS not in result.applicable_dimensions
+
+        # assessed = all dimensions that were provided
+        assert QualityDimension.VINTAGE in result.assessed_dimensions
+        assert QualityDimension.MAPPING in result.assessed_dimensions
+        assert QualityDimension.CONSTRAINTS in result.assessed_dimensions
+
+        # missing = dimensions in the full set not provided
+        assert QualityDimension.ASSUMPTIONS in result.missing_dimensions
+        assert QualityDimension.WORKFORCE in result.missing_dimensions
+        assert QualityDimension.PLAUSIBILITY in result.missing_dimensions
+        assert QualityDimension.FRESHNESS in result.missing_dimensions
+
+    def test_empty_assessments(self, scorer: QualityScorer) -> None:
+        """Empty list -> grade F, composite 0.0."""
+        result = scorer.composite_score([])
+
+        assert result.composite_score == pytest.approx(0.0)
+        assert result.grade == QualityGrade.F
+        assert result.completeness_pct == pytest.approx(0.0)
