@@ -49,7 +49,8 @@ class TestTriggerCompilation:
         assert "confidence" in data["suggestions"][0]
 
     @pytest.mark.anyio
-    async def test_compile_empty_items(self, client: AsyncClient) -> None:
+    async def test_compile_empty_items_returns_422(self, client: AsyncClient) -> None:
+        """S0-4: empty line_items with no document_id → 422 (exactly one source required)."""
         resp = await client.post(f"/v1/workspaces/{WS_ID}/compiler/compile", json={
             "scenario_name": "Empty",
             "base_model_version_id": str(uuid7()),
@@ -59,8 +60,7 @@ class TestTriggerCompilation:
             "line_items": [],
             "phasing": {},
         })
-        assert resp.status_code == 201
-        assert len(resp.json()["suggestions"]) == 0
+        assert resp.status_code == 422
 
 
 class TestSuggestionStatus:

@@ -16,7 +16,9 @@
       "Bash(git status:*)",
       "Bash(grep:*)",
       "Bash(xargs -I {} bash -c 'grep -A 5 \"\"def __init__\"\" \"\"{}\"\" | grep -E \"\"self\\\\._.*dict|self\\\\._.*\\\\[\\\\]\"\" && echo \"\"File: {}\"\"')",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(ruff check:*)",
+      "Bash(wc -l:*)"
     ]
   }
 }

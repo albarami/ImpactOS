@@ -74,6 +74,17 @@ class ExtractionJobRepository:
             await self._session.flush()
         return row
 
+    async def get_latest_completed(self, doc_id: UUID) -> ExtractionJobRow | None:
+        """Return the most recent COMPLETED extraction job for a document."""
+        result = await self._session.execute(
+            select(ExtractionJobRow)
+            .where(ExtractionJobRow.doc_id == doc_id)
+            .where(ExtractionJobRow.status == "COMPLETED")
+            .order_by(ExtractionJobRow.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
 
 class LineItemRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -91,5 +102,12 @@ class LineItemRepository:
     async def get_by_doc(self, doc_id: UUID) -> list[LineItemRow]:
         result = await self._session.execute(
             select(LineItemRow).where(LineItemRow.doc_id == doc_id)
+        )
+        return list(result.scalars().all())
+
+    async def get_by_extraction_job(self, job_id: UUID) -> list[LineItemRow]:
+        """Return line items produced by a specific extraction job."""
+        result = await self._session.execute(
+            select(LineItemRow).where(LineItemRow.extraction_job_id == job_id)
         )
         return list(result.scalars().all())

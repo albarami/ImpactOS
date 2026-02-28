@@ -4,9 +4,9 @@
 ImpactOS is an internal Impact & Scenario Intelligence System for Strategic Gears (Saudi consulting firm). It industrializes Leontief input-output economic modeling with AI-assisted scenario compilation and audit-grade governance (No Free Facts).
 
 ## Architecture Reference
-- Full tech spec: `docs/technical_specification_v1.md`
-- Concept document: `docs/concept_document_v3.md`
-- Data/API requirements: `docs/data_and_api_requirements.md`
+- Full tech spec: `docs/ImpactOS_Technical_Specification_v1_0.md`
+- Concept document: `docs/ImpactOS_Comprehensive_Project_Document_v3.md`
+- Data/API requirements: `docs/ImpactOS_Data_Sources_APIs_BuildPack_v1.0.md`
 
 ## The One Rule That Cannot Be Broken
 **Agent-to-Math Boundary:** AI components produce structured JSON only. The deterministic engine in `src/engine/` performs ALL numerical computations. AI never computes, modifies, or generates economic results. This separation is what makes the system auditable and trustworthy.
