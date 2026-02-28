@@ -80,6 +80,13 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "-v --tb=short"
 markers = [
     "benchmark: performance benchmark tests (deselect with '-m not benchmark')",
+    "integration: Integration tests across module boundaries",
+    "golden: Golden scenario end-to-end tests",
+    "performance: Performance benchmark tests (skip in CI by default)",
+    "slow: Tests that take more than 5s",
+    "regression: Regression baseline tests",
+    "gate: Phase 2 gate criteria verification",
+    "real_data: Tests using sanitized real data fixtures",
 ]
 
 [tool.mypy]
