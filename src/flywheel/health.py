@@ -17,7 +17,7 @@ from src.flywheel.engagement_memory import EngagementMemoryStore
 from src.flywheel.mapping_library import MappingLibraryManager
 from src.flywheel.scenario_patterns import ScenarioPatternLibrary
 from src.flywheel.workforce_refinement import WorkforceBridgeRefinement
-from src.models.common import ImpactOSBase, UTCTimestamp
+from src.models.common import ImpactOSBase, UTCTimestamp, utc_now
 
 
 class FlywheelHealth(ImpactOSBase):
@@ -143,6 +143,37 @@ class FlywheelHealthService:
         if candidates:
             last_publication = max(candidates)
 
+        # ----- Backlog metrics (Amendment 10) -----
+
+        # override_backlog_count: requires tracking which overrides have been
+        # published into a library version vs. which are still pending.
+        # Deferred — requires draft store and override-to-published tracking.
+        override_backlog_count = 0
+
+        # avg_days_since_last_publication: computed from last_publication
+        if last_publication is not None:
+            avg_days_since_last_publication = (
+                utc_now() - last_publication
+            ).total_seconds() / 86400.0
+        else:
+            avg_days_since_last_publication = 0.0
+
+        # draft_count_pending_review: requires a draft store that tracks
+        # in-progress drafts across all libraries.
+        # Deferred — requires draft store.
+        draft_count_pending_review = 0
+
+        # pct_entries_assumed_vs_calibrated: requires knowing which library
+        # entries are calibrated (backed by analyst override data) vs.
+        # assumed (seeded without override evidence).
+        # Deferred — requires calibration metadata on library entries.
+        pct_entries_assumed_vs_calibrated = 0.0
+
+        # pct_shared_knowledge_sanitized: requires tracking which entries
+        # have been reviewed/sanitized for cross-workspace sharing.
+        # Deferred — requires sanitization metadata on library entries.
+        pct_shared_knowledge_sanitized = 0.0
+
         return FlywheelHealth(
             mapping_library_version=mapping_library_version,
             mapping_entry_count=mapping_entry_count,
@@ -154,4 +185,9 @@ class FlywheelHealthService:
             engagement_memory_count=engagement_memory_count,
             workforce_coverage_pct=workforce_coverage_pct,
             last_publication=last_publication,
+            override_backlog_count=override_backlog_count,
+            avg_days_since_last_publication=avg_days_since_last_publication,
+            draft_count_pending_review=draft_count_pending_review,
+            pct_entries_assumed_vs_calibrated=pct_entries_assumed_vs_calibrated,
+            pct_shared_knowledge_sanitized=pct_shared_knowledge_sanitized,
         )

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -95,6 +96,26 @@ class LearningLoop:
 
     def total_overrides(self) -> int:
         return len(self._overrides)
+
+    def get_overrides(self, since: datetime | None = None) -> list[OverridePair]:
+        """Return a copy of recorded overrides.
+
+        Parameters
+        ----------
+        since:
+            If provided, only return overrides recorded after this timestamp.
+            Currently returns all overrides regardless (``OverridePair`` does
+            not carry a timestamp field yet).  The parameter is accepted so
+            that callers can pass it today and benefit from filtering once
+            timestamps are added.
+
+        Returns
+        -------
+        list[OverridePair]
+            A *copy* of the internal list — callers cannot mutate loop state.
+        """
+        # TODO: filter by timestamp once OverridePair gains a recorded_at field
+        return list(self._overrides)
 
     # ----- Retrieval -----
 

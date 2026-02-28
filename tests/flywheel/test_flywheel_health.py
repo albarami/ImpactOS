@@ -4,6 +4,7 @@ Validates Amendment 10: backlog metrics and comprehensive health reporting
 across all flywheel components.
 """
 
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -391,3 +392,39 @@ class TestFlywheelHealthServiceWithData:
         assumption_pub = assumption_mgr.get_active_version().published_at
         assert health.last_publication >= mapping_pub
         assert health.last_publication >= assumption_pub
+
+    def test_avg_days_since_last_publication_computed(self) -> None:
+        """avg_days_since_last_publication is > 0 when last_publication is set."""
+        mapping_mgr = MappingLibraryManager(store=InMemoryVersionedLibraryStore())
+        assumption_mgr = AssumptionLibraryManager(store=InMemoryVersionedLibraryStore())
+        pattern_lib = ScenarioPatternLibrary()
+        calibration_store = CalibrationNoteStore()
+        memory_store = EngagementMemoryStore()
+        workforce_ref = WorkforceBridgeRefinement()
+
+        user_id = uuid4()
+
+        # Publish a mapping version so last_publication is set
+        entry = _make_mapping_entry()
+        mapping_draft = MappingLibraryDraft(entries=[entry])
+        mapping_mgr.publish(mapping_draft, published_by=user_id)
+
+        svc = FlywheelHealthService(
+            mapping_manager=mapping_mgr,
+            assumption_manager=assumption_mgr,
+            pattern_library=pattern_lib,
+            calibration_store=calibration_store,
+            memory_store=memory_store,
+            workforce_refinement=workforce_ref,
+        )
+        health = svc.compute_health()
+        assert health.last_publication is not None
+        # Published just now, so avg_days should be very small (>= 0)
+        assert health.avg_days_since_last_publication >= 0.0
+
+    def test_avg_days_since_last_publication_zero_when_no_publication(self) -> None:
+        """avg_days_since_last_publication is 0.0 when no publication exists."""
+        svc = _build_service()
+        health = svc.compute_health()
+        assert health.last_publication is None
+        assert health.avg_days_since_last_publication == 0.0

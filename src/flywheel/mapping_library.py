@@ -130,7 +130,7 @@ class MappingLibraryManager(
 
         # Integrate learning loop if provided
         if learning_loop is not None:
-            overrides = learning_loop._overrides
+            overrides = learning_loop.get_overrides(since=include_overrides_since)
 
             # Update confidence scores on existing entries
             if entries:
