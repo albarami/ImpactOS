@@ -25,6 +25,7 @@ class DepthPlanRepository:
         plan_id: UUID,
         workspace_id: UUID,
         scenario_spec_id: UUID | None = None,
+        engagement_id: UUID | None = None,
         status: str = "PENDING",
     ) -> DepthPlanRow:
         now = utc_now()
@@ -32,10 +33,12 @@ class DepthPlanRepository:
             plan_id=plan_id,
             workspace_id=workspace_id,
             scenario_spec_id=scenario_spec_id,
+            engagement_id=engagement_id,
             status=status,
             current_step=None,
             degraded_steps=[],
             step_errors={},
+            step_metadata=[],
             error_message=None,
             created_at=now,
             updated_at=now,
@@ -64,6 +67,7 @@ class DepthPlanRepository:
         error_message: str | None = None,
         degraded_steps: list[str] | None = None,
         step_errors: dict | None = None,
+        step_metadata: list[dict] | None = None,
     ) -> DepthPlanRow | None:
         row = await self.get(plan_id)
         if row is not None:
@@ -76,6 +80,8 @@ class DepthPlanRepository:
                 row.degraded_steps = degraded_steps
             if step_errors is not None:
                 row.step_errors = step_errors
+            if step_metadata is not None:
+                row.step_metadata = step_metadata
             await self._session.flush()
         return row
 

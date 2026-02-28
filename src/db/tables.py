@@ -461,17 +461,23 @@ class FeasibilityResultRow(Base):
 
 
 class DepthPlanRow(Base):
-    """Operational — status transitions through depth engine pipeline."""
+    """Operational — status transitions through depth engine pipeline.
+
+    MVP-9: engagement_id + step_metadata added for context linking and audit.
+    """
 
     __tablename__ = "depth_plans"
 
     plan_id: Mapped[UUID] = mapped_column(primary_key=True)
     workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     scenario_spec_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    engagement_id: Mapped[UUID | None] = mapped_column(nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     current_step: Mapped[str | None] = mapped_column(String(50), nullable=True)
     degraded_steps = mapped_column(FlexJSON, nullable=False)
     step_errors = mapped_column(FlexJSON, nullable=False)
+    # MVP-9 Amendment 9: per-step metadata (list of StepMetadata dicts)
+    step_metadata = mapped_column(FlexJSON, nullable=False, default=list)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

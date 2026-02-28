@@ -1,5 +1,10 @@
 """Depth Engine Orchestrator — sequential 5-step pipeline.
 
+The Al-Muhasabi structured reasoning methodology and framework are the
+intellectual property of Salim Al-Barami, licensed to Strategic Gears
+for use within ImpactOS. The software implementation, prompt engineering,
+and system integration are part of the ImpactOS platform.
+
 Runs all 5 Al-Muhasabi steps in order, persisting each artifact.
 Supports partial failure: if step N fails, steps 1..N-1 are preserved.
 
@@ -7,11 +12,15 @@ Status semantics:
 - COMPLETED: Suite plan artifact exists (even if earlier steps used fallback)
 - PARTIAL: Suite plan missing (some steps failed)
 - FAILED: Critical failure (no artifacts produced)
+
+MVP-9 Amendment 9: Per-step metadata (StepMetadata) is captured for
+each step execution and stored on the DepthPlan for audit.
 """
 
 import hashlib
 import json
 import logging
+import time
 from uuid import UUID
 
 from src.agents.depth.base import DepthStepAgent  # noqa: F401
@@ -19,10 +28,11 @@ from src.agents.depth.khawatir import KhawatirAgent
 from src.agents.depth.muhasaba import MuhasabaAgent
 from src.agents.depth.mujahada import MujahadaAgent
 from src.agents.depth.muraqaba import MuraqabaAgent
+from src.agents.depth.prompts import PROMPT_PACK_VERSION
 from src.agents.depth.suite_planner import SuitePlannerAgent
 from src.agents.llm_client import LLMClient
 from src.models.common import DataClassification, DisclosureTier, new_uuid7
-from src.models.depth import DepthPlanStatus, DepthStepName
+from src.models.depth import DepthPlanStatus, DepthStepName, StepMetadata
 from src.repositories.depth import DepthArtifactRepository, DepthPlanRepository
 
 logger = logging.getLogger(__name__)
@@ -34,6 +44,15 @@ _STEP_DISCLOSURE: dict[DepthStepName, DisclosureTier] = {
     DepthStepName.MUJAHADA: DisclosureTier.TIER0,  # Contrarian = internal only
     DepthStepName.MUHASABA: DisclosureTier.TIER0,
     DepthStepName.SUITE_PLANNING: DisclosureTier.TIER1,
+}
+
+# Step number mapping (1-indexed per Al-Muhasabi spec)
+_STEP_NUMBER: dict[DepthStepName, int] = {
+    DepthStepName.KHAWATIR: 1,
+    DepthStepName.MURAQABA: 2,
+    DepthStepName.MUJAHADA: 3,
+    DepthStepName.MUHASABA: 4,
+    DepthStepName.SUITE_PLANNING: 5,
 }
 
 
@@ -56,7 +75,13 @@ def _compute_context_hash(context: dict) -> str:
 
 
 class DepthOrchestrator:
-    """Sequential 5-step pipeline with persistence and partial failure handling."""
+    """Sequential 5-step pipeline with persistence and partial failure handling.
+
+    MVP-9 enhancements:
+    - Captures StepMetadata per step (provider, tokens, duration)
+    - Tracks prompt_pack_version for reproducibility
+    - Returns enriched step_metadata list alongside status
+    """
 
     STEPS = [
         DepthStepName.KHAWATIR,
@@ -76,20 +101,23 @@ class DepthOrchestrator:
         llm_client: LLMClient | None = None,
         plan_repo: DepthPlanRepository,
         artifact_repo: DepthArtifactRepository,
+        prompt_pack_version: str = PROMPT_PACK_VERSION,
     ) -> DepthPlanStatus:
         """Execute the full 5-step depth engine pipeline.
 
         Each step:
         1. Update plan status -> RUNNING, current_step
         2. Run step agent (LLM or fallback)
-        3. Persist artifact with metadata
-        4. Feed output into accumulated context for next step
+        3. Capture per-step metadata (Amendment 9)
+        4. Persist artifact with metadata
+        5. Feed output into accumulated context for next step
 
         On failure: log error, record degraded_step, continue.
         Final status: COMPLETED if suite plan exists, PARTIAL otherwise.
         """
         degraded_steps: list[str] = []
         step_errors: dict[str, str] = {}
+        step_metadata_list: list[dict] = []
         accumulated_context = dict(context)
         accumulated_context["workspace_id"] = str(workspace_id)
         has_suite_plan = False
@@ -115,21 +143,61 @@ class DepthOrchestrator:
                 )
                 generation_mode = "LLM" if can_use_llm else "FALLBACK"
 
-                # Run the step
+                # Determine provider/model info
+                provider = "none"
+                model = "fallback"
+                if can_use_llm and llm_client is not None:
+                    try:
+                        selected = llm_client._router.select_provider(classification)
+                        provider = selected.value if selected else "none"
+                        model = "default"
+                    except Exception:
+                        provider = "none"
+                        model = "fallback"
+
+                # Run the step with timing (Amendment 9)
+                start_time = time.monotonic()
                 payload = agent.run(
                     context=accumulated_context,
                     llm_client=llm_client,
                     classification=classification,
                 )
+                duration_ms = int((time.monotonic() - start_time) * 1000)
 
                 if not can_use_llm:
                     degraded_steps.append(step.value)
 
-                # Build audit metadata
+                # Capture token usage from LLM client if available
+                input_tokens = 0
+                output_tokens = 0
+                if can_use_llm and llm_client is not None:
+                    usage = llm_client.cumulative_usage()
+                    input_tokens = usage.input_tokens
+                    output_tokens = usage.output_tokens
+
+                # Build per-step metadata (Amendment 9)
+                step_meta = StepMetadata(
+                    step=_STEP_NUMBER[step],
+                    step_name=step,
+                    prompt_pack_version=prompt_pack_version,
+                    provider=provider,
+                    model=model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    duration_ms=duration_ms,
+                    generation_mode=generation_mode,
+                )
+                step_metadata_list.append(step_meta.model_dump(mode="json"))
+
+                # Build audit metadata (enriched with Amendment 9 fields)
                 metadata = {
                     "generation_mode": generation_mode,
                     "context_hash": _compute_context_hash(accumulated_context),
                     "classification": classification.value,
+                    "prompt_pack_version": prompt_pack_version,
+                    "duration_ms": duration_ms,
+                    "provider": provider,
+                    "model": model,
                 }
 
                 # Persist artifact
@@ -149,8 +217,8 @@ class DepthOrchestrator:
                     has_suite_plan = True
 
                 logger.info(
-                    "Depth plan %s: step %s completed (%s)",
-                    plan_id, step.value, generation_mode,
+                    "Depth plan %s: step %s completed (%s, %dms)",
+                    plan_id, step.value, generation_mode, duration_ms,
                 )
 
             except Exception as exc:
@@ -183,6 +251,7 @@ class DepthOrchestrator:
             error_message=error_msg,
             degraded_steps=degraded_steps,
             step_errors=step_errors,
+            step_metadata=step_metadata_list,
         )
 
         return final_status
@@ -198,6 +267,8 @@ class DepthOrchestrator:
             context["candidates"] = payload.get("candidates", [])
         elif step == DepthStepName.MURAQABA:
             context["bias_register"] = payload.get("bias_register", {})
+            # MVP-9: pass assumption drafts downstream
+            context["assumption_drafts"] = payload.get("assumption_drafts", [])
         elif step == DepthStepName.MUJAHADA:
             context["contrarians"] = payload.get("contrarians", [])
             context["qualitative_risks"] = payload.get("qualitative_risks", [])

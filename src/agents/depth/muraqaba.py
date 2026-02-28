@@ -1,6 +1,14 @@
 """Step 2: Muraqaba — Bias Register.
 
+The Al-Muhasabi structured reasoning methodology and framework are the
+intellectual property of Salim Al-Barami, licensed to Strategic Gears
+for use within ImpactOS. The software implementation, prompt engineering,
+and system integration are part of the ImpactOS platform.
+
 Analyzes candidate directions for cognitive biases.
+
+MVP-9 Enhancement: generates AssumptionDraft objects from detected biases,
+surfacing implicit assumptions that need formal governance review.
 
 RESTRICTED fallback: heuristic bias detection based on candidate patterns:
 - Anchoring if only 1 candidate
@@ -15,8 +23,9 @@ from uuid import UUID
 from src.agents.depth.base import DepthStepAgent
 from src.agents.depth.prompts.muraqaba import build_prompt
 from src.agents.llm_client import LLMClient
-from src.models.common import DataClassification
+from src.models.common import AssumptionType, DataClassification
 from src.models.depth import (
+    AssumptionDraft,
     BiasEntry,
     BiasRegister,
     DepthStepName,
@@ -130,8 +139,135 @@ def _detect_biases_heuristically(candidates: list[dict]) -> BiasRegister:
     return BiasRegister(entries=entries, overall_bias_risk=overall)
 
 
+def _surface_assumption_drafts(
+    bias_register: BiasRegister,
+    candidates: list[dict],
+) -> list[AssumptionDraft]:
+    """Surface implicit assumptions from detected biases.
+
+    MVP-9 Amendment 5: each detected bias generates a draft assumption
+    that can be promoted into the formal AssumptionRegister for governance.
+
+    Rules:
+    - anchoring  -> STRUCTURAL assumption about limited exploration
+    - status_quo -> BEHAVIORAL assumption about comfort-zone thinking
+    - optimism   -> BEHAVIORAL assumption about upside-only framing
+    - availability -> STRUCTURAL assumption about sector concentration
+    - groupthink -> BEHAVIORAL assumption about lever homogeneity
+    """
+    drafts: list[AssumptionDraft] = []
+
+    # Map bias types to assumption templates.
+    # AssumptionType uses governed economic categories (IMPORT_SHARE, PHASING, etc.)
+    # We use CAPACITY_CAP for structural constraints and PHASING for temporal assumptions.
+    bias_to_assumption: dict[str, tuple[AssumptionType, str, str]] = {
+        "anchoring": (
+            AssumptionType.CAPACITY_CAP,
+            "Limited scenario exploration",
+            "Only one candidate direction was explored, risking anchoring "
+            "to a single analytical perspective.",
+        ),
+        "status_quo": (
+            AssumptionType.PHASING,
+            "Status quo bias in direction generation",
+            "All candidate directions are ego-driven (nafs), suggesting "
+            "the analysis stays within comfortable/familiar territory.",
+        ),
+        "optimism": (
+            AssumptionType.PHASING,
+            "Optimism bias — no downside scenarios",
+            "No stress test or downside scenarios were generated, risking "
+            "systematic under-estimation of adverse outcomes.",
+        ),
+        "availability": (
+            AssumptionType.IMPORT_SHARE,
+            "Sector concentration in scenario directions",
+            "Candidate directions cluster heavily in a single sector, "
+            "potentially missing cross-sector spillover effects.",
+        ),
+        "groupthink": (
+            AssumptionType.CAPACITY_CAP,
+            "Homogeneous modeling approach",
+            "All candidates use identical engine levers, suggesting "
+            "insufficient diversity in analytical methodology.",
+        ),
+    }
+
+    for entry in bias_register.entries:
+        template = bias_to_assumption.get(entry.bias_type)
+        if template is None:
+            continue
+
+        assumption_type, name, description = template
+        drafts.append(AssumptionDraft(
+            name=name,
+            description=description,
+            assumption_type=assumption_type,
+            proposed_value=f"severity={entry.severity:.1f}",
+            rationale=entry.description,
+        ))
+
+    return drafts
+
+
+def _assess_framing(candidates: list[dict]) -> str | None:
+    """Assess the overall framing of candidate directions.
+
+    Returns a brief framing assessment string or None if no candidates.
+    """
+    if not candidates:
+        return None
+
+    source_types = [c.get("source_type", "") for c in candidates]
+    insight_count = sum(1 for s in source_types if s == "insight")
+    nafs_count = sum(1 for s in source_types if s == "nafs")
+    total = len(candidates)
+
+    if nafs_count == total:
+        return "All directions are ego-driven (nafs) — consider adding analytical alternatives."
+    if insight_count == total:
+        return "All directions are insight-driven — well-grounded but may lack creative stretch."
+    if insight_count / total >= 0.6:
+        return f"Mostly analytical ({insight_count}/{total} insight) — good analytical grounding."
+
+    return f"Mixed framing: {insight_count} insight, {nafs_count} nafs out of {total} total."
+
+
+def _identify_missing_perspectives(candidates: list[dict]) -> list[str]:
+    """Identify analytical perspectives not covered by current candidates.
+
+    Checks for common gaps: demand-side only, no supply disruption,
+    no regulatory scenarios, no technology change, no workforce impacts.
+    """
+    missing: list[str] = []
+    if not candidates:
+        return missing
+
+    labels_lower = " ".join(c.get("label", "").lower() for c in candidates)
+    descriptions_lower = " ".join(c.get("description", "").lower() for c in candidates)
+    all_text = labels_lower + " " + descriptions_lower
+
+    # Check for common missing perspectives
+    if "supply" not in all_text and "disruption" not in all_text:
+        missing.append("Supply-side disruption scenarios")
+    if "regul" not in all_text and "policy" not in all_text:
+        missing.append("Regulatory or policy change scenarios")
+    if "tech" not in all_text and "innov" not in all_text and "digital" not in all_text:
+        missing.append("Technology or innovation scenarios")
+    if "workforce" not in all_text and "labor" not in all_text and "employ" not in all_text:
+        missing.append("Workforce and employment impact scenarios")
+
+    return missing
+
+
 class MuraqabaAgent(DepthStepAgent):
-    """Step 2: Detect cognitive biases in candidate directions."""
+    """Step 2: Detect cognitive biases in candidate directions.
+
+    MVP-9 enhancements:
+    - Generates AssumptionDraft objects from detected biases
+    - Assesses overall framing of directions
+    - Identifies missing analytical perspectives
+    """
 
     step_name = DepthStepName.MURAQABA
 
@@ -153,7 +289,15 @@ class MuraqabaAgent(DepthStepAgent):
 
         logger.info("Muraqaba: using heuristic bias detection (fallback)")
         register = _detect_biases_heuristically(candidates)
-        output = MuraqabaOutput(bias_register=register)
+        assumption_drafts = _surface_assumption_drafts(register, candidates)
+        framing = _assess_framing(candidates)
+        missing = _identify_missing_perspectives(candidates)
+        output = MuraqabaOutput(
+            bias_register=register,
+            assumption_drafts=assumption_drafts,
+            framing_assessment=framing,
+            missing_perspectives=missing,
+        )
         return output.model_dump(mode="json")
 
     def _run_with_llm(
@@ -169,5 +313,13 @@ class MuraqabaAgent(DepthStepAgent):
         # For MVP, use heuristic fallback + LLM prompt ready
         candidates = context.get("candidates", [])
         register = _detect_biases_heuristically(candidates)
-        output = MuraqabaOutput(bias_register=register)
+        assumption_drafts = _surface_assumption_drafts(register, candidates)
+        framing = _assess_framing(candidates)
+        missing = _identify_missing_perspectives(candidates)
+        output = MuraqabaOutput(
+            bias_register=register,
+            assumption_drafts=assumption_drafts,
+            framing_assessment=framing,
+            missing_perspectives=missing,
+        )
         return output.model_dump(mode="json")
