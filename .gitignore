@@ -55,6 +55,9 @@ node_modules/
 *.key
 *.crt
 
+# Proprietary workbooks (SG production templates)
+*.xlsb
+
 # Docker volumes (managed by Docker Compose)
 pgdata/
 redisdata/

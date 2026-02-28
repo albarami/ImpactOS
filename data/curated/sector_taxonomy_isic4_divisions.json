@@ -1,0 +1,995 @@
+{
+  "classification": "ISIC_REV4_DIVISION",
+  "version": "1.0",
+  "source": "UN Statistics Division ISIC Rev.4 (2008) + SG production template verification",
+  "code_space": "01-97",
+  "total_codes": 97,
+  "active_count": 84,
+  "inactive_codes": [
+    "04",
+    "12",
+    "34",
+    "40",
+    "44",
+    "48",
+    "54",
+    "57",
+    "67",
+    "76",
+    "83",
+    "89",
+    "92"
+  ],
+  "sectors": [
+    {
+      "division_code": "01",
+      "section_code": "A",
+      "sector_name_en": "Crop and animal production, hunting and related service activities",
+      "sector_name_ar": "انتاج المحاصيل والانتاج الحيواني والصيد والخدمات المتصلة بها",
+      "level": "division",
+      "parent_section": "A",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "02",
+      "section_code": "A",
+      "sector_name_en": "Forestry and logging",
+      "sector_name_ar": "الحراجة وقطع الاشجار",
+      "level": "division",
+      "parent_section": "A",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "03",
+      "section_code": "A",
+      "sector_name_en": "Fishing and aquaculture",
+      "sector_name_ar": "صيد الاسماك وتربية الاحياء المائية",
+      "level": "division",
+      "parent_section": "A",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "04",
+      "section_code": "A",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "A",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "05",
+      "section_code": "B",
+      "sector_name_en": "Mining of coal and lignite",
+      "sector_name_ar": "تعدين الفحم والليغنيت",
+      "level": "division",
+      "parent_section": "B",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "06",
+      "section_code": "B",
+      "sector_name_en": "Extraction of crude petroleum and natural gas",
+      "sector_name_ar": "استخراج النفط الخام والغاز الطبيعي",
+      "level": "division",
+      "parent_section": "B",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "07",
+      "section_code": "B",
+      "sector_name_en": "Mining of metal ores",
+      "sector_name_ar": "تعدين ركازات الفلزات",
+      "level": "division",
+      "parent_section": "B",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "08",
+      "section_code": "B",
+      "sector_name_en": "Other mining and quarrying",
+      "sector_name_ar": "انشطة التعدين واستغلال المحاجر الاخرى",
+      "level": "division",
+      "parent_section": "B",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "09",
+      "section_code": "B",
+      "sector_name_en": "Mining support service activities",
+      "sector_name_ar": "انشطة خدمات الدعم للتعدين",
+      "level": "division",
+      "parent_section": "B",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "10",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of food products",
+      "sector_name_ar": "صناعة المنتجات الغذائية",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "11",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of beverages",
+      "sector_name_ar": "صناعة المشروبات",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "12",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of tobacco products",
+      "sector_name_ar": "صناعة منتجات التبغ",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "13",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of textiles",
+      "sector_name_ar": "صناعة المنسوجات",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "14",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of wearing apparel",
+      "sector_name_ar": "صناعة الملابس",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "15",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of leather and related products",
+      "sector_name_ar": "صناعة الجلود والمنتجات ذات الصلة",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "16",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of wood and of products of wood and cork, except furniture",
+      "sector_name_ar": "صناعة الخشب ومنتجات الخشب والفلين عدا الاثاث",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "17",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of paper and paper products",
+      "sector_name_ar": "صناعة الورق ومنتجاته",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "18",
+      "section_code": "C",
+      "sector_name_en": "Printing and reproduction of recorded media",
+      "sector_name_ar": "الطباعة واستنساخ وسائط الاعلام المسجلة",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "19",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of coke and refined petroleum products",
+      "sector_name_ar": "صناعة فحم الكوك والمنتجات النفطية المكررة",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "20",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of chemicals and chemical products",
+      "sector_name_ar": "صناعة المواد الكيميائية والمنتجات الكيميائية",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "21",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of pharmaceuticals, medicinal chemical and botanical products",
+      "sector_name_ar": "صناعة المستحضرات الصيدلانية والمنتجات الكيميائية الطبية والنباتية",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "22",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of rubber and plastics products",
+      "sector_name_ar": "صناعة منتجات المطاط واللدائن",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "23",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of other non-metallic mineral products",
+      "sector_name_ar": "صناعة المنتجات المعدنية اللافلزية الاخرى",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "24",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of basic metals",
+      "sector_name_ar": "صناعة الفلزات القاعدية",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "25",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of fabricated metal products, except machinery and equipment",
+      "sector_name_ar": "صناعة المنتجات المعدنية المشكلة عدا الالات والمعدات",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "26",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of computer, electronic and optical products",
+      "sector_name_ar": "صناعة منتجات الحاسوب والالكترونيات والبصريات",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "27",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of electrical equipment",
+      "sector_name_ar": "صناعة المعدات الكهربائية",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "28",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of machinery and equipment n.e.c.",
+      "sector_name_ar": "صناعة الالات والمعدات غير المصنفة في موضع اخر",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "29",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of motor vehicles, trailers and semi-trailers",
+      "sector_name_ar": "صناعة المركبات ذات المحركات والمقطورات وشبه المقطورات",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "30",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of other transport equipment",
+      "sector_name_ar": "صناعة معدات النقل الاخرى",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "31",
+      "section_code": "C",
+      "sector_name_en": "Manufacture of furniture",
+      "sector_name_ar": "صناعة الاثاث",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "32",
+      "section_code": "C",
+      "sector_name_en": "Other manufacturing",
+      "sector_name_ar": "الصناعات التحويلية الاخرى",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "33",
+      "section_code": "C",
+      "sector_name_en": "Repair and installation of machinery and equipment",
+      "sector_name_ar": "اصلاح وتركيب الالات والمعدات",
+      "level": "division",
+      "parent_section": "C",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "34",
+      "section_code": "C",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "C",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "35",
+      "section_code": "D",
+      "sector_name_en": "Electricity, gas, steam and air conditioning supply",
+      "sector_name_ar": "امدادات الكهرباء والغاز والبخار وتكييف الهواء",
+      "level": "division",
+      "parent_section": "D",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "36",
+      "section_code": "E",
+      "sector_name_en": "Water collection, treatment and supply",
+      "sector_name_ar": "جمع المياه ومعالجتها وتوزيعها",
+      "level": "division",
+      "parent_section": "E",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "37",
+      "section_code": "E",
+      "sector_name_en": "Sewerage",
+      "sector_name_ar": "الصرف الصحي",
+      "level": "division",
+      "parent_section": "E",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "38",
+      "section_code": "E",
+      "sector_name_en": "Waste collection, treatment and disposal; materials recovery",
+      "sector_name_ar": "جمع النفايات ومعالجتها والتخلص منها واسترداد المواد",
+      "level": "division",
+      "parent_section": "E",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "39",
+      "section_code": "E",
+      "sector_name_en": "Remediation activities and other waste management services",
+      "sector_name_ar": "انشطة المعالجة وخدمات ادارة النفايات الاخرى",
+      "level": "division",
+      "parent_section": "E",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "40",
+      "section_code": "E",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "E",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "41",
+      "section_code": "F",
+      "sector_name_en": "Construction of buildings",
+      "sector_name_ar": "تشييد المباني",
+      "level": "division",
+      "parent_section": "F",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "42",
+      "section_code": "F",
+      "sector_name_en": "Civil engineering",
+      "sector_name_ar": "الهندسة المدنية",
+      "level": "division",
+      "parent_section": "F",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "43",
+      "section_code": "F",
+      "sector_name_en": "Specialized construction activities",
+      "sector_name_ar": "انشطة التشييد المتخصصة",
+      "level": "division",
+      "parent_section": "F",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "44",
+      "section_code": "F",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "F",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "45",
+      "section_code": "G",
+      "sector_name_en": "Wholesale and retail trade and repair of motor vehicles and motorcycles",
+      "sector_name_ar": "تجارة وصيانة واصلاح المركبات ذات المحركات والدراجات النارية",
+      "level": "division",
+      "parent_section": "G",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "46",
+      "section_code": "G",
+      "sector_name_en": "Wholesale trade, except of motor vehicles and motorcycles",
+      "sector_name_ar": "تجارة الجملة باستثناء المركبات ذات المحركات والدراجات النارية",
+      "level": "division",
+      "parent_section": "G",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "47",
+      "section_code": "G",
+      "sector_name_en": "Retail trade, except of motor vehicles and motorcycles",
+      "sector_name_ar": "تجارة التجزئة باستثناء المركبات ذات المحركات والدراجات النارية",
+      "level": "division",
+      "parent_section": "G",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "48",
+      "section_code": "G",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "G",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "49",
+      "section_code": "H",
+      "sector_name_en": "Land transport and transport via pipelines",
+      "sector_name_ar": "النقل البري والنقل عبر خطوط الانابيب",
+      "level": "division",
+      "parent_section": "H",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "50",
+      "section_code": "H",
+      "sector_name_en": "Water transport",
+      "sector_name_ar": "النقل المائي",
+      "level": "division",
+      "parent_section": "H",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "51",
+      "section_code": "H",
+      "sector_name_en": "Air transport",
+      "sector_name_ar": "النقل الجوي",
+      "level": "division",
+      "parent_section": "H",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "52",
+      "section_code": "H",
+      "sector_name_en": "Warehousing and support activities for transportation",
+      "sector_name_ar": "التخزين وانشطة الدعم للنقل",
+      "level": "division",
+      "parent_section": "H",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "53",
+      "section_code": "H",
+      "sector_name_en": "Postal and courier activities",
+      "sector_name_ar": "انشطة البريد والبريد السريع",
+      "level": "division",
+      "parent_section": "H",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "54",
+      "section_code": "H",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "H",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "55",
+      "section_code": "I",
+      "sector_name_en": "Accommodation",
+      "sector_name_ar": "الاقامة",
+      "level": "division",
+      "parent_section": "I",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "56",
+      "section_code": "I",
+      "sector_name_en": "Food and beverage service activities",
+      "sector_name_ar": "انشطة خدمات الطعام والمشروبات",
+      "level": "division",
+      "parent_section": "I",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "57",
+      "section_code": "I",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "I",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "58",
+      "section_code": "J",
+      "sector_name_en": "Publishing activities",
+      "sector_name_ar": "انشطة النشر",
+      "level": "division",
+      "parent_section": "J",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "59",
+      "section_code": "J",
+      "sector_name_en": "Motion picture, video and television programme production",
+      "sector_name_ar": "انشطة انتاج الافلام السينمائية والفيديو والبرامج التلفزيونية",
+      "level": "division",
+      "parent_section": "J",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "60",
+      "section_code": "J",
+      "sector_name_en": "Programming and broadcasting activities",
+      "sector_name_ar": "انشطة البرمجة والبث",
+      "level": "division",
+      "parent_section": "J",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "61",
+      "section_code": "J",
+      "sector_name_en": "Telecommunications",
+      "sector_name_ar": "الاتصالات السلكية واللاسلكية",
+      "level": "division",
+      "parent_section": "J",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "62",
+      "section_code": "J",
+      "sector_name_en": "Computer programming, consultancy and related activities",
+      "sector_name_ar": "برمجة الحاسوب والاستشارات والانشطة ذات الصلة",
+      "level": "division",
+      "parent_section": "J",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "63",
+      "section_code": "J",
+      "sector_name_en": "Information service activities",
+      "sector_name_ar": "انشطة خدمات المعلومات",
+      "level": "division",
+      "parent_section": "J",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "64",
+      "section_code": "K",
+      "sector_name_en": "Financial service activities, except insurance and pension funding",
+      "sector_name_ar": "انشطة الخدمات المالية باستثناء التامين وتمويل المعاشات التقاعدية",
+      "level": "division",
+      "parent_section": "K",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "65",
+      "section_code": "K",
+      "sector_name_en": "Insurance, reinsurance and pension funding",
+      "sector_name_ar": "التامين واعادة التامين وتمويل المعاشات التقاعدية",
+      "level": "division",
+      "parent_section": "K",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "66",
+      "section_code": "K",
+      "sector_name_en": "Activities auxiliary to financial service and insurance activities",
+      "sector_name_ar": "الانشطة المساعدة للخدمات المالية وانشطة التامين",
+      "level": "division",
+      "parent_section": "K",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "67",
+      "section_code": "K",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "K",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "68",
+      "section_code": "L",
+      "sector_name_en": "Real estate activities",
+      "sector_name_ar": "الانشطة العقارية",
+      "level": "division",
+      "parent_section": "L",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "69",
+      "section_code": "M",
+      "sector_name_en": "Legal and accounting activities",
+      "sector_name_ar": "الانشطة القانونية وانشطة المحاسبة",
+      "level": "division",
+      "parent_section": "M",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "70",
+      "section_code": "M",
+      "sector_name_en": "Activities of head offices; management consultancy activities",
+      "sector_name_ar": "انشطة المقار الرئيسية والانشطة الاستشارية في مجال الادارة",
+      "level": "division",
+      "parent_section": "M",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "71",
+      "section_code": "M",
+      "sector_name_en": "Architectural and engineering activities; technical testing and analysis",
+      "sector_name_ar": "الانشطة المعمارية والهندسية والاختبارات والتحليلات التقنية",
+      "level": "division",
+      "parent_section": "M",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "72",
+      "section_code": "M",
+      "sector_name_en": "Scientific research and development",
+      "sector_name_ar": "البحث العلمي والتطوير",
+      "level": "division",
+      "parent_section": "M",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "73",
+      "section_code": "M",
+      "sector_name_en": "Advertising and market research",
+      "sector_name_ar": "الاعلان وبحوث السوق",
+      "level": "division",
+      "parent_section": "M",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "74",
+      "section_code": "M",
+      "sector_name_en": "Other professional, scientific and technical activities",
+      "sector_name_ar": "الانشطة المهنية والعلمية والتقنية الاخرى",
+      "level": "division",
+      "parent_section": "M",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "75",
+      "section_code": "M",
+      "sector_name_en": "Veterinary activities",
+      "sector_name_ar": "الانشطة البيطرية",
+      "level": "division",
+      "parent_section": "M",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "76",
+      "section_code": "M",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "M",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "77",
+      "section_code": "N",
+      "sector_name_en": "Rental and leasing activities",
+      "sector_name_ar": "انشطة التاجير والايجار",
+      "level": "division",
+      "parent_section": "N",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "78",
+      "section_code": "N",
+      "sector_name_en": "Employment activities",
+      "sector_name_ar": "انشطة التوظيف",
+      "level": "division",
+      "parent_section": "N",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "79",
+      "section_code": "N",
+      "sector_name_en": "Travel agency, tour operator reservation service and related activities",
+      "sector_name_ar": "انشطة وكالات السفر ومنظمي الرحلات وخدمات الحجز",
+      "level": "division",
+      "parent_section": "N",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "80",
+      "section_code": "N",
+      "sector_name_en": "Security and investigation activities",
+      "sector_name_ar": "انشطة الامن والتحقيقات",
+      "level": "division",
+      "parent_section": "N",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "81",
+      "section_code": "N",
+      "sector_name_en": "Services to buildings and landscape activities",
+      "sector_name_ar": "خدمات المباني وانشطة تنسيق المواقع",
+      "level": "division",
+      "parent_section": "N",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "82",
+      "section_code": "N",
+      "sector_name_en": "Office administrative, office support and other business support activities",
+      "sector_name_ar": "الانشطة الادارية للمكاتب ودعم المكاتب وانشطة دعم الاعمال الاخرى",
+      "level": "division",
+      "parent_section": "N",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "83",
+      "section_code": "N",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "N",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "84",
+      "section_code": "O",
+      "sector_name_en": "Public administration and defence; compulsory social security",
+      "sector_name_ar": "الادارة العامة والدفاع والضمان الاجتماعي الالزامي",
+      "level": "division",
+      "parent_section": "O",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "85",
+      "section_code": "P",
+      "sector_name_en": "Education",
+      "sector_name_ar": "التعليم",
+      "level": "division",
+      "parent_section": "P",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "86",
+      "section_code": "Q",
+      "sector_name_en": "Human health activities",
+      "sector_name_ar": "انشطة صحة الانسان",
+      "level": "division",
+      "parent_section": "Q",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "87",
+      "section_code": "Q",
+      "sector_name_en": "Residential care activities",
+      "sector_name_ar": "انشطة الرعاية السكنية",
+      "level": "division",
+      "parent_section": "Q",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "88",
+      "section_code": "Q",
+      "sector_name_en": "Social work activities without accommodation",
+      "sector_name_ar": "انشطة العمل الاجتماعي بدون اقامة",
+      "level": "division",
+      "parent_section": "Q",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "89",
+      "section_code": "Q",
+      "sector_name_en": "(Reserved/unused in ISIC Rev.4)",
+      "sector_name_ar": null,
+      "level": "division",
+      "parent_section": "Q",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "90",
+      "section_code": "R",
+      "sector_name_en": "Creative, arts and entertainment activities",
+      "sector_name_ar": "انشطة الابداع والفنون والترفيه",
+      "level": "division",
+      "parent_section": "R",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "91",
+      "section_code": "R",
+      "sector_name_en": "Libraries, archives, museums and other cultural activities",
+      "sector_name_ar": "المكتبات والمحفوظات والمتاحف والانشطة الثقافية الاخرى",
+      "level": "division",
+      "parent_section": "R",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "92",
+      "section_code": "R",
+      "sector_name_en": "Gambling and betting activities",
+      "sector_name_ar": "انشطة المقامرة والمراهنات",
+      "level": "division",
+      "parent_section": "R",
+      "is_active": false,
+      "present_in_sg_template": false
+    },
+    {
+      "division_code": "93",
+      "section_code": "R",
+      "sector_name_en": "Sports activities and amusement and recreation activities",
+      "sector_name_ar": "الانشطة الرياضية وانشطة التسلية والترفيه",
+      "level": "division",
+      "parent_section": "R",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "94",
+      "section_code": "S",
+      "sector_name_en": "Activities of membership organizations",
+      "sector_name_ar": "انشطة منظمات العضوية",
+      "level": "division",
+      "parent_section": "S",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "95",
+      "section_code": "S",
+      "sector_name_en": "Repair of computers and personal and household goods",
+      "sector_name_ar": "اصلاح الحواسيب والسلع الشخصية والمنزلية",
+      "level": "division",
+      "parent_section": "S",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "96",
+      "section_code": "S",
+      "sector_name_en": "Other personal service activities",
+      "sector_name_ar": "انشطة الخدمات الشخصية الاخرى",
+      "level": "division",
+      "parent_section": "S",
+      "is_active": true,
+      "present_in_sg_template": true
+    },
+    {
+      "division_code": "97",
+      "section_code": "T",
+      "sector_name_en": "Activities of households as employers of domestic personnel",
+      "sector_name_ar": "انشطة الاسر المعيشية بوصفها جهات موظفة لخدم المنازل",
+      "level": "division",
+      "parent_section": "T",
+      "is_active": true,
+      "present_in_sg_template": true
+    }
+  ]
+}
