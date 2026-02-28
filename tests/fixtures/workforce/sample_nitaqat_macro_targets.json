@@ -1,0 +1,30 @@
+{
+  "effective_as_of": "2025-02-28",
+  "targets": {
+    "F": {
+      "sector_code": "F",
+      "effective_target_pct": 0.12,
+      "target_range_low": 0.08,
+      "target_range_high": 0.18,
+      "derivation": "Construction structurally expat-heavy",
+      "applicable_rules": ["NQ-MUTAWAR-GENERAL"],
+      "source_confidence": "ESTIMATED",
+      "quality_confidence": "medium",
+      "notes": null
+    },
+    "K": {
+      "sector_code": "K",
+      "effective_target_pct": 0.55,
+      "target_range_low": 0.45,
+      "target_range_high": 0.70,
+      "derivation": "Finance heavily Saudized",
+      "applicable_rules": ["NQ-MUTAWAR-GENERAL", "NQ-2025-ACCT-P1"],
+      "source_confidence": "ESTIMATED",
+      "quality_confidence": "medium",
+      "notes": null
+    },
+    "U": null
+  },
+  "caveats": ["Does not capture company-size variation within sectors"],
+  "metadata": {"note": "Test fixture"}
+}

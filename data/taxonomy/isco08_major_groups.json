@@ -1,0 +1,12 @@
+[
+  {"code": "0", "label": "Armed Forces Occupations"},
+  {"code": "1", "label": "Managers"},
+  {"code": "2", "label": "Professionals"},
+  {"code": "3", "label": "Technicians and Associate Professionals"},
+  {"code": "4", "label": "Clerical Support Workers"},
+  {"code": "5", "label": "Services and Sales Workers"},
+  {"code": "6", "label": "Skilled Agricultural, Forestry and Fishery Workers"},
+  {"code": "7", "label": "Craft and Related Trades Workers"},
+  {"code": "8", "label": "Plant and Machine Operators and Assemblers"},
+  {"code": "9", "label": "Elementary Occupations"}
+]

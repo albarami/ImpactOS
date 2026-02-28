@@ -1,0 +1,14 @@
+{
+  "dataset_id": "input-output-table-type-i-multiplier",
+  "description": "Type I output multipliers",
+  "total_count": 5,
+  "record_count": 5,
+  "fetch_timestamp": "2026-02-28T12:00:00Z",
+  "records": [
+    {"sector_code": "A", "sector_name": "Agriculture, forestry and fishing", "output_multiplier": 1.45, "backward_linkage": 0.72, "forward_linkage": 0.65, "year": 2019},
+    {"sector_code": "B", "sector_name": "Mining and quarrying", "output_multiplier": 1.28, "backward_linkage": 0.64, "forward_linkage": 0.95, "year": 2019},
+    {"sector_code": "C", "sector_name": "Manufacturing", "output_multiplier": 1.89, "backward_linkage": 0.95, "forward_linkage": 0.82, "year": 2019},
+    {"sector_code": "F", "sector_name": "Construction", "output_multiplier": 1.72, "backward_linkage": 0.86, "forward_linkage": 0.48, "year": 2019},
+    {"sector_code": "G", "sector_name": "Wholesale and retail trade", "output_multiplier": 1.35, "backward_linkage": 0.68, "forward_linkage": 0.71, "year": 2019}
+  ]
+}

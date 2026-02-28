@@ -1,0 +1,212 @@
+{
+  "concordance_id": "isic4-section-to-division",
+  "version": "1.0",
+  "source": "ISIC Rev.4 standard classification hierarchy",
+  "description": "Maps 20 ISIC Rev.4 section codes to 84 active division codes present in SG production template",
+  "mappings": [
+    {
+      "section_code": "A",
+      "section_name": "Agriculture, forestry and fishing",
+      "division_codes": [
+        "01",
+        "02",
+        "03"
+      ]
+    },
+    {
+      "section_code": "B",
+      "section_name": "Mining and quarrying",
+      "division_codes": [
+        "05",
+        "06",
+        "07",
+        "08",
+        "09"
+      ]
+    },
+    {
+      "section_code": "C",
+      "section_name": "Manufacturing",
+      "division_codes": [
+        "10",
+        "11",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33"
+      ]
+    },
+    {
+      "section_code": "D",
+      "section_name": "Electricity, gas, steam and air conditioning supply",
+      "division_codes": [
+        "35"
+      ]
+    },
+    {
+      "section_code": "E",
+      "section_name": "Water supply; sewerage, waste management and remediation",
+      "division_codes": [
+        "36",
+        "37",
+        "38",
+        "39"
+      ]
+    },
+    {
+      "section_code": "F",
+      "section_name": "Construction",
+      "division_codes": [
+        "41",
+        "42",
+        "43"
+      ]
+    },
+    {
+      "section_code": "G",
+      "section_name": "Wholesale and retail trade; repair of motor vehicles",
+      "division_codes": [
+        "45",
+        "46",
+        "47"
+      ]
+    },
+    {
+      "section_code": "H",
+      "section_name": "Transportation and storage",
+      "division_codes": [
+        "49",
+        "50",
+        "51",
+        "52",
+        "53"
+      ]
+    },
+    {
+      "section_code": "I",
+      "section_name": "Accommodation and food service activities",
+      "division_codes": [
+        "55",
+        "56"
+      ]
+    },
+    {
+      "section_code": "J",
+      "section_name": "Information and communication",
+      "division_codes": [
+        "58",
+        "59",
+        "60",
+        "61",
+        "62",
+        "63"
+      ]
+    },
+    {
+      "section_code": "K",
+      "section_name": "Financial and insurance activities",
+      "division_codes": [
+        "64",
+        "65",
+        "66"
+      ]
+    },
+    {
+      "section_code": "L",
+      "section_name": "Real estate activities",
+      "division_codes": [
+        "68"
+      ]
+    },
+    {
+      "section_code": "M",
+      "section_name": "Professional, scientific and technical activities",
+      "division_codes": [
+        "69",
+        "70",
+        "71",
+        "72",
+        "73",
+        "74",
+        "75"
+      ]
+    },
+    {
+      "section_code": "N",
+      "section_name": "Administrative and support service activities",
+      "division_codes": [
+        "77",
+        "78",
+        "79",
+        "80",
+        "81",
+        "82"
+      ]
+    },
+    {
+      "section_code": "O",
+      "section_name": "Public administration and defence; compulsory social security",
+      "division_codes": [
+        "84"
+      ]
+    },
+    {
+      "section_code": "P",
+      "section_name": "Education",
+      "division_codes": [
+        "85"
+      ]
+    },
+    {
+      "section_code": "Q",
+      "section_name": "Human health and social work activities",
+      "division_codes": [
+        "86",
+        "87",
+        "88"
+      ]
+    },
+    {
+      "section_code": "R",
+      "section_name": "Arts, entertainment and recreation",
+      "division_codes": [
+        "90",
+        "91",
+        "93"
+      ]
+    },
+    {
+      "section_code": "S",
+      "section_name": "Other service activities",
+      "division_codes": [
+        "94",
+        "95",
+        "96"
+      ]
+    },
+    {
+      "section_code": "T",
+      "section_name": "Activities of households as employers",
+      "division_codes": [
+        "97"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,513 @@
+{
+  "source": "SYNTHETIC: Proportional disaggregation of D-1 section-level output using estimated intra-section weights. NOT real GASTAT data.",
+  "denomination": "SAR_THOUSANDS",
+  "base_year": 2018,
+  "is_synthetic": true,
+  "total_divisions": 84,
+  "divisions": [
+    {
+      "code": "01",
+      "name": "Crop and animal production, hunting and related service activities",
+      "section_code": "A",
+      "total_output": 33000000
+    },
+    {
+      "code": "02",
+      "name": "Forestry and logging",
+      "section_code": "A",
+      "total_output": 2750000
+    },
+    {
+      "code": "03",
+      "name": "Fishing and aquaculture",
+      "section_code": "A",
+      "total_output": 19250000
+    },
+    {
+      "code": "05",
+      "name": "Mining of coal and lignite",
+      "section_code": "B",
+      "total_output": 4750000
+    },
+    {
+      "code": "06",
+      "name": "Extraction of crude petroleum and natural gas",
+      "section_code": "B",
+      "total_output": 836000000
+    },
+    {
+      "code": "07",
+      "name": "Mining of metal ores",
+      "section_code": "B",
+      "total_output": 9500000
+    },
+    {
+      "code": "08",
+      "name": "Other mining and quarrying",
+      "section_code": "B",
+      "total_output": 28500000
+    },
+    {
+      "code": "09",
+      "name": "Mining support service activities",
+      "section_code": "B",
+      "total_output": 71250000
+    },
+    {
+      "code": "10",
+      "name": "Manufacture of food products",
+      "section_code": "C",
+      "total_output": 33600000
+    },
+    {
+      "code": "11",
+      "name": "Manufacture of beverages",
+      "section_code": "C",
+      "total_output": 6300000
+    },
+    {
+      "code": "13",
+      "name": "Manufacture of textiles",
+      "section_code": "C",
+      "total_output": 6300000
+    },
+    {
+      "code": "14",
+      "name": "Manufacture of wearing apparel",
+      "section_code": "C",
+      "total_output": 4200000
+    },
+    {
+      "code": "15",
+      "name": "Manufacture of leather and related products",
+      "section_code": "C",
+      "total_output": 2100000
+    },
+    {
+      "code": "16",
+      "name": "Manufacture of wood and of products of wood and cork, except furniture",
+      "section_code": "C",
+      "total_output": 4200000
+    },
+    {
+      "code": "17",
+      "name": "Manufacture of paper and paper products",
+      "section_code": "C",
+      "total_output": 4200000
+    },
+    {
+      "code": "18",
+      "name": "Printing and reproduction of recorded media",
+      "section_code": "C",
+      "total_output": 2100000
+    },
+    {
+      "code": "19",
+      "name": "Manufacture of coke and refined petroleum products",
+      "section_code": "C",
+      "total_output": 126000000
+    },
+    {
+      "code": "20",
+      "name": "Manufacture of chemicals and chemical products",
+      "section_code": "C",
+      "total_output": 75600000
+    },
+    {
+      "code": "21",
+      "name": "Manufacture of pharmaceuticals, medicinal chemical and botanical products",
+      "section_code": "C",
+      "total_output": 10500000
+    },
+    {
+      "code": "22",
+      "name": "Manufacture of rubber and plastics products",
+      "section_code": "C",
+      "total_output": 12600000
+    },
+    {
+      "code": "23",
+      "name": "Manufacture of other non-metallic mineral products",
+      "section_code": "C",
+      "total_output": 25200000
+    },
+    {
+      "code": "24",
+      "name": "Manufacture of basic metals",
+      "section_code": "C",
+      "total_output": 29400000
+    },
+    {
+      "code": "25",
+      "name": "Manufacture of fabricated metal products, except machinery and equipment",
+      "section_code": "C",
+      "total_output": 16800000
+    },
+    {
+      "code": "26",
+      "name": "Manufacture of computer, electronic and optical products",
+      "section_code": "C",
+      "total_output": 6300000
+    },
+    {
+      "code": "27",
+      "name": "Manufacture of electrical equipment",
+      "section_code": "C",
+      "total_output": 8400000
+    },
+    {
+      "code": "28",
+      "name": "Manufacture of machinery and equipment n.e.c.",
+      "section_code": "C",
+      "total_output": 10500000
+    },
+    {
+      "code": "29",
+      "name": "Manufacture of motor vehicles, trailers and semi-trailers",
+      "section_code": "C",
+      "total_output": 6300000
+    },
+    {
+      "code": "30",
+      "name": "Manufacture of other transport equipment",
+      "section_code": "C",
+      "total_output": 4200000
+    },
+    {
+      "code": "31",
+      "name": "Manufacture of furniture",
+      "section_code": "C",
+      "total_output": 6300000
+    },
+    {
+      "code": "32",
+      "name": "Other manufacturing",
+      "section_code": "C",
+      "total_output": 8400000
+    },
+    {
+      "code": "33",
+      "name": "Repair and installation of machinery and equipment",
+      "section_code": "C",
+      "total_output": 10500000
+    },
+    {
+      "code": "35",
+      "name": "Electricity, gas, steam and air conditioning supply",
+      "section_code": "D",
+      "total_output": 55000000
+    },
+    {
+      "code": "36",
+      "name": "Water collection, treatment and supply",
+      "section_code": "E",
+      "total_output": 15400000
+    },
+    {
+      "code": "37",
+      "name": "Sewerage",
+      "section_code": "E",
+      "total_output": 2800000
+    },
+    {
+      "code": "38",
+      "name": "Waste collection, treatment and disposal; materials recovery",
+      "section_code": "E",
+      "total_output": 7000000
+    },
+    {
+      "code": "39",
+      "name": "Remediation activities and other waste management services",
+      "section_code": "E",
+      "total_output": 2800000
+    },
+    {
+      "code": "41",
+      "name": "Construction of buildings",
+      "section_code": "F",
+      "total_output": 140000000
+    },
+    {
+      "code": "42",
+      "name": "Civil engineering",
+      "section_code": "F",
+      "total_output": 84000000
+    },
+    {
+      "code": "43",
+      "name": "Specialized construction activities",
+      "section_code": "F",
+      "total_output": 56000000
+    },
+    {
+      "code": "45",
+      "name": "Wholesale and retail trade and repair of motor vehicles and motorcycles",
+      "section_code": "G",
+      "total_output": 39000000
+    },
+    {
+      "code": "46",
+      "name": "Wholesale trade, except of motor vehicles and motorcycles",
+      "section_code": "G",
+      "total_output": 117000000
+    },
+    {
+      "code": "47",
+      "name": "Retail trade, except of motor vehicles and motorcycles",
+      "section_code": "G",
+      "total_output": 104000000
+    },
+    {
+      "code": "49",
+      "name": "Land transport and transport via pipelines",
+      "section_code": "H",
+      "total_output": 76500000
+    },
+    {
+      "code": "50",
+      "name": "Water transport",
+      "section_code": "H",
+      "total_output": 17000000
+    },
+    {
+      "code": "51",
+      "name": "Air transport",
+      "section_code": "H",
+      "total_output": 34000000
+    },
+    {
+      "code": "52",
+      "name": "Warehousing and support activities for transportation",
+      "section_code": "H",
+      "total_output": 34000000
+    },
+    {
+      "code": "53",
+      "name": "Postal and courier activities",
+      "section_code": "H",
+      "total_output": 8500000
+    },
+    {
+      "code": "55",
+      "name": "Accommodation",
+      "section_code": "I",
+      "total_output": 22750000
+    },
+    {
+      "code": "56",
+      "name": "Food and beverage service activities",
+      "section_code": "I",
+      "total_output": 42250000
+    },
+    {
+      "code": "58",
+      "name": "Publishing activities",
+      "section_code": "J",
+      "total_output": 4750000
+    },
+    {
+      "code": "59",
+      "name": "Motion picture, video and television programme production",
+      "section_code": "J",
+      "total_output": 4750000
+    },
+    {
+      "code": "60",
+      "name": "Programming and broadcasting activities",
+      "section_code": "J",
+      "total_output": 9500000
+    },
+    {
+      "code": "61",
+      "name": "Telecommunications",
+      "section_code": "J",
+      "total_output": 47500000
+    },
+    {
+      "code": "62",
+      "name": "Computer programming, consultancy and related activities",
+      "section_code": "J",
+      "total_output": 23750000
+    },
+    {
+      "code": "63",
+      "name": "Information service activities",
+      "section_code": "J",
+      "total_output": 4750000
+    },
+    {
+      "code": "64",
+      "name": "Financial service activities, except insurance and pension funding",
+      "section_code": "K",
+      "total_output": 105000000
+    },
+    {
+      "code": "65",
+      "name": "Insurance, reinsurance and pension funding",
+      "section_code": "K",
+      "total_output": 52500000
+    },
+    {
+      "code": "66",
+      "name": "Activities auxiliary to financial service and insurance activities",
+      "section_code": "K",
+      "total_output": 17500000
+    },
+    {
+      "code": "68",
+      "name": "Real estate activities",
+      "section_code": "L",
+      "total_output": 140000000
+    },
+    {
+      "code": "69",
+      "name": "Legal and accounting activities",
+      "section_code": "M",
+      "total_output": 12000000
+    },
+    {
+      "code": "70",
+      "name": "Activities of head offices; management consultancy activities",
+      "section_code": "M",
+      "total_output": 20000000
+    },
+    {
+      "code": "71",
+      "name": "Architectural and engineering activities; technical testing and analysis",
+      "section_code": "M",
+      "total_output": 24000000
+    },
+    {
+      "code": "72",
+      "name": "Scientific research and development",
+      "section_code": "M",
+      "total_output": 8000000
+    },
+    {
+      "code": "73",
+      "name": "Advertising and market research",
+      "section_code": "M",
+      "total_output": 6400000
+    },
+    {
+      "code": "74",
+      "name": "Other professional, scientific and technical activities",
+      "section_code": "M",
+      "total_output": 5600000
+    },
+    {
+      "code": "75",
+      "name": "Veterinary activities",
+      "section_code": "M",
+      "total_output": 4000000
+    },
+    {
+      "code": "77",
+      "name": "Rental and leasing activities",
+      "section_code": "N",
+      "total_output": 8250000
+    },
+    {
+      "code": "78",
+      "name": "Employment activities",
+      "section_code": "N",
+      "total_output": 13750000
+    },
+    {
+      "code": "79",
+      "name": "Travel agency, tour operator reservation service and related activities",
+      "section_code": "N",
+      "total_output": 8250000
+    },
+    {
+      "code": "80",
+      "name": "Security and investigation activities",
+      "section_code": "N",
+      "total_output": 11000000
+    },
+    {
+      "code": "81",
+      "name": "Services to buildings and landscape activities",
+      "section_code": "N",
+      "total_output": 8250000
+    },
+    {
+      "code": "82",
+      "name": "Office administrative, office support and other business support activities",
+      "section_code": "N",
+      "total_output": 5500000
+    },
+    {
+      "code": "84",
+      "name": "Public administration and defence; compulsory social security",
+      "section_code": "O",
+      "total_output": 320000000
+    },
+    {
+      "code": "85",
+      "name": "Education",
+      "section_code": "P",
+      "total_output": 130000000
+    },
+    {
+      "code": "86",
+      "name": "Human health activities",
+      "section_code": "Q",
+      "total_output": 59500000
+    },
+    {
+      "code": "87",
+      "name": "Residential care activities",
+      "section_code": "Q",
+      "total_output": 12750000
+    },
+    {
+      "code": "88",
+      "name": "Social work activities without accommodation",
+      "section_code": "Q",
+      "total_output": 12750000
+    },
+    {
+      "code": "90",
+      "name": "Creative, arts and entertainment activities",
+      "section_code": "R",
+      "total_output": 4500000
+    },
+    {
+      "code": "91",
+      "name": "Libraries, archives, museums and other cultural activities",
+      "section_code": "R",
+      "total_output": 2700000
+    },
+    {
+      "code": "93",
+      "name": "Sports activities and amusement and recreation activities",
+      "section_code": "R",
+      "total_output": 10800000
+    },
+    {
+      "code": "94",
+      "name": "Activities of membership organizations",
+      "section_code": "S",
+      "total_output": 7500000
+    },
+    {
+      "code": "95",
+      "name": "Repair of computers and personal and household goods",
+      "section_code": "S",
+      "total_output": 6250000
+    },
+    {
+      "code": "96",
+      "name": "Other personal service activities",
+      "section_code": "S",
+      "total_output": 11250000
+    },
+    {
+      "code": "97",
+      "name": "Activities of households as employers of domestic personnel",
+      "section_code": "T",
+      "total_output": 12000000
+    }
+  ]
+}

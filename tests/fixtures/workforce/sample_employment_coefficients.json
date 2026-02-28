@@ -1,0 +1,59 @@
+{
+  "_provenance": {
+    "builder": "test_fixture",
+    "builder_version": "d4_v1",
+    "build_timestamp": "2026-02-28T00:00:00Z",
+    "source_ids": ["test"],
+    "method": "Test fixture"
+  },
+  "year": 2019,
+  "sector_count": 3,
+  "coefficients": [
+    {
+      "sector_code": "A",
+      "granularity": "section",
+      "year": 2019,
+      "total_employment": 250000,
+      "gross_output": 10000.0,
+      "output_denomination": "SAR_MILLIONS",
+      "jobs_per_unit_output": 25.0,
+      "saudi_share": 0.08,
+      "source": "ilo+kapsarc_io_2019",
+      "denominator_source": "kapsarc_io_x_vector",
+      "source_confidence": "ESTIMATED",
+      "quality_confidence": "high",
+      "notes": null
+    },
+    {
+      "sector_code": "B",
+      "granularity": "section",
+      "year": 2019,
+      "total_employment": 40000,
+      "gross_output": 20000.0,
+      "output_denomination": "SAR_MILLIONS",
+      "jobs_per_unit_output": 2.0,
+      "saudi_share": 0.45,
+      "source": "ilo+kapsarc_io_2019",
+      "denominator_source": "kapsarc_io_x_vector",
+      "source_confidence": "ESTIMATED",
+      "quality_confidence": "high",
+      "notes": null
+    },
+    {
+      "sector_code": "F",
+      "granularity": "section",
+      "year": 2019,
+      "total_employment": 2460000,
+      "gross_output": 136667.0,
+      "output_denomination": "SAR_MILLIONS",
+      "jobs_per_unit_output": 18.0,
+      "saudi_share": 0.08,
+      "source": "ilo+kapsarc_io_2019",
+      "denominator_source": "kapsarc_io_x_vector",
+      "source_confidence": "ESTIMATED",
+      "quality_confidence": "high",
+      "notes": null
+    }
+  ],
+  "metadata": {}
+}

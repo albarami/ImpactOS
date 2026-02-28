@@ -1,31 +1,19 @@
 """Tests for FastAPI export endpoints (MVP-6).
 
 Covers: POST create export, GET export status, POST variance bridge.
+S0-4: Workspace-scoped routes.
 """
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from uuid_extensions import uuid7
 
-from src.api.main import app
-
-
-@pytest.fixture
-def anyio_backend() -> str:
-    return "asyncio"
-
-
-@pytest.fixture
-async def client() -> AsyncClient:
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
-        yield ac
+WS_ID = str(uuid7())
 
 
 def _make_export_payload() -> dict:
     return {
         "run_id": str(uuid7()),
-        "workspace_id": str(uuid7()),
         "mode": "SANDBOX",
         "export_formats": ["excel"],
         "pack_data": {
@@ -49,22 +37,15 @@ def _make_export_payload() -> dict:
     }
 
 
-# ===================================================================
-# POST /v1/exports — create export
-# ===================================================================
-
-
 class TestCreateExport:
-    """POST create export."""
-
     @pytest.mark.anyio
     async def test_create_returns_201(self, client: AsyncClient) -> None:
-        response = await client.post("/v1/exports", json=_make_export_payload())
+        response = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=_make_export_payload())
         assert response.status_code == 201
 
     @pytest.mark.anyio
     async def test_create_returns_export_id(self, client: AsyncClient) -> None:
-        response = await client.post("/v1/exports", json=_make_export_payload())
+        response = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=_make_export_payload())
         data = response.json()
         assert "export_id" in data
         assert "status" in data
@@ -73,7 +54,7 @@ class TestCreateExport:
     async def test_create_sandbox_succeeds(self, client: AsyncClient) -> None:
         payload = _make_export_payload()
         payload["mode"] = "SANDBOX"
-        response = await client.post("/v1/exports", json=payload)
+        response = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=payload)
         data = response.json()
         assert data["status"] == "COMPLETED"
 
@@ -81,37 +62,30 @@ class TestCreateExport:
     async def test_create_with_pptx_format(self, client: AsyncClient) -> None:
         payload = _make_export_payload()
         payload["export_formats"] = ["pptx"]
-        response = await client.post("/v1/exports", json=payload)
+        response = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=payload)
         data = response.json()
         assert data["status"] == "COMPLETED"
 
     @pytest.mark.anyio
     async def test_create_returns_checksums(self, client: AsyncClient) -> None:
-        response = await client.post("/v1/exports", json=_make_export_payload())
+        response = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=_make_export_payload())
         data = response.json()
         assert "checksums" in data
 
 
-# ===================================================================
-# GET /v1/exports/{export_id} — export status
-# ===================================================================
-
-
 class TestGetExportStatus:
-    """GET export status."""
-
     @pytest.mark.anyio
     async def test_get_status_returns_200(self, client: AsyncClient) -> None:
-        create_resp = await client.post("/v1/exports", json=_make_export_payload())
+        create_resp = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=_make_export_payload())
         export_id = create_resp.json()["export_id"]
-        response = await client.get(f"/v1/exports/{export_id}")
+        response = await client.get(f"/v1/workspaces/{WS_ID}/exports/{export_id}")
         assert response.status_code == 200
 
     @pytest.mark.anyio
     async def test_get_status_contains_fields(self, client: AsyncClient) -> None:
-        create_resp = await client.post("/v1/exports", json=_make_export_payload())
+        create_resp = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=_make_export_payload())
         export_id = create_resp.json()["export_id"]
-        response = await client.get(f"/v1/exports/{export_id}")
+        response = await client.get(f"/v1/workspaces/{WS_ID}/exports/{export_id}")
         data = response.json()
         assert "export_id" in data
         assert "status" in data
@@ -119,18 +93,11 @@ class TestGetExportStatus:
 
     @pytest.mark.anyio
     async def test_get_nonexistent_returns_404(self, client: AsyncClient) -> None:
-        response = await client.get(f"/v1/exports/{uuid7()}")
+        response = await client.get(f"/v1/workspaces/{WS_ID}/exports/{uuid7()}")
         assert response.status_code == 404
 
 
-# ===================================================================
-# POST /v1/exports/variance-bridge — variance bridge
-# ===================================================================
-
-
 class TestVarianceBridge:
-    """POST variance bridge between two runs."""
-
     @pytest.mark.anyio
     async def test_bridge_returns_200(self, client: AsyncClient) -> None:
         payload = {
@@ -153,7 +120,7 @@ class TestVarianceBridge:
                 "model_version": "v1",
             },
         }
-        response = await client.post("/v1/exports/variance-bridge", json=payload)
+        response = await client.post(f"/v1/workspaces/{WS_ID}/exports/variance-bridge", json=payload)
         assert response.status_code == 200
 
     @pytest.mark.anyio
@@ -178,7 +145,7 @@ class TestVarianceBridge:
                 "model_version": "v2",
             },
         }
-        response = await client.post("/v1/exports/variance-bridge", json=payload)
+        response = await client.post(f"/v1/workspaces/{WS_ID}/exports/variance-bridge", json=payload)
         data = response.json()
         assert "start_value" in data
         assert "end_value" in data

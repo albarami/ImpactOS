@@ -493,6 +493,51 @@ Outputs:
 
 For geographically concentrated giga-projects, national results can be downscaled using transparent allocation methods (e.g., location quotients, supplier location assumptions). Regional outputs must be labeled as assumption-sensitive and governed by explicit parameters.
 
+### 7.10 Type II Effects: Induced Impacts (Phase 2-E)
+
+Type I effects (direct + indirect) capture supply-chain propagation but ignore the household income channel. Type II effects additionally capture the consumption response from increased labor income. SG's standard modeling methodology includes Type II effects; ImpactOS must match this for adoption parity.
+
+To compute induced effects, the model is "closed" with respect to households by adding a household row and column to the intermediate matrix:
+
+```
+Extended matrix Z_closed (n+1 x n+1):
+  Z_closed[1:n, 1:n] = Z                          (original inter-sector flows)
+  Z_closed[n+1, 1:n] = compensation_of_employees   (household "inputs" = wages)
+  Z_closed[1:n, n+1] = household_consumption        (household "outputs" = spending)
+
+Extended output:
+  x_closed = [x; household_income]
+
+Extended technical coefficients:
+  A_closed = Z_closed * diag(x_closed)^(-1)
+
+Closed Leontief inverse:
+  B_closed = (I - A_closed)^(-1)
+
+Type II total:   delta_x_typeII  = B_closed * delta_d_extended
+Type I total:    delta_x_typeI   = B * delta_d
+Induced effect:  delta_x_induced = delta_x_typeII[1:n] - delta_x_typeI
+```
+
+Type II results always carry ESTIMATED confidence and are presented alongside Type I results, never alone. The closure assumption (marginal propensity to consume, consumption distribution across sectors) is governed as an explicit assumption in the AssumptionRegister.
+
+### 7.11 Value Measures Satellite (Phase 2-E)
+
+Standard macroeconomic indicators computed deterministically from delta-x and stored coefficient vectors. These match SG's standard output format for adoption parity:
+
+```
+GDP at basic price:    delta_GDP_basic  = sum(va_ratio_i * delta_x_i)
+GDP at market price:   delta_GDP_market = delta_GDP_basic + delta_taxes - delta_subsidies
+Real GDP:              delta_GDP_real   = delta_GDP_nominal / deflator
+GDP intensity:         delta_GDP_int    = delta_GDP / delta_Total_Output
+Employment:            delta_jobs       = sum(jobs_coeff_i * delta_x_i)  [already in satellites]
+Balance of trade:      delta_BoT        = delta_exports - delta_imports
+Non-oil exports:       delta_Xno        = delta_exports - delta_oil_exports
+Gov non-oil revenue:   delta_Grev       = sum(tax_ratio_i * delta_x_i)
+```
+
+All value measures require the extended ModelVersion fields (final demand F, VA components, tax/subsidy vectors, deflator series). When these fields are not populated, value measures are not available and the data quality summary (Section 7.12, MVP-13) notes the gap.
+
 ---
 
 ## 8. Document Ingestion, Extraction, and BoQ Structuring
@@ -910,24 +955,36 @@ This section translates the concept phases into implementable engineering milest
 - **MVP-6:** Reporting/export engine MVP (Decision Pack templates) + Excel escape hatch + watermarking.
 - **MVP-7:** Pilot enablement: baseline study instrumentation, training materials, and support runbooks.
 
-### 16.2 Phase 2 — Moat Modules
+### 16.2 Phase 2A-D — Moat Modules
 
-- Document-to-shock Scenario Compiler automation: mapping suggestion models + domestic/import split heuristics + phasing/deflators.
-- Al-Muhāsibī Depth Engine: agent workflow graph + artifact storage + tiered disclosure tagging.
-- Feasibility/constraint engine: constraint schema + solver integration + binding constraint diagnostics.
-- Nowcasting (RAS) utility: target totals ingestion + balancing engine + ModelVersion publication workflow.
-- Workforce/Saudization satellite: sector→occupation bridge methodology + confidence labeling + sensitivity defaults.
-- Library flywheel: publish MappingLibraryVersion and AssumptionLibraryVersion release workflow.
+- **MVP-8:** Document-to-shock Scenario Compiler automation: mapping suggestion models + domestic/import split heuristics + phasing/deflators.
+- **MVP-9:** Al-Muhāsibī Depth Engine: agent workflow graph + artifact storage + tiered disclosure tagging.
+- **MVP-10:** Feasibility/constraint engine: constraint schema + solver integration + binding constraint diagnostics.
+- **MVP-11:** Workforce/Saudization satellite: sector-to-occupation bridge methodology + confidence labeling + sensitivity defaults.
+- **MVP-12:** Knowledge Flywheel: MappingLibraryVersion and AssumptionLibraryVersion release workflow.
+- **MVP-13:** Data Quality Automation: 6 quality dimensions, structural validity, publication gate.
+- **MVP-14:** Saudi Data Foundation: GASTAT IO/SUT ingestion, nowcasting (RAS), extended ModelVersion fields.
 
-### 16.3 Phase 3 — Premium Modules
+### 16.3 Phase 2-E — SG Methodology Parity
 
-- Client portal (controlled collaboration): assumption sign-off, scenario comparison dashboard, evidence browsing.
-- Structural path analysis and chokepoint analytics.
-- Portfolio optimization and goal-seeking workflows.
-- Live workshop dashboard (slider-driven scenario adjustments) with governance-safe exports.
-- Advanced variance bridges and executive explainability outputs.
+These modules close the output gap between ImpactOS and SG's existing IO modeling methodology. They are adoption-critical. See `docs/SG_Methodology_vs_ImpactOS_Gap_Analysis.md`.
 
-### 16.4 Key Engineering Risks and Mitigations
+- **MVP-15:** Type II Induced Effects — close Leontief model with respect to households (Section 7.10).
+- **MVP-16:** Value Measures Satellite — GDP, BOP, government revenue, ~22 macro indicators (Section 7.11).
+- **MVP-17:** RunSeries — first-class annual time-series results storage + scenario delta series.
+- **MVP-18:** SG Model Import Adapter — parse SG Excel workbooks, golden-run validation.
+
+**Methodology Parity Gate:** ImpactOS reproduces SG standard model results within 0.1% tolerance for all value measures.
+
+### 16.4 Phase 3 — Premium Modules
+
+- **MVP-19:** Client portal (controlled collaboration): assumption sign-off, scenario comparison dashboard, evidence browsing.
+- **MVP-20:** Structural path analysis and chokepoint analytics.
+- **MVP-21:** Portfolio optimization and goal-seeking workflows.
+- **MVP-22:** Live workshop dashboard (slider-driven scenario adjustments) with governance-safe exports.
+- **MVP-23:** Advanced variance bridges and executive explainability outputs.
+
+### 16.5 Key Engineering Risks and Mitigations
 
 | Risk | Why it Matters | Mitigation |
 |---|---|---|

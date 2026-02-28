@@ -1,0 +1,134 @@
+# ImpactOS — Local Development Stack
+# Usage: make up  (starts all services + runs migrations)
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: impactos-postgres
+    environment:
+      POSTGRES_USER: impactos
+      POSTGRES_PASSWORD: impactos
+      POSTGRES_DB: impactos
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U impactos"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - impactos
+
+  redis:
+    image: redis:7-alpine
+    container_name: impactos-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - impactos
+
+  minio:
+    image: minio/minio:latest
+    container_name: impactos-minio
+    environment:
+      MINIO_ROOT_USER: impactos
+      MINIO_ROOT_PASSWORD: impactos-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - impactos
+
+  # One-shot service: creates the default bucket in MinIO (Amendment 3)
+  minio-init:
+    image: minio/mc:latest
+    container_name: impactos-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 impactos impactos-secret &&
+      mc mb --ignore-existing local/impactos-data &&
+      echo 'Bucket impactos-data ready'
+      "
+    networks:
+      - impactos
+
+  api:
+    build: .
+    container_name: impactos-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Override for Docker networking (not secrets — Amendment 2)
+      DATABASE_URL: postgresql+asyncpg://impactos:impactos@postgres:5432/impactos
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      ENVIRONMENT: dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - impactos
+
+  celery-worker:
+    build: .
+    container_name: impactos-celery-worker
+    command: celery -A src.ingestion.tasks:get_celery_app worker --loglevel=info --concurrency=2
+    env_file:
+      - .env
+    environment:
+      # Override for Docker networking (not secrets — Amendment 2)
+      DATABASE_URL: postgresql+asyncpg://impactos:impactos@postgres:5432/impactos
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      ENVIRONMENT: dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - impactos
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+
+networks:
+  impactos:
+    driver: bridge

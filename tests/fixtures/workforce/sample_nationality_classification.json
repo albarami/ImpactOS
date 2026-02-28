@@ -1,0 +1,58 @@
+{
+  "_provenance": {
+    "builder": "test_fixture",
+    "builder_version": "d4_v1",
+    "build_timestamp": "2026-02-28T00:00:00Z",
+    "source_ids": ["test"],
+    "method": "Test fixture"
+  },
+  "year": 2022,
+  "total_classifications": 4,
+  "classifications": [
+    {
+      "sector_code": "O",
+      "occupation_code": "1",
+      "tier": "saudi_ready",
+      "current_saudi_pct": 0.90,
+      "rationale": "Public sector management",
+      "source_confidence": "ASSUMED",
+      "quality_confidence": "low",
+      "sensitivity_range": ["saudi_ready", "saudi_ready"],
+      "source": "expert_initial_v1"
+    },
+    {
+      "sector_code": "F",
+      "occupation_code": "7",
+      "tier": "expat_reliant",
+      "current_saudi_pct": 0.05,
+      "rationale": "Construction trades: structural expat reliance",
+      "source_confidence": "ASSUMED",
+      "quality_confidence": "low",
+      "sensitivity_range": ["expat_reliant", "saudi_trainable"],
+      "source": "expert_initial_v1"
+    },
+    {
+      "sector_code": "K",
+      "occupation_code": "2",
+      "tier": "saudi_ready",
+      "current_saudi_pct": 0.75,
+      "rationale": "Finance professionals",
+      "source_confidence": "ASSUMED",
+      "quality_confidence": "low",
+      "sensitivity_range": ["saudi_trainable", "saudi_ready"],
+      "source": "expert_initial_v1"
+    },
+    {
+      "sector_code": "Q",
+      "occupation_code": "3",
+      "tier": "saudi_trainable",
+      "current_saudi_pct": 0.30,
+      "rationale": "Health technicians: active training programs",
+      "source_confidence": "ASSUMED",
+      "quality_confidence": "low",
+      "sensitivity_range": ["expat_reliant", "saudi_ready"],
+      "source": "expert_initial_v1"
+    }
+  ],
+  "metadata": {"note": "Test fixture"}
+}

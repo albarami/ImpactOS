@@ -1,0 +1,30 @@
+{
+  "_provenance": {
+    "builder": "test_fixture",
+    "builder_version": "d4_v1",
+    "build_timestamp": "2026-02-28T00:00:00Z",
+    "source_ids": ["test"],
+    "method": "Test fixture"
+  },
+  "year": 2022,
+  "granularity": "section",
+  "sector_count": 2,
+  "occupation_groups": 10,
+  "entries": [
+    {"sector_code": "F", "occupation_code": "1", "share": 0.04, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "F", "occupation_code": "2", "share": 0.05, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "F", "occupation_code": "3", "share": 0.06, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "F", "occupation_code": "4", "share": 0.03, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "F", "occupation_code": "5", "share": 0.02, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "F", "occupation_code": "7", "share": 0.35, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "F", "occupation_code": "8", "share": 0.15, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "F", "occupation_code": "9", "share": 0.30, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "K", "occupation_code": "1", "share": 0.15, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "K", "occupation_code": "2", "share": 0.25, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "K", "occupation_code": "3", "share": 0.20, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "K", "occupation_code": "4", "share": 0.25, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "K", "occupation_code": "5", "share": 0.05, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"},
+    {"sector_code": "K", "occupation_code": "9", "share": 0.10, "source": "test", "source_confidence": "ASSUMED", "quality_confidence": "low"}
+  ],
+  "metadata": {"note": "Test fixture"}
+}

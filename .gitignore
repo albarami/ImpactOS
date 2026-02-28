@@ -54,3 +54,11 @@ node_modules/
 *.pem
 *.key
 *.crt
+
+# Proprietary workbooks (SG production templates)
+*.xlsb
+
+# Docker volumes (managed by Docker Compose)
+pgdata/
+redisdata/
+miniodata/

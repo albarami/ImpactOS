@@ -191,3 +191,11 @@ class ModelStore:
     def store_loaded_model(self, loaded: LoadedModel) -> None:
         """Store an externally-created LoadedModel (e.g. from RAS balancing)."""
         self._models[loaded.model_version.model_version_id] = loaded
+
+    def cache_prevalidated(self, loaded: LoadedModel) -> None:
+        """Cache a LoadedModel that was previously validated and loaded from DB.
+
+        Unlike register(), this skips validation (data was validated at
+        original registration time and integrity verified via checksum).
+        """
+        self._models[loaded.model_version.model_version_id] = loaded

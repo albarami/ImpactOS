@@ -12,8 +12,34 @@ from src.models.common import (
     ImpactOSBase,
     MappingConfidenceBand,
 )
+from src.models.document import (
+    BoQLineItem,
+    Document,
+    DocumentGraph,
+    DocumentType,
+    ExtractedTable,
+    ExtractionJob,
+    ExtractionMetadata,
+    ExtractionStatus,
+    LanguageCode,
+    PageBlock,
+    SourceType,
+    TableCell,
+    TextBlock,
+)
 from src.models.export import Export, ExportStatus
+from src.models.feasibility import (
+    BindingConstraint,
+    ConfidenceSummary,
+    Constraint,
+    ConstraintSet,
+    ConstraintType,
+    EnablerRecommendation,
+    FeasibilityResult,
+    TimeWindow,
+)
 from src.models.governance import (
+    VALID_CLAIM_TRANSITIONS,
     Assumption,
     AssumptionRange,
     BoundingBox,
@@ -21,7 +47,6 @@ from src.models.governance import (
     EvidenceSnippet,
     ModelRef,
     TableCellRef,
-    VALID_CLAIM_TRANSITIONS,
 )
 from src.models.model_version import ConcordanceVersion, ModelVersion, TaxonomyVersion
 from src.models.run import ResultSet, RunRequest, RunSnapshot
@@ -35,21 +60,6 @@ from src.models.scenario import (
     ScenarioSpec,
     ShockItem,
     TimeHorizon,
-)
-from src.models.document import (
-    BoQLineItem,
-    Document,
-    DocumentGraph,
-    DocumentType,
-    ExtractionJob,
-    ExtractionMetadata,
-    ExtractionStatus,
-    ExtractedTable,
-    LanguageCode,
-    PageBlock,
-    SourceType,
-    TableCell,
-    TextBlock,
 )
 from src.models.workspace import Workspace
 
@@ -103,4 +113,12 @@ __all__ = [
     "SourceType",
     "TableCell",
     "TextBlock",
+    "BindingConstraint",
+    "ConfidenceSummary",
+    "Constraint",
+    "ConstraintSet",
+    "ConstraintType",
+    "EnablerRecommendation",
+    "FeasibilityResult",
+    "TimeWindow",
 ]

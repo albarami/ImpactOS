@@ -1,0 +1,14 @@
+{
+  "indicator": "NY.GDP.MKTP.CD",
+  "country": "SAU",
+  "description": "GDP (current US$)",
+  "record_count": 5,
+  "fetch_timestamp": "2026-02-28T12:00:00Z",
+  "records": [
+    {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "SAU", "value": "Saudi Arabia"}, "date": "2023", "value": 1061902470588.24},
+    {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "SAU", "value": "Saudi Arabia"}, "date": "2022", "value": 1108148766357.28},
+    {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "SAU", "value": "Saudi Arabia"}, "date": "2021", "value": 833541237898.34},
+    {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "SAU", "value": "Saudi Arabia"}, "date": "2020", "value": 700117800533.33},
+    {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "SAU", "value": "Saudi Arabia"}, "date": "2019", "value": 792966838666.67}
+  ]
+}

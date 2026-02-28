@@ -1,43 +1,76 @@
 """FastAPI engine/run endpoints — MVP-3 Sections 6.2.9, 6.2.10.
 
-POST /v1/engine/models           — register a model
-POST /v1/engine/runs             — single run
-GET  /v1/engine/runs/{run_id}    — get run results
-POST /v1/engine/batch            — batch runs
-GET  /v1/engine/batch/{batch_id} — batch status
+POST /v1/engine/models                                       — register (global)
+POST /v1/workspaces/{workspace_id}/engine/runs               — single run
+GET  /v1/workspaces/{workspace_id}/engine/runs/{run_id}      — get results
+POST /v1/workspaces/{workspace_id}/engine/batch              — batch runs
+GET  /v1/workspaces/{workspace_id}/engine/batch/{batch_id}   — batch status
+
+S0-4: Workspace-scoped runs/batch. Model registration stays global.
+Batch status tracking (PENDING → RUNNING → COMPLETED/FAILED).
+
+S0-1: DB-fallback on ModelStore cache miss (restart survival).
+       Checksum verification on rehydrate (Amendment 1).
+       Concurrency guard with asyncio.Lock (Amendment 2).
+       Workspace scoping in read paths (Amendment 3).
 
 Deterministic only — no LLM calls.
-In-memory stores for MVP; production uses PostgreSQL.
+ModelStore kept as in-memory LRU cache for synchronous engine access.
+DB repos persist model metadata, run snapshots, result sets, batches.
 """
 
+import asyncio
+import hashlib
+import logging
 from uuid import UUID
 
 import numpy as np
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
+from src.api.dependencies import (
+    get_batch_repo,
+    get_model_data_repo,
+    get_model_version_repo,
+    get_result_set_repo,
+    get_run_snapshot_repo,
+)
 from src.engine.batch import (
     BatchRequest,
     BatchRunner,
     ScenarioInput,
     SingleRunResult,
 )
-from src.engine.model_store import ModelStore
+from src.engine.model_store import LoadedModel, ModelStore
 from src.engine.satellites import SatelliteCoefficients
 from src.models.common import new_uuid7
+from src.models.model_version import ModelVersion
+from src.repositories.engine import (
+    BatchRepository,
+    ModelDataRepository,
+    ModelVersionRepository,
+    ResultSetRepository,
+    RunSnapshotRepository,
+)
 
-router = APIRouter(prefix="/v1/engine", tags=["engine"])
+_logger = logging.getLogger(__name__)
+
+# Global model registration router (not workspace-scoped)
+models_router = APIRouter(prefix="/v1/engine", tags=["engine"])
+
+# Workspace-scoped engine router for runs/batch
+router = APIRouter(prefix="/v1/workspaces", tags=["engine"])
 
 # ---------------------------------------------------------------------------
-# In-memory stores (MVP — replaced by PostgreSQL in production)
+# In-memory LRU cache for synchronous engine access (BatchRunner needs .get())
+# On cache miss, _ensure_model_loaded() rehydrates from DB (S0-1).
 # ---------------------------------------------------------------------------
 
 _model_store = ModelStore()
 
-# run_id -> SingleRunResult
-_run_results: dict[UUID, SingleRunResult] = {}
-# batch_id -> list of run_ids
-_batch_results: dict[UUID, list[UUID]] = {}
+# Per-model locks for concurrent DB-fallback (Amendment 2)
+_model_locks: dict[UUID, asyncio.Lock] = {}
+_global_lock = asyncio.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -106,12 +139,98 @@ class RunResponse(BaseModel):
 
 class BatchResponse(BaseModel):
     batch_id: str
+    status: str = "COMPLETED"
     results: list[RunResponse]
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+async def _ensure_model_loaded(
+    model_version_id: UUID,
+    mv_repo: ModelVersionRepository,
+    md_repo: ModelDataRepository,
+) -> LoadedModel:
+    """Load model from cache, falling back to DB on miss (S0-1).
+
+    Amendment 1: Checksum verification on DB rehydrate.
+    Amendment 2: Per-model asyncio.Lock with double-checked locking.
+    Amendment 4: Uses cache_prevalidated() to store in ModelStore.
+    """
+    # Fast path: cache hit (no lock needed)
+    try:
+        return _model_store.get(model_version_id)
+    except KeyError:
+        pass
+
+    # Cache miss — acquire per-model lock to prevent thundering herd
+    async with _global_lock:
+        if model_version_id not in _model_locks:
+            _model_locks[model_version_id] = asyncio.Lock()
+        lock = _model_locks[model_version_id]
+
+    async with lock:
+        # Double-check after acquiring lock (another coroutine may have loaded it)
+        try:
+            return _model_store.get(model_version_id)
+        except KeyError:
+            pass
+
+        # Load from DB
+        _logger.info("Cache miss for model %s — loading from DB", model_version_id)
+        mv_row = await mv_repo.get(model_version_id)
+        if mv_row is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model {model_version_id} not found.",
+            )
+        md_row = await md_repo.get(model_version_id)
+        if md_row is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model data for {model_version_id} not found.",
+            )
+
+        # Reconstruct arrays
+        z_matrix = np.array(md_row.z_matrix_json, dtype=np.float64)
+        x_vector = np.array(md_row.x_vector_json, dtype=np.float64)
+
+        # Amendment 1: Checksum verification
+        hasher = hashlib.sha256()
+        hasher.update(z_matrix.tobytes())
+        hasher.update(x_vector.tobytes())
+        recomputed = f"sha256:{hasher.hexdigest()}"
+        if recomputed != mv_row.checksum:
+            _logger.error(
+                "Checksum mismatch for model %s: stored=%s recomputed=%s",
+                model_version_id,
+                mv_row.checksum,
+                recomputed,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Data integrity error for model {model_version_id}.",
+            )
+
+        # Reconstruct ModelVersion and LoadedModel
+        mv = ModelVersion(
+            model_version_id=mv_row.model_version_id,
+            base_year=mv_row.base_year,
+            source=mv_row.source,
+            sector_count=mv_row.sector_count,
+            checksum=mv_row.checksum,
+        )
+        loaded = LoadedModel(
+            model_version=mv,
+            Z=z_matrix,
+            x=x_vector,
+            sector_codes=list(md_row.sector_codes),
+        )
+        _model_store.cache_prevalidated(loaded)
+        _logger.info("Rehydrated model %s from DB into cache", model_version_id)
+        return loaded
 
 
 def _make_satellite_coefficients(payload: SatelliteCoeffsPayload) -> SatelliteCoefficients:
@@ -124,10 +243,7 @@ def _make_satellite_coefficients(payload: SatelliteCoeffsPayload) -> SatelliteCo
 
 
 def _make_version_refs() -> dict[str, UUID]:
-    """Generate placeholder version refs for MVP.
-
-    In production these would come from actual versioned data stores.
-    """
+    """Generate placeholder version refs for MVP."""
     return {
         "taxonomy_version_id": new_uuid7(),
         "concordance_version_id": new_uuid7(),
@@ -165,13 +281,81 @@ def _single_run_to_response(sr: SingleRunResult) -> RunResponse:
     )
 
 
+async def _persist_run_result(
+    sr: SingleRunResult,
+    snap_repo: RunSnapshotRepository,
+    rs_repo: ResultSetRepository,
+    workspace_id: UUID | None = None,
+) -> None:
+    """Persist a SingleRunResult to DB (snapshot + result sets)."""
+    snap = sr.snapshot
+    await snap_repo.create(
+        run_id=snap.run_id,
+        model_version_id=snap.model_version_id,
+        taxonomy_version_id=snap.taxonomy_version_id,
+        concordance_version_id=snap.concordance_version_id,
+        mapping_library_version_id=snap.mapping_library_version_id,
+        assumption_library_version_id=snap.assumption_library_version_id,
+        prompt_pack_version_id=snap.prompt_pack_version_id,
+        workspace_id=workspace_id,
+    )
+    for rs in sr.result_sets:
+        await rs_repo.create(
+            result_id=rs.result_id,
+            run_id=rs.run_id,
+            metric_type=rs.metric_type,
+            values=rs.values,
+            workspace_id=workspace_id,
+        )
+
+
+async def _load_run_response(
+    run_id: UUID,
+    snap_repo: RunSnapshotRepository,
+    rs_repo: ResultSetRepository,
+    workspace_id: UUID | None = None,
+) -> RunResponse | None:
+    """Load a RunResponse from DB.
+
+    Amendment 3: If workspace_id is provided, verifies the snapshot belongs
+    to that workspace (returns None if mismatched).
+    """
+    snap_row = await snap_repo.get(run_id)
+    if snap_row is None:
+        return None
+    # Amendment 3: workspace scoping enforcement
+    if workspace_id is not None and hasattr(snap_row, "workspace_id"):
+        if snap_row.workspace_id is not None and snap_row.workspace_id != workspace_id:
+            return None
+    rs_rows = await rs_repo.get_by_run(run_id)
+    return RunResponse(
+        run_id=str(snap_row.run_id),
+        result_sets=[
+            ResultSetResponse(
+                result_id=str(r.result_id),
+                metric_type=r.metric_type,
+                values=r.values,
+            )
+            for r in rs_rows
+        ],
+        snapshot=SnapshotResponse(
+            run_id=str(snap_row.run_id),
+            model_version_id=str(snap_row.model_version_id),
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
-# Endpoints
+# Global Endpoints (model registration — not workspace-scoped)
 # ---------------------------------------------------------------------------
 
 
-@router.post("/models", status_code=201, response_model=RegisterModelResponse)
-async def register_model(body: RegisterModelRequest) -> RegisterModelResponse:
+@models_router.post("/models", status_code=201, response_model=RegisterModelResponse)
+async def register_model(
+    body: RegisterModelRequest,
+    mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
+    md_repo: ModelDataRepository = Depends(get_model_data_repo),
+) -> RegisterModelResponse:
     """Register an I-O model (Z, x, sector codes)."""
     try:
         mv = _model_store.register(
@@ -184,6 +368,21 @@ async def register_model(body: RegisterModelRequest) -> RegisterModelResponse:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    # Persist to DB
+    await mv_repo.create(
+        model_version_id=mv.model_version_id,
+        base_year=mv.base_year,
+        source=mv.source,
+        sector_count=mv.sector_count,
+        checksum=mv.checksum,
+    )
+    await md_repo.create(
+        model_version_id=mv.model_version_id,
+        z_matrix_json=[row.tolist() for row in np.array(body.Z)],
+        x_vector_json=list(body.x),
+        sector_codes=body.sector_codes,
+    )
+
     return RegisterModelResponse(
         model_version_id=str(mv.model_version_id),
         sector_count=mv.sector_count,
@@ -191,14 +390,23 @@ async def register_model(body: RegisterModelRequest) -> RegisterModelResponse:
     )
 
 
-@router.post("/runs", response_model=RunResponse)
-async def create_run(body: RunRequest) -> RunResponse:
+# ---------------------------------------------------------------------------
+# Workspace-scoped Endpoints (runs / batch)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{workspace_id}/engine/runs", response_model=RunResponse)
+async def create_run(
+    workspace_id: UUID,
+    body: RunRequest,
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+    mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
+    md_repo: ModelDataRepository = Depends(get_model_data_repo),
+) -> RunResponse:
     """Execute a single scenario run."""
     model_version_id = UUID(body.model_version_id)
-    try:
-        loaded = _model_store.get(model_version_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"Model {body.model_version_id} not found.") from exc
+    await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
 
     coeffs = _make_satellite_coefficients(body.satellite_coefficients)
 
@@ -221,28 +429,50 @@ async def create_run(body: RunRequest) -> RunResponse:
 
     result = runner.run(request)
     sr = result.run_results[0]
-    _run_results[sr.snapshot.run_id] = sr
+
+    # Persist to DB (with workspace scoping — Amendment 3)
+    await _persist_run_result(sr, snap_repo, rs_repo, workspace_id=workspace_id)
 
     return _single_run_to_response(sr)
 
 
-@router.get("/runs/{run_id}", response_model=RunResponse)
-async def get_run_results(run_id: UUID) -> RunResponse:
-    """Get results for a completed run."""
-    sr = _run_results.get(run_id)
-    if sr is None:
+@router.get("/{workspace_id}/engine/runs/{run_id}", response_model=RunResponse)
+async def get_run_results(
+    workspace_id: UUID,
+    run_id: UUID,
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+) -> RunResponse:
+    """Get results for a completed run (workspace-scoped — Amendment 3)."""
+    resp = await _load_run_response(run_id, snap_repo, rs_repo, workspace_id=workspace_id)
+    if resp is None:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found.")
-    return _single_run_to_response(sr)
+    return resp
 
 
-@router.post("/batch", response_model=BatchResponse)
-async def create_batch_run(body: BatchRunRequest) -> BatchResponse:
-    """Execute a batch of scenario runs."""
+@router.post("/{workspace_id}/engine/batch", response_model=BatchResponse)
+async def create_batch_run(
+    workspace_id: UUID,
+    body: BatchRunRequest,
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+    batch_repo: BatchRepository = Depends(get_batch_repo),
+    mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
+    md_repo: ModelDataRepository = Depends(get_model_data_repo),
+) -> BatchResponse:
+    """Execute a batch of scenario runs with status tracking."""
     model_version_id = UUID(body.model_version_id)
-    try:
-        _model_store.get(model_version_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"Model {body.model_version_id} not found.") from exc
+    await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
+
+    batch_id = new_uuid7()
+
+    # Create batch record as RUNNING
+    await batch_repo.create(
+        batch_id=batch_id,
+        run_ids=[],
+        status="RUNNING",
+        workspace_id=workspace_id,
+    )
 
     coeffs = _make_satellite_coefficients(body.satellite_coefficients)
     scenarios: list[ScenarioInput] = []
@@ -265,33 +495,55 @@ async def create_batch_run(body: BatchRunRequest) -> BatchResponse:
         version_refs=_make_version_refs(),
     )
 
-    batch_result = runner.run(request)
-    batch_id = new_uuid7()
+    try:
+        batch_result = runner.run(request)
 
-    # Store results
-    run_ids: list[UUID] = []
-    responses: list[RunResponse] = []
-    for sr in batch_result.run_results:
-        _run_results[sr.snapshot.run_id] = sr
-        run_ids.append(sr.snapshot.run_id)
-        responses.append(_single_run_to_response(sr))
+        # Persist results
+        run_ids: list[str] = []
+        responses: list[RunResponse] = []
+        for sr in batch_result.run_results:
+            await _persist_run_result(sr, snap_repo, rs_repo, workspace_id=workspace_id)
+            run_ids.append(str(sr.snapshot.run_id))
+            responses.append(_single_run_to_response(sr))
 
-    _batch_results[batch_id] = run_ids
+        # Update batch to COMPLETED with run IDs
+        batch_row = await batch_repo.get(batch_id)
+        if batch_row is not None:
+            batch_row.run_ids = run_ids
+            batch_row.status = "COMPLETED"
+            await batch_repo._session.flush()
 
-    return BatchResponse(batch_id=str(batch_id), results=responses)
+        return BatchResponse(batch_id=str(batch_id), status="COMPLETED", results=responses)
+
+    except Exception:
+        await batch_repo.update_status(batch_id, "FAILED")
+        raise
 
 
-@router.get("/batch/{batch_id}", response_model=BatchResponse)
-async def get_batch_status(batch_id: UUID) -> BatchResponse:
-    """Get batch run status and results."""
-    run_ids = _batch_results.get(batch_id)
-    if run_ids is None:
+@router.get("/{workspace_id}/engine/batch/{batch_id}", response_model=BatchResponse)
+async def get_batch_status(
+    workspace_id: UUID,
+    batch_id: UUID,
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+    batch_repo: BatchRepository = Depends(get_batch_repo),
+) -> BatchResponse:
+    """Get batch run status and results (workspace-scoped — Amendment 3)."""
+    batch_row = await batch_repo.get(batch_id)
+    if batch_row is None:
+        raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found.")
+    # Amendment 3: verify batch belongs to this workspace
+    if batch_row.workspace_id is not None and batch_row.workspace_id != workspace_id:
         raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found.")
 
     responses: list[RunResponse] = []
-    for rid in run_ids:
-        sr = _run_results.get(rid)
-        if sr is not None:
-            responses.append(_single_run_to_response(sr))
+    for rid_str in batch_row.run_ids:
+        resp = await _load_run_response(UUID(rid_str), snap_repo, rs_repo, workspace_id=workspace_id)
+        if resp is not None:
+            responses.append(resp)
 
-    return BatchResponse(batch_id=str(batch_id), results=responses)
+    return BatchResponse(
+        batch_id=str(batch_id),
+        status=batch_row.status,
+        results=responses,
+    )
