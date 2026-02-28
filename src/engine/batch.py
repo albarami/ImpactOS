@@ -34,10 +34,15 @@ class ScenarioInput:
 
 @dataclass(frozen=True)
 class SingleRunResult:
-    """Result of a single scenario (or sensitivity variant) run."""
+    """Result of a single scenario (or sensitivity variant) run.
+
+    Amendment 7: optional quality_assessment_id links to the
+    RunQualityAssessment produced by the quality automation pipeline.
+    """
 
     snapshot: RunSnapshot
     result_sets: list[ResultSet]
+    quality_assessment_id: UUID | None = None
 
 
 @dataclass(frozen=True)
