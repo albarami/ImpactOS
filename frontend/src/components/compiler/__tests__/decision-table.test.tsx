@@ -30,11 +30,11 @@ const SUGGESTIONS: Suggestion[] = [
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('DecisionTable', () => {
-  let onDecisionsChange: ReturnType<typeof vi.fn>;
+  let onDecisionsChange: (decisions: DecisionMap) => void;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    onDecisionsChange = vi.fn();
+    onDecisionsChange = vi.fn<(decisions: DecisionMap) => void>();
   });
 
   function renderTable(suggestions = SUGGESTIONS) {
