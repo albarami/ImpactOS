@@ -1,0 +1,68 @@
+{
+  "manifest_version": "1.0",
+  "created_at": "2026-03-01T11:00:09.856692+00:00",
+  "datasets": [
+    {
+      "dataset_id": "saudi_io_kapsarc_2018",
+      "description": "Synthetic 20-sector Saudi IO model with realistic proportions (NOT from KAPSARC/GASTAT)",
+      "source": "scripts/materialize_curated_data.py — hardcoded sector proportions",
+      "vintage_year": 2018,
+      "sector_count": 20,
+      "path": "data/curated/saudi_io_kapsarc_2018.json",
+      "checksum_sha256": "9a998553971e602b0b37046e6db290dba874c5e067cb6a70bfe915ab16ab2055",
+      "resolved_source": "synthetic",
+      "contains_assumed_components": true,
+      "confidence": "SYNTHETIC",
+      "notes": "All values are hardcoded estimates. D-5.1 will replace with real KAPSARC/GASTAT data."
+    },
+    {
+      "dataset_id": "saudi_type1_multipliers_benchmark",
+      "description": "Type I output multiplier benchmarks derived from synthetic IO model",
+      "source": "scripts/materialize_curated_data.py — computed from synthetic IO matrix",
+      "vintage_year": 2018,
+      "path": "data/curated/saudi_type1_multipliers_benchmark.json",
+      "checksum_sha256": "4e3b29626977e146c4f99a8105206c763093499cc70c2d8efeb15824ea598748",
+      "resolved_source": "synthetic",
+      "contains_assumed_components": true,
+      "confidence": "SYNTHETIC",
+      "notes": "Derived from synthetic IO model. D-5.1 will replace with real benchmark data."
+    },
+    {
+      "dataset_id": "saudi_employment_coefficients_2019",
+      "description": "Employment coefficients by ISIC section — all rows are synthetic regional benchmarks",
+      "source": "scripts/materialize_curated_data.py — build_employment_coefficients() with no ILO data",
+      "vintage_year": 2019,
+      "sector_count": 20,
+      "path": "data/curated/saudi_employment_coefficients_2019.json",
+      "checksum_sha256": "5fea744e5c0af1c3f756295157c61cddc245552992d4c07e9d2fefa8661ff551",
+      "resolved_source": "synthetic",
+      "contains_assumed_components": true,
+      "confidence": "SYNTHETIC",
+      "notes": "No ilo_data_path provided — all rows fall back to synthetic_regional_benchmark. D-5.1 will wire ILOSTAT."
+    },
+    {
+      "dataset_id": "saudi_occupation_bridge_2020",
+      "description": "Placeholder for sector-to-occupation bridge matrix (no data file committed)",
+      "source": "No upstream source — placeholder entry only",
+      "vintage_year": 2020,
+      "path": "data/curated/saudi_occupation_bridge_2020.json",
+      "checksum_sha256": "",
+      "resolved_source": "synthetic",
+      "contains_assumed_components": true,
+      "confidence": "SYNTHETIC",
+      "notes": "No data file exists. D-5.1 will produce this from real workforce data."
+    },
+    {
+      "dataset_id": "saudi_nitaqat_macro_targets_2023",
+      "description": "Placeholder for Nitaqat macro Saudization targets (no data file committed)",
+      "source": "No upstream source — placeholder entry only",
+      "vintage_year": 2023,
+      "path": "data/curated/saudi_nitaqat_macro_targets_2023.json",
+      "checksum_sha256": "",
+      "resolved_source": "synthetic",
+      "contains_assumed_components": true,
+      "confidence": "SYNTHETIC",
+      "notes": "No data file exists. D-5.1 will produce this from published MHRSD targets."
+    }
+  ]
+}

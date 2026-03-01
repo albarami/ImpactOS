@@ -174,6 +174,21 @@ class TestDataLoaderSmoke:
         assert np.all(model.Z >= 0), "Z has negative entries"
 
     # ---------------------------------------------------------------
+    # Test 9c-2b: Provenanced loader reports data source path
+    # ---------------------------------------------------------------
+
+    def test_loader_reports_which_path_was_used(self):
+        """Provenanced loader always reports data source path."""
+        from src.data.real_io_loader import load_real_saudi_io_strict, DataMode
+        result = load_real_saudi_io_strict(mode=DataMode.PREFER_REAL)
+        assert result.provenance.resolved_source in (
+            "curated_real", "curated_estimated", "synthetic_fallback", "synthetic_only"
+        )
+        if result.provenance.used_fallback:
+            import pytest
+            pytest.skip(f"Synthetic fallback: {result.provenance.fallback_reason}")
+
+    # ---------------------------------------------------------------
     # Test 9c-3: All multipliers finite and positive
     # ---------------------------------------------------------------
 

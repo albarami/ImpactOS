@@ -11,9 +11,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from src.data.real_io_loader import IODataProvenance
 from src.quality.config import QualityScoringConfig
 from src.quality.models import (
     DimensionAssessment,
+    QualityDimension,
+    QualitySeverity,
     QualityWarning,
     RunQualityAssessment,
     SourceAge,
@@ -67,6 +70,8 @@ class QualityAssessmentService:
         # Run context
         run_id: UUID | None = None,
         model_source: str | None = None,
+        # Data provenance (D-5 Task 5)
+        data_provenance: IODataProvenance | None = None,
     ) -> RunQualityAssessment:
         """Perform a full quality assessment.
 
@@ -170,9 +175,18 @@ class QualityAssessmentService:
                 merged_warnings.append(w)
                 existing_ids.add(w.warning_id)
 
-        # Recount severity totals after merge.
-        from src.quality.models import QualitySeverity
+        # 11b. Add synthetic fallback warning if provenance indicates fallback.
+        if data_provenance is not None and data_provenance.used_fallback:
+            fallback_warning = QualityWarning(
+                dimension=QualityDimension.VINTAGE,
+                severity=QualitySeverity.WAIVER_REQUIRED,
+                message="Run used synthetic fallback data. Results are indicative only.",
+                detail=f"Reason: {data_provenance.fallback_reason}",
+                recommendation="Re-run with curated real data for governed export.",
+            )
+            merged_warnings.append(fallback_warning)
 
+        # Recount severity totals after merge.
         waiver_required_count = sum(
             1 for w in merged_warnings if w.severity == QualitySeverity.WAIVER_REQUIRED
         )
@@ -193,8 +207,19 @@ class QualityAssessmentService:
         else:
             current_version = 1
 
+        # 13. Build provenance update dict (D-5 Task 5).
+        provenance_update: dict[str, object] = {}
+        if data_provenance is not None:
+            provenance_update = {
+                "data_mode": data_provenance.resolved_source,
+                "used_synthetic_fallback": data_provenance.used_fallback,
+                "fallback_reason": data_provenance.fallback_reason,
+                "data_source_id": data_provenance.dataset_id,
+                "checksum_verified": data_provenance.checksum_verified,
+            }
+
         # Since RunQualityAssessment is frozen, create a new instance
-        # with updated version, run_id, and merged warnings.
+        # with updated version, run_id, merged warnings, and provenance.
         return assessment.model_copy(
             update={
                 "assessment_version": current_version,
@@ -204,5 +229,6 @@ class QualityAssessmentService:
                 "critical_count": critical_count,
                 "warning_count": warning_count,
                 "info_count": info_count,
+                **provenance_update,
             }
         )

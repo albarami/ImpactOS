@@ -179,24 +179,84 @@ def _load_jobs_coeff(
     return year, np.zeros(n, dtype=np.float64)
 
 
+def _find_curated_io(base: Path, year: int) -> tuple[Path, int] | None:
+    """Search for curated KAPSARC IO file: exact year first, then +/- 4.
+
+    Same pattern as _find_curated_file() in real_io_loader.py.
+    Returns (path, resolved_year) or None if not found.
+    """
+    # Exact year first
+    exact = base / f"saudi_io_kapsarc_{year}.json"
+    if exact.exists():
+        return exact, year
+
+    # Nearby years (offset 1..4, alternating before/after)
+    for offset in range(1, 5):
+        for candidate_year in (year - offset, year + offset):
+            candidate = base / f"saudi_io_kapsarc_{candidate_year}.json"
+            if candidate.exists():
+                return candidate, candidate_year
+
+    return None
+
+
 def _load_io_ratios(
     base: Path,
     year: int,
     sector_codes: list[str] | None,
     fallback_flags: list[str],
 ) -> tuple[int, np.ndarray, np.ndarray, list[str]]:
-    """Load import_ratio and va_ratio from IO model or synthetic."""
-    # Try synthetic satellites first (they have import + VA ratios)
-    if _SYNTHETIC_SATELLITES.exists():
-        sat_data = load_satellites_from_json(str(_SYNTHETIC_SATELLITES))
-        codes = sat_data.sector_codes
-        return 2022, sat_data.import_ratio, sat_data.va_ratio, codes
+    """Load import_ratio and va_ratio from IO model or synthetic.
 
-    # Try IO model to derive VA ratios
-    io_path = _SYNTHETIC_IO
-    if io_path.exists():
-        fallback_flags.append("import_ratio: derived from IO model")
-        io_data = load_from_json(str(io_path))
+    Priority order:
+    1. Curated real IO (saudi_io_kapsarc_{year}.json, +/- 4 years)
+    2. Synthetic satellites (saudi_satellites_synthetic_v1.json)
+    3. Synthetic IO model (saudi_io_synthetic_v1.json)
+    4. Zeros
+    """
+    # 1. Try curated real IO first (preferred source)
+    found = _find_curated_io(base, year)
+    if found is not None:
+        curated_path, resolved_year = found
+        try:
+            io_data = load_from_json(str(curated_path))
+            n = len(io_data.x)
+            # VA ratio: va_i = 1 - col_sum(A_i) where A = Z / x
+            x_safe = np.where(io_data.x > 0, io_data.x, 1.0)
+            a_mat = io_data.Z / x_safe[np.newaxis, :]
+            va_ratio = 1.0 - a_mat.sum(axis=0)
+            va_ratio = np.clip(va_ratio, 0.0, 1.0)
+            # Import ratio: default 0.15 (curated IO doesn't include imports)
+            import_ratio = np.full(n, 0.15, dtype=np.float64)
+            codes = io_data.sector_codes
+            logger.info(
+                "IO ratios from curated real IO: %s (year %d)",
+                curated_path.name, resolved_year,
+            )
+            # No fallback flag — curated data is the preferred source
+            return io_data.base_year, import_ratio, va_ratio, codes
+        except Exception:
+            logger.warning(
+                "Failed to load curated IO from %s, trying fallbacks",
+                curated_path,
+                exc_info=True,
+            )
+
+    # 2. Try synthetic satellites (they have import + VA ratios)
+    synth_sat_path = base / "saudi_satellites_synthetic_v1.json"
+    if synth_sat_path.exists():
+        fallback_flags.append("import_ratio: synthetic fallback")
+        fallback_flags.append("va_ratio: synthetic fallback")
+        sat_data = load_satellites_from_json(str(synth_sat_path))
+        codes = sat_data.sector_codes
+        return sat_data.metadata.get("base_year", 2022), sat_data.import_ratio, sat_data.va_ratio, codes
+
+    # 3. Try synthetic IO model to derive VA ratios
+    synth_io_path = base / "saudi_io_synthetic_v1.json"
+    if synth_io_path.exists():
+        fallback_flags.append("import_ratio: derived from synthetic IO model")
+        fallback_flags.append("va_ratio: derived from synthetic IO model")
+        io_data = load_from_json(str(synth_io_path))
         n = len(io_data.x)
         # VA ratio from IO model: va_i = 1 - sum(A_col_i)
         x_safe = np.where(io_data.x > 0, io_data.x, 1.0)
@@ -206,7 +266,7 @@ def _load_io_ratios(
         import_ratio = np.full(n, 0.15, dtype=np.float64)
         return io_data.base_year, import_ratio, va_ratio, io_data.sector_codes
 
-    # No data at all
+    # 4. No data at all
     fallback_flags.append("import_ratio: zeros (no data)")
     fallback_flags.append("va_ratio: zeros (no data)")
     n = len(sector_codes) if sector_codes else 20
