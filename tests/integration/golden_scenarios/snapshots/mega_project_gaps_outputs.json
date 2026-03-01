@@ -1,0 +1,24 @@
+{
+  "scenario": "mega_project_gaps",
+  "computed_at": "2026-03-01T06:48:12.265921+00:00",
+  "model": "3-sector ISIC F/C/G",
+  "tolerances": {
+    "rtol": 1e-06,
+    "employment_atol": 10,
+    "gdp_rtol": 0.01
+  },
+  "delta_d": [
+    200.0,
+    100.0,
+    100.0
+  ],
+  "total_output_impact": 494.99006293474656,
+  "gdp_impact": 212.7463564094071,
+  "employment_total": 3.1533620404107316,
+  "sector_outputs": {
+    "F": 228.89753781605384,
+    "C": 137.1867064149277,
+    "G": 128.90581870376502
+  },
+  "quality_grade": null
+}
