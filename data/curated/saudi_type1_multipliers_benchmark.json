@@ -1,0 +1,87 @@
+{
+  "source": "kapsarc_gastat_2018",
+  "base_year": 2018,
+  "method": "Type I output multiplier = column sum of Leontief inverse (I-A)^{-1}",
+  "sectors": [
+    {
+      "sector_code": "A",
+      "output_multiplier": 1.5278
+    },
+    {
+      "sector_code": "B",
+      "output_multiplier": 1.3215
+    },
+    {
+      "sector_code": "C",
+      "output_multiplier": 1.6722
+    },
+    {
+      "sector_code": "D",
+      "output_multiplier": 1.5559
+    },
+    {
+      "sector_code": "E",
+      "output_multiplier": 1.5155
+    },
+    {
+      "sector_code": "F",
+      "output_multiplier": 1.7216
+    },
+    {
+      "sector_code": "G",
+      "output_multiplier": 1.4054
+    },
+    {
+      "sector_code": "H",
+      "output_multiplier": 1.408
+    },
+    {
+      "sector_code": "I",
+      "output_multiplier": 1.5816
+    },
+    {
+      "sector_code": "J",
+      "output_multiplier": 1.3809
+    },
+    {
+      "sector_code": "K",
+      "output_multiplier": 1.3178
+    },
+    {
+      "sector_code": "L",
+      "output_multiplier": 1.308
+    },
+    {
+      "sector_code": "M",
+      "output_multiplier": 1.3675
+    },
+    {
+      "sector_code": "N",
+      "output_multiplier": 1.3551
+    },
+    {
+      "sector_code": "O",
+      "output_multiplier": 1.327
+    },
+    {
+      "sector_code": "P",
+      "output_multiplier": 1.2446
+    },
+    {
+      "sector_code": "Q",
+      "output_multiplier": 1.3556
+    },
+    {
+      "sector_code": "R",
+      "output_multiplier": 1.3707
+    },
+    {
+      "sector_code": "S",
+      "output_multiplier": 1.3425
+    },
+    {
+      "sector_code": "T",
+      "output_multiplier": 1.1006
+    }
+  ]
+}
