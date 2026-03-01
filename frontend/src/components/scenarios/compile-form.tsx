@@ -21,8 +21,10 @@ import {
 } from '@/lib/api/hooks/useScenarios';
 import {
   useCompilationData,
+  useCompilationDecisions,
   type Suggestion,
   type CompileResponse,
+  type DecisionMap,
 } from '@/lib/api/hooks/useCompiler';
 import { DEV_USER_ID } from '@/lib/auth';
 
@@ -139,6 +141,11 @@ export function ScenarioCompileForm({
     compilationId ?? ''
   );
 
+  // Read cached decisions from F-3A review page
+  const cachedDecisions: DecisionMap | undefined = useCompilationDecisions(
+    compilationId ?? ''
+  );
+
   const [documentId, setDocumentId] = useState('');
   const [phasingEntries, setPhasingEntries] = useState<PhasingEntry[]>([
     { year: '2025', share: 1.0 },
@@ -147,15 +154,28 @@ export function ScenarioCompileForm({
   const [shockItems, setShockItems] = useState<ShockItem[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Build decisions from compilation data (all defaults to APPROVED)
+  // Build decisions from compilation data, using cached F-3A review decisions
+  const hasCachedDecisions = !!cachedDecisions && Object.keys(cachedDecisions).length > 0;
   const { decisions, summaryRows } = useMemo(() => {
     if (!compilationData?.suggestions) {
       return { decisions: [], summaryRows: [] };
     }
-    // In F-3A, users make accept/reject decisions. For now, default all to accepted
-    // Future: read per-item decisions from the bulk decisions cache
-    return buildDecisions(compilationData.suggestions, {});
-  }, [compilationData]);
+    // Convert DecisionMap entries to the format buildDecisions expects
+    const overrides: Record<string, { action: 'accept' | 'reject'; overrideSector?: string }> = {};
+    if (cachedDecisions) {
+      for (const [id, entry] of Object.entries(cachedDecisions)) {
+        if (entry.action === 'accept') {
+          overrides[id] = { action: 'accept' };
+        } else if (entry.action === 'reject') {
+          overrides[id] = { action: 'reject' };
+        } else if (entry.action === 'override') {
+          overrides[id] = { action: 'accept', overrideSector: entry.overrideSector };
+        }
+        // 'pending' items are not included in overrides — they default to accept
+      }
+    }
+    return buildDecisions(compilationData.suggestions, overrides);
+  }, [compilationData, cachedDecisions]);
 
   function addPhasingEntry() {
     setPhasingEntries((prev) => [...prev, { year: '', share: 0 }]);
@@ -234,6 +254,11 @@ export function ScenarioCompileForm({
             compilationData.suggestions.length > 0 ? (
               <div className="space-y-2">
                 <h3 className="text-sm font-medium">Decisions Summary</h3>
+                {!hasCachedDecisions && (
+                  <p className="text-sm text-amber-600">
+                    No review decisions found. All suggestions will default to APPROVED.
+                  </p>
+                )}
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>

@@ -10,9 +10,10 @@ import { useCreateScenario } from '@/lib/api/hooks/useScenarios';
 
 interface ScenarioCreateFormProps {
   workspaceId: string;
+  compilationId?: string;
 }
 
-export function ScenarioCreateForm({ workspaceId }: ScenarioCreateFormProps) {
+export function ScenarioCreateForm({ workspaceId, compilationId }: ScenarioCreateFormProps) {
   const router = useRouter();
   const createScenario = useCreateScenario(workspaceId);
 
@@ -47,7 +48,10 @@ export function ScenarioCreateForm({ workspaceId }: ScenarioCreateFormProps) {
         end_year: endYear,
       });
 
-      router.push(`/w/${workspaceId}/scenarios/${result.scenario_spec_id}`);
+      const url = compilationId
+        ? `/w/${workspaceId}/scenarios/${result.scenario_spec_id}?compilationId=${compilationId}`
+        : `/w/${workspaceId}/scenarios/${result.scenario_spec_id}`;
+      router.push(url);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Failed to create scenario';

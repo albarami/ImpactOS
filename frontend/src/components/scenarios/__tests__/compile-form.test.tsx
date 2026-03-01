@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement, type ReactNode } from 'react';
 import { ScenarioCompileForm } from '../compile-form';
-import type { CompileResponse } from '@/lib/api/hooks/useCompiler';
+import type { CompileResponse, DecisionMap } from '@/lib/api/hooks/useCompiler';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
 const mockCompileMutateAsync = vi.fn();
 let mockCompilationData: CompileResponse | undefined;
+let mockCachedDecisions: DecisionMap | undefined;
 
 vi.mock('@/lib/api/hooks/useScenarios', () => ({
   useCompileScenario: () => ({
@@ -20,6 +21,7 @@ vi.mock('@/lib/api/hooks/useScenarios', () => ({
 
 vi.mock('@/lib/api/hooks/useCompiler', () => ({
   useCompilationData: () => mockCompilationData,
+  useCompilationDecisions: () => mockCachedDecisions,
 }));
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -88,6 +90,7 @@ describe('ScenarioCompileForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCompilationData = undefined;
+    mockCachedDecisions = undefined;
   });
 
   it('renders compile form heading', () => {
@@ -144,6 +147,26 @@ describe('ScenarioCompileForm', () => {
       expect(approvedBadges.length).toBeGreaterThanOrEqual(1);
     });
 
+    it('shows warning when no cached decisions exist', () => {
+      mockCachedDecisions = undefined;
+      renderForm({ compilationId: 'comp-001' });
+      expect(
+        screen.getByText(/no review decisions found/i)
+      ).toBeInTheDocument();
+    });
+
+    it('does not show warning when cached decisions exist', () => {
+      mockCachedDecisions = {
+        'li-001': { action: 'accept' },
+        'li-002': { action: 'reject' },
+        'li-003': { action: 'accept' },
+      };
+      renderForm({ compilationId: 'comp-001' });
+      expect(
+        screen.queryByText(/no review decisions found/i)
+      ).not.toBeInTheDocument();
+    });
+
     it('maps decisions correctly on submit', async () => {
       const user = userEvent.setup();
       mockCompileMutateAsync.mockResolvedValueOnce({
@@ -196,6 +219,100 @@ describe('ScenarioCompileForm', () => {
         await screen.findByText('FinalDemandShock')
       ).toBeInTheDocument();
       expect(screen.getByText('1000000')).toBeInTheDocument();
+    });
+  });
+
+  // ── With cached F-3A decisions ───────────────────────────────────
+
+  describe('with cached F-3A decisions', () => {
+    beforeEach(() => {
+      mockCompilationData = COMPILATION_DATA;
+    });
+
+    it('reads cached F-3A decisions and maps them correctly', async () => {
+      const user = userEvent.setup();
+      // Set up cached decisions: one accept, one reject, one override
+      mockCachedDecisions = {
+        'li-001': { action: 'accept' },
+        'li-002': { action: 'reject' },
+        'li-003': { action: 'override', overrideSector: 'S99' },
+      };
+
+      mockCompileMutateAsync.mockResolvedValueOnce({
+        scenario_spec_id: 'sc-001',
+        version: 2,
+        shock_items: [],
+      });
+
+      renderForm({ compilationId: 'comp-001' });
+
+      // Verify summary table shows correct decision types
+      expect(screen.getByText('APPROVED')).toBeInTheDocument();
+      expect(screen.getByText('EXCLUDED')).toBeInTheDocument();
+      expect(screen.getByText('OVERRIDDEN')).toBeInTheDocument();
+
+      // Verify the override sector code is shown
+      expect(screen.getByText('S99')).toBeInTheDocument();
+
+      // Submit the form
+      const btn = screen.getByRole('button', { name: /compile/i });
+      await user.click(btn);
+
+      // Verify the decisions sent to the API
+      expect(mockCompileMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          decisions: expect.arrayContaining([
+            expect.objectContaining({
+              line_item_id: 'li-001',
+              decision_type: 'APPROVED',
+              final_sector_code: 'S01',
+            }),
+            expect.objectContaining({
+              line_item_id: 'li-002',
+              decision_type: 'EXCLUDED',
+              final_sector_code: null,
+            }),
+            expect.objectContaining({
+              line_item_id: 'li-003',
+              decision_type: 'OVERRIDDEN',
+              final_sector_code: 'S99',
+            }),
+          ]),
+        })
+      );
+    });
+
+    it('pending cached decisions default to APPROVED', async () => {
+      const user = userEvent.setup();
+      mockCachedDecisions = {
+        'li-001': { action: 'pending' },
+        'li-002': { action: 'accept' },
+        'li-003': { action: 'accept' },
+      };
+
+      mockCompileMutateAsync.mockResolvedValueOnce({
+        scenario_spec_id: 'sc-001',
+        version: 2,
+        shock_items: [],
+      });
+
+      renderForm({ compilationId: 'comp-001' });
+
+      const btn = screen.getByRole('button', { name: /compile/i });
+      await user.click(btn);
+
+      // li-001 has 'pending', which is NOT in overrides, so defaults to accept/APPROVED
+      expect(mockCompileMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          decisions: expect.arrayContaining([
+            expect.objectContaining({
+              line_item_id: 'li-001',
+              decision_type: 'APPROVED',
+              final_sector_code: 'S01',
+            }),
+          ]),
+        })
+      );
     });
   });
 

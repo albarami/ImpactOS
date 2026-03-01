@@ -55,7 +55,12 @@ export interface BulkDecisionsResponse {
   total: number;
 }
 
-export type DecisionMap = Record<string, 'accept' | 'reject' | 'pending'>;
+export interface DecisionEntry {
+  action: 'accept' | 'reject' | 'override' | 'pending';
+  overrideSector?: string;
+}
+
+export type DecisionMap = Record<string, DecisionEntry>;
 
 // ── Hooks ──────────────────────────────────────────────────────────────
 
@@ -152,6 +157,29 @@ export function useCompilationData(compilationId: string) {
   const queryClient = useQueryClient();
   return queryClient.getQueryData<CompileResponse>([
     'compilation',
+    compilationId,
+  ]);
+}
+
+/**
+ * Cache user decisions alongside compilation data.
+ * Called when user submits decisions on the compilation review page.
+ */
+export function useSetCompilationDecisions() {
+  const queryClient = useQueryClient();
+  return (compilationId: string, decisions: DecisionMap) => {
+    queryClient.setQueryData(['compilationDecisions', compilationId], decisions);
+  };
+}
+
+/**
+ * Read cached decisions for a compilation.
+ * Returns undefined if cache is cold.
+ */
+export function useCompilationDecisions(compilationId: string) {
+  const queryClient = useQueryClient();
+  return queryClient.getQueryData<DecisionMap>([
+    'compilationDecisions',
     compilationId,
   ]);
 }

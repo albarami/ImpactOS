@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useCompilationData } from '@/lib/api/hooks/useCompiler';
+import { useCompilationData, useSetCompilationDecisions } from '@/lib/api/hooks/useCompiler';
 import { DecisionTable, type DecisionMap } from '@/components/compiler/decision-table';
 import { BulkControls } from '@/components/compiler/bulk-controls';
 import { ConfidenceSummary } from '@/components/compiler/confidence-summary';
@@ -16,6 +16,7 @@ export default function CompilationDetailPage() {
   const compilationId = params.compilationId;
 
   const compilationData = useCompilationData(compilationId);
+  const setCompilationDecisions = useSetCompilationDecisions();
   const [decisions, setDecisions] = useState<DecisionMap>({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -24,8 +25,10 @@ export default function CompilationDetailPage() {
   }, []);
 
   const handleSubmitted = useCallback(() => {
+    // Cache decisions in TanStack Query so F-4A compile-form can read them
+    setCompilationDecisions(compilationId, decisions);
     setSubmitted(true);
-  }, []);
+  }, [compilationId, decisions, setCompilationDecisions]);
 
   // Cache is empty — data unavailable
   if (!compilationData) {
@@ -56,12 +59,15 @@ export default function CompilationDetailPage() {
     compilationData;
 
   const acceptedCount = Object.values(decisions).filter(
-    (d) => d === 'accept'
+    (d) => d.action === 'accept'
   ).length;
   const rejectedCount = Object.values(decisions).filter(
-    (d) => d === 'reject'
+    (d) => d.action === 'reject'
   ).length;
-  const pendingCount = suggestions.length - acceptedCount - rejectedCount;
+  const overrideCount = Object.values(decisions).filter(
+    (d) => d.action === 'override'
+  ).length;
+  const pendingCount = suggestions.length - acceptedCount - rejectedCount - overrideCount;
 
   return (
     <div className="space-y-6">

@@ -61,9 +61,9 @@ function createWrapper() {
 
 function renderControls(decisions?: DecisionMap) {
   const defaultDecisions: DecisionMap = {
-    'li-001': 'accept',
-    'li-002': 'reject',
-    'li-003': 'pending',
+    'li-001': { action: 'accept' },
+    'li-002': { action: 'reject' },
+    'li-003': { action: 'pending' },
   };
 
   return render(
@@ -170,9 +170,9 @@ describe('BulkControls', () => {
     });
 
     const decisions: DecisionMap = {
-      'li-001': 'accept',
-      'li-002': 'reject',
-      'li-003': 'pending',
+      'li-001': { action: 'accept' },
+      'li-002': { action: 'reject' },
+      'li-003': { action: 'pending' },
     };
 
     renderControls(decisions);
@@ -190,11 +190,51 @@ describe('BulkControls', () => {
     });
   });
 
+  it('Submit Decisions sends override entries with override_sector_code', async () => {
+    const user = userEvent.setup();
+    mockMutateAsync.mockResolvedValueOnce({
+      accepted: 2,
+      rejected: 1,
+      total: 3,
+    });
+
+    const decisions: DecisionMap = {
+      'li-001': { action: 'accept' },
+      'li-002': { action: 'reject' },
+      'li-003': { action: 'override', overrideSector: 'S99' },
+    };
+
+    renderControls(decisions);
+
+    await user.click(
+      screen.getByRole('button', { name: /submit decisions/i })
+    );
+
+    expect(mockMutateAsync).toHaveBeenCalledWith({
+      decisions: [
+        { line_item_id: 'li-001', action: 'accept' },
+        { line_item_id: 'li-002', action: 'reject' },
+        { line_item_id: 'li-003', action: 'accept', override_sector_code: 'S99' },
+      ],
+    });
+  });
+
+  it('shows override count in summary text', () => {
+    const decisions: DecisionMap = {
+      'li-001': { action: 'accept' },
+      'li-002': { action: 'override', overrideSector: 'S99' },
+      'li-003': { action: 'pending' },
+    };
+
+    renderControls(decisions);
+    expect(screen.getByText(/1 overridden/i)).toBeInTheDocument();
+  });
+
   it('disables Submit Decisions when no decisions are made', () => {
     const allPending: DecisionMap = {
-      'li-001': 'pending',
-      'li-002': 'pending',
-      'li-003': 'pending',
+      'li-001': { action: 'pending' },
+      'li-002': { action: 'pending' },
+      'li-003': { action: 'pending' },
     };
     renderControls(allPending);
 

@@ -22,7 +22,7 @@ export default function ScenariosPage() {
         )}
       </div>
 
-      <ScenarioCreateForm workspaceId={workspaceId} />
+      <ScenarioCreateForm workspaceId={workspaceId} compilationId={compilationId} />
     </div>
   );
 }

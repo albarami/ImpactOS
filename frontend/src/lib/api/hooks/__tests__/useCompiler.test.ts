@@ -7,11 +7,14 @@ import {
   useCompilationStatus,
   useBulkDecisions,
   useCompilationData,
+  useSetCompilationDecisions,
+  useCompilationDecisions,
   type CompileRequest,
   type CompileResponse,
   type CompilationStatusResponse,
   type BulkDecisionsRequest,
   type BulkDecisionsResponse,
+  type DecisionMap,
 } from '../useCompiler';
 
 const mockPost = vi.fn();
@@ -397,5 +400,50 @@ describe('useCompilationData', () => {
     );
 
     expect(result.current).toEqual(compileResponse);
+  });
+});
+
+// ── useSetCompilationDecisions / useCompilationDecisions ─────────────
+
+describe('useSetCompilationDecisions and useCompilationDecisions', () => {
+  it('caches and reads decisions round-trip', () => {
+    const queryClient = new QueryClient();
+    const wrapper = createWrapper(queryClient);
+
+    const decisions: DecisionMap = {
+      'li-001': { action: 'accept' },
+      'li-002': { action: 'reject' },
+      'li-003': { action: 'override', overrideSector: 'S99' },
+    };
+
+    // Set decisions
+    const { result: setResult } = renderHook(
+      () => useSetCompilationDecisions(),
+      { wrapper }
+    );
+
+    act(() => {
+      setResult.current(COMPILATION_ID, decisions);
+    });
+
+    // Read decisions
+    const { result: getResult } = renderHook(
+      () => useCompilationDecisions(COMPILATION_ID),
+      { wrapper }
+    );
+
+    expect(getResult.current).toEqual(decisions);
+  });
+
+  it('returns undefined when no decisions are cached', () => {
+    const queryClient = new QueryClient();
+    const wrapper = createWrapper(queryClient);
+
+    const { result } = renderHook(
+      () => useCompilationDecisions(COMPILATION_ID),
+      { wrapper }
+    );
+
+    expect(result.current).toBeUndefined();
   });
 });

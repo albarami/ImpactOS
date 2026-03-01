@@ -32,13 +32,14 @@ function createWrapper() {
   };
 }
 
-function renderForm(props?: { workspaceId?: string }) {
+function renderForm(props?: { workspaceId?: string; compilationId?: string }) {
   return render(
     createElement(
       createWrapper(),
       null,
       createElement(ScenarioCreateForm, {
         workspaceId: props?.workspaceId ?? 'ws-001',
+        compilationId: props?.compilationId,
       })
     )
   );
@@ -121,6 +122,59 @@ describe('ScenarioCreateForm', () => {
       end_year: 2030,
     });
 
+    expect(mockPush).toHaveBeenCalledWith('/w/ws-001/scenarios/sc-001');
+  });
+
+  it('includes compilationId in redirect URL when provided', async () => {
+    const user = userEvent.setup();
+    mockMutateAsync.mockResolvedValueOnce({
+      scenario_spec_id: 'sc-001',
+      version: 1,
+      name: 'My Scenario',
+    });
+
+    renderForm({ compilationId: 'comp-123' });
+
+    await user.type(screen.getByLabelText(/scenario name/i), 'My Scenario');
+    await user.type(screen.getByLabelText(/model version/i), 'mv-001');
+    await user.clear(screen.getByLabelText(/base year/i));
+    await user.type(screen.getByLabelText(/base year/i), '2020');
+    await user.clear(screen.getByLabelText(/start year/i));
+    await user.type(screen.getByLabelText(/start year/i), '2025');
+    await user.clear(screen.getByLabelText(/end year/i));
+    await user.type(screen.getByLabelText(/end year/i), '2030');
+
+    const btn = screen.getByRole('button', { name: /create scenario/i });
+    await user.click(btn);
+
+    expect(mockPush).toHaveBeenCalledWith(
+      '/w/ws-001/scenarios/sc-001?compilationId=comp-123'
+    );
+  });
+
+  it('redirects without compilationId when not provided', async () => {
+    const user = userEvent.setup();
+    mockMutateAsync.mockResolvedValueOnce({
+      scenario_spec_id: 'sc-001',
+      version: 1,
+      name: 'My Scenario',
+    });
+
+    renderForm();
+
+    await user.type(screen.getByLabelText(/scenario name/i), 'My Scenario');
+    await user.type(screen.getByLabelText(/model version/i), 'mv-001');
+    await user.clear(screen.getByLabelText(/base year/i));
+    await user.type(screen.getByLabelText(/base year/i), '2020');
+    await user.clear(screen.getByLabelText(/start year/i));
+    await user.type(screen.getByLabelText(/start year/i), '2025');
+    await user.clear(screen.getByLabelText(/end year/i));
+    await user.type(screen.getByLabelText(/end year/i), '2030');
+
+    const btn = screen.getByRole('button', { name: /create scenario/i });
+    await user.click(btn);
+
+    // URL should NOT contain compilationId
     expect(mockPush).toHaveBeenCalledWith('/w/ws-001/scenarios/sc-001');
   });
 

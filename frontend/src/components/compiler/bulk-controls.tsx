@@ -38,16 +38,19 @@ export function BulkControls({
   );
 
   const acceptedCount = Object.values(decisions).filter(
-    (d) => d === 'accept'
+    (d) => d.action === 'accept'
   ).length;
   const rejectedCount = Object.values(decisions).filter(
-    (d) => d === 'reject'
+    (d) => d.action === 'reject'
+  ).length;
+  const overrideCount = Object.values(decisions).filter(
+    (d) => d.action === 'override'
   ).length;
   const pendingCount = Object.values(decisions).filter(
-    (d) => d === 'pending'
+    (d) => d.action === 'pending'
   ).length;
 
-  const hasDecisions = acceptedCount > 0 || rejectedCount > 0;
+  const hasDecisions = acceptedCount > 0 || rejectedCount > 0 || overrideCount > 0;
 
   async function handleBulkConfirm() {
     if (!bulkAction) return;
@@ -72,11 +75,20 @@ export function BulkControls({
 
   async function handleSubmit() {
     const nonPendingDecisions = Object.entries(decisions)
-      .filter(([, action]) => action !== 'pending')
-      .map(([lineItemId, action]) => ({
-        line_item_id: lineItemId,
-        action: action as 'accept' | 'reject',
-      }));
+      .filter(([, entry]) => entry.action !== 'pending')
+      .map(([lineItemId, entry]) => {
+        if (entry.action === 'override') {
+          return {
+            line_item_id: lineItemId,
+            action: 'accept' as const,
+            override_sector_code: entry.overrideSector,
+          };
+        }
+        return {
+          line_item_id: lineItemId,
+          action: entry.action as 'accept' | 'reject',
+        };
+      });
 
     try {
       await bulkDecisions.mutateAsync({ decisions: nonPendingDecisions });
@@ -90,8 +102,9 @@ export function BulkControls({
   return (
     <div className="flex items-center gap-4">
       <div className="flex-1 text-sm text-muted-foreground">
-        {acceptedCount} accepted, {rejectedCount} rejected, {pendingCount}{' '}
-        pending
+        {acceptedCount} accepted, {rejectedCount} rejected
+        {overrideCount > 0 && `, ${overrideCount} overridden`}
+        , {pendingCount} pending
       </div>
 
       <AlertDialog

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -17,8 +17,12 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import type { DecisionMap, DecisionEntry } from '@/lib/api/hooks/useCompiler';
 
 // ── Types ──────────────────────────────────────────────────────────────
+
+export type { DecisionMap, DecisionEntry };
 
 export interface Suggestion {
   line_item_id: string;
@@ -26,8 +30,6 @@ export interface Suggestion {
   confidence: number;
   explanation: string;
 }
-
-export type DecisionMap = Record<string, 'accept' | 'reject' | 'pending'>;
 
 interface DecisionTableProps {
   suggestions: Suggestion[];
@@ -46,15 +48,17 @@ function confidencePercent(confidence: number): string {
   return `${Math.round(confidence * 100)}%`;
 }
 
-function statusColor(status: 'accept' | 'reject' | 'pending'): string {
-  if (status === 'accept') return 'bg-green-600';
-  if (status === 'reject') return 'bg-red-500';
+function statusColor(action: DecisionEntry['action']): string {
+  if (action === 'accept') return 'bg-green-600';
+  if (action === 'reject') return 'bg-red-500';
+  if (action === 'override') return 'bg-amber-500';
   return 'bg-gray-400';
 }
 
-function statusLabel(status: 'accept' | 'reject' | 'pending'): string {
-  if (status === 'accept') return 'accepted';
-  if (status === 'reject') return 'rejected';
+function statusLabel(action: DecisionEntry['action']): string {
+  if (action === 'accept') return 'accepted';
+  if (action === 'reject') return 'rejected';
+  if (action === 'override') return 'overridden';
   return 'pending';
 }
 
@@ -67,21 +71,70 @@ export function DecisionTable({
   const [decisions, setDecisions] = useState<DecisionMap>(() => {
     const initial: DecisionMap = {};
     for (const s of suggestions) {
-      initial[s.line_item_id] = 'pending';
+      initial[s.line_item_id] = { action: 'pending' };
     }
     return initial;
   });
 
+  // Track which row has the override input open
+  const [overrideOpenFor, setOverrideOpenFor] = useState<string | null>(null);
+  // Use a ref for the override input value to avoid re-render cascades
+  // through the column memoization chain
+  const overrideInputRef = useRef('');
+  // Counter to force re-render of just the input display value
+  const [, setInputTick] = useState(0);
+
   const handleDecision = useCallback(
     (lineItemId: string, action: 'accept' | 'reject') => {
       setDecisions((prev) => {
-        const next = { ...prev, [lineItemId]: action };
+        const next = { ...prev, [lineItemId]: { action } };
         onDecisionsChange(next);
         return next;
+      });
+      // Close override input if open for this row
+      setOverrideOpenFor((current) => {
+        if (current === lineItemId) {
+          overrideInputRef.current = '';
+          return null;
+        }
+        return current;
       });
     },
     [onDecisionsChange]
   );
+
+  const handleOverrideOpen = useCallback((lineItemId: string) => {
+    overrideInputRef.current = '';
+    setOverrideOpenFor(lineItemId);
+  }, []);
+
+  const handleOverrideConfirm = useCallback(
+    (lineItemId: string) => {
+      const value = overrideInputRef.current.trim();
+      if (!value) return;
+      setDecisions((prev) => {
+        const next: DecisionMap = {
+          ...prev,
+          [lineItemId]: { action: 'override', overrideSector: value },
+        };
+        onDecisionsChange(next);
+        return next;
+      });
+      overrideInputRef.current = '';
+      setOverrideOpenFor(null);
+    },
+    [onDecisionsChange]
+  );
+
+  const handleOverrideCancel = useCallback(() => {
+    overrideInputRef.current = '';
+    setOverrideOpenFor(null);
+  }, []);
+
+  const handleOverrideInputChange = useCallback((value: string) => {
+    overrideInputRef.current = value;
+    setInputTick((t) => t + 1);
+  }, []);
 
   const columns = useMemo<ColumnDef<Suggestion>[]>(
     () => [
@@ -115,18 +168,24 @@ export function DecisionTable({
       {
         id: 'sector',
         header: 'Sector',
-        cell: ({ row }) => (
-          <span className="font-mono text-sm">{row.original.sector_code}</span>
-        ),
+        cell: ({ row }) => {
+          const entry = decisions[row.original.line_item_id];
+          const sectorCode =
+            entry?.action === 'override' && entry.overrideSector
+              ? entry.overrideSector
+              : row.original.sector_code;
+          return <span className="font-mono text-sm">{sectorCode}</span>;
+        },
       },
       {
         id: 'status',
         header: 'Status',
         cell: ({ row }) => {
-          const status = decisions[row.original.line_item_id] ?? 'pending';
+          const entry = decisions[row.original.line_item_id];
+          const action = entry?.action ?? 'pending';
           return (
-            <Badge className={`${statusColor(status)} text-white`}>
-              {statusLabel(status)}
+            <Badge className={`${statusColor(action)} text-white`}>
+              {statusLabel(action)}
             </Badge>
           );
         },
@@ -134,27 +193,67 @@ export function DecisionTable({
       {
         id: 'action',
         header: 'Action',
-        cell: ({ row }) => (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDecision(row.original.line_item_id, 'accept')}
-            >
-              Accept
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDecision(row.original.line_item_id, 'reject')}
-            >
-              Reject
-            </Button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const lineItemId = row.original.line_item_id;
+          const isOverrideOpen = overrideOpenFor === lineItemId;
+
+          return (
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleDecision(lineItemId, 'accept')}
+                >
+                  Accept
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleDecision(lineItemId, 'reject')}
+                >
+                  Reject
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleOverrideOpen(lineItemId)}
+                >
+                  Override
+                </Button>
+              </div>
+              {isOverrideOpen && (
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="text"
+                    placeholder="Sector code"
+                    defaultValue=""
+                    onChange={(e) => handleOverrideInputChange(e.target.value)}
+                    className="w-24 h-8 text-xs"
+                    aria-label="Override sector code"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleOverrideConfirm(lineItemId)}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleOverrideCancel}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        },
       },
     ],
-    [decisions, handleDecision]
+    [decisions, handleDecision, handleOverrideOpen, handleOverrideConfirm, handleOverrideCancel, handleOverrideInputChange, overrideOpenFor]
   );
 
   const table = useReactTable({
