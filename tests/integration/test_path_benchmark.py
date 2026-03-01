@@ -1,11 +1,12 @@
 """Integration Path 9: Benchmark Validator Integration.
 
-Tests that the real D-1 20-sector Saudi IO model produces Leontief
-multipliers that pass benchmark plausibility validation:
+Tests that the 20-sector Saudi IO model (curated or synthetic) produces
+Leontief multipliers that pass benchmark plausibility validation:
   load_real_saudi_io() -> LeontiefSolver.solve -> BenchmarkValidator.validate_multipliers
 
 Checks multiplier ranges, outlier flags, and comparison against known
-Saudi economic benchmarks.
+Saudi economic benchmarks. Currently runs on synthetic fallback data —
+real-data coverage deferred until curated GASTAT data is committed.
 """
 
 import numpy as np
@@ -15,9 +16,8 @@ from .golden_scenarios.shared import ISIC_20_SECTIONS
 
 
 @pytest.mark.integration
-@pytest.mark.real_data
 class TestBenchmarkValidatorIntegration:
-    """Benchmark validation of Leontief multipliers on real 20-sector model."""
+    """Benchmark validation of Leontief multipliers on loaded 20-sector model."""
 
     # ---------------------------------------------------------------
     # Test 9b-1: Multipliers in plausible range

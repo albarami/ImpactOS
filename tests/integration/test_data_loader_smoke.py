@@ -1,12 +1,16 @@
-"""Real data smoke test (Amendment 5).
+"""Data loader + computation smoke test.
 
-Loads the actual D-1 20-sector Saudi IO model and runs it through the
-core computation stack with plausibility validation. This is a
-confidence check that real data produces sensible results.
+Loads the 20-sector Saudi IO model via load_real_saudi_io() and runs it
+through the core computation stack with plausibility validation. Tests
+explicitly report whether curated KAPSARC data or synthetic fallback was
+used — Amendment 5 (real-data coverage) is deferred until curated GASTAT
+data is committed to the repo.
 
-Marked @pytest.mark.real_data for selective execution.
+Note: As of Phase 2 gate, only synthetic data is available. These tests
+validate the loader→engine pipeline, NOT that real curated data was used.
 """
 
+import warnings
 import numpy as np
 import pytest
 from uuid_extensions import uuid7
@@ -14,22 +18,23 @@ from uuid_extensions import uuid7
 from .golden_scenarios.shared import ISIC_20_SECTIONS
 
 
-@pytest.mark.real_data
 @pytest.mark.integration
-class TestRealDataSmoke:
-    """Smoke test on D-1 20-sector model."""
+class TestDataLoaderSmoke:
+    """Smoke test: load_real_saudi_io() → Leontief → Satellite pipeline."""
 
     # ---------------------------------------------------------------
     # Test 9c-1: Leontief + Satellite on real model
     # ---------------------------------------------------------------
 
-    def test_leontief_satellite_on_real_model(self):
-        """Load D-1 20-sector, run Leontief + Satellite, check plausibility.
+    def test_leontief_satellite_on_loaded_model(self):
+        """Load 20-sector model, run Leontief + Satellite, check plausibility.
 
         Runs a 100M SAR shock in Construction (F) through the full
         computation stack: load -> register -> Leontief solve ->
         satellite impacts. Validates that all outputs are finite,
         non-negative, and economically sensible.
+
+        Explicitly reports whether curated or synthetic data was loaded.
         """
         from src.data.io_loader import load_satellites_from_json
         from src.data.real_io_loader import load_real_saudi_io
@@ -37,7 +42,22 @@ class TestRealDataSmoke:
         from src.engine.model_store import ModelStore
         from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
 
-        model = load_real_saudi_io()
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            model = load_real_saudi_io()
+
+        # Detect whether curated or synthetic data was loaded
+        used_synthetic = any(
+            "synthetic" in str(w.message).lower() for w in caught
+        )
+        is_synthetic_source = "synthetic" in model.source.lower()
+        if used_synthetic or is_synthetic_source:
+            pytest.warns_msg = (
+                "SYNTHETIC FALLBACK: No curated KAPSARC/GASTAT data available. "
+                "This test validates the loader→engine pipeline only, "
+                "not real-data coverage (Amendment 5 deferred)."
+            )
+            warnings.warn(pytest.warns_msg, UserWarning, stacklevel=1)
         assert len(model.sector_codes) == 20
 
         # Register and load
@@ -115,11 +135,12 @@ class TestRealDataSmoke:
     # Test 9c-2: Real model has 20 sectors
     # ---------------------------------------------------------------
 
-    def test_real_model_has_20_sectors(self):
+    def test_loaded_model_has_20_sectors(self):
         """The loaded model must have exactly 20 ISIC Rev.4 section codes.
 
         Verifies that sector codes match the standard A-T set and that
         Z matrix and x vector dimensions are consistent.
+        Works on both curated and synthetic models.
         """
         from src.data.real_io_loader import load_real_saudi_io
 

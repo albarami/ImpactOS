@@ -114,13 +114,13 @@ class TestQualityAssessment:
 
 
 @pytest.mark.integration
-@pytest.mark.real_data
 class TestQualityFromRealUpstream:
-    """Quality assessment with REAL upstream modules -- no mocks.
+    """Quality assessment with real upstream modules -- no mocks.
 
-    Feeds REAL compiler output -> REAL engine -> REAL constraints ->
-    QualityAssessmentService. This verifies that the actual signals
-    produced by upstream modules are compatible with the quality scorer.
+    Feeds compiler output -> engine -> constraints ->
+    QualityAssessmentService using the 3-sector toy model. This verifies
+    that the actual signals produced by upstream modules are compatible
+    with the quality scorer.
     """
 
     def test_quality_from_real_upstream(self):

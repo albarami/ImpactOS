@@ -86,7 +86,7 @@ markers = [
     "slow: Tests that take more than 5s",
     "regression: Regression baseline tests",
     "gate: Phase 2 gate criteria verification",
-    "real_data: Tests using sanitized real data fixtures",
+    "real_data: Tests using curated real data fixtures (reserved — no curated data committed yet)",
 ]
 
 [tool.mypy]

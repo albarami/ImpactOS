@@ -26,7 +26,7 @@ Prove that all Phase 2 modules work together as an integrated system. MVP-14 pro
 | Core: BatchRunner | `src/engine/batch.py` | `BatchRunner.run(request) -> BatchResult` |
 | Core: RAS | `src/engine/ras.py` | `RASBalancer.balance() -> RASResult` |
 | MVP-8: Compiler | `src/compiler/scenario_compiler.py` | `ScenarioCompiler.compile(CompilationInput) -> ScenarioSpec` |
-| MVP-8: Mapping Agent | `src/compiler/mapping_agent.py` | `MappingSuggestionAgent.suggest_batch(items, taxonomy) -> list[MappingSuggestion]` |
+| MVP-8: Mapping Agent | `src/agents/mapping_agent.py` | `MappingSuggestionAgent.suggest_batch(items, taxonomy) -> list[MappingSuggestion]` |
 | MVP-9: Depth Engine | `src/agents/depth/orchestrator.py` | `DepthOrchestrator.run(plan_id, ...)` (async, uses LLM) |
 | MVP-10: Constraints | `src/engine/constraints/solver.py` | `FeasibilitySolver.solve(...) -> FeasibilityResult` |
 | MVP-11: Workforce | `src/engine/workforce_satellite/satellite.py` | `WorkforceSatellite.analyze(...) -> WorkforceResult` |
@@ -145,7 +145,7 @@ tests/integration/
 ├── test_path_benchmark.py           # Path 9: Benchmark Validator integration
 ├── test_e2e_golden.py               # End-to-end golden tests
 ├── test_mathematical_accuracy.py    # Algebraic verification (2-3 sector toy model, ISIC F/C/G)
-├── test_real_data_smoke.py          # Real data smoke test (Amendment 5)
+├── test_data_loader_smoke.py        # Data loader smoke test (Amendment 5 — deferred)
 ├── test_performance.py              # Performance benchmarks (Amendment 6)
 ├── test_phase2_gate_formal.py       # Formal gate criteria (Amendment 4)
 ├── test_regression.py               # Toleranced snapshots (Amendment 7)
@@ -329,49 +329,25 @@ Reference measurements (not hard gates):
 
 Gate report includes measured times as informational, not as pass/fail criteria.
 
-## Real Data Smoke Test (Amendment 5)
+## Data Loader Smoke Test (Amendment 5 — Deferred)
 
-Marked `@pytest.mark.real_data`. Lives in `test_real_data_smoke.py`.
+Lives in `test_data_loader_smoke.py`. No `@pytest.mark.real_data` marker.
 
-This test loads the actual D-1 20-sector Saudi IO model and runs it through the core computation stack with plausibility validation:
+**Status:** Amendment 5 is **deferred**. The repo contains only synthetic fallback data
+(`data/curated/saudi_io_synthetic_v1.json`). No curated KAPSARC or GASTAT IO data has
+been committed. The tests below validate the loader→engine pipeline on synthetic data.
+Real-data coverage will be satisfied when curated data files are committed and the
+tests run without the "Using synthetic model" warning.
 
 ```python
-@pytest.mark.real_data
-class TestRealDataSmoke:
-    def test_leontief_satellite_on_real_model(self):
-        """Load D-1 20-sector, run Leontief + Satellite, check plausibility."""
-        model = load_real_saudi_io()  # from data/curated/saudi_io_synthetic_v1.json
-        assert len(model.sector_codes) == 20
-
-        # Run Leontief
-        delta_d = build_unit_shock(model, target_section="F")
-        solve_result = LeontiefSolver.solve(model, delta_d)
-        assert solve_result.delta_x is not None
-        assert all(numpy.isfinite(solve_result.delta_x))
-
-        # Run Satellite
-        satellite_result = SatelliteAccounts.compute(
-            solve_result.delta_x, model.satellite_coefficients
-        )
-
-        # Plausibility via BenchmarkValidator
-        validation = BenchmarkValidator.validate_multipliers(
-            solve_result=solve_result,
-            model=model,
-        )
-        assert validation.all_in_range, f"Multiplier outliers: {validation.outliers}"
-
-    def test_quality_assessment_with_real_sources(self):
-        """Run quality assessment with real source registry."""
-        # Uses real model + real source metadata (ages, provenance)
-        model = load_real_saudi_io()
-        quality = QualityAssessmentService.assess(
-            model_vintage=model.metadata.vintage,
-            source_registry=model.metadata.sources,
-            # ... remaining signals from real computation
-        )
-        assert quality.grade is not None
-        assert quality.signals  # non-empty signal list
+@pytest.mark.integration
+class TestDataLoaderSmoke:
+    def test_leontief_satellite_on_loaded_model(self):
+        """Load 20-sector model, run Leontief + Satellite, check plausibility.
+        Explicitly warns if synthetic fallback was used."""
+        model = load_real_saudi_io()  # currently: synthetic fallback
+        # ... Leontief solve + satellite compute + plausibility checks
+        # Test emits UserWarning when synthetic data detected
 ```
 
 ## Phase 2 Gate Criteria
@@ -586,7 +562,7 @@ markers = [
 | 2 | Depth Engine upstream direction | Applied: tests verify artifact production with step-specific typed outputs |
 | 3 | Doc -> Export path added | Applied: `test_path_doc_to_export.py` with real mapping suggestions + governed export |
 | 4 | Compiler gate metric precision | Applied: `MappingSuggestionAgent.suggest_batch` with seeded library vs ground-truth |
-| 5 | One sanitized real-data fixture | Applied: D-1 20-sector `load_real_saudi_io()` + `BenchmarkValidator` + quality, `@pytest.mark.real_data` |
+| 5 | One sanitized real-data fixture | **Deferred**: `load_real_saudi_io()` loader pipeline validated with synthetic fallback; curated GASTAT/KAPSARC data not yet committed to repo. Tests renamed to `test_data_loader_smoke.py`, `@pytest.mark.real_data` removed. Real-data coverage deferred until curated data is available. |
 | 6 | Performance = reference, not gate | Applied: `@pytest.mark.slow`, skip by default, informational in report |
 | 7 | Toleranced snapshots, not hashes | Applied: frozen JSON snapshots + `assert_allclose` + `--update-golden` flag |
 | 8 | Concordance contracts, not code equality | Applied: 4 named tests for bidirectional concordance contracts |

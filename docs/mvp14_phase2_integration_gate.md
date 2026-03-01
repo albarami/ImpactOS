@@ -120,5 +120,6 @@ cat docs/phase2_gate_report.md
 - `shared.py` holds constants and helpers; `conftest.py` holds ONLY `@pytest.fixture` definitions
 - All test files import from `tests.integration.golden_scenarios.shared`, NEVER from conftest
 - The 3-sector toy model (ISIC F/C/G) is used for golden scenarios and mathematical accuracy
-- Real 20-sector model accessed via `load_real_saudi_io()` for smoke tests and benchmarks
+- 20-sector model accessed via `load_real_saudi_io()` for smoke tests and benchmarks (currently uses synthetic fallback — curated GASTAT/KAPSARC data not yet committed)
 - All tests are deterministic — Depth Engine LLM is mocked
+- `@pytest.mark.real_data` is reserved for future use when curated data is committed (Amendment 5 deferred)
