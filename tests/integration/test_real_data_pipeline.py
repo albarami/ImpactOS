@@ -416,153 +416,185 @@ class TestDataLineageHonesty:
 
 
 # ---------------------------------------------------------------------------
-# Class 4: TestSyntheticConstructorIsolation — prevent overwrite of real data
+# Class 4: TestSyntheticConstructorIsolation — glob-based curated-real guard
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.real_data
 @pytest.mark.integration
 class TestSyntheticConstructorIsolation:
-    """Ensure synthetic constructors cannot target curated-real paths.
+    """Ensure no script in scripts/ can overwrite curated-real data.
 
-    Scans scripts/generate_synthetic_fixtures.py for output paths and
-    verifies none of them collide with curated_real manifest entries.
-    This is a CI-safe test that prevents the D-5.0 failure mode:
-    running a synthetic constructor that overwrites real upstream data.
+    Uses glob to scan ALL scripts/*.py — new scripts are caught
+    automatically without updating a hardcoded list.
     """
 
-    _SYNTHETIC_SCRIPTS = [
-        Path("scripts/generate_synthetic_fixtures.py"),
-    ]
+    @staticmethod
+    def _get_all_scripts() -> list[Path]:
+        """Return all .py scripts in scripts/, excluding package boilerplate."""
+        scripts_dir = Path("scripts")
+        return sorted(
+            p for p in scripts_dir.glob("*.py")
+            if p.name not in ("__init__.py", "__main__.py")
+        )
 
-    def test_synthetic_scripts_never_target_curated_real(self) -> None:
-        """Synthetic constructor output paths must not collide with
-        any manifest entry that has resolved_source='curated_real'.
-
-        Parses the script source to extract all file paths it writes to,
-        then checks none of them appear in manifest.json as curated_real.
-        """
+    @staticmethod
+    def _extract_code_strings(source: str) -> list[str]:
+        """AST-parse source, return non-docstring string constants."""
         import ast
-        import re
 
+        tree = ast.parse(source)
+
+        # Identify docstring node IDs
+        docstring_ids: set[int] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Module, ast.ClassDef,
+                                 ast.FunctionDef, ast.AsyncFunctionDef)):
+                if (node.body
+                        and isinstance(node.body[0], ast.Expr)
+                        and isinstance(node.body[0].value, ast.Constant)
+                        and isinstance(node.body[0].value.value, str)):
+                    docstring_ids.add(id(node.body[0].value))
+
+        return [
+            node.value
+            for node in ast.walk(tree)
+            if (isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and id(node) not in docstring_ids)
+        ]
+
+    def test_no_script_overwrites_curated_real_filenames(self) -> None:
+        """No script/*.py may produce JSON files whose names collide
+        with curated_real manifest entries.
+
+        Glob-based: catches any new script automatically.
+        """
         manifest = load_manifest()
-        curated_real_paths: set[str] = set()
-        for entry in manifest.datasets:
-            if entry.resolved_source == "curated_real":
-                curated_real_paths.add(Path(entry.path).name)
+        curated_real_filenames: set[str] = {
+            Path(e.path).name
+            for e in manifest.datasets
+            if e.resolved_source == "curated_real"
+        }
 
         violations: list[str] = []
 
-        for script_path in self._SYNTHETIC_SCRIPTS:
-            if not script_path.exists():
-                continue
-
-            source = script_path.read_text(encoding="utf-8")
-
-            # Parse AST to extract string literals from CODE (not docstrings)
+        for script in self._get_all_scripts():
+            source = script.read_text(encoding="utf-8")
             try:
-                tree = ast.parse(source)
+                code_strings = self._extract_code_strings(source)
             except SyntaxError:
-                violations.append(
-                    f"{script_path}: SyntaxError — cannot parse"
-                )
+                violations.append(f"{script}: SyntaxError — cannot parse")
                 continue
 
-            # Identify docstring nodes (module/class/function body[0])
-            docstring_ids: set[int] = set()
-            for node in ast.walk(tree):
-                if isinstance(node, (ast.Module, ast.ClassDef,
-                                     ast.FunctionDef, ast.AsyncFunctionDef)):
-                    if (node.body
-                            and isinstance(node.body[0], ast.Expr)
-                            and isinstance(node.body[0].value, ast.Constant)
-                            and isinstance(node.body[0].value.value, str)):
-                        docstring_ids.add(id(node.body[0].value))
-
-            # Collect non-docstring string constants
-            code_strings: list[str] = []
-            for node in ast.walk(tree):
-                if (isinstance(node, ast.Constant)
-                        and isinstance(node.value, str)
-                        and id(node) not in docstring_ids):
-                    code_strings.append(node.value)
-
-            # Strategy 1: Check for code-level paths referencing data/curated/
-            for s in code_strings:
-                if "data/curated" in s or "data\\curated" in s:
-                    violations.append(
-                        f"{script_path}: code string literal references "
-                        f"data/curated/: '{s}' — synthetic constructors "
-                        f"must write to data/synthetic/ only"
-                    )
-                    break
-            # Also check for "curated" as a Path() component
-            curated_component = [
-                s for s in code_strings
-                if s == "curated"
-            ]
-            if curated_component:
+            json_filenames = {s for s in code_strings if s.endswith(".json")}
+            collisions = json_filenames & curated_real_filenames
+            for c in sorted(collisions):
                 violations.append(
-                    f"{script_path}: contains string 'curated' as "
-                    f"path component — synthetic constructors must "
-                    f"write to data/synthetic/ only"
-                )
-
-            # Strategy 2: Check for filename collisions with curated_real entries
-            json_filenames = {
-                s for s in code_strings
-                if s.endswith(".json")
-            }
-            collisions = json_filenames & curated_real_paths
-            for collision in sorted(collisions):
-                violations.append(
-                    f"{script_path}: output filename '{collision}' collides "
-                    f"with a curated_real manifest entry"
+                    f"{script}: output filename '{c}' collides with "
+                    f"a curated_real manifest entry"
                 )
 
         assert not violations, (
-            "Synthetic constructors target curated-real paths:\n"
+            "Scripts output filenames that collide with curated_real entries:\n"
             + "\n".join(f"  - {v}" for v in violations)
         )
 
-    def test_synthetic_scripts_write_to_synthetic_dir(self) -> None:
-        """Synthetic constructors must target data/synthetic/, not data/curated/.
+    @staticmethod
+    def _is_synthetic_generator(script: Path, code_strings: list[str]) -> bool:
+        """Identify scripts that generate synthetic data.
 
-        Verifies the output directory constant in each script points to
-        data/synthetic/.
+        A script is a synthetic generator if:
+        - Its filename contains 'synthetic', OR
+        - It uses 'synthetic' as a path component (e.g., Path(...) / 'synthetic'), OR
+        - It writes .json files with 'synthetic' in the filename.
+
+        Dict keys like 'is_synthetic' do NOT count — those are schema fields.
         """
-        import re
+        if "synthetic" in script.name.lower():
+            return True
+        if any(s == "synthetic" for s in code_strings):
+            return True
+        if any(
+            "synthetic" in s.lower() and s.endswith(".json")
+            for s in code_strings
+        ):
+            return True
+        return False
 
+    def test_synthetic_scripts_never_target_curated(self) -> None:
+        """Scripts with synthetic data logic must target data/synthetic/,
+        never data/curated/.
+
+        Identifies synthetic scripts by filename, path components, or
+        synthetic .json output filenames.
+        Glob-based: catches any new synthetic script automatically.
+        """
         violations: list[str] = []
 
-        for script_path in self._SYNTHETIC_SCRIPTS:
-            if not script_path.exists():
+        for script in self._get_all_scripts():
+            source = script.read_text(encoding="utf-8")
+            try:
+                code_strings = self._extract_code_strings(source)
+            except SyntaxError:
                 continue
 
-            source = script_path.read_text(encoding="utf-8")
+            # Is this a synthetic generator script?
+            if not self._is_synthetic_generator(script, code_strings):
+                continue
 
-            # Check that the script defines an output dir pointing to synthetic
-            has_synthetic_dir = bool(re.search(
-                r'["\']synthetic["\']|data.*synthetic', source,
-            ))
-            has_curated_dir_output = bool(re.search(
-                r'(?:CURATED_DIR|data.*curated).*(?:write_text|open\(|mkdir)',
-                source,
-            ))
+            # Check code-level strings for data/curated/ references
+            for s in code_strings:
+                if "data/curated" in s or "data\\curated" in s:
+                    violations.append(
+                        f"{script}: synthetic script references "
+                        f"data/curated/: '{s}'"
+                    )
+                    break
 
-            if has_curated_dir_output:
+            # Check for "curated" as Path() component
+            if any(s == "curated" for s in code_strings):
                 violations.append(
-                    f"{script_path}: appears to write to data/curated/ — "
-                    f"synthetic output must go to data/synthetic/"
-                )
-
-            if not has_synthetic_dir:
-                violations.append(
-                    f"{script_path}: does not reference data/synthetic/ — "
-                    f"synthetic output directory may be misconfigured"
+                    f"{script}: synthetic script uses 'curated' "
+                    f"as path component"
                 )
 
         assert not violations, (
-            "Synthetic constructor directory violations:\n"
+            "Synthetic constructors target curated paths:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_synthetic_scripts_target_synthetic_dir(self) -> None:
+        """Synthetic scripts must reference data/synthetic/ as output dir.
+
+        Glob-based: catches any new synthetic script automatically.
+        """
+        violations: list[str] = []
+
+        for script in self._get_all_scripts():
+            source = script.read_text(encoding="utf-8")
+            try:
+                code_strings = self._extract_code_strings(source)
+            except SyntaxError:
+                continue
+
+            # Is this a synthetic generator script?
+            if not self._is_synthetic_generator(script, code_strings):
+                continue
+
+            # Must reference data/synthetic/ as output dir
+            has_synthetic_dir = any(
+                s == "synthetic" or "data/synthetic" in s
+                or "data\\synthetic" in s
+                for s in code_strings
+            )
+            if not has_synthetic_dir:
+                violations.append(
+                    f"{script}: synthetic script does not reference "
+                    f"data/synthetic/ — output dir may be misconfigured"
+                )
+
+        assert not violations, (
+            "Synthetic scripts missing data/synthetic/ reference:\n"
             + "\n".join(f"  - {v}" for v in violations)
         )

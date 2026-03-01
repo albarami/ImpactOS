@@ -1,8 +1,8 @@
 """Build the synthetic 20-sector Saudi IO model.
 
 Generates:
-  data/curated/saudi_io_synthetic_v1.json
-  data/curated/saudi_satellites_synthetic_v1.json
+  data/synthetic/saudi_io_synthetic_v1.json
+  data/synthetic/saudi_satellites_synthetic_v1.json
 
 Every number is either:
   1. Sourced from publicly available Saudi economic data (labeled)
@@ -33,7 +33,7 @@ from scipy import linalg as scipy_linalg
 # Output paths
 # ---------------------------------------------------------------------------
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "curated"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "synthetic"
 
 # ---------------------------------------------------------------------------
 # 20 ISIC Rev.4 sectors

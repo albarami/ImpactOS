@@ -1,7 +1,7 @@
 """Generate synthetic IO model fixtures for testing and fallback (D-5 Task 3).
 
 Generates synthetic test fixtures in data/synthetic/:
-  1. saudi_io_synthetic_2018.json   -- Synthetic 20-sector Saudi IO model
+  1. saudi_io_synthetic_v1.json    -- Synthetic 20-sector Saudi IO model
   2. saudi_type1_multipliers_synthetic.json -- Synthetic Type I output multipliers
   3. saudi_employment_coefficients_synthetic.json -- Synthetic employment coefficients
 
@@ -387,7 +387,7 @@ def main() -> None:
     # Phase 1: IO Model
     print("Phase 1: Building synthetic IO model...")
     io_data = build_io_model()
-    io_path = SYNTHETIC_DIR / "saudi_io_synthetic_2018.json"
+    io_path = SYNTHETIC_DIR / "saudi_io_synthetic_v1.json"
     io_path.write_text(
         json.dumps(io_data, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
