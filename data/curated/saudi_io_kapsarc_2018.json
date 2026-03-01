@@ -1,7 +1,7 @@
 {
   "model_id": "saudi-io-kapsarc-2018",
   "base_year": 2018,
-  "source": "kapsarc_gastat_2018",
+  "source": "synthetic_materialized",
   "denomination": "SAR_MILLIONS",
   "classification": "ISIC_REV4_SECTION",
   "sector_count": 20,

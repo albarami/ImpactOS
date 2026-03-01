@@ -1,6 +1,6 @@
 {
   "manifest_version": "1.0",
-  "created_at": "2026-03-01T09:55:49.339964+00:00",
+  "created_at": "2026-03-01T11:00:09.856692+00:00",
   "datasets": [
     {
       "dataset_id": "saudi_io_kapsarc_2018",
@@ -9,7 +9,7 @@
       "vintage_year": 2018,
       "sector_count": 20,
       "path": "data/curated/saudi_io_kapsarc_2018.json",
-      "checksum_sha256": "eb95b159453662bfb5fe7097fff5b331d25091fe1b2bcfa9c02f36793475315f",
+      "checksum_sha256": "9a998553971e602b0b37046e6db290dba874c5e067cb6a70bfe915ab16ab2055",
       "resolved_source": "synthetic",
       "contains_assumed_components": true,
       "confidence": "SYNTHETIC",
@@ -21,7 +21,7 @@
       "source": "scripts/materialize_curated_data.py — computed from synthetic IO matrix",
       "vintage_year": 2018,
       "path": "data/curated/saudi_type1_multipliers_benchmark.json",
-      "checksum_sha256": "3439a0896ae06ff67a65a3c3e8fcc2000178783c135b298686cc11cab3dc0e23",
+      "checksum_sha256": "4e3b29626977e146c4f99a8105206c763093499cc70c2d8efeb15824ea598748",
       "resolved_source": "synthetic",
       "contains_assumed_components": true,
       "confidence": "SYNTHETIC",
@@ -34,7 +34,7 @@
       "vintage_year": 2019,
       "sector_count": 20,
       "path": "data/curated/saudi_employment_coefficients_2019.json",
-      "checksum_sha256": "d525577c151ae6f6c8b0192c1f47c201ba32aedfe1d74fa1d9d28565e2caeda7",
+      "checksum_sha256": "5fea744e5c0af1c3f756295157c61cddc245552992d4c07e9d2fefa8661ff551",
       "resolved_source": "synthetic",
       "contains_assumed_components": true,
       "confidence": "SYNTHETIC",

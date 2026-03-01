@@ -1,5 +1,5 @@
 {
-  "source": "kapsarc_gastat_2018",
+  "source": "synthetic_materialized",
   "base_year": 2018,
   "method": "Type I output multiplier = column sum of Leontief inverse (I-A)^{-1}",
   "sectors": [

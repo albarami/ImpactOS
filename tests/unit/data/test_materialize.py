@@ -101,9 +101,9 @@ class TestIOFixture:
         """Base year is 2018."""
         assert io_data["base_year"] == 2018
 
-    def test_io_fixture_source_is_kapsarc(self, io_data: dict) -> None:
-        """Source field indicates KAPSARC/GASTAT origin."""
-        assert "kapsarc" in io_data["source"].lower()
+    def test_io_fixture_source_is_synthetic(self, io_data: dict) -> None:
+        """Source field honestly indicates synthetic origin."""
+        assert io_data["source"] == "synthetic_materialized"
 
     def test_io_fixture_z_nonnegative(self, io_data: dict) -> None:
         """All Z matrix entries are non-negative."""
