@@ -10,6 +10,22 @@ import pytest
 from httpx import AsyncClient
 from uuid_extensions import uuid7
 
+
+def pytest_addoption(parser):
+    """Register --update-golden CLI flag."""
+    parser.addoption(
+        "--update-golden",
+        action="store_true",
+        default=False,
+        help="Rewrite golden snapshot JSON files with freshly computed values.",
+    )
+
+
+@pytest.fixture
+def update_golden(request) -> bool:
+    """Whether to overwrite golden snapshots."""
+    return request.config.getoption("--update-golden")
+
 WS_ID = str(uuid7())
 
 # ---------------------------------------------------------------------------

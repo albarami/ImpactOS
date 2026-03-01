@@ -1,0 +1,24 @@
+{
+  "scenario": "contraction",
+  "computed_at": "2026-03-01T06:48:12.264401+00:00",
+  "model": "3-sector ISIC F/C/G",
+  "tolerances": {
+    "rtol": 1e-06,
+    "employment_atol": 10,
+    "gdp_rtol": 0.01
+  },
+  "delta_d": [
+    -100.0,
+    -50.0,
+    -30.0
+  ],
+  "total_output_impact": -223.62951308380258,
+  "gdp_impact": -93.45582146406095,
+  "employment_total": -1.434514739980126,
+  "sector_outputs": {
+    "F": -113.92431268631996,
+    "C": -67.5554819476648,
+    "G": -42.14971844981782
+  },
+  "quality_grade": null
+}
