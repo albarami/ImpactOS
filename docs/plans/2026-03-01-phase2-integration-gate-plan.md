@@ -1710,12 +1710,12 @@ git commit -m "[mvp14] Task 7: integration path — quality assessment with real
 ### Task 8: Integration Path — Flywheel Learning Loop
 
 **Files:**
-- Create: `tests/integration/test_path_flywheel_module.py`
+- Create: `tests/integration/test_path_flywheel.py`
 
 **Step 1: Write the tests**
 
 ```python
-# tests/integration/test_path_flywheel_module.py
+# tests/integration/test_path_flywheel.py
 """Integration Path 5: Flywheel Learning Loop (module-level).
 
 Tests the direct Python API (not HTTP):
@@ -1814,12 +1814,12 @@ class TestFlywheelLearningIntegration:
 
 **Step 2: Run and verify**
 
-Run: `python -m pytest tests/integration/test_path_flywheel_module.py -v`
+Run: `python -m pytest tests/integration/test_path_flywheel.py -v`
 
 **Step 3: Commit**
 
 ```bash
-git add tests/integration/test_path_flywheel_module.py
+git add tests/integration/test_path_flywheel.py
 git commit -m "[mvp14] Task 8: integration path — flywheel learning loop"
 ```
 
@@ -2331,21 +2331,21 @@ git commit -m "[mvp14] Task 9b: integration path — benchmark validator on real
 ### Task 9c: Real Data Smoke Test
 
 **Files:**
-- Create: `tests/integration/test_real_data_smoke.py`
+- Create: `tests/integration/test_data_loader_smoke.py`
 
 Loads the actual D-1 20-sector Saudi IO model and runs it through core computation stack with plausibility validation.
 
 **Step 1: Write the tests**
 
 ```python
-# tests/integration/test_real_data_smoke.py
+# tests/integration/test_data_loader_smoke.py
 """Real data smoke test (Amendment 5).
 
 Loads the actual D-1 20-sector Saudi IO model and runs it through the
 core computation stack with plausibility validation. This is a
 confidence check that real data produces sensible results.
 
-Marked @pytest.mark.real_data for selective execution.
+Marked @pytest.mark.real_data (D-5.1 resolved data availability; tests now run unconditionally).
 """
 
 import numpy as np
@@ -2427,14 +2427,14 @@ class TestRealDataSmoke:
 
 **Step 2: Run and verify**
 
-Run: `python -m pytest tests/integration/test_real_data_smoke.py -v`
+Run: `python -m pytest tests/integration/test_data_loader_smoke.py -v`
 
-Note: If `load_real_saudi_io()` is not yet available, these tests will fail with ImportError. Mark as skip in that case.
+Note: Real data is now available via D-5.1 (KAPSARC, ILO, WDI). These tests run unconditionally.
 
 **Step 3: Commit**
 
 ```bash
-git add tests/integration/test_real_data_smoke.py
+git add tests/integration/test_data_loader_smoke.py
 git commit -m "[mvp14] Task 9c: real data smoke test on D-1 20-sector model"
 ```
 
