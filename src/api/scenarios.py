@@ -10,17 +10,29 @@ S0-4: Workspace-scoped routes.
 Deterministic — no LLM calls.
 """
 
+import warnings
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from starlette.responses import JSONResponse
 
-from src.api.dependencies import get_scenario_version_repo
+from src.api.dependencies import (
+    get_document_repo,
+    get_extraction_job_repo,
+    get_line_item_repo,
+    get_scenario_version_repo,
+)
 from src.compiler.scenario_compiler import CompilationInput, ScenarioCompiler
 from src.models.common import new_uuid7
 from src.models.document import BoQLineItem
 from src.models.mapping import DecisionType, MappingDecision
 from src.models.scenario import ScenarioSpec, TimeHorizon
+from src.repositories.documents import (
+    DocumentRepository,
+    ExtractionJobRepository,
+    LineItemRepository,
+)
 from src.repositories.scenarios import ScenarioVersionRepository
 
 router = APIRouter(prefix="/v1/workspaces", tags=["scenarios"])
@@ -68,7 +80,8 @@ class DecisionPayload(BaseModel):
 
 
 class CompileRequest(BaseModel):
-    line_items: list[LineItemPayload]
+    line_items: list[LineItemPayload] | None = None
+    document_id: str | None = None
     decisions: list[DecisionPayload]
     phasing: dict[str, float]
     default_domestic_share: float = 0.65
@@ -173,6 +186,74 @@ async def _record_new_version(
     return new_spec
 
 
+def _build_line_items_from_payload(payload_items: list[LineItemPayload]) -> list[BoQLineItem]:
+    """Convert inline LineItemPayload objects to BoQLineItem models."""
+    line_items: list[BoQLineItem] = []
+    for li_payload in payload_items:
+        li = BoQLineItem(
+            line_item_id=UUID(li_payload.line_item_id),
+            doc_id=new_uuid7(),
+            extraction_job_id=new_uuid7(),
+            raw_text=li_payload.description,
+            description=li_payload.description,
+            total_value=li_payload.total_value,
+            currency_code=li_payload.currency_code,
+            page_ref=0,
+            evidence_snippet_ids=[new_uuid7()],
+        )
+        line_items.append(li)
+    return line_items
+
+
+async def _load_items_from_document(
+    *,
+    doc_id_str: str,
+    workspace_id: UUID,
+    doc_repo: DocumentRepository,
+    job_repo: ExtractionJobRepository,
+    li_repo: LineItemRepository,
+) -> list[BoQLineItem]:
+    """Load line items from a stored document's latest completed extraction.
+
+    Mirrors compiler.py's helper but stays local to the deterministic path.
+    """
+    doc_id = UUID(doc_id_str)
+    doc_row = await doc_repo.get(doc_id)
+    if doc_row is None:
+        raise HTTPException(status_code=404, detail=f"Document {doc_id_str} not found.")
+    latest_job = await job_repo.get_latest_completed(doc_id)
+    if latest_job is None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Document {doc_id_str} has no completed extraction.",
+        )
+    li_rows = await li_repo.get_by_extraction_job(latest_job.job_id)
+    if not li_rows:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Document {doc_id_str} has no extracted line items.",
+        )
+    boq_items: list[BoQLineItem] = []
+    for row in li_rows:
+        evidence_ids = row.evidence_snippet_ids or [new_uuid7()]
+        boq_items.append(BoQLineItem(
+            line_item_id=row.line_item_id,
+            doc_id=row.doc_id,
+            extraction_job_id=row.extraction_job_id,
+            raw_text=row.raw_text,
+            description=row.description or row.raw_text,
+            quantity=row.quantity,
+            unit=row.unit,
+            unit_price=row.unit_price,
+            total_value=row.total_value or 0.0,
+            currency_code=row.currency_code,
+            category_code=row.category_code,
+            page_ref=row.page_ref,
+            evidence_snippet_ids=[UUID(eid) if isinstance(eid, str) else eid for eid in evidence_ids],
+        ))
+    return boq_items
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -216,25 +297,43 @@ async def compile_scenario(
     scenario_id: UUID,
     body: CompileRequest,
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+    doc_repo: DocumentRepository = Depends(get_document_repo),
+    job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
+    li_repo: LineItemRepository = Depends(get_line_item_repo),
 ) -> dict:
-    """Compile line items + decisions into shock items."""
+    """Compile line items + decisions into shock items.
+
+    Accepts EITHER document_id (preferred) OR inline line_items (deprecated).
+    """
     spec = await _get_latest_or_404(repo, scenario_id)
 
-    # Build BoQLineItems (simplified for API — real items come from extraction)
-    line_items: list[BoQLineItem] = []
-    for li_payload in body.line_items:
-        li = BoQLineItem(
-            line_item_id=UUID(li_payload.line_item_id),
-            doc_id=new_uuid7(),
-            extraction_job_id=new_uuid7(),
-            raw_text=li_payload.description,
-            description=li_payload.description,
-            total_value=li_payload.total_value,
-            currency_code=li_payload.currency_code,
-            page_ref=0,
-            evidence_snippet_ids=[new_uuid7()],
+    # --- Resolve line items: document_id OR inline payload ---
+    headers: dict[str, str] = {}
+
+    if body.document_id is not None:
+        # Preferred path: load from stored extraction
+        line_items = await _load_items_from_document(
+            doc_id_str=body.document_id,
+            workspace_id=workspace_id,
+            doc_repo=doc_repo,
+            job_repo=job_repo,
+            li_repo=li_repo,
         )
-        line_items.append(li)
+    elif body.line_items is not None and len(body.line_items) > 0:
+        # Legacy payload path (deprecated)
+        warnings.warn(
+            "Inline line_items in CompileRequest is deprecated. "
+            "Use document_id instead.",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+        line_items = _build_line_items_from_payload(body.line_items)
+        headers["deprecation"] = "Use document_id instead of inline line_items"
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail="Provide either document_id or non-empty line_items.",
+        )
 
     # Build MappingDecisions
     decisions: list[MappingDecision] = []
@@ -248,6 +347,24 @@ async def compile_scenario(
             decided_by=UUID(dec_payload.decided_by),
         )
         decisions.append(dec)
+
+    # For document-backed compiles, auto-approve unmapped line items so the
+    # deterministic compiler can produce shock vectors without requiring a
+    # prior HITL pass.  Uses category_code from extraction when available,
+    # otherwise falls back to "F" (Construction — the most common BoQ sector).
+    if body.document_id is not None:
+        mapped_ids = {d.line_item_id for d in decisions}
+        for li in line_items:
+            if li.line_item_id not in mapped_ids:
+                sector = li.category_code or "F"
+                decisions.append(MappingDecision(
+                    line_item_id=li.line_item_id,
+                    suggested_sector_code=sector,
+                    suggested_confidence=1.0,
+                    final_sector_code=sector,
+                    decision_type=DecisionType.APPROVED,
+                    decided_by=new_uuid7(),
+                ))
 
     # Build compilation input
     phasing = {int(year): share for year, share in body.phasing.items()}
@@ -269,7 +386,7 @@ async def compile_scenario(
 
     new_spec = await _record_new_version(repo, spec)
 
-    return {
+    response_data = {
         "scenario_spec_id": str(scenario_id),
         "version": new_spec.version,
         "shock_items": [si.model_dump() for si in compiled.shock_items],
@@ -278,6 +395,10 @@ async def compile_scenario(
             if compiled.data_quality_summary else None
         ),
     }
+
+    if headers:
+        return JSONResponse(content=response_data, headers=headers)
+    return response_data
 
 
 @router.post(
