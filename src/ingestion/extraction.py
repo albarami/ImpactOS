@@ -1,11 +1,16 @@
 """Document extraction service — MVP-2 Sections 8.2, 8.3, 8.5.
 
-Extracts tables from CSV and Excel files, builds a DocumentGraph with
-bounding boxes, and generates EvidenceSnippets per data row.
+Handles CSV and Excel extraction deterministically (Section 8.2:
+"Structured inputs bypass OCR"). Builds a DocumentGraph with bounding
+boxes and generates EvidenceSnippets per data row.
 
-This is a deterministic service — no LLM calls. PDF extraction uses
-a layout-aware approach; CSV/Excel bypass OCR and parse directly
-(Section 8.2: "Structured inputs bypass OCR").
+PDF and layout-aware extraction is handled by the provider-based
+architecture (LocalPdfProvider, AzureDIProvider) via ExtractionRouter,
+with async dispatch through Celery tasks. See:
+  - src/ingestion/providers/ for extraction providers
+  - src/ingestion/tasks.py for Celery dispatch
+
+This module is deterministic — no LLM calls.
 """
 
 import csv
@@ -27,10 +32,11 @@ from src.models.governance import BoundingBox, EvidenceSnippet, TableCellRef
 
 
 class ExtractionService:
-    """Deterministic document extraction engine.
+    """Deterministic extraction for CSV and Excel documents.
 
-    Supports CSV and Excel. PDF support would use an external layout-aware
-    service (Section 8.2) and is not yet implemented.
+    PDF/layout extraction is handled separately by provider-based
+    routing (LocalPdfProvider, AzureDIProvider). See
+    ``src/ingestion/providers/`` and ``src/ingestion/tasks.py``.
     """
 
     # ------------------------------------------------------------------

@@ -58,8 +58,8 @@ seed-saudi20: ## Load 20-sector Saudi IO model into database
 build-model: ## Rebuild synthetic 20-sector model from assumptions
 	python -m scripts.build_synthetic_model
 
-validate-model: ## Validate synthetic model (data/curated/saudi_io_synthetic_v1.json)
-	python -m scripts.validate_model data/curated/saudi_io_synthetic_v1.json
+validate-model: ## Validate synthetic model (data/synthetic/saudi_io_synthetic_v1.json)
+	python -m scripts.validate_model data/synthetic/saudi_io_synthetic_v1.json
 
 # ---------------------------------------------------------------------------
 # Development (host-based — for faster reload during coding)
