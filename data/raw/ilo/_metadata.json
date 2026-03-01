@@ -1,0 +1,20 @@
+{
+  "source": "ILOSTAT (ILO)",
+  "base_url": "https://rplumber.ilo.org/data/indicator",
+  "country": "SAU",
+  "fetch_timestamp": "2026-03-01T11:36:30.117022+00:00",
+  "datasets": {
+    "sau_employment_by_activity": {
+      "observation_count": 42,
+      "sha256": "sha256:5e3a80e386c6faaa3bf65cf25915d55fed945d41bf72e8a0f33603d9a806c349",
+      "status": "success",
+      "error": null
+    },
+    "sau_employment_by_occupation": {
+      "observation_count": 0,
+      "sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "status": "success",
+      "error": null
+    }
+  }
+}

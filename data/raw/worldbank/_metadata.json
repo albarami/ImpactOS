@@ -1,0 +1,56 @@
+{
+  "source": "World Bank WDI",
+  "base_url": "https://api.worldbank.org/v2",
+  "country": "SAU",
+  "fetch_timestamp": "2026-03-01T11:32:08.812849+00:00",
+  "datasets": {
+    "sau_gdp_current_usd": {
+      "indicator": "NY.GDP.MKTP.CD",
+      "record_count": 36,
+      "date_range": "1990-2025",
+      "sha256": "sha256:986a9bdbf166a8e4a3490ef1081f47b1da6517b0f43e1590dec077691b04cdaa",
+      "status": "success",
+      "error": null
+    },
+    "sau_gdp_deflator": {
+      "indicator": "NY.GDP.DEFL.ZS.AD",
+      "record_count": 36,
+      "date_range": "1990-2025",
+      "sha256": "sha256:86149e2cb7b481fceabb860355f36ae0d3317b6857b038790475485c0e178656",
+      "status": "success",
+      "error": null
+    },
+    "sau_employment_industry": {
+      "indicator": "SL.IND.EMPL.ZS",
+      "record_count": 36,
+      "date_range": "1990-2025",
+      "sha256": "sha256:caf74d7349995a328293adc799b799fe8d655520776527aefa575101292dc556",
+      "status": "success",
+      "error": null
+    },
+    "sau_employment_services": {
+      "indicator": "SL.SRV.EMPL.ZS",
+      "record_count": 36,
+      "date_range": "1990-2025",
+      "sha256": "sha256:c40d2130e1c5c0dadbfa5187b072b9c11e42a629bc36f588aad628dad57d9918",
+      "status": "success",
+      "error": null
+    },
+    "sau_trade_pct_gdp": {
+      "indicator": "NE.TRD.GNFS.ZS",
+      "record_count": 36,
+      "date_range": "1990-2025",
+      "sha256": "sha256:3ee55bb0a5c1173a2c4d5db31797172bab016ee5a1115843544cd9df1a47ce60",
+      "status": "success",
+      "error": null
+    },
+    "sau_fdi_net_inflows": {
+      "indicator": "BX.KLT.DINV.WD.GD.ZS",
+      "record_count": 36,
+      "date_range": "1990-2025",
+      "sha256": "sha256:9dbc2084870bb3fd647721fccab77530d4d884ecb3c0a9fb3daf4d8e9a845576",
+      "status": "success",
+      "error": null
+    }
+  }
+}

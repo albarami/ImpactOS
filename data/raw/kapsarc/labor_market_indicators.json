@@ -1,0 +1,5081 @@
+{
+  "dataset_id": "main-labor-market-indicators",
+  "description": "Main labor market indicators",
+  "total_count": 634,
+  "record_count": 634,
+  "fetch_timestamp": "2026-03-01T11:45:02.949828+00:00",
+  "records": [
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.71329810080939
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.37730229419887
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6595.581882814922
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6590.292201851873
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total work visas issued",
+      "data_source": "Administrative Records",
+      "indicator_value": 49566.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "work visas issued for government sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 11827.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "work visas issued for individuals sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 5701.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total work visas issued",
+      "data_source": "Administrative Records",
+      "indicator_value": 72435.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "work visas issued for government sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 3045.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "work visas issued for individuals sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 7623.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "work visas issued for individuals sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 20829.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 24.58718247934876
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 69.78454127778522
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6600.286303353369
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6602.993282545231
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10382.389629260226
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7.44878642630739
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 33.2050063094909
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 29.3212354393565
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 45.4866347744034
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6065.47061917042
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6563.83331535622
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10966.6778286651
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2485382.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3252198.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 8753985.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1312515.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total work visas issued",
+      "data_source": "Administrative Records",
+      "indicator_value": 260254.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total work visas issued",
+      "data_source": "Administrative Records",
+      "indicator_value": 330971.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "work visas issued for government sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 2261.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "work visas issued for individuals sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 47755.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 13581141.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2080601.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 9442163.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10417295.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7124732.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.15213310506914
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 24.221405287723314
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 96.75203893409476
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 12.834522667958279
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3150409.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10183104.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Non-Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 49479.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 2118427.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 1377229.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 63.484280774230115
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 19.47877689660908
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 93.60180903574627
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 24.452707537636716
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 44.86066430520876
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6209.959868734994
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9230.060543521224
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2037015.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1072154.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 9892723.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 933551.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 354390.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 787895.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 4692615.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.01285173967337
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 92.44868680364391
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 12.943560853850023
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 44.23624430676964
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2043585.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 80.05521456670769
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.82688979880383
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6256.8711167345145
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10397685.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2040742.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1070457.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 21.9
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 55.9
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 93.8
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 22.6
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 32.5
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 12.7
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 40.7
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6223.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 12765241.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2036142.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 8458199.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 63.33044489587718
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.30598502533548
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 75.26432727160952
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 68.33342450765865
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 21.021028590799748
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.723672072799273
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6268.254966974077
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2027964.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1237365.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.13622208656405
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 75.19244795671844
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 78.9694211911508
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.04279992018644
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 68.93897543549515
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 87.69732191582641
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 21.030578808849192
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1076902.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 8572339.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1254757.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 857312.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 1025328.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 81.11710486361713
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 66.98183516657684
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 23.191198097107463
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6432.410208190225
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10487.044360905422
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9442.632457575737
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2543601.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2054858.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3170272.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 66.55114352457105
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 97.84582774909344
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 78.66244787247341
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 69.15116792003782
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 21.337552127526592
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.673041608932147
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 4.943525334560121
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 30.848832079962175
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 11159551.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1136870.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 25.390211110563538
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 97.53409246515791
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 88.2170973993884
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 2.4659075348420916
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.669459152681783
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 28.195083972153896
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.96143241961769
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6502.660125666795
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9088.285542915912
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 4.699002206631535
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 91.76791662079718
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 91.02018708288364
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9970.297977415563
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2473401.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 13630454.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3171422.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10459032.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total work visas issued",
+      "data_source": "Administrative Records",
+      "indicator_value": 10120.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "work visas issued for individuals sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 3185.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10967642.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 8866940.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "work visas issued for government sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 2173.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "work visas issued for private sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 46388.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 79.35308922654565
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 85.08085986628218
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 4.00667950555278
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 20.2390261575851
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 68.5151667519894
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 79.7609738424149
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 92.5512135736926
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 75.6409713254494
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 87.3737793457147
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.2282683734984
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6650.64361562066
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10539.6934778288
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10833316.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2079331.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "work visas issued for individuals sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 76132.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "work visas issued for individuals sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 123887.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 11522764.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1083245.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 382500.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 773218.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Non-Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 35083.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Non-Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 53210.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 1372630.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 19.446168893779998
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 3.2479610659052485
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6093.011093074637
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Economic Dependency Ratio (per 100 persons)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 139.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 352725.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Non-Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 19064.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 13902785.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 741198.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 78.81759277757426
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 55.493520373697535
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 93.90424292686681
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 21.01918074118202
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 12.903556584021455
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.384881508389554
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6346.463532043827
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10981051.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 8927862.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 964861.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 455760.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7193940.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 41.996544050795805
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 3.29923442133353
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 31.09642506421858
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.246605973486666
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6181.286941562593
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2021567.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1066402.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 79.01862402296493
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 22.684574114004448
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.01990618704452
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.9931485308416255
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9602.643356480081
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2142933.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 8356943.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1072476.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 77.4
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6.6
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10493.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1075887.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1195013.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 777512.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 945323.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 20.488995431166977
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.27632792720073
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 2.7978797057442937
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 12.520599720851436
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 41.46162543163526
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10503.191005929473
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 8529419.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 57.916243155690296
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 26.862475545059784
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.6182096869218645
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 41.07044219310103
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6635.04787235498
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10574.811465489325
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10341.840750466105
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 9827096.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 24.536861006461717
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 58.39310000242548
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 27.64203607546451
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.23950913437609
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 2.45449496104765
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.760490865623904
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6274.4408609560805
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Economic Dependency Ratio (per 100 persons)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 127.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 13390975.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 8792516.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 93.60965815260356
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.32695839106785
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 95.05647466543988
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 87.98212687942019
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.273806345016965
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6313.034681382219
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10586.775102392423
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2066553.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3203423.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 79.27999751312811
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.44072042567646
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.559279574323537
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 25.337454301918015
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 30.556738606737184
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 48.82531710385752
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7.460444270367293
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 12540618.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 78.7
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 25.9
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6277.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 79.111964163387
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 87.47940027914856
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 31.66657549234136
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6410.3785853244735
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6589.261176748624
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 11157053.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 9101286.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1357746.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "work visas issued for government sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 6454.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "work visas issued for private sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 30888.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2487496.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 13455138.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1152574.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3253276.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total work visas issued",
+      "data_source": "Administrative Records",
+      "indicator_value": 57303.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "work visas issued for government sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 5218.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 30.215458722214787
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 92.39602319144751
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 95.60540381646922
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.14874174479049
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 8679.949085612177
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 24.3590286745506
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 32.0568560438964
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10066500.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total work visas issued",
+      "data_source": "Administrative Records",
+      "indicator_value": 70717.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "work visas issued for private sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 181861.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2058377.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3163846.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 975132.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 175313.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 911248.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 443928.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 13880858.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 731609.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 63.43506781730748
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 21.09684308674062
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 44.67157451923077
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6080.4784630032145
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6177.415682048566
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 8995.313159587675
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2067976.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 951235.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 899313.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 847480.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 20.971291851345292
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 73.9082941532402
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 92.42978354621583
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 3.4130327676738945
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 44.50483554185416
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10288.818155386933
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 1118801.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 392157.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 11886555.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 22.438440941921144
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 56.2104221519379
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 20.024762937492476
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9412.242751267715
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 56.36886868050783
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 19.674506032904805
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 29.69895760835646
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 75.71397700683663
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 92.53955572963271
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.523602826022326
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6268.319341569224
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 172387.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 970229.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 20.2
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 67.5
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Economic Dependency Ratio (per 100 persons)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 137.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3112029.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 27.35010145613445
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.77140844910392
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Economic Dependency Ratio (per 100 persons)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 135.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10557383.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2299649.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1062284.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 177719.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 44.984242886232586
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.38179031307814
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.957200079813561
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 12.302678084173593
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10596249.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 12927908.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 79.317548691671
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.46929837007944
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 20.682451308328993
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.530701629920554
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 12.02944399780158
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 41.19913254527175
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10273.013199162588
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10847374.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1428187.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 80.36327967517367
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 46.65178221388882
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 28.80007585576385
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 12.017873120579797
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.919436127046175
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9106.537051442216
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Economic Dependency Ratio (per 100 persons)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 128.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 13635612.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 65.76209123425525
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.39700885464815
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 24.216332648914257
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 71.8049160278461
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6461.807673228884
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10641.127943147361
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10302.703185282593
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 8.091823657131464
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 31.44271603261579
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 78.8765336411385
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 59.3952117531314
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 73.87354453205923
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 95.30099779336847
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 1086561.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Non-Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 18127.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 2104239.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 4651887.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6024517.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 79.03474097617807
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 20.877209518291277
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 55.56859815658167
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 41.860414861979145
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 78.90315691325938
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 92.5316973520638
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 68.97918594231511
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7.468302647936204
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 45.04375815571988
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10160.037490275618
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 11299845.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1082433.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 172849.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 1072162.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 445276.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 778937.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 11784358.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 4659378.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7124980.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7866178.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 96.5869672323261
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 78.98081925881797
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 69.05293164753283
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 87.09644341597854
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6.095757073133188
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7.570216453784175
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6189.591084511133
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10088.823272552352
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Economic Dependency Ratio (per 100 persons)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 139.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3125343.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 185250.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Non-Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 37767.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Non-Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 22255.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 1394171.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6086786.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 881915.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 8075855.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 78.96880897928075
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 93.87759416814544
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 29.025963297377604
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 75.46356092505002
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 96.70076557866648
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 87.05643914614998
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.987148260326635
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10430.155510271223
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Economic Dependency Ratio (per 100 persons)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 136.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10666475.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 955165.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 158126.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 765378.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 63.48975896344378
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 69.119933123964
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 19.944785433292317
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 30.880066876035993
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3111199.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 9429419.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 797842.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 63.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 74.5
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 93.4
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10494341.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 9653212.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 22.550590507212974
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 56.399756976783635
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.0973552790637
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 97.2021202942557
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6.551406260526381
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9441.8371821563
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10298.849660063905
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 12857032.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3090248.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 9766784.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 825136.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 1002855.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 80.44516586513183
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 24.28343875016822
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 65.99094964811825
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.5001144863104
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6413.552628573553
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6444.332776763928
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Economic Dependency Ratio (per 100 persons)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 129.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2331659.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2023910.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3100812.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 168016.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 45.50554306901899
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.51108707033696
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 87.97055600219842
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.72194563801183
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.36199417560113
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6296.776353172694
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1115414.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10220703.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 781128.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 945387.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 26.823354828581632
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 58.82523222403579
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 2.15417225090656
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6432.09688106546
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 9092998.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 80.35819087289646
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 58.23310991265862
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 25.890998351247795
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 11.7829026006116
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 40.78982275512777
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 74.66254569808198
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 91.90817634286854
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 68.56002110127044
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 84.55268109421806
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 40.73879623361179
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "work visas issued for government sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 5373.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "work visas issued for private sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 1150.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "work visas issued for individuals sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 13206.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "work visas issued for private sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 41924.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "work visas issued for private sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 4464.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 4.394596183530782
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 8.503383145284891
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 31.290113913690163
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 75.41281752065125
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 91.49661685471511
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.55048195001301
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 41.15398377852496
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 74.5039398801177
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 8950.96840409806
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1172867.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "work visas issued for government sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 4251.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "work visas issued for private sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 20972.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10292.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 93.44859373947362
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6287.39413708558
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 23.175440874489922
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 97.49821747149319
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 2.501782528506806
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 31.06102456450484
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.89969504186708
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 75.56952958551865
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 97.54550503895236
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 69.15774379898271
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 30.842256201017292
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 164259.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 25.976530899171298
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6291.600589207731
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Economic Dependency Ratio (per 100 persons)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 125.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2476061.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1339191.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 46.20052576870987
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 74.51749843177873
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 8.979812917116355
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 65.6426789622985
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 31.356958578723464
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 28.655890083771148
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 826428.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 347417.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 425801.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 11776619.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7856341.0
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 74.20209995295511
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.04627581378615
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 87.16547733204172
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 5.953724186213849
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 31.02081405768488
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.31700605393506
+    },
+    {
+      "time_period": "2017",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9939.32536746831
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2033668.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 13333513.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 9231869.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Total Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 402204.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 426212.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Non-Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 68543.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6036607.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 41.89229045620808
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 30.947068352467166
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 13018066.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2053189.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Total Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 847917.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 433505.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Non-Saudi Unemployed Persons (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 60022.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 2276086.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Labor force (15 years and above)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 14162641.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 63.50970591638344
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 19.62131278852605
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 79.97523706250752
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 68.90357493578142
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7.551313196356091
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.93686613794761
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6244.036886720222
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6235.342638511749
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10237.699799707823
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 12688042.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 3109987.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 8622890.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 9578055.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 923504.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 93.92020388503293
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 96.70001292889427
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.00685146915836
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 87.16636329526207
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 3.2999870711057326
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 12.83363670473793
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 40.63575502094122
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6266.720607314546
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10675.87020473582
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10471.797347216318
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Economic Dependency Ratio (per 100 persons)",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 135.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 42.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 97.1
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 87.3
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 2.9
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.4
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6634.0
+    },
+    {
+      "time_period": "2018",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9425.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2270900.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Saudi Job Seekers",
+      "data_source": "Administrative Records",
+      "indicator_value": 167811.0
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 78.97897140920026
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.459713354098085
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9431.088198867397
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 75.24415759671965
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 40.967205636821284
+    },
+    {
+      "time_period": "2019",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10256.362424736868
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10432189.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Total",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 94.33054084731822
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Total Unemployment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 20.720002486871895
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Males",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 43.338272747315884
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q1",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6752.384924943666
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 15.44774254909699
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 10389.78177038536
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 8691.512929853652
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2055767.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1115655.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Males",
+      "indicator": "Total work visas issued",
+      "data_source": "Administrative Records",
+      "indicator_value": 39446.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Females",
+      "indicator": "work visas issued for individuals sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 2516.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q2",
+      "gender": "Total",
+      "indicator": "work visas issued for private sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 32038.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 2100702.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 1334922.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Non-Saudi Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 10201862.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total work visas issued",
+      "data_source": "Administrative Records",
+      "indicator_value": 15132.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7.9358371441660385
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 14.919140133717807
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 29.998043945763325
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 59.45028624075112
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 65.9898443262793
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 48.96864612445778
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Females",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 26.928711276616298
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 73.83871959599962
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 92.06416285583397
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid employees  (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 6600.710515253316
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q3",
+      "gender": "Total",
+      "indicator": "Average Monthly Wages of Paid Saudi employee  (main job)(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 9971.056802204494
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 7.14895759899087
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Unemployment Rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 12.6262206542853
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 80.5771580248053
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Labour Force Participation rate (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 60.9991193842871
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Saudi Labour Force Participation rate(15) years and above",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 51.1904540679704
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Non-Saudi Labour Force Participation rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 92.3835486456653
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Total Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 95.9933204944472
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Males",
+      "indicator": "Saudi Employment Rate(+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 92.8510424010091
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Average Working Hours for Employed Persons (main job) (+15) years",
+      "data_source": "Estimated data from : The Gastat LFS",
+      "indicator_value": 45.1455249653405
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "Total Employed Persons",
+      "data_source": "Administrative Records",
+      "indicator_value": 13318698.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Females",
+      "indicator": "work visas issued for government sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 1990.0
+    },
+    {
+      "time_period": "2020",
+      "quarter": "Q4",
+      "gender": "Total",
+      "indicator": "work visas issued for private sector",
+      "data_source": "Administrative Records",
+      "indicator_value": 202833.0
+    }
+  ]
+}

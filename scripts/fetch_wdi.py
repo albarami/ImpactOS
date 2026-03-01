@@ -13,7 +13,7 @@ import hashlib
 import json
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -130,7 +130,7 @@ def fetch_indicator(
             "country": "SAU",
             "description": config["description"],
             "record_count": len(all_records),
-            "fetch_timestamp": datetime.now(datetime.UTC).isoformat(),
+            "fetch_timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "records": all_records,
         }
         result["sha256"] = sha256_of_json(all_records)
@@ -183,7 +183,7 @@ def main() -> int:
         "source": "World Bank WDI",
         "base_url": BASE_URL,
         "country": "SAU",
-        "fetch_timestamp": datetime.now(datetime.UTC).isoformat(),
+        "fetch_timestamp": datetime.now(tz=timezone.utc).isoformat(),
         "datasets": {
             name: {
                 "indicator": r.get("indicator"),

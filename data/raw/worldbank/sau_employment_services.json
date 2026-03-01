@@ -1,0 +1,585 @@
+{
+  "indicator": "SL.SRV.EMPL.ZS",
+  "country": "SAU",
+  "description": "Employment in services (% of total)",
+  "record_count": 36,
+  "fetch_timestamp": "2026-03-01T11:32:06.067577+00:00",
+  "records": [
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2025",
+      "value": 74.4304575440061,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2024",
+      "value": 74.3640725725168,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2023",
+      "value": 74.2019143925251,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2022",
+      "value": 80.2327149876477,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2021",
+      "value": 77.7956233384625,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2020",
+      "value": 73.931802697562,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2019",
+      "value": 72.5570122624337,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2018",
+      "value": 71.292228576443,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2017",
+      "value": 69.7450173283121,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2016",
+      "value": 69.6270993969951,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2015",
+      "value": 69.4869635868621,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2014",
+      "value": 69.3908252150139,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2013",
+      "value": 69.3340284426764,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2012",
+      "value": 69.0641856169192,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2011",
+      "value": 68.9434835676789,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2010",
+      "value": 69.1349090411974,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2009",
+      "value": 69.3168869244772,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2008",
+      "value": 68.8862141530876,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2007",
+      "value": 68.7965969980621,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2006",
+      "value": 68.7421383268187,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2005",
+      "value": 68.5033042780348,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2004",
+      "value": 68.3430088581379,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2003",
+      "value": 68.484638384856,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2002",
+      "value": 68.588899129393,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2001",
+      "value": 68.3343820419183,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2000",
+      "value": 68.0910390674841,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1999",
+      "value": 67.876143043519,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1998",
+      "value": 67.4488295151777,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1997",
+      "value": 67.4154326654426,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1996",
+      "value": 67.0491754988234,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1995",
+      "value": 66.8475159545624,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1994",
+      "value": 66.519777921104,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1993",
+      "value": 66.3955979190987,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1992",
+      "value": 66.4012785557961,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1991",
+      "value": 66.7013723626937,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.SRV.EMPL.ZS",
+        "value": "Employment in services (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1990",
+      "value": null,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    }
+  ]
+}

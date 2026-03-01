@@ -1,0 +1,585 @@
+{
+  "indicator": "SL.IND.EMPL.ZS",
+  "country": "SAU",
+  "description": "Employment in industry (% of total)",
+  "record_count": 36,
+  "fetch_timestamp": "2026-03-01T11:32:04.522780+00:00",
+  "records": [
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2025",
+      "value": 23.0708867758353,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2024",
+      "value": 23.0634087623337,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2023",
+      "value": 23.0569908594811,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2022",
+      "value": 16.8831652579742,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2021",
+      "value": 19.5388572471802,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2020",
+      "value": 22.8973870998259,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2019",
+      "value": 24.3463893604915,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2018",
+      "value": 25.6554973804542,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2017",
+      "value": 26.3491529770916,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2016",
+      "value": 26.3562235712816,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2015",
+      "value": 26.3739911277417,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2014",
+      "value": 26.298452498487,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2013",
+      "value": 26.1943975660596,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2012",
+      "value": 26.3213491427186,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2011",
+      "value": 26.2825555935843,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2010",
+      "value": 25.9172573017559,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2009",
+      "value": 25.5511368601661,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2008",
+      "value": 25.7994201517573,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2007",
+      "value": 25.7366214778663,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2006",
+      "value": 25.6295977961965,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2005",
+      "value": 25.7158167783672,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2004",
+      "value": 25.7322658022445,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2003",
+      "value": 25.4029111073366,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2002",
+      "value": 25.1182182196579,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2001",
+      "value": 25.2656654714178,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2000",
+      "value": 25.3824892769326,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1999",
+      "value": 25.48097602963,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1998",
+      "value": 25.8196404065734,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1997",
+      "value": 25.664290133312,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1996",
+      "value": 25.8898609178074,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1995",
+      "value": 25.9476448130897,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1994",
+      "value": 26.1497814497429,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1993",
+      "value": 26.1190869183704,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1992",
+      "value": 25.9403981320904,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1991",
+      "value": 25.5154718124641,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    },
+    {
+      "indicator": {
+        "id": "SL.IND.EMPL.ZS",
+        "value": "Employment in industry (% of total employment) (modeled ILO estimate)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1990",
+      "value": null,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 0
+    }
+  ]
+}

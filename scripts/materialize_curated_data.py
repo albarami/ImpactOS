@@ -21,7 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -430,7 +430,7 @@ def update_manifest_checksums(manifest_path: Path) -> None:
         else:
             print(f"  {ds['dataset_id']}: FILE NOT FOUND ({ds_path})")
 
-    raw["created_at"] = datetime.now(tz=UTC).isoformat()
+    raw["created_at"] = datetime.now(tz=timezone.utc).isoformat()
 
     manifest_path.write_text(
         json.dumps(raw, indent=2, ensure_ascii=False) + "\n",

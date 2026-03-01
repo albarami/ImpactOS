@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 OUT_DIR = Path("data/raw")
@@ -58,7 +58,7 @@ def main() -> int:
 
     report_lines = [
         "=== API Connectivity Report ===",
-        f"Date: {datetime.now(datetime.UTC).isoformat()}",
+        f"Date: {datetime.now(tz=timezone.utc).isoformat()}",
         f"Duration: {elapsed:.1f}s",
         "",
     ]
@@ -90,7 +90,7 @@ def main() -> int:
     # Also save as JSON
     json_path = OUT_DIR / "api_connectivity_report.json"
     json_path.write_text(json.dumps({
-        "timestamp": datetime.now(datetime.UTC).isoformat(),
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
         "duration_seconds": round(elapsed, 1),
         "results": results,
     }, indent=2))

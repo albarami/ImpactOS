@@ -1,0 +1,55 @@
+{
+  "source": "KAPSARC Data Portal",
+  "base_url": "https://datasource.kapsarc.org/api/v2",
+  "fetch_timestamp": "2026-03-01T11:47:23.238062+00:00",
+  "datasets": {
+    "io_current_prices": {
+      "url": "https://datasource.kapsarc.org/api/v2/catalog/datasets/input-output-table-at-current-prices/records",
+      "record_count": 55757,
+      "date_range": "2018-2023",
+      "sha256": "sha256:fe83d6df5bc9271e6909f65a6c5c8f31c5fde0429bd8073305946c00e1dcdc55",
+      "status": "success",
+      "error": null
+    },
+    "type1_multipliers": {
+      "url": "https://datasource.kapsarc.org/api/v2/catalog/datasets/input-output-table-type-i-multiplier/records",
+      "record_count": 19,
+      "date_range": "",
+      "sha256": "sha256:91e012d5a1559254d3e78b86daab71f12f49de30e8ea090f81b06893f29e6b39",
+      "status": "success",
+      "error": null
+    },
+    "gdp_by_activity": {
+      "url": "https://datasource.kapsarc.org/api/v2/catalog/datasets/gross-domestic-product-by-kind-of-economic-activity-at-current-prices-2018-100/records",
+      "record_count": 2166,
+      "date_range": "1970-2024",
+      "sha256": "sha256:f1b0880bcb4e98f2d205e8d7b1fac9eb3fdd97bc817b78db2e91665e9a2c3181",
+      "status": "success",
+      "error": null
+    },
+    "labor_market_indicators": {
+      "url": "https://datasource.kapsarc.org/api/v2/catalog/datasets/main-labor-market-indicators/records",
+      "record_count": 634,
+      "date_range": "2017-2020",
+      "sha256": "sha256:d7bff48bc820af68450b079ff40643102f28a3fd922591cc5661a0839171879b",
+      "status": "success",
+      "error": null
+    },
+    "gosi_beneficiaries": {
+      "url": "https://datasource.kapsarc.org/api/v2/catalog/datasets/gosi-beneficiaries/records",
+      "record_count": 0,
+      "date_range": "",
+      "sha256": "",
+      "status": "http_error",
+      "error": "HTTP 400"
+    },
+    "labor_force_indicators": {
+      "url": "https://datasource.kapsarc.org/api/v2/catalog/datasets/labor-force-indicators/records",
+      "record_count": 9080,
+      "date_range": "1999-2016",
+      "sha256": "sha256:7f622ee375b9b3ffbfeaf73e28d5b25e9b6848b7df0c5dd9650c299c6e5f754d",
+      "status": "success",
+      "error": null
+    }
+  }
+}

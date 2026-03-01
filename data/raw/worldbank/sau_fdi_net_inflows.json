@@ -1,0 +1,585 @@
+{
+  "indicator": "BX.KLT.DINV.WD.GD.ZS",
+  "country": "SAU",
+  "description": "FDI net inflows (% of GDP)",
+  "record_count": 36,
+  "fetch_timestamp": "2026-03-01T11:32:08.310885+00:00",
+  "records": [
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2025",
+      "value": null,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2024",
+      "value": 1.72104243015611,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2023",
+      "value": 1.87131032249407,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2022",
+      "value": 2.1556449627378,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2021",
+      "value": 2.8850612174452,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2020",
+      "value": 0.211115523412857,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2019",
+      "value": 0.346411455797861,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2018",
+      "value": 1.36945683303735,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2017",
+      "value": 0.136801407151884,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2016",
+      "value": 3.18518611850268,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2015",
+      "value": 0.572622097928938,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2014",
+      "value": 0.191711517264834,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2013",
+      "value": 0.437984195574321,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2012",
+      "value": 0.669626013751334,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2011",
+      "value": 0.688133631504519,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2010",
+      "value": 0.923670092367435,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2009",
+      "value": 0.10169038708409,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2008",
+      "value": 1.05925699592349,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2007",
+      "value": 1.48457884530209,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2006",
+      "value": 1.58553602335569,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2005",
+      "value": 1.33515850333851,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2004",
+      "value": -0.129209725410009,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2003",
+      "value": -0.271772775519938,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2002",
+      "value": -0.323899963714203,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2001",
+      "value": 0.0106659367777141,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "2000",
+      "value": -0.9925690992161,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1999",
+      "value": -0.481664272911208,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1998",
+      "value": 2.91838054679437,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1997",
+      "value": 1.83140466437341,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1996",
+      "value": -0.710606970934706,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1995",
+      "value": -1.30781764216435,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1994",
+      "value": 0.258430621127419,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1993",
+      "value": 1.02821764581848,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1992",
+      "value": -0.0575786497959332,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1991",
+      "value": 0.121007480168667,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "BX.KLT.DINV.WD.GD.ZS",
+        "value": "Foreign direct investment, net inflows (% of GDP)"
+      },
+      "country": {
+        "id": "SA",
+        "value": "Saudi Arabia"
+      },
+      "countryiso3code": "SAU",
+      "date": "1990",
+      "value": 1.5823604411403,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    }
+  ]
+}

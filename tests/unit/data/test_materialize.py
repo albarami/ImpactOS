@@ -101,9 +101,9 @@ class TestIOFixture:
         """Base year is 2018."""
         assert io_data["base_year"] == 2018
 
-    def test_io_fixture_source_is_synthetic(self, io_data: dict) -> None:
-        """Source field honestly indicates synthetic origin."""
-        assert io_data["source"] == "synthetic_materialized"
+    def test_io_fixture_source_is_kapsarc(self, io_data: dict) -> None:
+        """Source field indicates KAPSARC origin."""
+        assert io_data["source"] == "KAPSARC Data Portal"
 
     def test_io_fixture_z_nonnegative(self, io_data: dict) -> None:
         """All Z matrix entries are non-negative."""
@@ -116,16 +116,18 @@ class TestIOFixture:
         assert np.all(x > 0)
 
     def test_io_fixture_total_output_realistic(self, io_data: dict) -> None:
-        """Total gross output is in a realistic range (~2-3 trillion SAR)."""
+        """Total gross output is in a realistic range (~3-8 trillion SAR)."""
         x = np.array(io_data["x"])
         total = x.sum()
-        assert 2_000_000 < total < 3_500_000  # SAR millions
+        assert 3_000_000_000 < total < 8_000_000_000  # SAR thousands
 
-    def test_io_fixture_oil_sector_dominant(self, io_data: dict) -> None:
-        """Sector B (Mining/Oil) is the largest sector."""
+    def test_io_fixture_mining_manufacturing_dominant(self, io_data: dict) -> None:
+        """Sectors B (Mining) and C (Manufacturing) are the two largest sectors."""
         x = np.array(io_data["x"])
         sector_b_idx = io_data["sector_codes"].index("B")
-        assert x[sector_b_idx] == x.max()
+        sector_c_idx = io_data["sector_codes"].index("C")
+        top2_indices = set(np.argsort(x)[-2:])
+        assert {sector_b_idx, sector_c_idx} == top2_indices
 
     def test_io_fixture_spectral_radius_below_one(self, io_data: dict) -> None:
         """Spectral radius of A is < 1 (productivity condition)."""
@@ -171,7 +173,8 @@ class TestBenchmark:
         assert "sectors" in benchmark_data
         sectors = benchmark_data["sectors"]
         assert isinstance(sectors, list)
-        assert len(sectors) == 20
+        # KAPSARC publishes 19 sectors (A-S); sector T not available
+        assert len(sectors) == 19
 
         for entry in sectors:
             assert "sector_code" in entry
@@ -180,9 +183,9 @@ class TestBenchmark:
             assert isinstance(entry["output_multiplier"], (int, float))
 
     def test_benchmark_sector_codes_match_isic(self, benchmark_data: dict) -> None:
-        """Benchmark sectors match ISIC sections A-T."""
+        """Benchmark sectors match ISIC sections A-S (T not published by KAPSARC)."""
         codes = [s["sector_code"] for s in benchmark_data["sectors"]]
-        assert codes == ISIC_SECTIONS
+        assert codes == ISIC_SECTIONS[:19]  # A-S, no T
 
     def test_benchmark_multipliers_greater_than_one(self, benchmark_data: dict) -> None:
         """All Type I output multipliers are >= 1.0 (mathematical requirement)."""
@@ -207,7 +210,7 @@ class TestBenchmark:
         validator = BenchmarkValidator()
         result = validator.load_benchmark_from_file(str(BENCHMARK_PATH))
         assert isinstance(result, dict)
-        assert len(result) == 20
+        assert len(result) == 19  # KAPSARC publishes A-S, no T
         assert "A" in result
         assert "B" in result
         assert all(v >= 1.0 for v in result.values())
@@ -329,9 +332,6 @@ class TestManifest:
 class TestStrictLoaderIntegration:
     """Integration test: strict loader can find and validate curated data."""
 
-    @pytest.mark.xfail(
-        reason="No real upstream data committed yet — requires D-5.1",
-    )
     def test_strict_real_loads_curated_io(self) -> None:
         """STRICT_REAL mode loads the curated IO model without fallback."""
         from src.data.manifest import load_manifest

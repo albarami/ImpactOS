@@ -14,7 +14,7 @@ import importlib
 import json
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 ALL_SOURCES = {
@@ -83,7 +83,7 @@ def main() -> int:
     print(f"\n{'=' * 60}")
     print(f"  ImpactOS Data Fetch — {mode}")
     print(f"  Sources: {', '.join(sources)}")
-    print(f"  Time: {datetime.now(datetime.UTC).isoformat()}")
+    print(f"  Time: {datetime.now(tz=timezone.utc).isoformat()}")
     print(f"{'=' * 60}\n")
 
     start = time.time()
@@ -145,7 +145,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     summary_path = out_dir / "fetch_summary.json"
     summary_path.write_text(json.dumps({
-        "timestamp": datetime.now(datetime.UTC).isoformat(),
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
         "mode": mode.lower(),
         "duration_seconds": round(elapsed, 1),
         "results": results,

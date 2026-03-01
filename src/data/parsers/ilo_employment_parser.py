@@ -193,6 +193,28 @@ def parse_ilo_employment_file(
             if isinstance(batch_data, dict) and "dataSets" in batch_data:
                 obs = _parse_sdmx_json(batch_data)
                 all_obs.extend(obs)
+    elif "observations" in data and isinstance(data["observations"], list):
+        # rplumber row-based format from updated fetch_ilostat.py
+        for obs in data["observations"]:
+            classif1 = obs.get("classif1", "")
+            section = ILO_ISIC4_TO_SECTION.get(classif1, "")
+            if not section:
+                continue
+            try:
+                year = int(str(obs.get("time", ""))[:4])
+            except (ValueError, TypeError):
+                continue
+            try:
+                value = float(obs.get("obs_value", 0) or 0)
+            except (ValueError, TypeError):
+                value = 0.0
+            all_obs.append(EmploymentObservation(
+                section_code=section,
+                section_name=classif1,
+                year=year,
+                value=value,
+                confidence="official",
+            ))
     else:
         warnings.append(
             f"Unrecognized format. Keys: {sorted(data.keys())[:10]}"

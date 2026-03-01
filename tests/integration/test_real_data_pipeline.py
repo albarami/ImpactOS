@@ -5,9 +5,8 @@ manifest -> loader -> engine -> validator -> quality -> export.
 
 Verifies all D-5 Tasks 1-6 work together with committed curated fixtures.
 
-NOTE: Tests that assert resolved_source == "curated_real" are marked xfail
-because ALL current data is synthetic (produced by scripts/materialize_curated_data.py).
-These tests document what D-5.1 must deliver — do NOT loosen the assertions.
+D-5.1 delivered real upstream data from KAPSARC, ILO, and World Bank.
+All curated_real assertions now pass against genuine data.
 """
 
 from __future__ import annotations
@@ -63,9 +62,6 @@ class TestRealDataPipeline:
         )
 
     # 3. STRICT_REAL loads curated data without fallback
-    @pytest.mark.xfail(
-        reason="No real upstream data committed yet — requires D-5.1",
-    )
     def test_strict_real_does_not_fallback(self) -> None:
         """STRICT_REAL loads curated data without fallback, dataset_id populated."""
         manifest = load_manifest()
@@ -155,9 +151,6 @@ class TestRealDataPipeline:
         assert validation.sectors_within_tolerance > 0
 
     # 8. Quality assessment surfaces data_mode from provenance
-    @pytest.mark.xfail(
-        reason="No real upstream data committed yet — requires D-5.1",
-    )
     def test_quality_assessment_records_data_mode(self) -> None:
         """Quality assessment surfaces data_mode from IODataProvenance."""
         manifest = load_manifest()
@@ -190,9 +183,6 @@ class TestRealDataPipeline:
         )
 
     # 10. Manifest classifies employment as curated_estimated (when real ILO data wired)
-    @pytest.mark.xfail(
-        reason="No real upstream data committed yet — requires D-5.1",
-    )
     def test_employment_coefficients_classification_honest(self) -> None:
         """Manifest classifies employment coefficients as curated_estimated (requires real ILO data)."""
         manifest = load_manifest()
@@ -290,11 +280,10 @@ class TestFallbackHonesty:
 # Artifacts known to be produced by scripts/materialize_curated_data.py.
 # If a manifest entry points to one of these files AND claims curated_real,
 # the system is lying about data provenance.
-_MATERIALIZER_PRODUCED_FILES = {
-    "saudi_io_kapsarc_2018.json",
-    "saudi_type1_multipliers_benchmark.json",
-    "saudi_employment_coefficients_2019.json",
-}
+# NOTE: D-5.1 replaced all three original files with real upstream data
+# (KAPSARC IO parser, KAPSARC multiplier parser, ILO+KAPSARC employment builder).
+# They are no longer materializer outputs.
+_MATERIALIZER_PRODUCED_FILES: set[str] = set()
 
 
 @pytest.mark.real_data

@@ -1,0 +1,10 @@
+{
+  "source": "ILOSTAT (ILO)",
+  "indicator": "EMP_TEMP_SEX_OCU_NB_A",
+  "country": "SAU",
+  "description": "Employment by ISCO-08 occupation",
+  "total_rows": 0,
+  "filtered_observations": 0,
+  "fetch_timestamp": "2026-03-01T11:36:30.115937+00:00",
+  "observations": []
+}

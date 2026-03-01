@@ -10,7 +10,7 @@ Denominator is ALWAYS gross output (x), NOT GDP / value-added.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -151,17 +151,25 @@ def _load_ilo_employment(
     with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    result: dict[str, float] = {}
+    # ILO data in thousands of persons → multiply by 1000 to get persons
+    unit = data.get("unit", "")
+    if "thousands" in unit:
+        multiplier = 1000.0
+    else:
+        multiplier = 1.0
+
+    # Pick latest year's observation per section (don't sum across years)
+    latest: dict[str, tuple[int, float]] = {}  # section -> (year, value)
     observations = data.get("observations", [])
     for obs in observations:
-        section = obs.get("sector_code", "")
+        section = obs.get("section_code", obs.get("sector_code", ""))
         value = obs.get("value")
-        if section and value is not None:
-            # ILO data may be in thousands — check metadata
-            multiplier = 1000.0 if data.get("unit") == "thousands" else 1.0
-            result[section] = result.get(section, 0.0) + float(value) * multiplier
+        obs_year = obs.get("year", 0)
+        if section and value is not None and section in ISIC_SECTIONS:
+            if section not in latest or obs_year > latest[section][0]:
+                latest[section] = (obs_year, float(value) * multiplier)
 
-    return result
+    return {s: v for s, (_, v) in latest.items()}
 
 
 def _load_io_output(
@@ -233,7 +241,7 @@ def save_employment_coefficients(
         "_provenance": {
             "builder": "build_employment_coefficients.py",
             "builder_version": "d4_v1",
-            "build_timestamp": datetime.now(tz=UTC).isoformat(),
+            "build_timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "source_ids": list({c.source for c in coeff_set.coefficients}),
             "method": "ILO employment / KAPSARC IO gross output x-vector",
             "notes": "Denominator is gross output (x), NOT GDP/value-added",

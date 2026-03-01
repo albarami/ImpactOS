@@ -1,0 +1,305 @@
+{
+  "source": "ILOSTAT",
+  "country": "SAU",
+  "unit": "thousands_of_persons",
+  "year_range": "2013-2014",
+  "section_count": 21,
+  "observation_count": 42,
+  "observations": [
+    {
+      "section_code": "A",
+      "section_name": "ECO_ISIC4_A",
+      "year": 2014,
+      "value": 522.15,
+      "confidence": "official"
+    },
+    {
+      "section_code": "B",
+      "section_name": "ECO_ISIC4_B",
+      "year": 2014,
+      "value": 136.85,
+      "confidence": "official"
+    },
+    {
+      "section_code": "C",
+      "section_name": "ECO_ISIC4_C",
+      "year": 2014,
+      "value": 750.25,
+      "confidence": "official"
+    },
+    {
+      "section_code": "D",
+      "section_name": "ECO_ISIC4_D",
+      "year": 2014,
+      "value": 89.4,
+      "confidence": "official"
+    },
+    {
+      "section_code": "E",
+      "section_name": "ECO_ISIC4_E",
+      "year": 2014,
+      "value": 91.85,
+      "confidence": "official"
+    },
+    {
+      "section_code": "F",
+      "section_name": "ECO_ISIC4_F",
+      "year": 2014,
+      "value": 1504.55,
+      "confidence": "official"
+    },
+    {
+      "section_code": "G",
+      "section_name": "ECO_ISIC4_G",
+      "year": 2014,
+      "value": 1605.25,
+      "confidence": "official"
+    },
+    {
+      "section_code": "H",
+      "section_name": "ECO_ISIC4_H",
+      "year": 2014,
+      "value": 385.65,
+      "confidence": "official"
+    },
+    {
+      "section_code": "I",
+      "section_name": "ECO_ISIC4_I",
+      "year": 2014,
+      "value": 321.1,
+      "confidence": "official"
+    },
+    {
+      "section_code": "J",
+      "section_name": "ECO_ISIC4_J",
+      "year": 2014,
+      "value": 121.35,
+      "confidence": "official"
+    },
+    {
+      "section_code": "K",
+      "section_name": "ECO_ISIC4_K",
+      "year": 2014,
+      "value": 132.4,
+      "confidence": "official"
+    },
+    {
+      "section_code": "L",
+      "section_name": "ECO_ISIC4_L",
+      "year": 2014,
+      "value": 118.35,
+      "confidence": "official"
+    },
+    {
+      "section_code": "M",
+      "section_name": "ECO_ISIC4_M",
+      "year": 2014,
+      "value": 140.15,
+      "confidence": "official"
+    },
+    {
+      "section_code": "N",
+      "section_name": "ECO_ISIC4_N",
+      "year": 2014,
+      "value": 188.5,
+      "confidence": "official"
+    },
+    {
+      "section_code": "O",
+      "section_name": "ECO_ISIC4_O",
+      "year": 2014,
+      "value": 1811.2,
+      "confidence": "official"
+    },
+    {
+      "section_code": "P",
+      "section_name": "ECO_ISIC4_P",
+      "year": 2014,
+      "value": 1351.4,
+      "confidence": "official"
+    },
+    {
+      "section_code": "Q",
+      "section_name": "ECO_ISIC4_Q",
+      "year": 2014,
+      "value": 604.35,
+      "confidence": "official"
+    },
+    {
+      "section_code": "R",
+      "section_name": "ECO_ISIC4_R",
+      "year": 2014,
+      "value": 12.85,
+      "confidence": "official"
+    },
+    {
+      "section_code": "S",
+      "section_name": "ECO_ISIC4_S",
+      "year": 2014,
+      "value": 238.25,
+      "confidence": "official"
+    },
+    {
+      "section_code": "T",
+      "section_name": "ECO_ISIC4_T",
+      "year": 2014,
+      "value": 849.4,
+      "confidence": "official"
+    },
+    {
+      "section_code": "U",
+      "section_name": "ECO_ISIC4_U",
+      "year": 2014,
+      "value": 8.55,
+      "confidence": "official"
+    },
+    {
+      "section_code": "A",
+      "section_name": "ECO_ISIC4_A",
+      "year": 2013,
+      "value": 524.9,
+      "confidence": "official"
+    },
+    {
+      "section_code": "B",
+      "section_name": "ECO_ISIC4_B",
+      "year": 2013,
+      "value": 116.2,
+      "confidence": "official"
+    },
+    {
+      "section_code": "C",
+      "section_name": "ECO_ISIC4_C",
+      "year": 2013,
+      "value": 698.55,
+      "confidence": "official"
+    },
+    {
+      "section_code": "D",
+      "section_name": "ECO_ISIC4_D",
+      "year": 2013,
+      "value": 79.6,
+      "confidence": "official"
+    },
+    {
+      "section_code": "E",
+      "section_name": "ECO_ISIC4_E",
+      "year": 2013,
+      "value": 64.2,
+      "confidence": "official"
+    },
+    {
+      "section_code": "F",
+      "section_name": "ECO_ISIC4_F",
+      "year": 2013,
+      "value": 1624.65,
+      "confidence": "official"
+    },
+    {
+      "section_code": "G",
+      "section_name": "ECO_ISIC4_G",
+      "year": 2013,
+      "value": 1633.05,
+      "confidence": "official"
+    },
+    {
+      "section_code": "H",
+      "section_name": "ECO_ISIC4_H",
+      "year": 2013,
+      "value": 349.6,
+      "confidence": "official"
+    },
+    {
+      "section_code": "I",
+      "section_name": "ECO_ISIC4_I",
+      "year": 2013,
+      "value": 255.9,
+      "confidence": "official"
+    },
+    {
+      "section_code": "J",
+      "section_name": "ECO_ISIC4_J",
+      "year": 2013,
+      "value": 105.45,
+      "confidence": "official"
+    },
+    {
+      "section_code": "K",
+      "section_name": "ECO_ISIC4_K",
+      "year": 2013,
+      "value": 117.65,
+      "confidence": "official"
+    },
+    {
+      "section_code": "L",
+      "section_name": "ECO_ISIC4_L",
+      "year": 2013,
+      "value": 93.75,
+      "confidence": "official"
+    },
+    {
+      "section_code": "M",
+      "section_name": "ECO_ISIC4_M",
+      "year": 2013,
+      "value": 104.3,
+      "confidence": "official"
+    },
+    {
+      "section_code": "N",
+      "section_name": "ECO_ISIC4_N",
+      "year": 2013,
+      "value": 206.45,
+      "confidence": "official"
+    },
+    {
+      "section_code": "O",
+      "section_name": "ECO_ISIC4_O",
+      "year": 2013,
+      "value": 1807.9,
+      "confidence": "official"
+    },
+    {
+      "section_code": "P",
+      "section_name": "ECO_ISIC4_P",
+      "year": 2013,
+      "value": 1254.6,
+      "confidence": "official"
+    },
+    {
+      "section_code": "Q",
+      "section_name": "ECO_ISIC4_Q",
+      "year": 2013,
+      "value": 493.6,
+      "confidence": "official"
+    },
+    {
+      "section_code": "R",
+      "section_name": "ECO_ISIC4_R",
+      "year": 2013,
+      "value": 12.2,
+      "confidence": "official"
+    },
+    {
+      "section_code": "S",
+      "section_name": "ECO_ISIC4_S",
+      "year": 2013,
+      "value": 210.9,
+      "confidence": "official"
+    },
+    {
+      "section_code": "T",
+      "section_name": "ECO_ISIC4_T",
+      "year": 2013,
+      "value": 917.5,
+      "confidence": "official"
+    },
+    {
+      "section_code": "U",
+      "section_name": "ECO_ISIC4_U",
+      "year": 2013,
+      "value": 11.0,
+      "confidence": "official"
+    }
+  ],
+  "warnings": []
+}

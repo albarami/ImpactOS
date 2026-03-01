@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 OUT_DIR = Path("data/raw/sama")
@@ -47,7 +47,7 @@ def main() -> int:
         ),
         "api_status": "no_rest_api",
         "access_method": "manual_download",
-        "fetch_timestamp": datetime.now(datetime.UTC).isoformat(),
+        "fetch_timestamp": datetime.now(tz=timezone.utc).isoformat(),
         "available_datasets": {
             "monthly_bulletin": {
                 "description": "Monthly Statistical Bulletin",

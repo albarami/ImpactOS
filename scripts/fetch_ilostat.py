@@ -1,7 +1,6 @@
-"""Fetch ILO employment data for Saudi Arabia via SDMX REST API.
+"""Fetch ILO employment data for Saudi Arabia via rplumber REST API.
 
 Pulls employment by economic activity (ISIC Rev.4) and occupation (ISCO-08).
-Falls back to simpler queries if complex SDMX requests fail.
 Writes to data/raw/ilo/ with _metadata.json.
 
 Usage:
@@ -14,42 +13,15 @@ import hashlib
 import json
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
 
-BASE_URL = "https://www.ilo.org/sdmx/rest"
+BASE_URL = "https://rplumber.ilo.org/data/indicator"
 OUT_DIR = Path("data/raw/ilo")
-TIMEOUT = 90.0  # SDMX can be slow
+TIMEOUT = 90.0  # API can be slow
 DELAY = 3.0  # Be respectful to ILO servers
-
-# ISIC Rev.4 activity codes we need
-ISIC4_ACTIVITIES = [
-    "ECO_ISIC4_TOTAL",
-    "ECO_ISIC4_A",
-    "ECO_ISIC4_B",
-    "ECO_ISIC4_C",
-    "ECO_ISIC4_D",
-    "ECO_ISIC4_E",
-    "ECO_ISIC4_F",
-    "ECO_ISIC4_G",
-    "ECO_ISIC4_H",
-    "ECO_ISIC4_I",
-    "ECO_ISIC4_J",
-    "ECO_ISIC4_K",
-    "ECO_ISIC4_L",
-    "ECO_ISIC4_M",
-    "ECO_ISIC4_N",
-    "ECO_ISIC4_O",
-    "ECO_ISIC4_P",
-    "ECO_ISIC4_Q",
-    "ECO_ISIC4_R",
-    "ECO_ISIC4_S",
-    "ECO_ISIC4_T",
-    "ECO_ISIC4_U",
-    "ECO_ISIC4_X",
-]
 
 
 def sha256_of_json(data: object) -> str:
@@ -58,14 +30,17 @@ def sha256_of_json(data: object) -> str:
     return f"sha256:{hashlib.sha256(raw).hexdigest()}"
 
 
-def _count_observations(data: dict) -> int:
-    """Count total observations in an SDMX-JSON response."""
-    datasets = data.get("dataSets", [])
-    count = 0
-    for ds in datasets:
-        for s_val in ds.get("series", {}).values():
-            count += len(s_val.get("observations", {}))
-    return count
+def _columnar_to_rows(data: dict) -> list[dict]:
+    """Convert columnar ILO response to list of row dicts."""
+    keys = list(data.keys())
+    if not keys:
+        return []
+    n = len(data[keys[0]])
+    rows = []
+    for i in range(n):
+        row = {k: data[k][i] for k in keys}
+        rows.append(row)
+    return rows
 
 
 def fetch_employment_by_activity(client: httpx.Client) -> dict:
@@ -80,74 +55,47 @@ def fetch_employment_by_activity(client: httpx.Client) -> dict:
         "error": None,
     }
 
-    # Try fetching all activities in one request
-    activities_str = "+".join(ISIC4_ACTIVITIES)
-    key = f"SAU..SEX_T.{activities_str}"
-    url = f"{BASE_URL}/data/ILO,DF_EMP_TEMP_SEX_ECO_NB,1.0/{key}"
-    params = {"format": "jsondata"}
+    url = f"{BASE_URL}/"
+    params = {
+        "id": "EMP_TEMP_SEX_ECO_NB_A",
+        "ref_area": "SAU",
+        "format": ".json",
+    }
 
     try:
-        resp = client.get(
-            url,
-            params=params,
-            headers={"Accept": "application/json"},
-            timeout=TIMEOUT,
-        )
+        resp = client.get(url, params=params, timeout=TIMEOUT)
 
         if resp.status_code == 200:
-            data = resp.json()
-            obs_count = _count_observations(data)
-            result["observation_count"] = obs_count
+            raw_data = resp.json()
+            # Convert columnar to row-based format
+            rows = _columnar_to_rows(raw_data)
+
+            # Filter to SEX_T (total, both sexes) and ISIC4 classifications
+            isic4_rows = [
+                r for r in rows
+                if r.get("sex") == "SEX_T"
+                and isinstance(r.get("classif1"), str)
+                and r["classif1"].startswith("ECO_ISIC4_")
+            ]
+
+            result["observation_count"] = len(isic4_rows)
             result["status"] = "success"
-            result["sha256"] = sha256_of_json(data)
+
+            output = {
+                "source": "ILOSTAT (ILO)",
+                "indicator": "EMP_TEMP_SEX_ECO_NB_A",
+                "country": "SAU",
+                "description": "Employment by ISIC Rev.4 economic activity",
+                "total_rows": len(rows),
+                "isic4_observations": len(isic4_rows),
+                "fetch_timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "observations": isic4_rows,
+            }
+            result["sha256"] = sha256_of_json(isic4_rows)
 
             out_path = OUT_DIR / "sau_employment_by_activity.json"
-            out_path.write_text(json.dumps(data, indent=2, default=str))
-            print(f"OK | {obs_count} observations")
-        elif resp.status_code == 413:
-            # Too large — try smaller batches
-            print("too large, trying batches...", end=" ", flush=True)
-            all_data: dict = {}
-
-            # Batch in groups of 5
-            for i in range(0, len(ISIC4_ACTIVITIES), 5):
-                batch = ISIC4_ACTIVITIES[i : i + 5]
-                batch_str = "+".join(batch)
-                batch_key = f"SAU..SEX_T.{batch_str}"
-                batch_url = (
-                    f"{BASE_URL}/data/"
-                    f"ILO,DF_EMP_TEMP_SEX_ECO_NB,1.0/{batch_key}"
-                )
-
-                r = client.get(
-                    batch_url,
-                    params=params,
-                    headers={"Accept": "application/json"},
-                    timeout=TIMEOUT,
-                )
-                if r.status_code == 200:
-                    batch_data = r.json()
-                    all_data[f"batch_{i}"] = batch_data
-                time.sleep(DELAY)
-
-            if all_data:
-                result["status"] = "success"
-                result["observation_count"] = sum(
-                    _count_observations(d) for d in all_data.values()
-                )
-                result["sha256"] = sha256_of_json(all_data)
-                out_path = OUT_DIR / "sau_employment_by_activity.json"
-                out_path.write_text(
-                    json.dumps(all_data, indent=2, default=str)
-                )
-                print(
-                    f"OK (batched) | "
-                    f"{result['observation_count']} observations"
-                )
-            else:
-                result["status"] = "no_data"
-                result["error"] = "All batches returned empty"
-                print("FAIL | no data from batches")
+            out_path.write_text(json.dumps(output, indent=2, default=str))
+            print(f"OK | {len(isic4_rows)} ISIC4 observations ({len(rows)} total)")
         else:
             result["status"] = "http_error"
             result["error"] = f"HTTP {resp.status_code}"
@@ -177,28 +125,41 @@ def fetch_employment_by_occupation(client: httpx.Client) -> dict:
         "error": None,
     }
 
-    key = "SAU..SEX_T.OCU_ISCO08_TOTAL"
-    url = f"{BASE_URL}/data/ILO,DF_EMP_TEMP_SEX_OCU_NB,1.0/{key}"
-    params = {"format": "jsondata"}
+    url = f"{BASE_URL}/"
+    params = {
+        "id": "EMP_TEMP_SEX_OCU_NB_A",
+        "ref_area": "SAU",
+        "format": ".json",
+    }
 
     try:
-        resp = client.get(
-            url,
-            params=params,
-            headers={"Accept": "application/json"},
-            timeout=TIMEOUT,
-        )
+        resp = client.get(url, params=params, timeout=TIMEOUT)
 
         if resp.status_code == 200:
-            data = resp.json()
-            obs_count = _count_observations(data)
-            result["observation_count"] = obs_count
+            raw_data = resp.json()
+            rows = _columnar_to_rows(raw_data)
+
+            # Filter to SEX_T
+            filtered = [r for r in rows if r.get("sex") == "SEX_T"]
+
+            result["observation_count"] = len(filtered)
             result["status"] = "success"
-            result["sha256"] = sha256_of_json(data)
+
+            output = {
+                "source": "ILOSTAT (ILO)",
+                "indicator": "EMP_TEMP_SEX_OCU_NB_A",
+                "country": "SAU",
+                "description": "Employment by ISCO-08 occupation",
+                "total_rows": len(rows),
+                "filtered_observations": len(filtered),
+                "fetch_timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "observations": filtered,
+            }
+            result["sha256"] = sha256_of_json(filtered)
 
             out_path = OUT_DIR / "sau_employment_by_occupation.json"
-            out_path.write_text(json.dumps(data, indent=2, default=str))
-            print(f"OK | {obs_count} observations")
+            out_path.write_text(json.dumps(output, indent=2, default=str))
+            print(f"OK | {len(filtered)} observations")
         else:
             result["status"] = "http_error"
             result["error"] = f"HTTP {resp.status_code}"
@@ -236,7 +197,7 @@ def main() -> int:
         "source": "ILOSTAT (ILO)",
         "base_url": BASE_URL,
         "country": "SAU",
-        "fetch_timestamp": datetime.now(datetime.UTC).isoformat(),
+        "fetch_timestamp": datetime.now(tz=timezone.utc).isoformat(),
         "datasets": {
             name: {
                 "observation_count": r["observation_count"],

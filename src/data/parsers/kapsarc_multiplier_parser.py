@@ -60,14 +60,14 @@ def parse_kapsarc_multiplier_records(
 
     # Common patterns
     sector_fields = [
-        "sector", "sector_name", "economic_activity", "activity",
+        "sector", "sector_name", "sectors", "economic_activity", "activity",
         "name", "description",
     ]
     code_fields = [
         "sector_code", "code", "isic_code", "activity_code",
     ]
     mult_fields = [
-        "output_multiplier", "multiplier", "type_i_multiplier",
+        "output_multiplier", "multiplier", "type_i", "type_i_multiplier",
         "total_multiplier", "value",
     ]
     backward_fields = [

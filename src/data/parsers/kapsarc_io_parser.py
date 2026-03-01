@@ -84,6 +84,44 @@ def _extract_sector_mapping(records: list[dict]) -> dict[str, str]:
     return sector_map
 
 
+# Non-sector labels that appear in IO tables as accounting rows/columns
+_NON_SECTOR_LABELS = {
+    "Change in inventories",
+    "Compensation of employees",
+    "Consumption of fixed capital formation",
+    "Export of goods",
+    "Export of services",
+    "Final Demand",
+    "Final consumption expenditures",
+    "Fixed capital Formation",
+    "Government final consumption expenditures",
+    "Gross Value Added",
+    "Gross capital formation",
+    "Gross operating surplus",
+    "Households final consumption expenditures",
+    "Net operating Surplus",
+    "Net tax on products",
+    "Non profit institutions serving household final consumption expenditures",
+    "Other subsidies on production",
+    "Other taxes on production",
+    "Petroleum Exports",
+    "Primary inputs at Purchaser prices",
+    "Primary inputs at basic prices",
+    "Total Export",
+    "Total Inputs",
+    "Total Intermediate Consumption",
+    "Total Output",
+    "Total imports",
+    # Duplicate sector name (without comma variant has zero output)
+    "Manufacture of woods, wood products and cork except furniture",
+}
+
+
+def _is_economic_sector(name: str) -> bool:
+    """Return True if name is an economic activity sector, not an accounting row."""
+    return name not in _NON_SECTOR_LABELS
+
+
 def parse_kapsarc_io_records(
     records: list[dict[str, Any]],
 ) -> list[KapsarcIOParseResult]:
@@ -105,8 +143,8 @@ def parse_kapsarc_io_records(
 
     # Common field patterns in KAPSARC IO data
     year_fields = ["year", "date", "period", "time_period", "reference_period"]
-    from_fields = ["from_sector", "row_sector", "input_sector", "from_activity"]
-    to_fields = ["to_sector", "column_sector", "output_sector", "to_activity"]
+    from_fields = ["from_sector", "row_sector", "input_sector", "from_activity", "economic_activities_input"]
+    to_fields = ["to_sector", "column_sector", "output_sector", "to_activity", "economic_activities_output"]
     value_fields = ["value", "amount", "flow", "transaction"]
 
     def _find_field(candidates: list[str]) -> str | None:
@@ -145,17 +183,17 @@ def parse_kapsarc_io_records(
     results: list[KapsarcIOParseResult] = []
 
     for year, yr_records in sorted(year_groups.items()):
-        # Collect unique sectors
+        # Collect unique economic sectors (exclude accounting rows)
         sectors: set[str] = set()
         if from_field:
             for rec in yr_records:
                 s = str(rec.get(from_field, "")).strip()
-                if s:
+                if s and _is_economic_sector(s):
                     sectors.add(s)
         if to_field:
             for rec in yr_records:
                 s = str(rec.get(to_field, "")).strip()
-                if s:
+                if s and _is_economic_sector(s):
                     sectors.add(s)
 
         sector_list = sorted(sectors)
@@ -182,15 +220,28 @@ def parse_kapsarc_io_records(
                 if from_s in sector_idx and to_s in sector_idx:
                     Z[sector_idx[from_s], sector_idx[to_s]] = v
 
-        # Estimate x from column sums + value added
-        # If Z is sparse/empty, use diagonal or available output data
-        x = np.sum(Z, axis=0)  # Intermediate demand
-        # Total output should be larger than intermediate demand
-        # Look for output vector in the data
-        if np.sum(x) < 1e-6:
-            warnings.append(
-                f"Year {year}: Z matrix appears empty, x estimated from data"
-            )
+        # Extract x (gross output) from "Total Output" records if available
+        x = np.zeros(n, dtype=np.float64)
+        x_from_total = False
+        if from_field and to_field:
+            for rec in yr_records:
+                to_s = str(rec.get(to_field, "")).strip()
+                from_s = str(rec.get(from_field, "")).strip()
+                if to_s == "Total Output" and from_s in sector_idx:
+                    val = rec.get(value_field, 0)
+                    try:
+                        x[sector_idx[from_s]] = float(val) if val is not None else 0.0
+                    except (ValueError, TypeError):
+                        pass
+                    x_from_total = True
+
+        if not x_from_total or np.sum(x) < 1e-6:
+            # Fallback: estimate from column sums of Z
+            x = np.sum(Z, axis=0)
+            if np.sum(x) < 1e-6:
+                warnings.append(
+                    f"Year {year}: Z matrix appears empty, x estimated from data"
+                )
 
         sector_names = {s: s for s in sector_list}  # Names = codes if not mapped
 
@@ -257,3 +308,194 @@ def save_curated_io(
     out_path = out_dir / filename
     out_path.write_text(json.dumps(output, indent=2))
     return out_path
+
+
+# ---------------------------------------------------------------------------
+# ISIC Rev.4 division-to-section mapping (for 20-sector aggregation)
+# ---------------------------------------------------------------------------
+
+# Maps KAPSARC descriptive sector names to ISIC Rev.4 section letters
+_KAPSARC_TO_ISIC_SECTION: dict[str, str] = {
+    # A: Agriculture, forestry and fishing
+    "Crop and animal production, hunting and related service activities": "A",
+    "Forestry and logging": "A",
+    "Fishing and aquaculture": "A",
+    # B: Mining and quarrying
+    "Mining of coal and lignite": "B",
+    "Extraction of crude petroleum and natural gas": "B",
+    "Mining of metal ores": "B",
+    "Other mining and quarrying activities": "B",
+    "Mining support service activities": "B",
+    # C: Manufacturing
+    "Manufacture of food products": "C",
+    "Manufacture of beverages": "C",
+    "Manufacture of textiles": "C",
+    "Manufacture of wearing apparel": "C",
+    "Manufacture of leather and related products": "C",
+    "Manufacture of woods, wood products and cork, except furniture": "C",
+    "Manufacture of paper and paper products": "C",
+    "Printing and reproduction of recorded media": "C",
+    "Manufacture of coke and refined petroleum products": "C",
+    "Manufacture of chemicals and chemical products": "C",
+    "Manufacture of basic pharmaceutical products and pharmaceutical preparations": "C",
+    "Manufacture of rubber and plastics products": "C",
+    "Manufacture of other non-metallic mineral products": "C",
+    "Manufacture of basic metals": "C",
+    "Manufacture of fabricated metal products, except machinery and equipment": "C",
+    "Manufacture of computer, electronic and optical products": "C",
+    "Manufacture of electrical equipment": "C",
+    "Manufacture of machinery and equipment n.e.c.": "C",
+    "Manufacture of motor vehicles, trailers and semi-trailers": "C",
+    "Manufacture of other transport equipment": "C",
+    "Manufacture of furniture": "C",
+    "Other manufacturing": "C",
+    "Repair and installation of machinery and equipment": "C",
+    # D: Electricity, gas, steam and air conditioning supply
+    "Electricity, gas, steam and air conditioning supply": "D",
+    # E: Water supply; sewerage, waste management
+    "Water collection, treatment and supply": "E",
+    "Sewerage": "E",
+    "Waste collection, treatment and disposal activities; materials recovery": "E",
+    "Remediation activities and other waste management services": "E",
+    # F: Construction
+    "Construction of buildings": "F",
+    "Civil engineering": "F",
+    "Specialized construction activities": "F",
+    # G: Wholesale and retail trade
+    "Wholesale and retail trade and repair of motor vehicles and motorcycles": "G",
+    "Wholesale trade, except of motor vehicles and motorcycles": "G",
+    "Retail trade, except of motor vehicles and motorcycles": "G",
+    # H: Transportation and storage
+    "Land transport and transport via pipelines": "H",
+    "Water transport": "H",
+    "Air transport": "H",
+    "Warehousing and support activities for transportation": "H",
+    "Postal and courier activities": "H",
+    # I: Accommodation and food service activities
+    "Accommodation": "I",
+    "Food and beverage service activities": "I",
+    # J: Information and communication
+    "Publishing activities": "J",
+    "Motion picture, video and television programme production, sound recording and music publishing activities": "J",
+    "Programming and broadcasting activities": "J",
+    "Telecommunications": "J",
+    "Computer programming, consultancy and related activities": "J",
+    "Information service activities": "J",
+    # K: Financial and insurance activities
+    "Financial service activities, except insurance and pension funding": "K",
+    "Insurance, reinsurance and pension funding, except compulsory social security": "K",
+    "Activities auxiliary to financial service and insurance activities": "K",
+    # L: Real estate activities
+    "Real estate activities": "L",
+    # M: Professional, scientific and technical activities
+    "Legal and accounting activities": "M",
+    "Activities of head offices; management consultancy activities": "M",
+    "Architectural and engineering activities; technical testing and analysis": "M",
+    "Scientific research and development": "M",
+    "Advertising and market research": "M",
+    "Other professional, scientific and technical activities": "M",
+    "Veterinary activities": "M",
+    # N: Administrative and support service activities
+    "Rental and leasing activities": "N",
+    "Employment activities": "N",
+    "Travel agency, tour operator, reservation service and related activities": "N",
+    "Security and investigation activities": "N",
+    "Services to buildings and landscape activities": "N",
+    "Office administrative, office support and other business support activities": "N",
+    # O: Public administration and defence
+    "Public administration and defence; compulsory social security": "O",
+    # P: Education
+    "Education": "P",
+    # Q: Human health and social work activities
+    "Human health activities": "Q",
+    "Residential care activities": "Q",
+    "Social work activities without accommodation": "Q",
+    # R: Arts, entertainment and recreation
+    "Creative, arts and entertainment activities": "R",
+    "Libraries, archives, museums and other cultural activities": "R",
+    "Sports activities and amusement and recreation activities": "R",
+    # S: Other service activities
+    "Activities of membership organizations": "S",
+    "Repair of computers and personal and household goods": "S",
+    "Other personal service activities": "S",
+    # T: Activities of households as employers
+    "Activities of households as employers of domestic personnel": "T",
+}
+
+ISIC_SECTIONS = [
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+    "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
+]
+
+ISIC_SECTION_NAMES = {
+    "A": "Agriculture, forestry and fishing",
+    "B": "Mining and quarrying",
+    "C": "Manufacturing",
+    "D": "Electricity, gas, steam and air conditioning supply",
+    "E": "Water supply; sewerage, waste management",
+    "F": "Construction",
+    "G": "Wholesale and retail trade",
+    "H": "Transportation and storage",
+    "I": "Accommodation and food service activities",
+    "J": "Information and communication",
+    "K": "Financial and insurance activities",
+    "L": "Real estate activities",
+    "M": "Professional, scientific and technical activities",
+    "N": "Administrative and support service activities",
+    "O": "Public administration and defence",
+    "P": "Education",
+    "Q": "Human health and social work activities",
+    "R": "Arts, entertainment and recreation",
+    "S": "Other service activities",
+    "T": "Activities of households as employers",
+}
+
+
+def aggregate_to_sections(
+    result: KapsarcIOParseResult,
+) -> KapsarcIOParseResult:
+    """Aggregate an 84-division IO table to 20 ISIC sections.
+
+    Maps each KAPSARC division name to its ISIC Rev.4 section letter,
+    then sums Z and x by section.
+
+    Unmapped divisions are dropped with a warning.
+    """
+    n_orig = len(result.sector_codes)
+    n_sec = len(ISIC_SECTIONS)
+    sec_idx = {s: i for i, s in enumerate(ISIC_SECTIONS)}
+
+    # Build mapping: original index -> section index
+    orig_to_sec = np.full(n_orig, -1, dtype=int)
+    unmapped = []
+    for i, code in enumerate(result.sector_codes):
+        section = _KAPSARC_TO_ISIC_SECTION.get(code)
+        if section is not None and section in sec_idx:
+            orig_to_sec[i] = sec_idx[section]
+        else:
+            unmapped.append(code)
+
+    warnings = list(result.warnings)
+    if unmapped:
+        warnings.append(f"Unmapped divisions dropped: {unmapped}")
+
+    # Build aggregation matrix M (n_sec x n_orig): M[s, d] = 1 if div d -> section s
+    M = np.zeros((n_sec, n_orig), dtype=np.float64)  # noqa: N806
+    for i in range(n_orig):
+        if orig_to_sec[i] >= 0:
+            M[orig_to_sec[i], i] = 1.0
+
+    # Aggregate: Z_sec = M @ Z_orig @ M.T, x_sec = M @ x_orig
+    Z_sec = M @ result.Z @ M.T
+    x_sec = M @ result.x
+
+    return KapsarcIOParseResult(
+        year=result.year,
+        sector_codes=ISIC_SECTIONS,
+        sector_names=ISIC_SECTION_NAMES,
+        Z=Z_sec,
+        x=x_sec,
+        total_output=float(np.sum(x_sec)),
+        record_count=result.record_count,
+        warnings=warnings,
+    )

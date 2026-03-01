@@ -1,87 +1,104 @@
 {
-  "source": "synthetic_materialized",
+  "source": "KAPSARC Data Portal",
   "base_year": 2018,
-  "method": "Type I output multiplier = column sum of Leontief inverse (I-A)^{-1}",
+  "method": "Type I output multiplier (published by KAPSARC)",
+  "sector_count": 19,
   "sectors": [
     {
       "sector_code": "A",
-      "output_multiplier": 1.5278
+      "sector_name": "Agriculture, forestry and fishing",
+      "output_multiplier": 1.8228
     },
     {
       "sector_code": "B",
-      "output_multiplier": 1.3215
+      "sector_name": "Mining and quarrying",
+      "output_multiplier": 1.1361
     },
     {
       "sector_code": "C",
-      "output_multiplier": 1.6722
+      "sector_name": "Manufacturing",
+      "output_multiplier": 2.0451
     },
     {
       "sector_code": "D",
-      "output_multiplier": 1.5559
+      "sector_name": "Electricity, gas, steam and air conditioning supply",
+      "output_multiplier": 1.9694
     },
     {
       "sector_code": "E",
-      "output_multiplier": 1.5155
+      "sector_name": "Water supply; sewerage, waste management and remediation activities",
+      "output_multiplier": 2.1384
     },
     {
       "sector_code": "F",
-      "output_multiplier": 1.7216
+      "sector_name": "Construction",
+      "output_multiplier": 2.2608
     },
     {
       "sector_code": "G",
-      "output_multiplier": 1.4054
+      "sector_name": "Wholesale and retail trade; repair of motor vehicles and motorcycles",
+      "output_multiplier": 2.1395
     },
     {
       "sector_code": "H",
-      "output_multiplier": 1.408
+      "sector_name": "Transportation and storage",
+      "output_multiplier": 1.9343
     },
     {
       "sector_code": "I",
-      "output_multiplier": 1.5816
+      "sector_name": "Accommodation and food service activities",
+      "output_multiplier": 2.1565
     },
     {
       "sector_code": "J",
-      "output_multiplier": 1.3809
+      "sector_name": "Information and communication",
+      "output_multiplier": 1.8577
     },
     {
       "sector_code": "K",
-      "output_multiplier": 1.3178
+      "sector_name": "Financial and insurance activities",
+      "output_multiplier": 1.2091
     },
     {
       "sector_code": "L",
-      "output_multiplier": 1.308
+      "sector_name": "Real estate activities",
+      "output_multiplier": 1.2034
     },
     {
       "sector_code": "M",
-      "output_multiplier": 1.3675
+      "sector_name": "Professional, scientific and technical activities",
+      "output_multiplier": 2.0288
     },
     {
       "sector_code": "N",
-      "output_multiplier": 1.3551
+      "sector_name": "Administrative and support service activities",
+      "output_multiplier": 2.0546
     },
     {
       "sector_code": "O",
-      "output_multiplier": 1.327
+      "sector_name": "Public administration and defense; compulsory social security",
+      "output_multiplier": 1.4899
     },
     {
       "sector_code": "P",
-      "output_multiplier": 1.2446
+      "sector_name": "Education",
+      "output_multiplier": 1.2289
     },
     {
       "sector_code": "Q",
-      "output_multiplier": 1.3556
+      "sector_name": "Human health and social work activities",
+      "output_multiplier": 1.5781
     },
     {
       "sector_code": "R",
-      "output_multiplier": 1.3707
+      "sector_name": "Arts, entertainment and recreation",
+      "output_multiplier": 1.8695
     },
     {
       "sector_code": "S",
-      "output_multiplier": 1.3425
-    },
-    {
-      "sector_code": "T",
-      "output_multiplier": 1.1006
+      "sector_name": "Other service activities",
+      "output_multiplier": 1.7722
     }
-  ]
+  ],
+  "notes": "Sector T (Households as employers) not published by KAPSARC"
 }

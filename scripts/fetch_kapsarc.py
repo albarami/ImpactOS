@@ -13,7 +13,7 @@ import hashlib
 import json
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -21,8 +21,8 @@ import httpx
 BASE_URL = "https://datasource.kapsarc.org/api/v2"
 OUT_DIR = Path("data/raw/kapsarc")
 PAGE_SIZE = 100
-TIMEOUT = 60.0
-DELAY = 1.0  # seconds between pages
+TIMEOUT = 120.0
+DELAY = 0.3  # seconds between pages
 
 DATASETS = {
     "io_current_prices": {
@@ -55,38 +55,92 @@ DATASETS = {
 }
 
 
+def _fetch_page(
+    client: httpx.Client,
+    dataset_id: str,
+    offset: int,
+    refine: str | None = None,
+) -> tuple[list[dict], int]:
+    """Fetch a single page of records. Returns (field_records, total_count)."""
+    url = f"{BASE_URL}/catalog/datasets/{dataset_id}/records"
+    params: dict = {"limit": PAGE_SIZE, "offset": offset}
+    if refine:
+        params["refine"] = refine
+
+    resp = client.get(url, params=params, timeout=TIMEOUT)
+    resp.raise_for_status()
+
+    data = resp.json()
+    total_count = data.get("total_count", 0)
+    raw_records = data.get("records", [])
+
+    records = [
+        r["record"]["fields"]
+        for r in raw_records
+        if "record" in r and "fields" in r.get("record", {})
+    ]
+    return records, total_count
+
+
+def _paginate(
+    client: httpx.Client,
+    dataset_id: str,
+    refine: str | None = None,
+) -> tuple[list[dict], int]:
+    """Paginate through all records (up to ODS 10k offset limit)."""
+    all_records: list[dict] = []
+    offset = 0
+    total_count = 0
+
+    while True:
+        records, total_count = _fetch_page(client, dataset_id, offset, refine)
+        if not records:
+            break
+        all_records.extend(records)
+        offset += len(records)
+        if offset >= total_count:
+            break
+        time.sleep(DELAY)
+
+    return all_records, total_count
+
+
 def fetch_all_records(
     client: httpx.Client,
     dataset_id: str,
 ) -> tuple[list[dict], int]:
     """Fetch all records from a KAPSARC dataset using pagination.
 
+    For datasets with >10k records, shards by year to avoid ODS offset limit.
     Returns (records, total_count).
     """
+    # First check total count
+    _, total_count = _fetch_page(client, dataset_id, 0)
+
+    if total_count <= 9900:
+        return _paginate(client, dataset_id)
+
+    # Large dataset: shard by year using facets
+    facet_url = f"{BASE_URL}/catalog/datasets/{dataset_id}/facets"
+    resp = client.get(facet_url, params={"facet": "year"}, timeout=TIMEOUT)
+    resp.raise_for_status()
+    facet_data = resp.json()
+
+    years = []
+    for facet_group in facet_data.get("facets", []):
+        if facet_group.get("name") == "year":
+            for f in facet_group.get("facets", []):
+                years.append(f["value"])
+
+    if not years:
+        # No year facet, try without sharding (will truncate at 10k)
+        return _paginate(client, dataset_id)
+
     all_records: list[dict] = []
-    offset = 0
-    total_count = 0
-
-    while True:
-        url = f"{BASE_URL}/catalog/datasets/{dataset_id}/records"
-        params = {"limit": PAGE_SIZE, "offset": offset}
-
-        resp = client.get(url, params=params, timeout=TIMEOUT)
-        resp.raise_for_status()
-
-        data = resp.json()
-        total_count = data.get("total_count", 0)
-        records = data.get("results", [])
-
-        if not records:
-            break
-
+    for yr in sorted(years):
+        refine = f"year:{yr}"
+        records, _ = _paginate(client, dataset_id, refine)
         all_records.extend(records)
-        offset += len(records)
-
-        if offset >= total_count:
-            break
-
         time.sleep(DELAY)
 
     return all_records, total_count
@@ -145,7 +199,7 @@ def fetch_dataset(
             "description": config["description"],
             "total_count": total_count,
             "record_count": len(records),
-            "fetch_timestamp": datetime.now(datetime.UTC).isoformat(),
+            "fetch_timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "records": records,
         }
         result["sha256"] = sha256_of_json(records)
@@ -187,7 +241,7 @@ def main() -> int:
     metadata = {
         "source": "KAPSARC Data Portal",
         "base_url": BASE_URL,
-        "fetch_timestamp": datetime.now(datetime.UTC).isoformat(),
+        "fetch_timestamp": datetime.now(tz=timezone.utc).isoformat(),
         "datasets": {
             name: {
                 "url": r["url"],

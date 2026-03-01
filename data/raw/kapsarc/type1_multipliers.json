@@ -1,0 +1,142 @@
+{
+  "dataset_id": "input-output-table-type-i-multiplier",
+  "description": "Type I output multipliers",
+  "total_count": 19,
+  "record_count": 19,
+  "fetch_timestamp": "2026-03-01T11:44:44.287372+00:00",
+  "records": [
+    {
+      "sectors": "Mining and quarrying",
+      "type_i": 1.1361257506182323,
+      "direct": 1.0137607311336143,
+      "indirect": 0.12236501948461798,
+      "income": 0.05340482714208985
+    },
+    {
+      "sectors": "Manufacturing",
+      "type_i": 2.0450808736899675,
+      "direct": 1.3023122177189892,
+      "indirect": 0.7427686559709783,
+      "income": 0.144134871237588
+    },
+    {
+      "sectors": "Electricity, gas, steam and air conditioning supply",
+      "type_i": 1.9694152967374925,
+      "direct": 1.161576718992082,
+      "indirect": 0.8078385777454105,
+      "income": 0.18964834304661804
+    },
+    {
+      "sectors": "Transportation and storage",
+      "type_i": 1.9342636730695937,
+      "direct": 1.0532667328479348,
+      "indirect": 0.8809969402216589,
+      "income": 0.21002662582802714
+    },
+    {
+      "sectors": "Real estate activities",
+      "type_i": 1.203369587584504,
+      "direct": 1.020317280913737,
+      "indirect": 0.183052306670767,
+      "income": 0.07112344369967266
+    },
+    {
+      "sectors": "Professional, scientific and technical activities",
+      "type_i": 2.028789538090707,
+      "direct": 1.1098175933616168,
+      "indirect": 0.91897194472909,
+      "income": 0.29282119276840024
+    },
+    {
+      "sectors": "Arts, entertainment and recreation",
+      "type_i": 1.8695497083144574,
+      "direct": 1.0932997746093733,
+      "indirect": 0.7762499337050841,
+      "income": 0.2711014803450709
+    },
+    {
+      "sectors": "Public administration and defense; compulsory social security",
+      "type_i": 1.4898522034730746,
+      "direct": 1.0057671457578867,
+      "indirect": 0.48408505771518784,
+      "income": 0.7146195258815045
+    },
+    {
+      "sectors": "Water supply; sewerage, waste management and remediation activities",
+      "type_i": 2.138361843571492,
+      "direct": 1.0212276989504454,
+      "indirect": 1.1171341446210465,
+      "income": 0.33832382491501306
+    },
+    {
+      "sectors": "Accommodation and food service activities",
+      "type_i": 2.1565425617780933,
+      "direct": 1.0115517382461958,
+      "indirect": 1.1449908235318975,
+      "income": 0.22007094028075633
+    },
+    {
+      "sectors": "Information and communication",
+      "type_i": 1.8576965670033259,
+      "direct": 1.1893694350864723,
+      "indirect": 0.6683271319168536,
+      "income": 0.15248145590497592
+    },
+    {
+      "sectors": "Education",
+      "type_i": 1.2288625636323542,
+      "direct": 1.0025994764926132,
+      "indirect": 0.22626308713974108,
+      "income": 0.7354241469537443
+    },
+    {
+      "sectors": "Construction",
+      "type_i": 2.260814637979818,
+      "direct": 1.200007005858531,
+      "indirect": 1.0608076321212871,
+      "income": 0.1946788665503528
+    },
+    {
+      "sectors": "Wholesale and retail trade; repair of motor vehicles and motorcycles",
+      "type_i": 2.1395405745849105,
+      "direct": 1.2169614573434568,
+      "indirect": 0.9225791172414537,
+      "income": 0.18777798207797258
+    },
+    {
+      "sectors": "Human health and social work activities",
+      "type_i": 1.578146387052227,
+      "direct": 1.0057716217092747,
+      "indirect": 0.5723747653429523,
+      "income": 0.565052653466266
+    },
+    {
+      "sectors": "Other service activities",
+      "type_i": 1.7721817480367348,
+      "direct": 1.0109380556126921,
+      "indirect": 0.7612436924240427,
+      "income": 0.5282378504402913
+    },
+    {
+      "sectors": "Agriculture, forestry and fishing",
+      "type_i": 1.82275657767295,
+      "direct": 1.1968315639772937,
+      "indirect": 0.6259250136956527,
+      "income": 0.12067392550804716
+    },
+    {
+      "sectors": "Financial and insurance activities",
+      "type_i": 1.2091237394353016,
+      "direct": 1.0445403915856937,
+      "indirect": 0.16458334784960793,
+      "income": 0.21029510499100826
+    },
+    {
+      "sectors": "Administrative and support service activities",
+      "type_i": 2.054610854194349,
+      "direct": 1.0601824901005898,
+      "indirect": 0.994428364093759,
+      "income": 0.25796755458309945
+    }
+  ]
+}
