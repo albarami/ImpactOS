@@ -18,7 +18,7 @@ export function DocumentDetailContent({
   const [jobId] = useState<string | null>(initialJobId);
   const [extractionDone, setExtractionDone] = useState(false);
 
-  const handleComplete = useCallback((_completedDocId: string) => {
+  const handleComplete = useCallback(() => {
     setExtractionDone(true);
   }, []);
 

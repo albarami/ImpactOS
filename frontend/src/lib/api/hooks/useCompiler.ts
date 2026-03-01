@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../client';
+import type { components } from '../schema';
+
+// ── Schema-derived body types ──────────────────────────────────────────
+type CompileBody = components['schemas']['src__api__compiler__CompileRequest'];
+type BulkDecisionBody = components['schemas']['BulkDecisionRequest'];
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -10,16 +15,8 @@ export interface Suggestion {
   explanation: string;
 }
 
-export interface CompileRequest {
-  scenario_name: string;
-  base_model_version_id: string;
-  base_year: number;
-  start_year: number;
-  end_year: number;
-  document_id?: string;
-  line_items?: string[];
-  phasing?: Record<string, number>;
-}
+/** Alias for the schema-inferred compile request body. */
+export type CompileRequest = CompileBody;
 
 export interface CompileResponse {
   compilation_id: string;
@@ -45,9 +42,8 @@ export interface DecisionItem {
   note?: string;
 }
 
-export interface BulkDecisionsRequest {
-  decisions: DecisionItem[];
-}
+/** Alias for the schema-inferred bulk decision request body. */
+export type BulkDecisionsRequest = BulkDecisionBody;
 
 export interface BulkDecisionsResponse {
   accepted: number;
@@ -78,8 +74,7 @@ export function useCompile(workspaceId: string) {
         '/v1/workspaces/{workspace_id}/compiler/compile',
         {
           params: { path: { workspace_id: workspaceId } },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- body shape may differ from generated schema
-          body: request as any,
+          body: request,
         }
       );
       if (error) throw error;
@@ -139,8 +134,7 @@ export function useBulkDecisions(
               compilation_id: compilationId,
             },
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- body shape may differ from generated schema
-          body: request as any,
+          body: request,
         }
       );
       if (error) throw error;

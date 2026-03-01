@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../client';
+import type { components } from '../schema';
+
+// ── Schema-derived body types ──────────────────────────────────────────
+type CreateExportBody = components['schemas']['CreateExportRequest'];
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -14,12 +18,14 @@ export type ExportStatus =
   | 'PENDING'
   | 'GENERATING';
 
-export interface CreateExportRequest {
-  run_id: string;
-  mode: ExportMode;
-  export_formats: ExportFormat[];
+/**
+ * Mutation variable for creating an export.
+ * Uses the schema body type but loosens pack_data to Record<string, unknown>
+ * because the OpenAPI generator types it as Record<string, never> (empty dict).
+ */
+export type CreateExportRequest = Omit<CreateExportBody, 'pack_data'> & {
   pack_data: Record<string, unknown>;
-}
+};
 
 export interface CreateExportResponse {
   export_id: string;
@@ -47,12 +53,15 @@ export function useCreateExport(workspaceId: string) {
 
   return useMutation<CreateExportResponse, Error, CreateExportRequest>({
     mutationFn: async (request: CreateExportRequest) => {
+      // pack_data is typed as Record<string, never> in the generated schema
+      // (OpenAPI dict[str, Any] maps to empty object). Assert to the schema
+      // body type so openapi-fetch accepts the body.
+      const body = request as unknown as CreateExportBody;
       const { data, error } = await api.POST(
         '/v1/workspaces/{workspace_id}/exports',
         {
           params: { path: { workspace_id: workspaceId } },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- body shape may differ from generated schema
-          body: request as any,
+          body,
         }
       );
       if (error) throw error;

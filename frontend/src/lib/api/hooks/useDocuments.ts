@@ -1,5 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../client';
+import type { components } from '../schema';
+
+// ── Schema-derived body types ──────────────────────────────────────────
+type UploadDocumentBody = components['schemas']['Body_upload_document_v1_workspaces__workspace_id__documents_post'];
 
 // ── Response interfaces ──────────────────────────────────────────────
 // Defined locally because the generated schema types may not export these
@@ -53,8 +57,9 @@ export interface LineItemsResponse {
  *
  * openapi-fetch does not natively serialise FormData for multipart
  * endpoints, so we pass the FormData directly using `bodySerializer`.
- * The `body` cast to `any` is the only intentional escape from strict
- * typing in this module — documented per task spec.
+ * The body is asserted to the schema's multipart body type so the
+ * openapi-fetch POST signature is satisfied; `bodySerializer` then
+ * forwards the underlying FormData unchanged.
  */
 export function useUploadDocument(workspaceId: string) {
   return useMutation<UploadResponse, Error, FormData>({
@@ -63,9 +68,8 @@ export function useUploadDocument(workspaceId: string) {
         '/v1/workspaces/{workspace_id}/documents',
         {
           params: { path: { workspace_id: workspaceId } },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FormData cannot match typed body schema
-          body: formData as any,
-          bodySerializer: (body) => body as unknown as FormData,
+          body: formData as unknown as UploadDocumentBody,
+          bodySerializer: (body) => body as unknown as BodyInit,
         }
       );
       if (error) throw error;

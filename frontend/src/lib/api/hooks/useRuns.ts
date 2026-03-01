@@ -1,5 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../client';
+import type { components } from '../schema';
+
+// ── Schema-derived body types ──────────────────────────────────────────
+type RunRequestBody = components['schemas']['RunRequest'];
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -9,13 +13,8 @@ export interface SatelliteCoefficients {
   va_ratio: number[];
 }
 
-export interface CreateRunRequest {
-  model_version_id: string;
-  annual_shocks: Record<string, number[]>;
-  base_year: number;
-  satellite_coefficients: SatelliteCoefficients;
-  deflators?: Record<string, number>;
-}
+/** Alias for the schema-inferred run request body. */
+export type CreateRunRequest = RunRequestBody;
 
 export interface ResultSet {
   result_id: string;
@@ -47,8 +46,7 @@ export function useCreateRun(workspaceId: string) {
         '/v1/workspaces/{workspace_id}/engine/runs',
         {
           params: { path: { workspace_id: workspaceId } },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- body shape may differ from generated schema
-          body: request as any,
+          body: request,
         }
       );
       if (error) throw error;

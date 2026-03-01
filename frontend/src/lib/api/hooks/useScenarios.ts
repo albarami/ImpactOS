@@ -1,5 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../client';
+import type { components } from '../schema';
+
+// ── Schema-derived body types ──────────────────────────────────────────
+type ScenarioCompileBody = components['schemas']['src__api__scenarios__CompileRequest'];
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -32,13 +36,8 @@ export interface ShockItem {
   year: string;
 }
 
-export interface ScenarioCompileRequest {
-  document_id?: string;
-  line_items?: { line_item_id: string; raw_text: string; total_value: number }[];
-  decisions: ScenarioDecisionPayload[];
-  phasing: Record<string, number>;
-  default_domestic_share?: number;
-}
+/** Alias for the schema-inferred scenario compile request body. */
+export type ScenarioCompileRequest = ScenarioCompileBody;
 
 export interface ScenarioCompileResponse {
   scenario_spec_id: string;
@@ -101,8 +100,7 @@ export function useCompileScenario(
               scenario_id: scenarioId,
             },
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- body shape may differ from generated schema
-          body: request as any,
+          body: request,
         }
       );
       if (error) throw error;

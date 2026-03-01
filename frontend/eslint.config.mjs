@@ -13,6 +13,15 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // TanStack Table's useReactTable returns functions that React Compiler
+  // cannot auto-memoize. The compiler already skips these components
+  // automatically; this rule is informational only.
+  {
+    files: ["src/components/**/*.tsx"],
+    rules: {
+      "react-hooks/incompatible-library": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

@@ -206,6 +206,7 @@ describe('useCompileScenario', () => {
         },
       ],
       phasing: { '2025': 1.0 },
+      default_domestic_share: 0.65,
     };
 
     await act(async () => {
@@ -237,6 +238,7 @@ describe('useCompileScenario', () => {
       result.current.mutate({
         decisions: [],
         phasing: { '2025': 1.0 },
+        default_domestic_share: 0.65,
       });
     });
 

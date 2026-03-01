@@ -1,5 +1,12 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../client';
+import type { components } from '../schema';
+
+// ── Schema-derived body types ──────────────────────────────────────────
+type ExtractClaimsBody = components['schemas']['ExtractClaimsRequest'];
+type NffCheckBody = components['schemas']['NFFCheckRequest'];
+type CreateAssumptionBody = components['schemas']['CreateAssumptionRequest'];
+type ApproveAssumptionBody = components['schemas']['ApproveAssumptionRequest'];
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -24,11 +31,8 @@ export interface BlockingReasonsResponse {
   blocking_reasons: BlockingReason[];
 }
 
-export interface ExtractClaimsRequest {
-  draft_text: string;
-  run_id: string;
-  workspace_id?: string;
-}
+/** Alias for the schema-inferred extract claims request body. */
+export type ExtractClaimsRequest = ExtractClaimsBody;
 
 export interface ExtractedClaim {
   claim_id: string;
@@ -43,9 +47,8 @@ export interface ExtractClaimsResponse {
   needs_evidence_count: number;
 }
 
-export interface NffCheckRequest {
-  claim_ids: string[];
-}
+/** Alias for the schema-inferred NFF check request body. */
+export type NffCheckRequest = NffCheckBody;
 
 export interface NffCheckResponse {
   passed: boolean;
@@ -61,24 +64,27 @@ export type AssumptionType =
   | 'CAPACITY_CAP'
   | 'JOBS_COEFF';
 
-export interface CreateAssumptionRequest {
-  type: AssumptionType;
-  value: number;
-  units: string;
-  justification: string;
-}
+/** Alias for the schema-inferred create assumption request body. */
+export type CreateAssumptionRequest = CreateAssumptionBody;
 
 export interface CreateAssumptionResponse {
   assumption_id: string;
   status: string;
 }
 
-export interface ApproveAssumptionRequest {
+/**
+ * Mutation variable for approving an assumption.
+ * Includes assumption_id for path params; the rest becomes the body.
+ */
+export interface ApproveAssumptionInput {
   assumption_id: string;
   range_min: number;
   range_max: number;
   actor: string;
 }
+
+/** Re-export for backwards compatibility. */
+export type ApproveAssumptionRequest = ApproveAssumptionInput;
 
 export interface ApproveAssumptionResponse {
   assumption_id: string;
@@ -152,8 +158,7 @@ export function useExtractClaims(workspaceId: string) {
         '/v1/workspaces/{workspace_id}/governance/claims/extract',
         {
           params: { path: { workspace_id: workspaceId } },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- body shape may differ from generated schema
-          body: request as any,
+          body: request,
         }
       );
       if (error) throw error;
@@ -173,8 +178,7 @@ export function useNffCheck(workspaceId: string) {
         '/v1/workspaces/{workspace_id}/governance/nff/check',
         {
           params: { path: { workspace_id: workspaceId } },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- body shape may differ from generated schema
-          body: request as any,
+          body: request,
         }
       );
       if (error) throw error;
@@ -194,8 +198,7 @@ export function useCreateAssumption(workspaceId: string) {
         '/v1/workspaces/{workspace_id}/governance/assumptions',
         {
           params: { path: { workspace_id: workspaceId } },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- body shape may differ from generated schema
-          body: request as any,
+          body: request,
         }
       );
       if (error) throw error;
@@ -209,9 +212,10 @@ export function useCreateAssumption(workspaceId: string) {
  * POST /v1/workspaces/{workspace_id}/governance/assumptions/{assumption_id}/approve
  */
 export function useApproveAssumption(workspaceId: string) {
-  return useMutation<ApproveAssumptionResponse, Error, ApproveAssumptionRequest>({
-    mutationFn: async (request: ApproveAssumptionRequest) => {
-      const { assumption_id, ...body } = request;
+  return useMutation<ApproveAssumptionResponse, Error, ApproveAssumptionInput>({
+    mutationFn: async (request: ApproveAssumptionInput) => {
+      const { assumption_id, ...rest } = request;
+      const body: ApproveAssumptionBody = rest;
       const { data, error } = await api.POST(
         '/v1/workspaces/{workspace_id}/governance/assumptions/{assumption_id}/approve',
         {
@@ -221,8 +225,7 @@ export function useApproveAssumption(workspaceId: string) {
               assumption_id,
             },
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- body shape may differ from generated schema
-          body: body as any,
+          body,
         }
       );
       if (error) throw error;

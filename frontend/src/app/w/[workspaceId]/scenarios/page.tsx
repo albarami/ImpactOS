@@ -8,7 +8,6 @@ export default function ScenariosPage() {
   const searchParams = useSearchParams();
   const workspaceId = params.workspaceId;
   const compilationId = searchParams.get('compilationId') ?? undefined;
-  const documentId = searchParams.get('documentId') ?? undefined;
 
   return (
     <div className="space-y-6">
