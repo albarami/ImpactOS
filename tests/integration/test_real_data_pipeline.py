@@ -4,10 +4,15 @@ End-to-end proof that curated data flows through the entire pipeline:
 manifest -> loader -> engine -> validator -> quality -> export.
 
 Verifies all D-5 Tasks 1-6 work together with committed curated fixtures.
+
+NOTE: Tests that assert resolved_source == "curated_real" are marked xfail
+because ALL current data is synthetic (produced by scripts/materialize_curated_data.py).
+These tests document what D-5.1 must deliver — do NOT loosen the assertions.
 """
 
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 from uuid import uuid4
@@ -58,6 +63,9 @@ class TestRealDataPipeline:
         )
 
     # 3. STRICT_REAL loads curated data without fallback
+    @pytest.mark.xfail(
+        reason="No real upstream data committed yet — requires D-5.1",
+    )
     def test_strict_real_does_not_fallback(self) -> None:
         """STRICT_REAL loads curated data without fallback, dataset_id populated."""
         manifest = load_manifest()
@@ -147,6 +155,9 @@ class TestRealDataPipeline:
         assert validation.sectors_within_tolerance > 0
 
     # 8. Quality assessment surfaces data_mode from provenance
+    @pytest.mark.xfail(
+        reason="No real upstream data committed yet — requires D-5.1",
+    )
     def test_quality_assessment_records_data_mode(self) -> None:
         """Quality assessment surfaces data_mode from IODataProvenance."""
         manifest = load_manifest()
@@ -178,9 +189,12 @@ class TestRealDataPipeline:
             f"Still using synthetic IO ratios: {io_synthetic_flags}"
         )
 
-    # 10. Manifest classifies employment as curated_estimated
+    # 10. Manifest classifies employment as curated_estimated (when real ILO data wired)
+    @pytest.mark.xfail(
+        reason="No real upstream data committed yet — requires D-5.1",
+    )
     def test_employment_coefficients_classification_honest(self) -> None:
-        """Manifest classifies employment coefficients as curated_estimated."""
+        """Manifest classifies employment coefficients as curated_estimated (requires real ILO data)."""
         manifest = load_manifest()
         entry = get_dataset(manifest, "saudi_employment_coefficients_2019")
         assert entry is not None, (
@@ -266,3 +280,96 @@ class TestFallbackHonesty:
         )
         assert result.status == ExportStatus.BLOCKED
         assert any("synthetic" in r.lower() for r in result.blocking_reasons)
+
+
+# ---------------------------------------------------------------------------
+# Class 3: TestDataLineageHonesty — no curated_real from synthetic sources
+# ---------------------------------------------------------------------------
+
+
+# Artifacts known to be produced by scripts/materialize_curated_data.py.
+# If a manifest entry points to one of these files AND claims curated_real,
+# the system is lying about data provenance.
+_MATERIALIZER_PRODUCED_FILES = {
+    "saudi_io_kapsarc_2018.json",
+    "saudi_type1_multipliers_benchmark.json",
+    "saudi_employment_coefficients_2019.json",
+}
+
+
+@pytest.mark.real_data
+@pytest.mark.integration
+class TestDataLineageHonesty:
+    """Ensure no curated_real entry was produced by a synthetic constructor."""
+
+    def test_no_curated_real_from_materializer(self) -> None:
+        """No manifest entry with resolved_source='curated_real' may point
+        to a file produced by scripts/materialize_curated_data.py.
+
+        This prevents the exact failure mode D-5 was designed to catch:
+        labeling synthetic data as curated_real.
+        """
+        manifest = load_manifest()
+        violations: list[str] = []
+
+        for entry in manifest.datasets:
+            if entry.resolved_source == "curated_real":
+                filename = Path(entry.path).name
+                if filename in _MATERIALIZER_PRODUCED_FILES:
+                    violations.append(
+                        f"{entry.dataset_id}: claims curated_real but "
+                        f"{filename} is produced by materialize_curated_data.py"
+                    )
+
+        assert not violations, (
+            "Manifest entries claim curated_real for materializer-produced files:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_curated_real_requires_source_not_materializer(self) -> None:
+        """Any curated_real entry must have a source field that does NOT
+        reference scripts/materialize_curated_data.py.
+        """
+        manifest = load_manifest()
+        violations: list[str] = []
+
+        for entry in manifest.datasets:
+            if entry.resolved_source == "curated_real":
+                if "materialize" in entry.source.lower():
+                    violations.append(
+                        f"{entry.dataset_id}: claims curated_real but source "
+                        f"references materializer: '{entry.source}'"
+                    )
+
+        assert not violations, (
+            "Manifest entries claim curated_real but source references materializer:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_curated_real_file_has_non_synthetic_source_field(self) -> None:
+        """Any curated_real entry's JSON artifact must have a source field
+        that is NOT 'synthetic_materialized'.
+        """
+        manifest = load_manifest()
+        violations: list[str] = []
+
+        for entry in manifest.datasets:
+            if entry.resolved_source != "curated_real":
+                continue
+
+            artifact_path = Path(entry.path)
+            if not artifact_path.exists():
+                continue
+
+            data = json.loads(artifact_path.read_text(encoding="utf-8"))
+            artifact_source = data.get("source", "")
+            if "synthetic" in artifact_source.lower():
+                violations.append(
+                    f"{entry.dataset_id}: claims curated_real but artifact "
+                    f"source='{artifact_source}'"
+                )
+
+        assert not violations, (
+            "Curated_real artifacts contain synthetic source markers:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )

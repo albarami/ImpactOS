@@ -15,7 +15,7 @@ Every engine run now records *where* its data came from and whether checksums ve
 | `dataset_id` | Unique key (e.g. `saudi_io_kapsarc_2018`) |
 | `path` | Relative path from project root |
 | `checksum_sha256` | SHA-256 of the artifact file |
-| `resolved_source` | Classification: `curated_real` or `curated_estimated` |
+| `resolved_source` | Classification: `curated_real`, `curated_estimated`, or `synthetic` |
 | `contains_assumed_components` | `true` if any rows use synthetic fallback |
 | `confidence` | `HIGH`, `ESTIMATED`, or `HARD` |
 | `vintage_year` | Data reference year |
@@ -24,11 +24,26 @@ Every engine run now records *where* its data came from and whether checksums ve
 
 ## Dataset Classification
 
-| Classification | Meaning | Examples |
+| Classification | Meaning | Requirements |
 |---|---|---|
-| `curated_real` | Derived from published statistical sources; no synthetic rows | IO tables (`saudi_io_kapsarc_2018`), Nitaqat targets, Type I multiplier benchmarks |
-| `curated_estimated` | Contains some synthetic fallback rows or analyst estimates | Employment coefficients (regional benchmark rows), occupation bridge matrix |
-| `synthetic` | Fully generated for test/dev; never used in governed exports | Synthetic IO model (`saudi_io_synthetic_v1.json`) |
+| `curated_real` | Directly traceable to published upstream data | Must have committed upstream artifacts or reproducible fetch snapshots in `data/raw/`. A lineage test enforces this — see `TestDataLineageHonesty`. |
+| `curated_estimated` | Derived from real sources but contains analyst estimates or synthetic fallback rows | Must have at least one real upstream input; synthetic rows must be flagged in `contains_assumed_components`. |
+| `synthetic` | Fully generated from hardcoded profiles; no real upstream data | Used for development and testing. **Never** used in governed exports. |
+
+### Current State (D-5.0)
+
+**All current datasets are `synthetic`.** The materialized artifacts in `data/curated/`
+are produced by `scripts/materialize_curated_data.py` using hardcoded sector proportions.
+They have realistic structure and pass economic validation, but contain no real upstream data.
+
+D-5.1 will wire real KAPSARC/GASTAT/ILOSTAT data and promote entries to `curated_real`
+or `curated_estimated` as appropriate.
+
+### Labeling Rule
+
+**Do not label data as `curated_real` unless it is directly traceable to a published
+statistical source with committed upstream artifacts.** Labeling synthetic data as real
+is a governance violation in an economic advisory system.
 
 ## Three Data Modes
 
@@ -51,19 +66,19 @@ The loader searches for the closest available vintage year:
 The provenance record captures both `requested_year` and `resolved_year` so
 downstream consumers can detect and report vintage drift.
 
-## Materializing Curated Data
+## Materializing Synthetic Data
 
 ```bash
 python -m scripts.materialize_curated_data
 ```
 
-**What it produces:**
+**What it produces (ALL SYNTHETIC):**
 
 | Artifact | Description |
 |---|---|
-| `saudi_io_kapsarc_2018.json` | 20-sector Saudi IO model (Z matrix + gross output vector) |
-| `saudi_type1_multipliers_benchmark.json` | Type I output multipliers per sector |
-| `saudi_employment_coefficients_2019.json` | Employment coefficients (jobs per M SAR) |
+| `saudi_io_kapsarc_2018.json` | Synthetic 20-sector IO model (hardcoded proportions) |
+| `saudi_type1_multipliers_benchmark.json` | Multipliers derived from synthetic IO matrix |
+| `saudi_employment_coefficients_2019.json` | Employment coefficients (all synthetic regional benchmarks) |
 
 **Post-materialization steps:**
 - Validates the IO model via `validate_model()` (spectral radius, positive VA)
@@ -72,6 +87,9 @@ python -m scripts.materialize_curated_data
 
 **When to re-run:** after editing sector data, adding new vintages, or updating
 the employment coefficient builder.
+
+**D-5.1 (future):** Will replace hardcoded values with real API-fetched data and
+change `resolved_source` from `synthetic` to `curated_real` or `curated_estimated`.
 
 ## Provenance Flow
 
@@ -90,7 +108,7 @@ containing both `IOModelData` and `IODataProvenance`:
 @dataclass(frozen=True)
 class IODataProvenance:
     data_mode: DataMode
-    resolved_source: str       # "curated_real" | "synthetic_fallback" | ...
+    resolved_source: str       # "curated_real" | "curated_estimated" | "synthetic" | "synthetic_fallback" | "synthetic_only"
     used_fallback: bool
     dataset_id: str | None
     requested_year: int | None

@@ -52,7 +52,7 @@ class IODataProvenance:
     """
 
     data_mode: DataMode
-    resolved_source: str        # "curated_real" | "curated_estimated" | "synthetic_fallback" | "synthetic_only"
+    resolved_source: str        # "curated_real" | "curated_estimated" | "synthetic" | "synthetic_fallback" | "synthetic_only"
     used_fallback: bool
     dataset_id: str | None      # From manifest
     requested_year: int | None  # What caller asked for

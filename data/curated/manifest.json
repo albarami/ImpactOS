@@ -4,65 +4,65 @@
   "datasets": [
     {
       "dataset_id": "saudi_io_kapsarc_2018",
-      "description": "Saudi 20-sector IO model derived from KAPSARC/GASTAT data",
-      "source": "KAPSARC via D-3 API + GASTAT structure from D-1",
+      "description": "Synthetic 20-sector Saudi IO model with realistic proportions (NOT from KAPSARC/GASTAT)",
+      "source": "scripts/materialize_curated_data.py — hardcoded sector proportions",
       "vintage_year": 2018,
       "sector_count": 20,
       "path": "data/curated/saudi_io_kapsarc_2018.json",
       "checksum_sha256": "eb95b159453662bfb5fe7097fff5b331d25091fe1b2bcfa9c02f36793475315f",
-      "resolved_source": "curated_real",
-      "contains_assumed_components": false,
-      "confidence": "HIGH",
-      "notes": "Sanitized aggregate — not raw GASTAT microdata"
+      "resolved_source": "synthetic",
+      "contains_assumed_components": true,
+      "confidence": "SYNTHETIC",
+      "notes": "All values are hardcoded estimates. D-5.1 will replace with real KAPSARC/GASTAT data."
     },
     {
       "dataset_id": "saudi_type1_multipliers_benchmark",
-      "description": "Type I output multiplier benchmarks for Saudi sectors",
-      "source": "KAPSARC benchmark data via D-3",
+      "description": "Type I output multiplier benchmarks derived from synthetic IO model",
+      "source": "scripts/materialize_curated_data.py — computed from synthetic IO matrix",
       "vintage_year": 2018,
       "path": "data/curated/saudi_type1_multipliers_benchmark.json",
       "checksum_sha256": "3439a0896ae06ff67a65a3c3e8fcc2000178783c135b298686cc11cab3dc0e23",
-      "resolved_source": "curated_real",
-      "contains_assumed_components": false,
-      "confidence": "HIGH",
-      "notes": "Format: {sectors: [{sector_code, output_multiplier}]}"
+      "resolved_source": "synthetic",
+      "contains_assumed_components": true,
+      "confidence": "SYNTHETIC",
+      "notes": "Derived from synthetic IO model. D-5.1 will replace with real benchmark data."
     },
     {
       "dataset_id": "saudi_employment_coefficients_2019",
-      "description": "Employment coefficients by ISIC section (jobs per M SAR output)",
-      "source": "ILOSTAT + GASTAT labor force data via D-3/D-4",
+      "description": "Employment coefficients by ISIC section — all rows are synthetic regional benchmarks",
+      "source": "scripts/materialize_curated_data.py — build_employment_coefficients() with no ILO data",
       "vintage_year": 2019,
       "sector_count": 20,
       "path": "data/curated/saudi_employment_coefficients_2019.json",
       "checksum_sha256": "d525577c151ae6f6c8b0192c1f47c201ba32aedfe1d74fa1d9d28565e2caeda7",
-      "resolved_source": "curated_estimated",
+      "resolved_source": "synthetic",
       "contains_assumed_components": true,
-      "confidence": "ESTIMATED",
-      "notes": "Contains synthetic regional benchmark fallback rows"
+      "confidence": "SYNTHETIC",
+      "notes": "No ilo_data_path provided — all rows fall back to synthetic_regional_benchmark. D-5.1 will wire ILOSTAT."
     },
     {
       "dataset_id": "saudi_occupation_bridge_2020",
-      "description": "Sector to occupation bridge matrix",
-      "source": "D-4 workforce data",
+      "description": "Placeholder for sector-to-occupation bridge matrix (no data file committed)",
+      "source": "No upstream source — placeholder entry only",
       "vintage_year": 2020,
       "path": "data/curated/saudi_occupation_bridge_2020.json",
       "checksum_sha256": "",
-      "resolved_source": "curated_estimated",
+      "resolved_source": "synthetic",
       "contains_assumed_components": true,
-      "confidence": "ESTIMATED",
-      "notes": "Section-level bridge — not same class of real as IO tables"
+      "confidence": "SYNTHETIC",
+      "notes": "No data file exists. D-5.1 will produce this from real workforce data."
     },
     {
       "dataset_id": "saudi_nitaqat_macro_targets_2023",
-      "description": "Nitaqat macro Saudization targets by sector",
-      "source": "D-4 Nitaqat rules based on MHRSD published targets",
+      "description": "Placeholder for Nitaqat macro Saudization targets (no data file committed)",
+      "source": "No upstream source — placeholder entry only",
       "vintage_year": 2023,
       "path": "data/curated/saudi_nitaqat_macro_targets_2023.json",
       "checksum_sha256": "",
-      "resolved_source": "curated_real",
-      "contains_assumed_components": false,
-      "confidence": "HARD",
-      "notes": "Based on published MHRSD targets"
+      "resolved_source": "synthetic",
+      "contains_assumed_components": true,
+      "confidence": "SYNTHETIC",
+      "notes": "No data file exists. D-5.1 will produce this from published MHRSD targets."
     }
   ]
 }

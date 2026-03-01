@@ -329,6 +329,9 @@ class TestManifest:
 class TestStrictLoaderIntegration:
     """Integration test: strict loader can find and validate curated data."""
 
+    @pytest.mark.xfail(
+        reason="No real upstream data committed yet — requires D-5.1",
+    )
     def test_strict_real_loads_curated_io(self) -> None:
         """STRICT_REAL mode loads the curated IO model without fallback."""
         from src.data.manifest import load_manifest

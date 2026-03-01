@@ -6,9 +6,9 @@ Generates three curated artifacts:
   3. saudi_employment_coefficients_2019.json -- Employment coefficients
 
 Each artifact is:
-  - Constructed from realistic Saudi economic proportions
+  - SYNTHETIC: constructed from hardcoded proportions, NOT real upstream data
   - Validated for economic consistency (spectral radius, positive VA, etc.)
-  - Checksummed and registered in manifest.json
+  - Checksummed and registered in manifest.json as resolved_source="synthetic"
 
 Usage:
     python -m scripts.materialize_curated_data
@@ -286,7 +286,7 @@ def build_io_model() -> dict:
     return {
         "model_id": "saudi-io-kapsarc-2018",
         "base_year": 2018,
-        "source": "kapsarc_gastat_2018",
+        "source": "synthetic_materialized",
         "denomination": "SAR_MILLIONS",
         "classification": "ISIC_REV4_SECTION",
         "sector_count": 20,
@@ -340,7 +340,7 @@ def build_benchmark_multipliers(io_data: dict) -> dict:
         raise ValueError(f"Multipliers < 1.0 found: {bad}")
 
     return {
-        "source": "kapsarc_gastat_2018",
+        "source": "synthetic_materialized",
         "base_year": 2018,
         "method": "Type I output multiplier = column sum of Leontief inverse (I-A)^{-1}",
         "sectors": sectors,
@@ -389,8 +389,8 @@ def validate_strict(manifest_path: Path) -> None:
     assert not result.provenance.used_fallback, (
         "STRICT_REAL should not use fallback"
     )
-    assert result.provenance.resolved_source == "curated_real", (
-        f"Expected curated_real, got {result.provenance.resolved_source}"
+    assert result.provenance.resolved_source == "synthetic", (
+        f"Expected synthetic, got {result.provenance.resolved_source}"
     )
     assert result.provenance.checksum_verified, (
         "Checksum verification failed — manifest may be stale"
