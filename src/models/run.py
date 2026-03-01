@@ -39,6 +39,10 @@ class RunSnapshot(ImpactOSBase, frozen=True):
     nationality_classification_version_id: UUID | None = None
     nitaqat_target_version_id: UUID | None = None
     source_checksums: list[str] = Field(default_factory=list)
+    # D-5 Task 8: Provenance badge — records which data path the run used
+    data_mode: str | None = None           # "curated_real" | "curated_estimated" | "synthetic_fallback" | "synthetic_only"
+    data_source_id: str | None = None      # manifest dataset_id
+    checksum_verified: bool = False
     created_at: UTCTimestamp = Field(default_factory=utc_now)
 
 
