@@ -1,27 +1,28 @@
-"""Materialize curated data artifacts for the Saudi IO model (D-5 Task 3).
+"""Generate synthetic IO model fixtures for testing and fallback (D-5 Task 3).
 
-Generates three curated artifacts:
-  1. saudi_io_kapsarc_2018.json   -- 20-sector Saudi IO model
-  2. saudi_type1_multipliers_benchmark.json -- Type I output multipliers
-  3. saudi_employment_coefficients_2019.json -- Employment coefficients
+Generates synthetic test fixtures in data/synthetic/:
+  1. saudi_io_synthetic_2018.json   -- Synthetic 20-sector Saudi IO model
+  2. saudi_type1_multipliers_synthetic.json -- Synthetic Type I output multipliers
+  3. saudi_employment_coefficients_synthetic.json -- Synthetic employment coefficients
 
-Each artifact is:
-  - SYNTHETIC: constructed from hardcoded proportions, NOT real upstream data
+IMPORTANT: These are SYNTHETIC artifacts for testing/fallback ONLY.
+  - Constructed from hardcoded proportions, NOT real upstream data
   - Validated for economic consistency (spectral radius, positive VA, etc.)
-  - Checksummed and registered in manifest.json as resolved_source="synthetic"
+  - Written to data/synthetic/ — NEVER to data/curated/
+
+The data/curated/ directory is reserved for real upstream data (KAPSARC, ILO, WDI).
+This script must NEVER write to data/curated/.
 
 Usage:
-    python -m scripts.materialize_curated_data
+    python -m scripts.generate_synthetic_fixtures
 
 Idempotent: safe to re-run.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -33,19 +34,12 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.data.io_loader import validate_model
-from src.data.real_io_loader import DataMode, load_real_saudi_io_strict
-from src.data.manifest import load_manifest
-from src.data.workforce.build_employment_coefficients import (
-    build_employment_coefficients,
-    save_employment_coefficients,
-)
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-CURATED_DIR = PROJECT_ROOT / "data" / "curated"
-MANIFEST_PATH = CURATED_DIR / "manifest.json"
+SYNTHETIC_DIR = PROJECT_ROOT / "data" / "synthetic"
 
 # ISIC Rev 4 sections A-T (20 sectors)
 ISIC_SECTIONS = [
@@ -284,9 +278,9 @@ def build_io_model() -> dict:
     print(f"  Total value added: {result.total_value_added:,.0f} SAR M")
 
     return {
-        "model_id": "saudi-io-kapsarc-2018",
+        "model_id": "saudi-io-synthetic-2018",
         "base_year": 2018,
-        "source": "synthetic_materialized",
+        "source": "synthetic_generated",
         "denomination": "SAR_MILLIONS",
         "classification": "ISIC_REV4_SECTION",
         "sector_count": 20,
@@ -340,7 +334,7 @@ def build_benchmark_multipliers(io_data: dict) -> dict:
         raise ValueError(f"Multipliers < 1.0 found: {bad}")
 
     return {
-        "source": "synthetic_materialized",
+        "source": "synthetic_generated",
         "base_year": 2018,
         "method": "Type I output multiplier = column sum of Leontief inverse (I-A)^{-1}",
         "sectors": sectors,
@@ -352,12 +346,17 @@ def build_benchmark_multipliers(io_data: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def build_employment_artifact(io_model_path: Path) -> Path:
-    """Build employment coefficients using the existing builder.
+def build_employment_artifact(io_model_path: Path, output_dir: Path) -> Path:
+    """Build synthetic employment coefficients.
 
     Uses build_employment_coefficients() from src.data.workforce —
     does NOT hand-roll the JSON (Correction 6).
     """
+    from src.data.workforce.build_employment_coefficients import (
+        build_employment_coefficients,
+        save_employment_coefficients,
+    )
+
     coeff_set = build_employment_coefficients(
         io_model_path=str(io_model_path),
         year=2019,
@@ -365,77 +364,11 @@ def build_employment_artifact(io_model_path: Path) -> Path:
 
     output_path = save_employment_coefficients(
         coeff_set,
-        output_dir=str(CURATED_DIR),
+        output_dir=str(output_dir),
     )
 
     print(f"  Employment coefficients: {len(coeff_set.coefficients)} sectors")
     return output_path
-
-
-# ---------------------------------------------------------------------------
-# Phase B: Validate with strict loader
-# ---------------------------------------------------------------------------
-
-
-def validate_strict(manifest_path: Path) -> None:
-    """Validate the IO model loads correctly in STRICT_REAL mode."""
-    manifest = load_manifest(manifest_path)
-    result = load_real_saudi_io_strict(
-        mode=DataMode.STRICT_REAL,
-        year=2018,
-        manifest=manifest,
-    )
-
-    assert not result.provenance.used_fallback, (
-        "STRICT_REAL should not use fallback"
-    )
-    assert result.provenance.resolved_source == "synthetic", (
-        f"Expected synthetic, got {result.provenance.resolved_source}"
-    )
-    assert result.provenance.checksum_verified, (
-        "Checksum verification failed — manifest may be stale"
-    )
-    assert result.io_data.base_year == 2018
-
-    print(f"  Data mode: {result.provenance.data_mode}")
-    print(f"  Resolved source: {result.provenance.resolved_source}")
-    print(f"  Used fallback: {result.provenance.used_fallback}")
-    print(f"  Checksum verified: {result.provenance.checksum_verified}")
-    print(f"  Dataset ID: {result.provenance.dataset_id}")
-
-
-# ---------------------------------------------------------------------------
-# Phase C: Compute checksums and update manifest
-# ---------------------------------------------------------------------------
-
-
-def sha256_of_file(path: Path) -> str:
-    """Compute SHA-256 hex-digest of a file."""
-    sha = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            sha.update(chunk)
-    return sha.hexdigest()
-
-
-def update_manifest_checksums(manifest_path: Path) -> None:
-    """Recompute checksums for all datasets in manifest.json."""
-    raw = json.loads(manifest_path.read_text(encoding="utf-8"))
-
-    for ds in raw["datasets"]:
-        ds_path = PROJECT_ROOT / ds["path"]
-        if ds_path.exists():
-            ds["checksum_sha256"] = sha256_of_file(ds_path)
-            print(f"  {ds['dataset_id']}: {ds['checksum_sha256'][:16]}...")
-        else:
-            print(f"  {ds['dataset_id']}: FILE NOT FOUND ({ds_path})")
-
-    raw["created_at"] = datetime.now(tz=timezone.utc).isoformat()
-
-    manifest_path.write_text(
-        json.dumps(raw, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -444,45 +377,40 @@ def update_manifest_checksums(manifest_path: Path) -> None:
 
 
 def main() -> None:
-    """Run all phases of data materialization."""
-    CURATED_DIR.mkdir(parents=True, exist_ok=True)
+    """Generate synthetic fixtures in data/synthetic/.
 
-    # Phase A-1: IO Model
-    print("Phase A-1: Building IO model...")
+    SAFETY: This script NEVER writes to data/curated/.
+    All output goes to data/synthetic/ with clearly synthetic filenames.
+    """
+    SYNTHETIC_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Phase 1: IO Model
+    print("Phase 1: Building synthetic IO model...")
     io_data = build_io_model()
-    io_path = CURATED_DIR / "saudi_io_kapsarc_2018.json"
+    io_path = SYNTHETIC_DIR / "saudi_io_synthetic_2018.json"
     io_path.write_text(
         json.dumps(io_data, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     print(f"  Written: {io_path}")
 
-    # Phase A-2: Benchmark multipliers
-    print("\nPhase A-2: Computing benchmark multipliers...")
+    # Phase 2: Benchmark multipliers
+    print("\nPhase 2: Computing synthetic benchmark multipliers...")
     benchmark = build_benchmark_multipliers(io_data)
-    benchmark_path = CURATED_DIR / "saudi_type1_multipliers_benchmark.json"
+    benchmark_path = SYNTHETIC_DIR / "saudi_type1_multipliers_synthetic.json"
     benchmark_path.write_text(
         json.dumps(benchmark, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     print(f"  Written: {benchmark_path}")
 
-    # Phase A-3: Employment coefficients
-    print("\nPhase A-3: Building employment coefficients...")
-    emp_path = build_employment_artifact(io_path)
+    # Phase 3: Employment coefficients
+    print("\nPhase 3: Building synthetic employment coefficients...")
+    emp_path = build_employment_artifact(io_path, output_dir=SYNTHETIC_DIR)
     print(f"  Written: {emp_path}")
 
-    # Phase C: Update checksums first (before validation)
-    print("\nPhase C: Computing checksums and updating manifest...")
-    update_manifest_checksums(MANIFEST_PATH)
-    print(f"  Updated: {MANIFEST_PATH}")
-
-    # Phase B: Validate with strict loader
-    print("\nPhase B: Validating with strict loader...")
-    validate_strict(MANIFEST_PATH)
-    print("  PASSED")
-
-    print("\nAll phases completed successfully.")
+    print("\nAll synthetic fixtures generated successfully.")
+    print(f"Output directory: {SYNTHETIC_DIR}")
 
 
 if __name__ == "__main__":

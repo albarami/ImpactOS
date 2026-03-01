@@ -19,13 +19,14 @@ from src.data.real_io_loader import (
 )
 
 CURATED_DIR = Path("data/curated")
+SYNTHETIC_DIR = Path("data/synthetic")
 
 
 class TestRealIOLoader:
     """Real IO loader with synthetic fallback."""
 
     @pytest.mark.skipif(
-        not (CURATED_DIR / "saudi_io_synthetic_v1.json").exists(),
+        not (SYNTHETIC_DIR / "saudi_io_synthetic_v1.json").exists(),
         reason="Synthetic model not available",
     )
     def test_fallback_to_synthetic(self) -> None:
@@ -37,7 +38,7 @@ class TestRealIOLoader:
         assert "synthetic" in model.source.lower()
 
     @pytest.mark.skipif(
-        not (CURATED_DIR / "saudi_io_synthetic_v1.json").exists(),
+        not (SYNTHETIC_DIR / "saudi_io_synthetic_v1.json").exists(),
         reason="Synthetic model not available",
     )
     def test_fallback_warns(self) -> None:
@@ -94,7 +95,7 @@ class TestRealIOLoader:
     def test_list_available_models(self) -> None:
         """Lists at least the synthetic model."""
         models = list_available_io_models()
-        if (CURATED_DIR / "saudi_io_synthetic_v1.json").exists():
+        if (SYNTHETIC_DIR / "saudi_io_synthetic_v1.json").exists():
             assert len(models) >= 1
             assert any(m["type"] == "synthetic" for m in models)
 

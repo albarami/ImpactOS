@@ -95,7 +95,7 @@ class TestDataLoaderSmoke:
 
         # Run satellite impacts
         sat_data = load_satellites_from_json(
-            "data/curated/saudi_satellites_synthetic_v1.json",
+            "data/synthetic/saudi_satellites_synthetic_v1.json",
         )
         sat_coefficients = SatelliteCoefficients(
             jobs_coeff=sat_data.jobs_coeff,

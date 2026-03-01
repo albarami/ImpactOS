@@ -34,8 +34,9 @@ from src.engine.model_store import ModelStore
 # ---------------------------------------------------------------------------
 
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "curated"
-IO_MODEL_PATH = DATA_DIR / "saudi_io_synthetic_v1.json"
-SATELLITES_PATH = DATA_DIR / "saudi_satellites_synthetic_v1.json"
+SYNTHETIC_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "synthetic"
+IO_MODEL_PATH = SYNTHETIC_DIR / "saudi_io_synthetic_v1.json"
+SATELLITES_PATH = SYNTHETIC_DIR / "saudi_satellites_synthetic_v1.json"
 TAXONOMY_PATH = DATA_DIR / "sector_taxonomy_isic4.json"
 
 ISIC_CODES = [

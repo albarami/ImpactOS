@@ -273,71 +273,100 @@ class TestFallbackHonesty:
 
 
 # ---------------------------------------------------------------------------
-# Class 3: TestDataLineageHonesty — no curated_real from synthetic sources
+# Class 3: TestDataLineageHonesty — curated_real must trace to data/raw/
 # ---------------------------------------------------------------------------
 
 
-# Artifacts known to be produced by scripts/materialize_curated_data.py.
-# If a manifest entry points to one of these files AND claims curated_real,
-# the system is lying about data provenance.
-# NOTE: D-5.1 replaced all three original files with real upstream data
-# (KAPSARC IO parser, KAPSARC multiplier parser, ILO+KAPSARC employment builder).
-# They are no longer materializer outputs.
-_MATERIALIZER_PRODUCED_FILES: set[str] = set()
+# Known real upstream sources and their expected raw data directories.
+# Every curated_real manifest entry must trace to one of these.
+_REAL_UPSTREAM_SOURCES = {
+    "KAPSARC": Path("data/raw/kapsarc"),
+    "ILO": Path("data/raw/ilo"),
+    "World Bank": Path("data/raw/worldbank"),
+    "WDI": Path("data/raw/worldbank"),
+}
 
 
 @pytest.mark.real_data
 @pytest.mark.integration
 class TestDataLineageHonesty:
-    """Ensure no curated_real entry was produced by a synthetic constructor."""
+    """Ensure every curated_real entry traces to committed data/raw/ artifacts."""
 
-    def test_no_curated_real_from_materializer(self) -> None:
-        """No manifest entry with resolved_source='curated_real' may point
-        to a file produced by scripts/materialize_curated_data.py.
+    def test_curated_real_traces_to_raw_data(self) -> None:
+        """Every curated_real manifest entry must have a corresponding
+        committed data/raw/ directory from a known upstream source.
 
-        This prevents the exact failure mode D-5 was designed to catch:
-        labeling synthetic data as curated_real.
+        This is the primary lineage guard: curated_real means the data
+        was fetched from a real API (KAPSARC, ILO, WDI) and the raw
+        response is committed in data/raw/.
         """
         manifest = load_manifest()
         violations: list[str] = []
 
         for entry in manifest.datasets:
-            if entry.resolved_source == "curated_real":
-                filename = Path(entry.path).name
-                if filename in _MATERIALIZER_PRODUCED_FILES:
-                    violations.append(
-                        f"{entry.dataset_id}: claims curated_real but "
-                        f"{filename} is produced by materialize_curated_data.py"
-                    )
+            if entry.resolved_source != "curated_real":
+                continue
+
+            # Check that at least one known upstream source is referenced
+            source_lower = entry.source.lower()
+            matched_raw_dir = None
+            for source_name, raw_dir in _REAL_UPSTREAM_SOURCES.items():
+                if source_name.lower() in source_lower:
+                    matched_raw_dir = raw_dir
+                    break
+
+            if matched_raw_dir is None:
+                violations.append(
+                    f"{entry.dataset_id}: claims curated_real but source "
+                    f"'{entry.source}' does not reference a known upstream "
+                    f"({', '.join(_REAL_UPSTREAM_SOURCES.keys())})"
+                )
+                continue
+
+            # Verify the raw data directory exists and has files
+            if not matched_raw_dir.exists():
+                violations.append(
+                    f"{entry.dataset_id}: claims curated_real from "
+                    f"{matched_raw_dir} but that directory does not exist"
+                )
+            elif not any(matched_raw_dir.iterdir()):
+                violations.append(
+                    f"{entry.dataset_id}: claims curated_real from "
+                    f"{matched_raw_dir} but that directory is empty"
+                )
 
         assert not violations, (
-            "Manifest entries claim curated_real for materializer-produced files:\n"
+            "Curated_real entries without raw data lineage:\n"
             + "\n".join(f"  - {v}" for v in violations)
         )
 
-    def test_curated_real_requires_source_not_materializer(self) -> None:
+    def test_curated_real_source_not_synthetic(self) -> None:
         """Any curated_real entry must have a source field that does NOT
-        reference scripts/materialize_curated_data.py.
+        reference synthetic generators or materializers.
         """
         manifest = load_manifest()
         violations: list[str] = []
+        synthetic_markers = {"synthetic", "materialize", "generated", "hardcoded"}
 
         for entry in manifest.datasets:
             if entry.resolved_source == "curated_real":
-                if "materialize" in entry.source.lower():
-                    violations.append(
-                        f"{entry.dataset_id}: claims curated_real but source "
-                        f"references materializer: '{entry.source}'"
-                    )
+                source_lower = entry.source.lower()
+                for marker in synthetic_markers:
+                    if marker in source_lower:
+                        violations.append(
+                            f"{entry.dataset_id}: claims curated_real but source "
+                            f"contains '{marker}': '{entry.source}'"
+                        )
+                        break
 
         assert not violations, (
-            "Manifest entries claim curated_real but source references materializer:\n"
+            "Manifest entries claim curated_real but reference synthetic sources:\n"
             + "\n".join(f"  - {v}" for v in violations)
         )
 
     def test_curated_real_file_has_non_synthetic_source_field(self) -> None:
         """Any curated_real entry's JSON artifact must have a source field
-        that is NOT 'synthetic_materialized'.
+        that is NOT 'synthetic_materialized' or 'synthetic_generated'.
         """
         manifest = load_manifest()
         violations: list[str] = []
@@ -360,5 +389,180 @@ class TestDataLineageHonesty:
 
         assert not violations, (
             "Curated_real artifacts contain synthetic source markers:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_curated_real_not_in_synthetic_dir(self) -> None:
+        """No curated_real entry may point to a file in data/synthetic/.
+
+        Curated real data lives in data/curated/; synthetic fixtures
+        live in data/synthetic/. These must never be confused.
+        """
+        manifest = load_manifest()
+        violations: list[str] = []
+
+        for entry in manifest.datasets:
+            if entry.resolved_source == "curated_real":
+                if "data/synthetic" in entry.path.replace("\\", "/"):
+                    violations.append(
+                        f"{entry.dataset_id}: claims curated_real but "
+                        f"path is in data/synthetic/: '{entry.path}'"
+                    )
+
+        assert not violations, (
+            "Curated_real entries point to data/synthetic/:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+
+# ---------------------------------------------------------------------------
+# Class 4: TestSyntheticConstructorIsolation — prevent overwrite of real data
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.real_data
+@pytest.mark.integration
+class TestSyntheticConstructorIsolation:
+    """Ensure synthetic constructors cannot target curated-real paths.
+
+    Scans scripts/generate_synthetic_fixtures.py for output paths and
+    verifies none of them collide with curated_real manifest entries.
+    This is a CI-safe test that prevents the D-5.0 failure mode:
+    running a synthetic constructor that overwrites real upstream data.
+    """
+
+    _SYNTHETIC_SCRIPTS = [
+        Path("scripts/generate_synthetic_fixtures.py"),
+    ]
+
+    def test_synthetic_scripts_never_target_curated_real(self) -> None:
+        """Synthetic constructor output paths must not collide with
+        any manifest entry that has resolved_source='curated_real'.
+
+        Parses the script source to extract all file paths it writes to,
+        then checks none of them appear in manifest.json as curated_real.
+        """
+        import ast
+        import re
+
+        manifest = load_manifest()
+        curated_real_paths: set[str] = set()
+        for entry in manifest.datasets:
+            if entry.resolved_source == "curated_real":
+                curated_real_paths.add(Path(entry.path).name)
+
+        violations: list[str] = []
+
+        for script_path in self._SYNTHETIC_SCRIPTS:
+            if not script_path.exists():
+                continue
+
+            source = script_path.read_text(encoding="utf-8")
+
+            # Parse AST to extract string literals from CODE (not docstrings)
+            try:
+                tree = ast.parse(source)
+            except SyntaxError:
+                violations.append(
+                    f"{script_path}: SyntaxError — cannot parse"
+                )
+                continue
+
+            # Identify docstring nodes (module/class/function body[0])
+            docstring_ids: set[int] = set()
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.Module, ast.ClassDef,
+                                     ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if (node.body
+                            and isinstance(node.body[0], ast.Expr)
+                            and isinstance(node.body[0].value, ast.Constant)
+                            and isinstance(node.body[0].value.value, str)):
+                        docstring_ids.add(id(node.body[0].value))
+
+            # Collect non-docstring string constants
+            code_strings: list[str] = []
+            for node in ast.walk(tree):
+                if (isinstance(node, ast.Constant)
+                        and isinstance(node.value, str)
+                        and id(node) not in docstring_ids):
+                    code_strings.append(node.value)
+
+            # Strategy 1: Check for code-level paths referencing data/curated/
+            for s in code_strings:
+                if "data/curated" in s or "data\\curated" in s:
+                    violations.append(
+                        f"{script_path}: code string literal references "
+                        f"data/curated/: '{s}' — synthetic constructors "
+                        f"must write to data/synthetic/ only"
+                    )
+                    break
+            # Also check for "curated" as a Path() component
+            curated_component = [
+                s for s in code_strings
+                if s == "curated"
+            ]
+            if curated_component:
+                violations.append(
+                    f"{script_path}: contains string 'curated' as "
+                    f"path component — synthetic constructors must "
+                    f"write to data/synthetic/ only"
+                )
+
+            # Strategy 2: Check for filename collisions with curated_real entries
+            json_filenames = {
+                s for s in code_strings
+                if s.endswith(".json")
+            }
+            collisions = json_filenames & curated_real_paths
+            for collision in sorted(collisions):
+                violations.append(
+                    f"{script_path}: output filename '{collision}' collides "
+                    f"with a curated_real manifest entry"
+                )
+
+        assert not violations, (
+            "Synthetic constructors target curated-real paths:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_synthetic_scripts_write_to_synthetic_dir(self) -> None:
+        """Synthetic constructors must target data/synthetic/, not data/curated/.
+
+        Verifies the output directory constant in each script points to
+        data/synthetic/.
+        """
+        import re
+
+        violations: list[str] = []
+
+        for script_path in self._SYNTHETIC_SCRIPTS:
+            if not script_path.exists():
+                continue
+
+            source = script_path.read_text(encoding="utf-8")
+
+            # Check that the script defines an output dir pointing to synthetic
+            has_synthetic_dir = bool(re.search(
+                r'["\']synthetic["\']|data.*synthetic', source,
+            ))
+            has_curated_dir_output = bool(re.search(
+                r'(?:CURATED_DIR|data.*curated).*(?:write_text|open\(|mkdir)',
+                source,
+            ))
+
+            if has_curated_dir_output:
+                violations.append(
+                    f"{script_path}: appears to write to data/curated/ — "
+                    f"synthetic output must go to data/synthetic/"
+                )
+
+            if not has_synthetic_dir:
+                violations.append(
+                    f"{script_path}: does not reference data/synthetic/ — "
+                    f"synthetic output directory may be misconfigured"
+                )
+
+        assert not violations, (
+            "Synthetic constructor directory violations:\n"
             + "\n".join(f"  - {v}" for v in violations)
         )

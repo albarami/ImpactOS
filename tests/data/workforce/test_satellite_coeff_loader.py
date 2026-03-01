@@ -18,13 +18,14 @@ from src.data.workforce.satellite_coeff_loader import (
 from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
 
 CURATED_DIR = Path("data/curated")
+SYNTHETIC_DIR = Path("data/synthetic")
 
 
 class TestSatelliteCoeffLoader:
     """Integration: D-4 data -> SatelliteCoefficients."""
 
     @pytest.mark.skipif(
-        not (CURATED_DIR / "saudi_satellites_synthetic_v1.json").exists(),
+        not (SYNTHETIC_DIR / "saudi_satellites_synthetic_v1.json").exists(),
         reason="Synthetic satellites not available",
     )
     def test_produces_valid_coefficients(self) -> None:
@@ -36,7 +37,7 @@ class TestSatelliteCoeffLoader:
         assert loaded.coefficients.va_ratio is not None
 
     @pytest.mark.skipif(
-        not (CURATED_DIR / "saudi_satellites_synthetic_v1.json").exists(),
+        not (SYNTHETIC_DIR / "saudi_satellites_synthetic_v1.json").exists(),
         reason="Synthetic satellites not available",
     )
     def test_compatible_with_satellite_accounts(self) -> None:
@@ -54,7 +55,7 @@ class TestSatelliteCoeffLoader:
         assert np.all(result.delta_jobs >= 0)
 
     @pytest.mark.skipif(
-        not (CURATED_DIR / "saudi_satellites_synthetic_v1.json").exists(),
+        not (SYNTHETIC_DIR / "saudi_satellites_synthetic_v1.json").exists(),
         reason="Synthetic satellites not available",
     )
     def test_provenance_tracked(self) -> None:
@@ -65,7 +66,7 @@ class TestSatelliteCoeffLoader:
         assert loaded.provenance.io_base_year > 0
 
     @pytest.mark.skipif(
-        not (CURATED_DIR / "saudi_satellites_synthetic_v1.json").exists(),
+        not (SYNTHETIC_DIR / "saudi_satellites_synthetic_v1.json").exists(),
         reason="Synthetic satellites not available",
     )
     def test_fallback_to_synthetic(self) -> None:
@@ -75,7 +76,7 @@ class TestSatelliteCoeffLoader:
         assert isinstance(loaded.provenance.fallback_flags, list)
 
     @pytest.mark.skipif(
-        not (CURATED_DIR / "saudi_satellites_synthetic_v1.json").exists(),
+        not (SYNTHETIC_DIR / "saudi_satellites_synthetic_v1.json").exists(),
         reason="Synthetic satellites not available",
     )
     def test_version_id_set(self) -> None:
@@ -83,7 +84,7 @@ class TestSatelliteCoeffLoader:
         assert loaded.coefficients.version_id is not None
 
     @pytest.mark.skipif(
-        not (CURATED_DIR / "saudi_satellites_synthetic_v1.json").exists(),
+        not (SYNTHETIC_DIR / "saudi_satellites_synthetic_v1.json").exists(),
         reason="Synthetic satellites not available",
     )
     def test_dimensions_consistent(self) -> None:
@@ -95,7 +96,7 @@ class TestSatelliteCoeffLoader:
         assert len(c.va_ratio) == n
 
     @pytest.mark.skipif(
-        not (CURATED_DIR / "saudi_satellites_synthetic_v1.json").exists(),
+        not (SYNTHETIC_DIR / "saudi_satellites_synthetic_v1.json").exists(),
         reason="Synthetic satellites not available",
     )
     def test_jobs_coeff_positive_reasonable(self) -> None:
@@ -107,7 +108,7 @@ class TestSatelliteCoeffLoader:
         assert np.max(jobs) <= 150
 
     @pytest.mark.skipif(
-        not (CURATED_DIR / "saudi_satellites_synthetic_v1.json").exists(),
+        not (SYNTHETIC_DIR / "saudi_satellites_synthetic_v1.json").exists(),
         reason="Synthetic satellites not available",
     )
     def test_import_ratio_valid_range(self) -> None:

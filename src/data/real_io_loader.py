@@ -22,7 +22,8 @@ from src.data.manifest import ManifestData
 
 # Default paths (relative to project root)
 CURATED_DIR = Path("data/curated")
-SYNTHETIC_PATH = CURATED_DIR / "saudi_io_synthetic_v1.json"
+SYNTHETIC_DIR = Path("data/synthetic")
+SYNTHETIC_PATH = SYNTHETIC_DIR / "saudi_io_synthetic_v1.json"
 
 
 # ---------------------------------------------------------------------------

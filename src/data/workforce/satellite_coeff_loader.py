@@ -34,8 +34,9 @@ logger = logging.getLogger(__name__)
 
 # Default paths
 _CURATED_DIR = Path("data/curated")
-_SYNTHETIC_SATELLITES = _CURATED_DIR / "saudi_satellites_synthetic_v1.json"
-_SYNTHETIC_IO = _CURATED_DIR / "saudi_io_synthetic_v1.json"
+_SYNTHETIC_DIR = Path("data/synthetic")
+_SYNTHETIC_SATELLITES = _SYNTHETIC_DIR / "saudi_satellites_synthetic_v1.json"
+_SYNTHETIC_IO = _SYNTHETIC_DIR / "saudi_io_synthetic_v1.json"
 
 
 @dataclass(frozen=True)
@@ -243,17 +244,26 @@ def _load_io_ratios(
             )
 
     # 2. Try synthetic satellites (they have import + VA ratios)
-    synth_sat_path = base / "saudi_satellites_synthetic_v1.json"
-    if synth_sat_path.exists():
-        fallback_flags.append("import_ratio: synthetic fallback")
-        fallback_flags.append("va_ratio: synthetic fallback")
-        sat_data = load_satellites_from_json(str(synth_sat_path))
-        codes = sat_data.sector_codes
-        return sat_data.metadata.get("base_year", 2022), sat_data.import_ratio, sat_data.va_ratio, codes
+    # Check both the provided base dir (for tests) and the default synthetic dir
+    synth_sat_candidates = [
+        base / "saudi_satellites_synthetic_v1.json",
+        _SYNTHETIC_SATELLITES,
+    ]
+    for synth_sat_path in synth_sat_candidates:
+        if synth_sat_path.exists():
+            fallback_flags.append("import_ratio: synthetic fallback")
+            fallback_flags.append("va_ratio: synthetic fallback")
+            sat_data = load_satellites_from_json(str(synth_sat_path))
+            codes = sat_data.sector_codes
+            return sat_data.metadata.get("base_year", 2022), sat_data.import_ratio, sat_data.va_ratio, codes
 
     # 3. Try synthetic IO model to derive VA ratios
-    synth_io_path = base / "saudi_io_synthetic_v1.json"
-    if synth_io_path.exists():
+    synth_io_candidates = [
+        base / "saudi_io_synthetic_v1.json",
+        _SYNTHETIC_IO,
+    ]
+    synth_io_path = next((p for p in synth_io_candidates if p.exists()), None)
+    if synth_io_path is not None:
         fallback_flags.append("import_ratio: derived from synthetic IO model")
         fallback_flags.append("va_ratio: derived from synthetic IO model")
         io_data = load_from_json(str(synth_io_path))

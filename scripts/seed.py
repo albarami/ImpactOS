@@ -288,7 +288,7 @@ async def seed_demo(session: AsyncSession) -> dict:
 # D-1: 20-sector Saudi IO model seed
 # ---------------------------------------------------------------------------
 
-SAUDI20_DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "curated"
+SAUDI20_DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "synthetic"
 SAUDI20_MODEL_FILE = "saudi_io_synthetic_v1.json"
 SAUDI20_ENGAGEMENT_CODE = "SG-SAUDI20-2026"
 
