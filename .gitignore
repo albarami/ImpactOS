@@ -62,3 +62,6 @@ node_modules/
 pgdata/
 redisdata/
 miniodata/
+
+# Claude Code worktrees
+.claude/
