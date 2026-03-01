@@ -100,19 +100,49 @@ app.include_router(workforce_router)
 async def health_check() -> dict:
     """Liveness probe with component health checks.
 
-    S0-4: Enhanced with database connectivity check.
+    Phase 0 v2: Checks API + database + Redis + object storage.
     Returns 200 always (degraded status if components are down).
     """
+    import asyncio
+
     checks: dict[str, bool] = {"api": True}
 
-    # Database connectivity check
-    try:
-        from src.db.session import async_session_factory
-        async with async_session_factory() as session:
-            await session.execute(text("SELECT 1"))
-        checks["database"] = True
-    except Exception:
-        checks["database"] = False
+    async def _check_database() -> bool:
+        try:
+            from src.db.session import async_session_factory
+            async with async_session_factory() as session:
+                await session.execute(text("SELECT 1"))
+            return True
+        except Exception:
+            return False
+
+    async def _check_redis() -> bool:
+        try:
+            import redis.asyncio as aioredis
+            r = aioredis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+            await r.ping()
+            await r.aclose()
+            return True
+        except Exception:
+            return False
+
+    async def _check_object_storage() -> bool:
+        try:
+            from pathlib import Path
+            storage_path = Path(settings.OBJECT_STORAGE_PATH)
+            return storage_path.exists() and storage_path.is_dir()
+        except Exception:
+            return False
+
+    db_ok, redis_ok, storage_ok = await asyncio.gather(
+        _check_database(),
+        _check_redis(),
+        _check_object_storage(),
+    )
+
+    checks["database"] = db_ok
+    checks["redis"] = redis_ok
+    checks["object_storage"] = storage_ok
 
     all_ok = all(checks.values())
 
