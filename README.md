@@ -21,12 +21,14 @@ Deterministic Core (NumPy/SciPy)     <-->    AI Layer (LLM agents)
     Reproducible                        Schema-validated
     Auditable                           Never computes results
          |                                        |
-              --> Governance Gate (NFF) -->
+              --> Governance Gate (NFF + Quality Provenance) -->
                        |
               Decision Pack Export
 ```
 
 **Critical boundary:** AI components propose; the deterministic engine computes. AI never generates economic results.
+
+**Export gate:** Governed exports require both NFF claim resolution (all claims must be model-derived, source-backed, or explicitly assumed) AND quality provenance checks (runs using synthetic fallback data are blocked).
 
 ## Quick Start
 
@@ -59,6 +61,7 @@ See [docs/LOCAL_RUNBOOK.md](docs/LOCAL_RUNBOOK.md) for detailed setup instructio
 | S0-1: Repository Layer + Persistence | 838 | Done |
 | S0-2: Docker Compose + Local Runtime | 852+ | Done |
 | S0-3: PDF Extraction + Async Jobs | 945 | Done |
+| Phase 0 v2: Hardening + Workflow Wiring | — | Done |
 
 ## Tech Stack
 

@@ -47,6 +47,7 @@ Edit `.env` if needed. The defaults work for local Docker Compose. You only need
 | `REDIS_URL` | `redis://localhost:6379/0` | Auto-overridden inside Docker |
 | `MINIO_ENDPOINT` | `localhost:9000` | Auto-overridden inside Docker |
 | `ANTHROPIC_API_KEY` | (empty) | Required for AI compilation |
+| `OBJECT_STORAGE_PATH` | `./uploads` | Local path for dev, S3 URI for prod |
 | `EXTRACTION_PROVIDER` | `local` | Use `azure_di` for production PDF extraction |
 
 ## 4. Start the Full Stack
@@ -87,12 +88,14 @@ This loads (idempotent — safe to run multiple times):
 ## 6. Verify Everything Works
 
 ```bash
-# Health check
+# Health check (covers API + database + Redis + object storage)
 curl http://localhost:8000/health
 
 # API version
 curl http://localhost:8000/api/version
 ```
+
+The `/health` endpoint checks four components: API, database (PostgreSQL), Redis, and object storage (the `OBJECT_STORAGE_PATH` directory). It returns `"status": "ok"` when all are reachable, or `"status": "degraded"` with per-component details otherwise.
 
 **Interactive API docs:** http://localhost:8000/docs
 
@@ -121,6 +124,8 @@ make test-fast     # Stop on first failure (-x -q)
 | `make test-fast` | Run pytest, stop on first failure |
 | `make lint` | Run ruff check + mypy |
 | `make fmt` | Auto-format code with ruff |
+| `make build-model` | Rebuild synthetic 20-sector model from assumptions |
+| `make validate-model` | Validate `data/synthetic/saudi_io_synthetic_v1.json` |
 | `make logs` | Tail all container logs |
 | `make logs-api` | Tail API container logs |
 
@@ -155,6 +160,35 @@ make migrate        # Run new Alembic migrations in container
 ```bash
 make up             # Start infrastructure
 make serve          # Run API on host (uses localhost:5432 etc.)
+```
+
+## End-to-End Workflow
+
+The primary API workflow is:
+
+1. **Upload** a document (BoQ, CAPEX plan) to a workspace.
+2. **Extract** structured data — routed by `ExtractionRouter` to `LocalPdfProvider` or `AzureDIProvider` (via Celery). Spreadsheets are always handled locally.
+3. **Compile from document** — `POST /v1/workspaces/{id}/scenarios/{id}/compile` with `document_id`. The older payload-based `line_items` field is deprecated; use `document_id` to load stored extraction results.
+4. **Run** the deterministic I-O engine to compute impacts.
+5. **Export** — governed exports are gated on both NFF claim status (all claims resolved) and quality provenance (synthetic fallback data blocks governed export).
+
+### Extraction Providers
+
+PDF extraction is handled by a provider-based architecture in `src/ingestion/providers/`:
+
+| Provider | When Used |
+|----------|-----------|
+| `LocalPdfProvider` | Default for all PDFs; always used for RESTRICTED classification |
+| `AzureDIProvider` | Used for PUBLIC/CONFIDENTIAL/INTERNAL when Azure DI is configured |
+| `LocalSpreadsheetProvider` | Always used for CSV/Excel files |
+
+Set `EXTRACTION_PROVIDER=azure_di` and provide Azure DI credentials to enable cloud extraction. Async extraction jobs run via Celery.
+
+### Validate Synthetic Model
+
+```bash
+make validate-model   # Validates data/synthetic/saudi_io_synthetic_v1.json
+make build-model      # Rebuild synthetic model from assumptions
 ```
 
 ## Troubleshooting
