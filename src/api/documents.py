@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from src.api.dependencies import (
     get_document_repo,
+    get_document_storage,
     get_extraction_job_repo,
     get_line_item_repo,
 )
@@ -39,13 +40,6 @@ from src.repositories.documents import (
 )
 
 router = APIRouter(prefix="/v1/workspaces", tags=["documents"])
-
-# ---------------------------------------------------------------------------
-# Stateless services (no DB needed)
-# ---------------------------------------------------------------------------
-
-_storage = DocumentStorageService(storage_root="./uploads")
-
 
 # ---------------------------------------------------------------------------
 # Request / Response schemas
@@ -89,6 +83,7 @@ class LineItemsResponse(BaseModel):
 async def upload_document(
     workspace_id: UUID,
     doc_repo: DocumentRepository = Depends(get_document_repo),
+    storage: DocumentStorageService = Depends(get_document_storage),
     file: UploadFile = File(...),
     doc_type: str = Form(...),
     source_type: str = Form(...),
@@ -102,7 +97,7 @@ async def upload_document(
     if len(content) == 0:
         raise HTTPException(status_code=422, detail="File content must not be empty.")
 
-    doc = _storage.upload(
+    doc = storage.upload(
         workspace_id=workspace_id,
         filename=file.filename or "unknown",
         content=content,
@@ -149,6 +144,7 @@ async def extract_document(
     doc_repo: DocumentRepository = Depends(get_document_repo),
     job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
     line_item_repo: LineItemRepository = Depends(get_line_item_repo),
+    storage: DocumentStorageService = Depends(get_document_storage),
 ) -> ExtractResponse:
     """Trigger extraction (Section 6.2.5).
 
@@ -187,7 +183,7 @@ async def extract_document(
 
     if settings.CELERY_BROKER_URL:
         # Async mode: dispatch to Celery worker and return immediately
-        content = _storage.retrieve(doc_row.storage_key)
+        content = storage.retrieve(doc_row.storage_key)
         dispatch_extraction(
             job_id=job.job_id,
             doc_id=doc_id,
@@ -208,7 +204,7 @@ async def extract_document(
 
     # Sync mode (dev/test): run extraction inline via provider router
     try:
-        content = _storage.retrieve(doc_row.storage_key)
+        content = storage.retrieve(doc_row.storage_key)
 
         final_status = await run_extraction(
             job_id=job.job_id,

@@ -274,3 +274,17 @@ async def get_data_quality_repo(
     session: AsyncSession = Depends(get_async_session),
 ) -> DataQualityRepository:
     return DataQualityRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Document Storage (Phase 0 v2)
+# ---------------------------------------------------------------------------
+
+
+def get_document_storage() -> "DocumentStorageService":
+    """Factory for document storage service, reading root from settings."""
+    from src.config.settings import get_settings
+    from src.ingestion.storage import DocumentStorageService
+
+    settings = get_settings()
+    return DocumentStorageService(storage_root=settings.OBJECT_STORAGE_PATH)
