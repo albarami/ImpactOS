@@ -167,4 +167,10 @@ class RunQualityAssessment(ImpactOSBase, frozen=True):
     info_count: int = 0
     known_gaps: list[str] = Field(default_factory=list)
     notes: str | None = None
+    # Data-provenance fields (D-5 Task 5) — defaults preserve backward compat.
+    data_mode: str | None = None  # "curated_real" | "curated_estimated" | "synthetic_fallback" | "synthetic_only"
+    used_synthetic_fallback: bool = False
+    fallback_reason: str | None = None
+    data_source_id: str | None = None  # manifest dataset_id
+    checksum_verified: bool = False
     created_at: UTCTimestamp = Field(default_factory=utc_now)
