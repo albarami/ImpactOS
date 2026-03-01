@@ -30,7 +30,11 @@ function createWrapper() {
   };
 }
 
-function renderDisplay(props?: { workspaceId?: string; exportId?: string }) {
+function renderDisplay(props?: {
+  workspaceId?: string;
+  exportId?: string;
+  blockingReasons?: string[];
+}) {
   return render(
     createElement(
       createWrapper(),
@@ -38,6 +42,7 @@ function renderDisplay(props?: { workspaceId?: string; exportId?: string }) {
       createElement(ExportStatusDisplay, {
         workspaceId: props?.workspaceId ?? 'ws-001',
         exportId: props?.exportId ?? 'exp-001',
+        blockingReasons: props?.blockingReasons,
       })
     )
   );
@@ -125,6 +130,52 @@ describe('ExportStatusDisplay', () => {
     expect(screen.getByText('BLOCKED')).toBeInTheDocument();
   });
 
+  it('renders blocking reasons list when provided', () => {
+    mockStatusData = {
+      export_id: 'exp-002',
+      run_id: 'run-001',
+      mode: 'GOVERNED',
+      status: 'BLOCKED',
+      checksums: {},
+    };
+    renderDisplay({
+      blockingReasons: ['Unresolved claims exist', 'Assumptions not approved'],
+    });
+    expect(screen.getByTestId('blocking-reasons')).toBeInTheDocument();
+    expect(screen.getByText('Unresolved claims exist')).toBeInTheDocument();
+    expect(screen.getByText('Assumptions not approved')).toBeInTheDocument();
+  });
+
+  it('shows generic BLOCKED message when no blocking reasons provided', () => {
+    mockStatusData = {
+      export_id: 'exp-002',
+      run_id: 'run-001',
+      mode: 'GOVERNED',
+      status: 'BLOCKED',
+      checksums: {},
+    };
+    renderDisplay();
+    expect(
+      screen.getByText(/unresolved governance issues/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('blocking-reasons')).not.toBeInTheDocument();
+  });
+
+  it('shows generic BLOCKED message when blocking reasons is empty', () => {
+    mockStatusData = {
+      export_id: 'exp-002',
+      run_id: 'run-001',
+      mode: 'GOVERNED',
+      status: 'BLOCKED',
+      checksums: {},
+    };
+    renderDisplay({ blockingReasons: [] });
+    expect(
+      screen.getByText(/unresolved governance issues/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('blocking-reasons')).not.toBeInTheDocument();
+  });
+
   // ── FAILED ───────────────────────────────────────────────────────
 
   it('shows red FAILED badge when status is FAILED', () => {
@@ -153,6 +204,7 @@ describe('ExportStatusDisplay', () => {
     renderDisplay();
     expect(screen.getByText('PENDING')).toBeInTheDocument();
     expect(screen.getByTestId('export-polling')).toBeInTheDocument();
+    expect(screen.getByText('Generating export...')).toBeInTheDocument();
   });
 
   // ── GENERATING ───────────────────────────────────────────────────
@@ -168,6 +220,7 @@ describe('ExportStatusDisplay', () => {
     renderDisplay();
     expect(screen.getByText('GENERATING')).toBeInTheDocument();
     expect(screen.getByTestId('export-polling')).toBeInTheDocument();
+    expect(screen.getByText('Generating export...')).toBeInTheDocument();
   });
 
   // ── Metadata ─────────────────────────────────────────────────────

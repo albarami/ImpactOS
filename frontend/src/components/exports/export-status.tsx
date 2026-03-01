@@ -16,6 +16,7 @@ import { useExportStatus, type ExportStatus } from '@/lib/api/hooks/useExports';
 interface ExportStatusDisplayProps {
   workspaceId: string;
   exportId: string;
+  blockingReasons?: string[];
 }
 
 function StatusBadge({ status }: { status: ExportStatus }) {
@@ -56,6 +57,7 @@ function StatusBadge({ status }: { status: ExportStatus }) {
 export function ExportStatusDisplay({
   workspaceId,
   exportId,
+  blockingReasons,
 }: ExportStatusDisplayProps) {
   const { data, isLoading, isError } = useExportStatus(workspaceId, exportId);
 
@@ -120,7 +122,7 @@ export function ExportStatusDisplay({
             <div className="flex items-center gap-3">
               <Skeleton className="h-4 w-4 rounded-full" />
               <p className="text-sm text-muted-foreground">
-                Export is being generated. Polling for updates...
+                Generating export...
               </p>
             </div>
           </CardContent>
@@ -169,10 +171,25 @@ export function ExportStatusDisplay({
       {data.status === 'BLOCKED' && (
         <Card>
           <CardContent className="py-6">
-            <p className="text-sm text-red-600">
-              This export is blocked. The run may have unresolved governance
-              issues preventing export in GOVERNED mode.
-            </p>
+            {blockingReasons && blockingReasons.length > 0 ? (
+              <div>
+                <p className="text-sm font-medium text-red-600 mb-2">
+                  Export blocked for the following reasons:
+                </p>
+                <ul className="list-disc list-inside space-y-1" data-testid="blocking-reasons">
+                  {blockingReasons.map((reason, idx) => (
+                    <li key={idx} className="text-sm text-red-600">
+                      {reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-red-600">
+                This export is blocked. The run may have unresolved governance
+                issues preventing export in GOVERNED mode.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}

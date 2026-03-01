@@ -5,6 +5,7 @@ import { createElement, type ReactNode } from 'react';
 import {
   useCreateExport,
   useExportStatus,
+  useExportData,
   type CreateExportRequest,
   type CreateExportResponse,
   type ExportStatusResponse,
@@ -31,9 +32,15 @@ function createWrapper() {
       mutations: { retry: false },
     },
   });
-  return function Wrapper({ children }: { children: ReactNode }) {
+  function Wrapper({ children }: { children: ReactNode }) {
     return createElement(QueryClientProvider, { client: qc }, children);
-  };
+  }
+  return { Wrapper, queryClient: qc };
+}
+
+/** Backwards-compatible overload: returns just the Wrapper function */
+function wrapperOnly() {
+  return createWrapper().Wrapper;
 }
 
 // ── useCreateExport ───────────────────────────────────────────────────
@@ -53,7 +60,7 @@ describe('useCreateExport', () => {
     mockPost.mockResolvedValueOnce({ data: response, error: undefined });
 
     const { result } = renderHook(() => useCreateExport(WORKSPACE_ID), {
-      wrapper: createWrapper(),
+      wrapper: wrapperOnly(),
     });
 
     const request: CreateExportRequest = {
@@ -91,7 +98,7 @@ describe('useCreateExport', () => {
     mockPost.mockResolvedValueOnce({ data: response, error: undefined });
 
     const { result } = renderHook(() => useCreateExport(WORKSPACE_ID), {
-      wrapper: createWrapper(),
+      wrapper: wrapperOnly(),
     });
 
     const request: CreateExportRequest = {
@@ -124,7 +131,7 @@ describe('useCreateExport', () => {
     mockPost.mockResolvedValueOnce({ data: response, error: undefined });
 
     const { result } = renderHook(() => useCreateExport(WORKSPACE_ID), {
-      wrapper: createWrapper(),
+      wrapper: wrapperOnly(),
     });
 
     await act(async () => {
@@ -151,7 +158,7 @@ describe('useCreateExport', () => {
     });
 
     const { result } = renderHook(() => useCreateExport(WORKSPACE_ID), {
-      wrapper: createWrapper(),
+      wrapper: wrapperOnly(),
     });
 
     await act(async () => {
@@ -188,7 +195,7 @@ describe('useExportStatus', () => {
 
     const { result } = renderHook(
       () => useExportStatus(WORKSPACE_ID, EXPORT_ID),
-      { wrapper: createWrapper() }
+      { wrapper: wrapperOnly() }
     );
 
     await waitFor(() => {
@@ -212,7 +219,7 @@ describe('useExportStatus', () => {
   it('is disabled when exportId is empty', () => {
     const { result } = renderHook(
       () => useExportStatus(WORKSPACE_ID, ''),
-      { wrapper: createWrapper() }
+      { wrapper: wrapperOnly() }
     );
 
     expect(result.current.fetchStatus).toBe('idle');
@@ -227,7 +234,7 @@ describe('useExportStatus', () => {
 
     const { result } = renderHook(
       () => useExportStatus(WORKSPACE_ID, EXPORT_ID),
-      { wrapper: createWrapper() }
+      { wrapper: wrapperOnly() }
     );
 
     await waitFor(() => {
@@ -247,7 +254,7 @@ describe('useExportStatus', () => {
 
     const { result } = renderHook(
       () => useExportStatus(WORKSPACE_ID, EXPORT_ID),
-      { wrapper: createWrapper() }
+      { wrapper: wrapperOnly() }
     );
 
     await waitFor(() => {
@@ -272,7 +279,7 @@ describe('useExportStatus', () => {
 
     const { result } = renderHook(
       () => useExportStatus(WORKSPACE_ID, EXPORT_ID),
-      { wrapper: createWrapper() }
+      { wrapper: wrapperOnly() }
     );
 
     await waitFor(() => {
@@ -294,7 +301,7 @@ describe('useExportStatus', () => {
 
     const { result } = renderHook(
       () => useExportStatus(WORKSPACE_ID, EXPORT_ID),
-      { wrapper: createWrapper() }
+      { wrapper: wrapperOnly() }
     );
 
     await waitFor(() => {
@@ -302,5 +309,86 @@ describe('useExportStatus', () => {
     });
 
     expect(result.current.data?.status).toBe('COMPLETED');
+  });
+});
+
+// ── useCreateExport caching ─────────────────────────────────────────
+
+describe('useCreateExport cache', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('caches create response by export_id on success', async () => {
+    const response: CreateExportResponse = {
+      export_id: 'exp-cache-1',
+      status: 'BLOCKED',
+      checksums: {},
+      blocking_reasons: ['Unresolved claims exist'],
+    };
+    mockPost.mockResolvedValueOnce({ data: response, error: undefined });
+
+    const { Wrapper, queryClient } = createWrapper();
+
+    const { result } = renderHook(() => useCreateExport(WORKSPACE_ID), {
+      wrapper: Wrapper,
+    });
+
+    await act(async () => {
+      result.current.mutate({
+        run_id: RUN_ID,
+        mode: 'GOVERNED',
+        export_formats: ['excel'],
+        pack_data: {},
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    const cached = queryClient.getQueryData<CreateExportResponse>([
+      'export',
+      'exp-cache-1',
+    ]);
+    expect(cached).toEqual(response);
+    expect(cached?.blocking_reasons).toEqual(['Unresolved claims exist']);
+  });
+});
+
+// ── useExportData ───────────────────────────────────────────────────
+
+describe('useExportData', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns cached export data when present', () => {
+    const { Wrapper, queryClient } = createWrapper();
+
+    const cached: CreateExportResponse = {
+      export_id: 'exp-data-1',
+      status: 'BLOCKED',
+      checksums: {},
+      blocking_reasons: ['Reason A', 'Reason B'],
+    };
+    queryClient.setQueryData(['export', 'exp-data-1'], cached);
+
+    const { result } = renderHook(() => useExportData('exp-data-1'), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current).toEqual(cached);
+    expect(result.current?.blocking_reasons).toEqual(['Reason A', 'Reason B']);
+  });
+
+  it('returns undefined when cache is cold', () => {
+    const { Wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useExportData('exp-nonexistent'), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current).toBeUndefined();
   });
 });

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../client';
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -43,6 +43,8 @@ export interface ExportStatusResponse {
  * POST /v1/workspaces/{workspace_id}/exports
  */
 export function useCreateExport(workspaceId: string) {
+  const queryClient = useQueryClient();
+
   return useMutation<CreateExportResponse, Error, CreateExportRequest>({
     mutationFn: async (request: CreateExportRequest) => {
       const { data, error } = await api.POST(
@@ -55,6 +57,9 @@ export function useCreateExport(workspaceId: string) {
       );
       if (error) throw error;
       return data as unknown as CreateExportResponse;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['export', data.export_id], data);
     },
   });
 }
@@ -90,4 +95,16 @@ export function useExportStatus(workspaceId: string, exportId: string) {
       return s === 'PENDING' || s === 'GENERATING' ? 3000 : false;
     },
   });
+}
+
+/**
+ * Read cached export data from TanStack Query cache.
+ * Returns undefined if the cache is cold (e.g., after page refresh).
+ */
+export function useExportData(exportId: string) {
+  const queryClient = useQueryClient();
+  return queryClient.getQueryData<CreateExportResponse>([
+    'export',
+    exportId,
+  ]);
 }
