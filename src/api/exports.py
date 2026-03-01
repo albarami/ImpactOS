@@ -13,11 +13,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from src.api.dependencies import get_claim_repo, get_export_repo
+from src.api.dependencies import get_claim_repo, get_data_quality_repo, get_export_repo
 from src.export.orchestrator import (
     ExportOrchestrator,
     ExportRequest,
 )
+from src.quality.models import RunQualityAssessment
+from src.repositories.data_quality import DataQualityRepository
 from src.export.variance_bridge import VarianceBridge
 from src.models.common import ClaimStatus, ClaimType, DisclosureTier, ExportMode
 from src.models.governance import Claim
@@ -111,6 +113,7 @@ async def create_export(
     body: CreateExportRequest,
     repo: ExportRepository = Depends(get_export_repo),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
+    quality_repo: DataQualityRepository = Depends(get_data_quality_repo),
 ) -> CreateExportResponse:
     """Create a new export — generates requested formats with watermarks.
 
@@ -129,7 +132,20 @@ async def create_export(
     claim_rows = await claim_repo.get_by_run(UUID(body.run_id))
     claims = [_claim_row_to_model(r) for r in claim_rows]
 
-    record = _orchestrator.execute(request=request, claims=claims)
+    # Load quality assessment for synthetic-fallback check
+    quality_assessment: RunQualityAssessment | None = None
+    quality_row = await quality_repo.get_by_run(UUID(body.run_id))
+    if quality_row is not None and quality_row.payload:
+        try:
+            quality_assessment = RunQualityAssessment.model_validate(quality_row.payload)
+        except Exception:
+            pass  # Malformed payload — treat as no assessment
+
+    record = _orchestrator.execute(
+        request=request,
+        claims=claims,
+        quality_assessment=quality_assessment,
+    )
 
     # Persist export metadata to DB
     await repo.create(
