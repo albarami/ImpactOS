@@ -1,0 +1,68 @@
+{
+  "manifest_version": "1.0",
+  "created_at": "2026-03-01T00:00:00Z",
+  "datasets": [
+    {
+      "dataset_id": "saudi_io_kapsarc_2018",
+      "description": "Saudi 20-sector IO model derived from KAPSARC/GASTAT data",
+      "source": "KAPSARC via D-3 API + GASTAT structure from D-1",
+      "vintage_year": 2018,
+      "sector_count": 20,
+      "path": "data/curated/saudi_io_kapsarc_2018.json",
+      "checksum_sha256": "",
+      "resolved_source": "curated_real",
+      "contains_assumed_components": false,
+      "confidence": "HIGH",
+      "notes": "Sanitized aggregate — not raw GASTAT microdata"
+    },
+    {
+      "dataset_id": "saudi_type1_multipliers_benchmark",
+      "description": "Type I output multiplier benchmarks for Saudi sectors",
+      "source": "KAPSARC benchmark data via D-3",
+      "vintage_year": 2018,
+      "path": "data/curated/saudi_type1_multipliers_benchmark.json",
+      "checksum_sha256": "",
+      "resolved_source": "curated_real",
+      "contains_assumed_components": false,
+      "confidence": "HIGH",
+      "notes": "Format: {sectors: [{sector_code, output_multiplier}]}"
+    },
+    {
+      "dataset_id": "saudi_employment_coefficients_2019",
+      "description": "Employment coefficients by ISIC section (jobs per M SAR output)",
+      "source": "ILOSTAT + GASTAT labor force data via D-3/D-4",
+      "vintage_year": 2019,
+      "sector_count": 20,
+      "path": "data/curated/saudi_employment_coefficients_2019.json",
+      "checksum_sha256": "",
+      "resolved_source": "curated_estimated",
+      "contains_assumed_components": true,
+      "confidence": "ESTIMATED",
+      "notes": "Contains synthetic regional benchmark fallback rows"
+    },
+    {
+      "dataset_id": "saudi_occupation_bridge_2020",
+      "description": "Sector to occupation bridge matrix",
+      "source": "D-4 workforce data",
+      "vintage_year": 2020,
+      "path": "data/curated/saudi_occupation_bridge_2020.json",
+      "checksum_sha256": "",
+      "resolved_source": "curated_estimated",
+      "contains_assumed_components": true,
+      "confidence": "ESTIMATED",
+      "notes": "Section-level bridge — not same class of real as IO tables"
+    },
+    {
+      "dataset_id": "saudi_nitaqat_macro_targets_2023",
+      "description": "Nitaqat macro Saudization targets by sector",
+      "source": "D-4 Nitaqat rules based on MHRSD published targets",
+      "vintage_year": 2023,
+      "path": "data/curated/saudi_nitaqat_macro_targets_2023.json",
+      "checksum_sha256": "",
+      "resolved_source": "curated_real",
+      "contains_assumed_components": false,
+      "confidence": "HARD",
+      "notes": "Based on published MHRSD targets"
+    }
+  ]
+}
