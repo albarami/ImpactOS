@@ -497,3 +497,64 @@ async def bulk_decisions(
         rejected=rejected,
         total=accepted + rejected,
     )
+
+
+# ---------------------------------------------------------------------------
+# B-17: Compilation detail
+# ---------------------------------------------------------------------------
+
+
+class CompilationDetailSuggestion(BaseModel):
+    line_item_id: str
+    sector_code: str
+    confidence: float
+    explanation: str
+
+
+class CompilationDetailResponse(BaseModel):
+    compilation_id: str
+    suggestions: list[CompilationDetailSuggestion]
+    split_proposals: list[dict]
+    assumption_drafts: list[dict]
+    high_confidence: int
+    medium_confidence: int
+    low_confidence: int
+    metadata: dict
+
+
+@router.get(
+    "/{workspace_id}/compiler/{compilation_id}/detail",
+    response_model=CompilationDetailResponse,
+)
+async def get_compilation_detail(
+    workspace_id: UUID,
+    compilation_id: UUID,
+    comp_repo: CompilationRepository = Depends(get_compilation_repo),
+) -> CompilationDetailResponse:
+    """B-17: Get full compilation detail including suggestions, proposals, and metadata."""
+    row = await comp_repo.get(compilation_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Compilation not found.")
+
+    rj = row.result_json or {}
+
+    suggestions = [
+        CompilationDetailSuggestion(
+            line_item_id=s.get("line_item_id", ""),
+            sector_code=s.get("sector_code", ""),
+            confidence=s.get("confidence", 0.0),
+            explanation=s.get("explanation", ""),
+        )
+        for s in rj.get("mapping_suggestions", [])
+    ]
+
+    return CompilationDetailResponse(
+        compilation_id=str(compilation_id),
+        suggestions=suggestions,
+        split_proposals=rj.get("split_proposals", []),
+        assumption_drafts=rj.get("assumption_drafts", []),
+        high_confidence=rj.get("high_confidence_count", 0),
+        medium_confidence=rj.get("medium_confidence_count", 0),
+        low_confidence=rj.get("low_confidence_count", 0),
+        metadata=row.metadata_json or {},
+    )

@@ -7,6 +7,10 @@ POST /v1/workspaces/{workspace_id}/scenarios/{id}/compile             — compil
 POST /v1/workspaces/{workspace_id}/scenarios/{id}/mapping-decisions   — bulk
 GET  /v1/workspaces/{workspace_id}/scenarios/{id}/versions            — history
 POST /v1/workspaces/{workspace_id}/scenarios/{id}/lock                — lock
+GET  /v1/workspaces/{workspace_id}/scenarios/{id}/decisions/{li}      — B-4 get
+PUT  /v1/workspaces/{workspace_id}/scenarios/{id}/decisions/{li}      — B-4 put
+POST /v1/workspaces/{workspace_id}/scenarios/{id}/decisions/bulk-approve — B-5
+GET  /v1/workspaces/{workspace_id}/scenarios/{id}/decisions/{li}/audit  — B-8
 
 S0-4: Workspace-scoped routes.
 Deterministic — no LLM calls.
@@ -16,16 +20,19 @@ import warnings
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
 
 from src.api.dependencies import (
     get_document_repo,
     get_extraction_job_repo,
     get_line_item_repo,
+    get_mapping_decision_repo,
     get_scenario_version_repo,
 )
+from src.compiler.mapping_state import VALID_MAPPING_TRANSITIONS, MappingState
 from src.compiler.scenario_compiler import CompilationInput, ScenarioCompiler
+from src.db.tables import MappingDecisionRow
 from src.models.common import new_uuid7
 from src.models.document import BoQLineItem
 from src.models.mapping import DecisionType, MappingDecision
@@ -35,6 +42,7 @@ from src.repositories.documents import (
     ExtractionJobRepository,
     LineItemRepository,
 )
+from src.repositories.mapping_decisions import MappingDecisionRepository
 from src.repositories.scenarios import ScenarioVersionRepository
 
 router = APIRouter(prefix="/v1/workspaces", tags=["scenarios"])
@@ -605,3 +613,275 @@ async def lock_scenario(
         new_version=new_spec.version,
         status="locked",
     )
+
+
+# ---------------------------------------------------------------------------
+# B-4: Per-line mapping decision CRUD
+# ---------------------------------------------------------------------------
+
+
+class DecisionPutRequest(BaseModel):
+    state: str
+    suggested_sector_code: str | None = None
+    suggested_confidence: float | None = None
+    final_sector_code: str | None = None
+    decision_type: str | None = None
+    decision_note: str | None = None
+    decided_by: str
+
+
+class DecisionResponse(BaseModel):
+    mapping_decision_id: str
+    line_item_id: str
+    scenario_spec_id: str
+    state: str
+    suggested_sector_code: str | None = None
+    suggested_confidence: float | None = None
+    final_sector_code: str | None = None
+    decision_type: str | None = None
+    decision_note: str | None = None
+    decided_by: str
+    decided_at: str
+    created_at: str
+
+
+def _decision_row_to_response(row: MappingDecisionRow) -> DecisionResponse:
+    """Convert MappingDecisionRow to response schema."""
+    return DecisionResponse(
+        mapping_decision_id=str(row.mapping_decision_id),
+        line_item_id=str(row.line_item_id),
+        scenario_spec_id=str(row.scenario_spec_id),
+        state=row.state,
+        suggested_sector_code=row.suggested_sector_code,
+        suggested_confidence=row.suggested_confidence,
+        final_sector_code=row.final_sector_code,
+        decision_type=row.decision_type,
+        decision_note=row.decision_note,
+        decided_by=str(row.decided_by),
+        decided_at=row.decided_at.isoformat(),
+        created_at=row.created_at.isoformat(),
+    )
+
+
+async def _verify_scenario_workspace(
+    repo: ScenarioVersionRepository,
+    scenario_id: UUID,
+    workspace_id: UUID,
+) -> None:
+    """Verify scenario exists and belongs to workspace, raise 404 otherwise."""
+    row = await repo.get_latest_by_workspace(scenario_id, workspace_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Scenario not found in this workspace")
+
+
+@router.get(
+    "/{workspace_id}/scenarios/{scenario_id}/decisions/{line_item_id}",
+    response_model=DecisionResponse,
+)
+async def get_decision(
+    workspace_id: UUID,
+    scenario_id: UUID,
+    line_item_id: UUID,
+    scenario_repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+    decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
+) -> DecisionResponse:
+    """B-4: Get current mapping decision for a line item in a scenario."""
+    await _verify_scenario_workspace(scenario_repo, scenario_id, workspace_id)
+
+    row = await decision_repo.get_latest(scenario_id, line_item_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    return _decision_row_to_response(row)
+
+
+@router.put(
+    "/{workspace_id}/scenarios/{scenario_id}/decisions/{line_item_id}",
+    response_model=DecisionResponse,
+)
+async def put_decision(
+    workspace_id: UUID,
+    scenario_id: UUID,
+    line_item_id: UUID,
+    body: DecisionPutRequest,
+    scenario_repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+    decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
+) -> JSONResponse:
+    """B-4: Create or update a mapping decision (append-only, state validated)."""
+    await _verify_scenario_workspace(scenario_repo, scenario_id, workspace_id)
+
+    # Validate target state is a valid MappingState
+    try:
+        target_state = MappingState(body.state)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid state: {body.state}. "
+                   f"Valid states: {[s.value for s in MappingState]}",
+        )
+
+    # Validate: APPROVED/OVERRIDDEN require final_sector_code
+    if target_state in (MappingState.APPROVED, MappingState.OVERRIDDEN):
+        if not body.final_sector_code:
+            raise HTTPException(
+                status_code=422,
+                detail="final_sector_code is required for APPROVED/OVERRIDDEN states",
+            )
+
+    # Check existing decision for state transition validation
+    existing = await decision_repo.get_latest(scenario_id, line_item_id)
+
+    if existing is not None:
+        # Validate transition
+        current_state = MappingState(existing.state)
+        allowed = VALID_MAPPING_TRANSITIONS.get(current_state, frozenset())
+        if target_state not in allowed:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot transition from {current_state.value} to {target_state.value}. "
+                       f"Allowed: {sorted(s.value for s in allowed)}",
+            )
+        status_code = 200
+    else:
+        status_code = 201
+
+    # Create new append-only decision row
+    row = await decision_repo.create(
+        mapping_decision_id=new_uuid7(),
+        line_item_id=line_item_id,
+        scenario_spec_id=scenario_id,
+        state=target_state.value,
+        suggested_sector_code=body.suggested_sector_code,
+        suggested_confidence=body.suggested_confidence,
+        final_sector_code=body.final_sector_code,
+        decision_type=body.decision_type,
+        decision_note=body.decision_note,
+        decided_by=UUID(body.decided_by),
+    )
+
+    response_data = _decision_row_to_response(row)
+    return JSONResponse(
+        content=response_data.model_dump(),
+        status_code=status_code,
+    )
+
+
+# ---------------------------------------------------------------------------
+# B-5: Bulk threshold approval
+# ---------------------------------------------------------------------------
+
+
+class BulkApproveRequest(BaseModel):
+    confidence_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+    actor: str
+
+
+class BulkApproveResponse(BaseModel):
+    approved_count: int
+    total_eligible: int
+
+
+@router.post(
+    "/{workspace_id}/scenarios/{scenario_id}/decisions/bulk-approve",
+    response_model=BulkApproveResponse,
+)
+async def bulk_approve_decisions(
+    workspace_id: UUID,
+    scenario_id: UUID,
+    body: BulkApproveRequest,
+    scenario_repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+    decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
+) -> BulkApproveResponse:
+    """B-5: Bulk-approve AI_SUGGESTED decisions above confidence threshold."""
+    await _verify_scenario_workspace(scenario_repo, scenario_id, workspace_id)
+
+    # Find all latest decisions in AI_SUGGESTED state with confidence >= threshold
+    eligible = await decision_repo.list_latest_by_scenario_and_state(
+        scenario_id,
+        MappingState.AI_SUGGESTED.value,
+        min_confidence=body.confidence_threshold,
+    )
+
+    actor_id = UUID(body.actor)
+    approved_count = 0
+
+    for decision_row in eligible:
+        # Create new APPROVED row for each eligible decision
+        await decision_repo.create(
+            mapping_decision_id=new_uuid7(),
+            line_item_id=decision_row.line_item_id,
+            scenario_spec_id=scenario_id,
+            state=MappingState.APPROVED.value,
+            suggested_sector_code=decision_row.suggested_sector_code,
+            suggested_confidence=decision_row.suggested_confidence,
+            final_sector_code=(
+                decision_row.final_sector_code
+                or decision_row.suggested_sector_code
+            ),
+            decision_type="APPROVED",
+            decision_note=f"Bulk approved (threshold={body.confidence_threshold})",
+            decided_by=actor_id,
+        )
+        approved_count += 1
+
+    return BulkApproveResponse(
+        approved_count=approved_count,
+        total_eligible=len(eligible),
+    )
+
+
+# ---------------------------------------------------------------------------
+# B-8: Mapping audit trail
+# ---------------------------------------------------------------------------
+
+
+class AuditEntryResponse(BaseModel):
+    mapping_decision_id: str
+    state: str
+    suggested_sector_code: str | None = None
+    suggested_confidence: float | None = None
+    final_sector_code: str | None = None
+    decision_type: str | None = None
+    decision_note: str | None = None
+    decided_by: str
+    decided_at: str
+    created_at: str
+
+
+class AuditTrailResponse(BaseModel):
+    entries: list[AuditEntryResponse]
+
+
+@router.get(
+    "/{workspace_id}/scenarios/{scenario_id}/decisions/{line_item_id}/audit",
+    response_model=AuditTrailResponse,
+)
+async def get_decision_audit_trail(
+    workspace_id: UUID,
+    scenario_id: UUID,
+    line_item_id: UUID,
+    scenario_repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+    decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
+) -> AuditTrailResponse:
+    """B-8: Get full audit trail for a line item's mapping decisions."""
+    await _verify_scenario_workspace(scenario_repo, scenario_id, workspace_id)
+
+    rows = await decision_repo.list_history(scenario_id, line_item_id)
+
+    entries = [
+        AuditEntryResponse(
+            mapping_decision_id=str(r.mapping_decision_id),
+            state=r.state,
+            suggested_sector_code=r.suggested_sector_code,
+            suggested_confidence=r.suggested_confidence,
+            final_sector_code=r.final_sector_code,
+            decision_type=r.decision_type,
+            decision_note=r.decision_note,
+            decided_by=str(r.decided_by),
+            decided_at=r.decided_at.isoformat(),
+            created_at=r.created_at.isoformat(),
+        )
+        for r in rows
+    ]
+
+    return AuditTrailResponse(entries=entries)
