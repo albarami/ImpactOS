@@ -1505,7 +1505,7 @@
           "documents"
         ],
         "summary": "Get Job Status",
-        "description": "Poll job status (Section 6.2.5).",
+        "description": "Poll job status (Section 6.2.5). Workspace-scoped.",
         "operationId": "get_job_status_v1_workspaces__workspace_id__jobs__job_id__get",
         "parameters": [
           {
@@ -1559,7 +1559,7 @@
           "documents"
         ],
         "summary": "Get Line Items",
-        "description": "Get extracted line items for a document.",
+        "description": "Get extracted line items for a document. Workspace-scoped.",
         "operationId": "get_line_items_v1_workspaces__workspace_id__documents__doc_id__line_items_get",
         "parameters": [
           {
@@ -1613,7 +1613,7 @@
           "exports"
         ],
         "summary": "Create Export",
-        "description": "Create a new export \u2014 generates requested formats with watermarks.\n\nS0-4: NFF claims now fetched from DB by run_id (not empty list).\nB-12: Artifact bytes are persisted to object storage at creation time.",
+        "description": "Create a new export \u2014 generates requested formats with watermarks.\n\nD-5.1: Computes effective_used_synthetic from quality payload AND\nmodel provenance_class. Does not trust quality payload alone.",
         "operationId": "create_export_v1_workspaces__workspace_id__exports_post",
         "parameters": [
           {
