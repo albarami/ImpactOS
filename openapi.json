@@ -2393,7 +2393,7 @@
           "governance"
         ],
         "summary": "List Claims",
-        "description": "List claims, optionally filtered by run_id.",
+        "description": "List claims, optionally filtered by run_id.\n\nWhen run_id is provided, only claims whose run belongs to this workspace\nare returned (workspace-safe join).",
         "operationId": "list_claims_v1_workspaces__workspace_id__governance_claims_get",
         "parameters": [
           {
@@ -2456,7 +2456,7 @@
           "governance"
         ],
         "summary": "Get Claim Detail",
-        "description": "Get a single claim by ID.",
+        "description": "Get a single claim by ID (workspace-scoped via run linkage).",
         "operationId": "get_claim_detail_v1_workspaces__workspace_id__governance_claims__claim_id__get",
         "parameters": [
           {
@@ -2503,13 +2503,13 @@
           }
         }
       },
-      "patch": {
+      "put": {
         "tags": [
           "governance"
         ],
         "summary": "Update Claim Status",
-        "description": "Update a claim's status with state-machine transition validation.\n\nReturns 409 if the requested transition is not allowed.",
-        "operationId": "update_claim_status_v1_workspaces__workspace_id__governance_claims__claim_id__patch",
+        "description": "Update a claim's status with state-machine transition validation.\n\nReturns 409 if the requested transition is not allowed.\nReturns 404 if claim not found or wrong workspace.",
+        "operationId": "update_claim_status_v1_workspaces__workspace_id__governance_claims__claim_id__put",
         "parameters": [
           {
             "name": "workspace_id",
@@ -2572,7 +2572,7 @@
           "governance"
         ],
         "summary": "List Evidence",
-        "description": "B-7: List evidence snippets, filtered by source document.",
+        "description": "B-7: List evidence snippets for a workspace, optionally filtered by run.\n\nWhen run_id is provided, verifies the run belongs to this workspace.\nReturns all evidence snippets from documents in this workspace.",
         "operationId": "list_evidence_v1_workspaces__workspace_id__governance_evidence_get",
         "parameters": [
           {
@@ -2586,7 +2586,7 @@
             }
           },
           {
-            "name": "source_id",
+            "name": "run_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -2599,10 +2599,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by source document ID",
-              "title": "Source Id"
+              "description": "Filter evidence by run_id",
+              "title": "Run Id"
             },
-            "description": "Filter by source document ID"
+            "description": "Filter evidence by run_id"
           }
         ],
         "responses": {
@@ -2635,7 +2635,7 @@
           "governance"
         ],
         "summary": "Get Evidence Detail",
-        "description": "B-7: Get evidence snippet detail.",
+        "description": "B-7: Get evidence snippet detail (workspace-scoped via document).",
         "operationId": "get_evidence_detail_v1_workspaces__workspace_id__governance_evidence__snippet_id__get",
         "parameters": [
           {
@@ -2683,14 +2683,14 @@
         }
       }
     },
-    "/v1/workspaces/{workspace_id}/governance/evidence/{snippet_id}/link": {
+    "/v1/workspaces/{workspace_id}/governance/claims/{claim_id}/evidence": {
       "post": {
         "tags": [
           "governance"
         ],
         "summary": "Link Evidence To Claim",
-        "description": "B-7: Link an evidence snippet to a claim.",
-        "operationId": "link_evidence_to_claim_v1_workspaces__workspace_id__governance_evidence__snippet_id__link_post",
+        "description": "B-7: Link evidence snippets to a claim (workspace-scoped, with dedupe).",
+        "operationId": "link_evidence_to_claim_v1_workspaces__workspace_id__governance_claims__claim_id__evidence_post",
         "parameters": [
           {
             "name": "workspace_id",
@@ -2703,13 +2703,13 @@
             }
           },
           {
-            "name": "snippet_id",
+            "name": "claim_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Snippet Id"
+              "title": "Claim Id"
             }
           }
         ],
@@ -8904,37 +8904,43 @@
       },
       "LinkEvidenceRequest": {
         "properties": {
-          "claim_id": {
-            "type": "string",
-            "title": "Claim Id"
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
           }
         },
         "type": "object",
         "required": [
-          "claim_id"
+          "evidence_ids"
         ],
         "title": "LinkEvidenceRequest"
       },
       "LinkEvidenceResponse": {
         "properties": {
-          "linked": {
-            "type": "boolean",
-            "title": "Linked"
-          },
-          "snippet_id": {
-            "type": "string",
-            "title": "Snippet Id"
-          },
           "claim_id": {
             "type": "string",
             "title": "Claim Id"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "total_linked": {
+            "type": "integer",
+            "title": "Total Linked"
           }
         },
         "type": "object",
         "required": [
-          "linked",
-          "snippet_id",
-          "claim_id"
+          "claim_id",
+          "evidence_ids",
+          "total_linked"
         ],
         "title": "LinkEvidenceResponse"
       },
@@ -10561,6 +10567,28 @@
           "status": {
             "type": "string",
             "title": "Status"
+          },
+          "resolution_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Text"
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By"
           }
         },
         "type": "object",

@@ -20,6 +20,7 @@ from src.api.dependencies import (
     get_assumption_repo,
     get_claim_repo,
     get_evidence_snippet_repo,
+    get_run_snapshot_repo,
 )
 from src.governance.claim_extractor import ClaimExtractor
 from src.governance.publication_gate import PublicationGate
@@ -30,6 +31,7 @@ from src.models.common import (
     DisclosureTier,
 )
 from src.models.governance import VALID_CLAIM_TRANSITIONS, Assumption, Claim
+from src.repositories.engine import RunSnapshotRepository
 from src.repositories.governance import (
     AssumptionRepository,
     ClaimRepository,
@@ -159,6 +161,8 @@ class ClaimDetailResponse(BaseModel):
 
 class UpdateClaimRequest(BaseModel):
     status: str
+    resolution_text: str | None = None
+    resolved_by: str | None = None
 
 
 class UpdateClaimResponse(BaseModel):
@@ -203,13 +207,13 @@ class EvidenceDetailResponse(BaseModel):
 
 
 class LinkEvidenceRequest(BaseModel):
-    claim_id: str
+    evidence_ids: list[str]
 
 
 class LinkEvidenceResponse(BaseModel):
-    linked: bool
-    snippet_id: str
     claim_id: str
+    evidence_ids: list[str]
+    total_linked: int
 
 
 # ---------------------------------------------------------------------------
@@ -457,9 +461,7 @@ async def get_blocking_reasons(
 
 # ---------------------------------------------------------------------------
 # B-11: Claim list / detail / update
-# TODO: Workspace ownership enforcement via run_id→RunSnapshot JOIN is
-#       deferred to a future sprint. Currently workspace_id from the URL
-#       path is accepted without verification against the claim's run_id.
+# Workspace ownership enforced via run_id → RunSnapshot.workspace_id join.
 # ---------------------------------------------------------------------------
 
 
@@ -469,9 +471,13 @@ async def list_claims(
     claim_repo: ClaimRepository = Depends(get_claim_repo),
     run_id: UUID | None = Query(default=None, description="Filter claims by run_id"),
 ) -> ClaimListResponse:
-    """List claims, optionally filtered by run_id."""
+    """List claims, optionally filtered by run_id.
+
+    When run_id is provided, only claims whose run belongs to this workspace
+    are returned (workspace-safe join).
+    """
     if run_id is not None:
-        rows = await claim_repo.get_by_run(run_id)
+        rows = await claim_repo.get_by_run_for_workspace(run_id, workspace_id)
     else:
         rows = await claim_repo.list_all()
 
@@ -499,8 +505,8 @@ async def get_claim_detail(
     claim_id: UUID,
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> ClaimDetailResponse:
-    """Get a single claim by ID."""
-    row = await claim_repo.get(claim_id)
+    """Get a single claim by ID (workspace-scoped via run linkage)."""
+    row = await claim_repo.get_for_workspace(claim_id, workspace_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Claim {claim_id} not found.")
 
@@ -518,7 +524,7 @@ async def get_claim_detail(
     )
 
 
-@router.patch(
+@router.put(
     "/{workspace_id}/governance/claims/{claim_id}",
     response_model=UpdateClaimResponse,
 )
@@ -531,8 +537,9 @@ async def update_claim_status(
     """Update a claim's status with state-machine transition validation.
 
     Returns 409 if the requested transition is not allowed.
+    Returns 404 if claim not found or wrong workspace.
     """
-    row = await claim_repo.get(claim_id)
+    row = await claim_repo.get_for_workspace(claim_id, workspace_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Claim {claim_id} not found.")
 
@@ -566,20 +573,27 @@ async def update_claim_status(
 
 # ---------------------------------------------------------------------------
 # B-7: Evidence list / detail / link
+# Workspace ownership enforced via source_id → Document.workspace_id join.
 # ---------------------------------------------------------------------------
 
 
 @router.get("/{workspace_id}/governance/evidence", response_model=EvidenceListResponse)
 async def list_evidence(
     workspace_id: UUID,
-    source_id: UUID | None = Query(default=None, description="Filter by source document ID"),
+    run_id: UUID | None = Query(default=None, description="Filter evidence by run_id"),
     evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
+    run_snapshot_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
 ) -> EvidenceListResponse:
-    """B-7: List evidence snippets, filtered by source document."""
-    if source_id is not None:
-        rows = await evidence_repo.list_by_source(source_id)
-    else:
-        rows = []
+    """B-7: List evidence snippets for a workspace, optionally filtered by run.
+
+    When run_id is provided, verifies the run belongs to this workspace.
+    Returns all evidence snippets from documents in this workspace.
+    """
+    if run_id is not None:
+        snapshot = await run_snapshot_repo.get(run_id)
+        if snapshot is None or snapshot.workspace_id != workspace_id:
+            return EvidenceListResponse(items=[], total=0)
+    rows = await evidence_repo.list_by_workspace(workspace_id)
     items = [
         EvidenceListItem(
             snippet_id=str(r.snippet_id),
@@ -603,8 +617,8 @@ async def get_evidence_detail(
     snippet_id: UUID,
     evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
 ) -> EvidenceDetailResponse:
-    """B-7: Get evidence snippet detail."""
-    row = await evidence_repo.get(snippet_id)
+    """B-7: Get evidence snippet detail (workspace-scoped via document)."""
+    row = await evidence_repo.get_for_workspace(snippet_id, workspace_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Evidence snippet {snippet_id} not found.")
     return EvidenceDetailResponse(
@@ -620,23 +634,35 @@ async def get_evidence_detail(
 
 
 @router.post(
-    "/{workspace_id}/governance/evidence/{snippet_id}/link",
+    "/{workspace_id}/governance/claims/{claim_id}/evidence",
     response_model=LinkEvidenceResponse,
 )
 async def link_evidence_to_claim(
     workspace_id: UUID,
-    snippet_id: UUID,
+    claim_id: UUID,
     body: LinkEvidenceRequest,
     evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> LinkEvidenceResponse:
-    """B-7: Link an evidence snippet to a claim."""
-    snippet_row = await evidence_repo.get(snippet_id)
-    if snippet_row is None:
-        raise HTTPException(status_code=404, detail=f"Evidence snippet {snippet_id} not found.")
-    claim_id = UUID(body.claim_id)
-    claim_row = await claim_repo.get(claim_id)
+    """B-7: Link evidence snippets to a claim (workspace-scoped, with dedupe)."""
+    claim_row = await claim_repo.get_for_workspace(claim_id, workspace_id)
     if claim_row is None:
-        raise HTTPException(status_code=404, detail=f"Claim {body.claim_id} not found.")
-    await claim_repo.link_evidence(claim_id, snippet_id)
-    return LinkEvidenceResponse(linked=True, snippet_id=str(snippet_id), claim_id=body.claim_id)
+        raise HTTPException(status_code=404, detail=f"Claim {claim_id} not found.")
+
+    validated_ids: list[UUID] = []
+    for eid_str in body.evidence_ids:
+        eid = UUID(eid_str)
+        snippet_row = await evidence_repo.get_for_workspace(eid, workspace_id)
+        if snippet_row is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Evidence snippet {eid_str} not found.",
+            )
+        validated_ids.append(eid)
+
+    updated = await claim_repo.link_evidence_many(claim_id, validated_ids)
+    return LinkEvidenceResponse(
+        claim_id=str(claim_id),
+        evidence_ids=[str(eid) for eid in validated_ids],
+        total_linked=len(updated.evidence_refs) if updated else 0,
+    )

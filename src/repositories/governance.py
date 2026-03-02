@@ -5,7 +5,14 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.tables import AssumptionRow, AssumptionLinkRow, ClaimRow, EvidenceSnippetRow
+from src.db.tables import (
+    AssumptionRow,
+    AssumptionLinkRow,
+    ClaimRow,
+    DocumentRow,
+    EvidenceSnippetRow,
+    RunSnapshotRow,
+)
 from src.models.common import utc_now
 
 
@@ -125,6 +132,34 @@ class ClaimRepository:
         result = await self._session.execute(select(ClaimRow))
         return list(result.scalars().all())
 
+    async def get_for_workspace(
+        self, claim_id: UUID, workspace_id: UUID,
+    ) -> ClaimRow | None:
+        """Get a claim only if its run belongs to the given workspace."""
+        result = await self._session.execute(
+            select(ClaimRow)
+            .join(RunSnapshotRow, ClaimRow.run_id == RunSnapshotRow.run_id)
+            .where(
+                ClaimRow.claim_id == claim_id,
+                RunSnapshotRow.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_run_for_workspace(
+        self, run_id: UUID, workspace_id: UUID,
+    ) -> list[ClaimRow]:
+        """Get claims for a run, only if the run belongs to the workspace."""
+        result = await self._session.execute(
+            select(ClaimRow)
+            .join(RunSnapshotRow, ClaimRow.run_id == RunSnapshotRow.run_id)
+            .where(
+                ClaimRow.run_id == run_id,
+                RunSnapshotRow.workspace_id == workspace_id,
+            )
+        )
+        return list(result.scalars().all())
+
     async def link_evidence(self, claim_id: UUID, snippet_id: UUID) -> ClaimRow | None:
         """Append a snippet_id to the claim's evidence_refs list."""
         row = await self.get(claim_id)
@@ -133,6 +168,22 @@ class ClaimRepository:
             sid = str(snippet_id)
             if sid not in refs:
                 refs.append(sid)
+            row.evidence_refs = refs
+            row.updated_at = utc_now()
+            await self._session.flush()
+        return row
+
+    async def link_evidence_many(
+        self, claim_id: UUID, snippet_ids: list[UUID],
+    ) -> ClaimRow | None:
+        """Append multiple snippet_ids to a claim's evidence_refs with dedupe."""
+        row = await self.get(claim_id)
+        if row is not None:
+            refs = list(row.evidence_refs or [])
+            for sid in snippet_ids:
+                sid_str = str(sid)
+                if sid_str not in refs:
+                    refs.append(sid_str)
             row.evidence_refs = refs
             row.updated_at = utc_now()
             await self._session.flush()
@@ -205,6 +256,32 @@ class EvidenceSnippetRepository:
         result = await self._session.execute(
             select(EvidenceSnippetRow)
             .where(EvidenceSnippetRow.source_id.in_(source_ids))
+            .order_by(EvidenceSnippetRow.created_at.asc())
+        )
+        return list(result.scalars().all())
+
+    async def get_for_workspace(
+        self, snippet_id: UUID, workspace_id: UUID,
+    ) -> EvidenceSnippetRow | None:
+        """Get a snippet only if its source document belongs to the workspace."""
+        result = await self._session.execute(
+            select(EvidenceSnippetRow)
+            .join(DocumentRow, EvidenceSnippetRow.source_id == DocumentRow.doc_id)
+            .where(
+                EvidenceSnippetRow.snippet_id == snippet_id,
+                DocumentRow.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_workspace(
+        self, workspace_id: UUID,
+    ) -> list[EvidenceSnippetRow]:
+        """Get all snippets for documents belonging to a workspace."""
+        result = await self._session.execute(
+            select(EvidenceSnippetRow)
+            .join(DocumentRow, EvidenceSnippetRow.source_id == DocumentRow.doc_id)
+            .where(DocumentRow.workspace_id == workspace_id)
             .order_by(EvidenceSnippetRow.created_at.asc())
         )
         return list(result.scalars().all())
