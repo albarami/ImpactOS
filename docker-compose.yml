@@ -103,6 +103,24 @@ services:
     networks:
       - impactos
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: impactos-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:8000
+      - NEXT_PUBLIC_DEV_WORKSPACE_ID=${DEV_WORKSPACE_ID:-550e8400-e29b-41d4-a716-446655440000}
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=dev-secret-do-not-use-in-production
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - impactos
+
   celery-worker:
     build: .
     container_name: impactos-celery-worker
