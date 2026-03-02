@@ -103,6 +103,13 @@ async def update_workspace(
     updates = body.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=422, detail="No fields to update")
+    # Reject explicit null for non-nullable DB columns (all workspace fields are NOT NULL)
+    null_fields = [k for k, v in updates.items() if v is None]
+    if null_fields:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Null not allowed for: {', '.join(null_fields)}",
+        )
     row = await repo.update(workspace_id, **updates)
     if row is None:
         raise HTTPException(status_code=404, detail="Workspace not found")

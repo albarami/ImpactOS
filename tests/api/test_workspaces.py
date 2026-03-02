@@ -95,6 +95,20 @@ class TestUpdateWorkspace:
         assert resp.json()["description"] == "Updated description"
 
     @pytest.mark.anyio
+    async def test_update_null_field_rejected(self, client: AsyncClient) -> None:
+        create_resp = await client.post("/v1/workspaces", json={
+            "client_name": "Null Test",
+            "engagement_code": "ENG-NULL",
+            "created_by": str(uuid7()),
+        })
+        ws_id = create_resp.json()["workspace_id"]
+        resp = await client.put(f"/v1/workspaces/{ws_id}", json={
+            "client_name": None,
+        })
+        assert resp.status_code == 422
+        assert "client_name" in resp.json()["detail"]
+
+    @pytest.mark.anyio
     async def test_update_missing(self, client: AsyncClient) -> None:
         resp = await client.put(f"/v1/workspaces/{uuid7()}", json={
             "client_name": "No such workspace",

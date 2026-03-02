@@ -1,12 +1,18 @@
 """B-14 + B-15: Model version list/detail + coefficient retrieval.
 
 Workspace-scoped URLs for consistency. Model versions are global resources.
-Satellite coefficients loaded from synthetic data file (reference data).
+
+NOTE: Satellite coefficients are loaded from a reference data file, not stored
+per model version. A future sprint will add a coefficient persistence layer
+(SatelliteCoefficientRow table) so that coefficients are model-version-specific.
+Until then, the same reference coefficients are returned for all model versions
+with a ``source: "reference"`` marker and a sector-count mismatch warning.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -17,6 +23,8 @@ from pydantic import BaseModel
 from src.api.dependencies import get_model_version_repo
 from src.db.tables import ModelVersionRow
 from src.repositories.engine import ModelVersionRepository
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/v1/workspaces/{workspace_id}/models",
@@ -139,6 +147,16 @@ async def get_coefficients(
     imports: list[float] = _DEFAULT_COEFFICIENTS.get("import_ratios", {}).get("values", [])
     va: list[float] = _DEFAULT_COEFFICIENTS.get("va_ratios", {}).get("values", [])
 
+    # Warn if reference data sector count differs from model's actual sector count
+    if len(sector_codes) != row.sector_count:
+        logger.warning(
+            "Coefficient sector count (%d) != model sector count (%d) for %s. "
+            "Returning reference data — model-specific coefficients not yet supported.",
+            len(sector_codes),
+            row.sector_count,
+            model_version_id,
+        )
+
     coefficients = [
         SectorCoefficient(
             sector_code=code,
@@ -151,6 +169,6 @@ async def get_coefficients(
 
     return CoefficientsResponse(
         model_version_id=str(model_version_id),
-        source=_DEFAULT_COEFFICIENTS.get("source", "synthetic"),
+        source=_DEFAULT_COEFFICIENTS.get("source", "reference"),
         sector_coefficients=coefficients,
     )

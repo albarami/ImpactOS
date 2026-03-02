@@ -97,13 +97,34 @@ class TestGetCoefficients:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert "sector_coefficients" in data
-        assert len(data["sector_coefficients"]) >= 1
-        first = data["sector_coefficients"][0]
-        assert "sector_code" in first
-        assert "jobs_coeff" in first
-        assert "import_ratio" in first
-        assert "va_ratio" in first
+        assert data["model_version_id"] == mv_id
+        assert isinstance(data["source"], str)
+        assert len(data["source"]) > 0
+        coeffs = data["sector_coefficients"]
+        assert isinstance(coeffs, list)
+        assert len(coeffs) >= 1
+        for coeff in coeffs:
+            assert isinstance(coeff["sector_code"], str)
+            assert len(coeff["sector_code"]) > 0
+            assert isinstance(coeff["jobs_coeff"], (int, float))
+            assert isinstance(coeff["import_ratio"], (int, float))
+            assert isinstance(coeff["va_ratio"], (int, float))
+            # Coefficients must be non-negative
+            assert coeff["jobs_coeff"] >= 0.0
+            assert coeff["import_ratio"] >= 0.0
+            assert coeff["va_ratio"] >= 0.0
+
+    @pytest.mark.anyio
+    async def test_get_coefficients_sector_codes_unique(
+        self, client: AsyncClient, workspace_id: str,
+    ) -> None:
+        mv_id = await _register_model(client)
+        resp = await client.get(
+            f"/v1/workspaces/{workspace_id}/models/versions/{mv_id}/coefficients",
+        )
+        assert resp.status_code == 200
+        codes = [c["sector_code"] for c in resp.json()["sector_coefficients"]]
+        assert len(codes) == len(set(codes)), "Duplicate sector codes in coefficients"
 
     @pytest.mark.anyio
     async def test_get_coefficients_missing_model(

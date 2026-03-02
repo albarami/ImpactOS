@@ -7,11 +7,14 @@ Workspace-scoped URL for consistency; taxonomy data is global.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/v1/workspaces/{workspace_id}/taxonomy",
@@ -30,36 +33,44 @@ def _load_taxonomy() -> list[dict[str, str | None]]:
     items: list[dict[str, str | None]] = []
 
     sections_path = _DATA_DIR / "sector_taxonomy_isic4.json"
-    if sections_path.exists():
-        with open(sections_path, encoding="utf-8") as f:
-            data = json.load(f)
-        for s in data.get("sectors", []):
-            if not s.get("is_active", True):
-                continue
-            items.append({
-                "sector_code": s["sector_code"],
-                "name_en": s["sector_name_en"],
-                "name_ar": s.get("sector_name_ar"),
-                "parent_code": s.get("parent_sector_code"),
-                "level": s.get("level", "section"),
-                "description": s.get("description", ""),
-            })
+    if not sections_path.exists():
+        raise RuntimeError(
+            f"Taxonomy sections file missing: {sections_path}. "
+            "Ensure data/curated/sector_taxonomy_isic4.json is present."
+        )
+    with open(sections_path, encoding="utf-8") as f:
+        data = json.load(f)
+    for s in data.get("sectors", []):
+        if not s.get("is_active", True):
+            continue
+        items.append({
+            "sector_code": s["sector_code"],
+            "name_en": s["sector_name_en"],
+            "name_ar": s.get("sector_name_ar"),
+            "parent_code": s.get("parent_sector_code"),
+            "level": s.get("level", "section"),
+            "description": s.get("description", ""),
+        })
 
     divisions_path = _DATA_DIR / "sector_taxonomy_isic4_divisions.json"
-    if divisions_path.exists():
-        with open(divisions_path, encoding="utf-8") as f:
-            data = json.load(f)
-        for d in data.get("sectors", []):
-            if not d.get("is_active", True):
-                continue
-            items.append({
-                "sector_code": d["division_code"],
-                "name_en": d["sector_name_en"],
-                "name_ar": d.get("sector_name_ar"),
-                "parent_code": d.get("parent_section"),
-                "level": "division",
-                "description": d.get("description", ""),
-            })
+    if not divisions_path.exists():
+        raise RuntimeError(
+            f"Taxonomy divisions file missing: {divisions_path}. "
+            "Ensure data/curated/sector_taxonomy_isic4_divisions.json is present."
+        )
+    with open(divisions_path, encoding="utf-8") as f:
+        data = json.load(f)
+    for d in data.get("sectors", []):
+        if not d.get("is_active", True):
+            continue
+        items.append({
+            "sector_code": d["division_code"],
+            "name_en": d["sector_name_en"],
+            "name_ar": d.get("sector_name_ar"),
+            "parent_code": d.get("parent_section"),
+            "level": "division",
+            "description": d.get("description", ""),
+        })
 
     return items
 
