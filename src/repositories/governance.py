@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.tables import (
-    AssumptionRow,
     AssumptionLinkRow,
+    AssumptionRow,
     ClaimRow,
     DocumentRow,
     EvidenceSnippetRow,
@@ -237,6 +237,17 @@ class EvidenceSnippetRepository:
             rows.append(row)
         await self._session.flush()
         return rows
+
+    async def delete_by_source(self, source_id: UUID) -> int:
+        """Delete all snippets for a source (idempotent retry support)."""
+        from sqlalchemy import delete
+        result = await self._session.execute(
+            delete(EvidenceSnippetRow).where(
+                EvidenceSnippetRow.source_id == source_id,
+            )
+        )
+        await self._session.flush()
+        return result.rowcount  # type: ignore[return-value]
 
     async def get(self, snippet_id: UUID) -> EvidenceSnippetRow | None:
         return await self._session.get(EvidenceSnippetRow, snippet_id)
