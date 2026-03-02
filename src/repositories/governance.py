@@ -289,35 +289,38 @@ class EvidenceSnippetRepository:
     async def list_by_run_for_workspace(
         self, run_id: UUID, workspace_id: UUID,
     ) -> list[EvidenceSnippetRow]:
-        """Get evidence snippets tied to a specific run via claims' evidence_refs.
+        """Get evidence snippets for a run's source documents.
 
-        Resolves run → claims (workspace-verified) → evidence_refs → snippets.
+        Resolves run → source_checksums → workspace documents matching those
+        checksums → all evidence snippets for those documents.
         """
-        claim_result = await self._session.execute(
-            select(ClaimRow)
-            .join(RunSnapshotRow, ClaimRow.run_id == RunSnapshotRow.run_id)
-            .where(
-                ClaimRow.run_id == run_id,
+        snapshot_result = await self._session.execute(
+            select(RunSnapshotRow).where(
+                RunSnapshotRow.run_id == run_id,
                 RunSnapshotRow.workspace_id == workspace_id,
             )
         )
-        claims = list(claim_result.scalars().all())
+        snapshot = snapshot_result.scalar_one_or_none()
+        if snapshot is None:
+            return []
 
-        snippet_ids: list[UUID] = []
-        seen: set[str] = set()
-        for claim in claims:
-            for ref in claim.evidence_refs or []:
-                ref_str = str(ref)
-                if ref_str not in seen:
-                    seen.add(ref_str)
-                    snippet_ids.append(UUID(ref_str))
+        checksums: list[str] = snapshot.source_checksums or []
+        if not checksums:
+            return []
 
-        if not snippet_ids:
+        doc_result = await self._session.execute(
+            select(DocumentRow.doc_id).where(
+                DocumentRow.workspace_id == workspace_id,
+                DocumentRow.hash_sha256.in_(checksums),
+            )
+        )
+        doc_ids = list(doc_result.scalars().all())
+        if not doc_ids:
             return []
 
         result = await self._session.execute(
             select(EvidenceSnippetRow)
-            .where(EvidenceSnippetRow.snippet_id.in_(snippet_ids))
+            .where(EvidenceSnippetRow.source_id.in_(doc_ids))
             .order_by(EvidenceSnippetRow.created_at.asc())
         )
         return list(result.scalars().all())

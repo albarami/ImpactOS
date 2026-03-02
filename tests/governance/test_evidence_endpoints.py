@@ -25,27 +25,45 @@ WS_ID = str(uuid7())
 # ---------------------------------------------------------------------------
 
 
-async def _seed_document(db_session, workspace_id: str) -> UUID:
-    """Create a document row and return its doc_id."""
+def _make_hash(label: str = "default") -> str:
+    """Produce a deterministic sha256-prefixed hash from a label."""
+    import hashlib
+
+    digest = hashlib.sha256(label.encode()).hexdigest()
+    return f"sha256:{digest}"
+
+
+async def _seed_document(
+    db_session,
+    workspace_id: str,
+    hash_sha256: str | None = None,
+) -> tuple[UUID, str]:
+    """Create a document row. Returns (doc_id, hash_sha256)."""
     repo = DocumentRepository(db_session)
     doc_id = uuid7()
+    doc_hash = hash_sha256 or _make_hash(str(doc_id))
     await repo.create(
         doc_id=doc_id,
         workspace_id=UUID(workspace_id),
         filename="test.csv",
         mime_type="text/csv",
         size_bytes=100,
-        hash_sha256="sha256:" + "b" * 64,
-        storage_key="test/key",
+        hash_sha256=doc_hash,
+        storage_key=f"test/{doc_id}",
         uploaded_by=uuid7(),
         doc_type="BOQ",
         source_type="CLIENT",
         classification="INTERNAL",
     )
-    return doc_id
+    return doc_id, doc_hash
 
 
-async def _seed_run_snapshot(db_session, run_id: str, workspace_id: str) -> None:
+async def _seed_run_snapshot(
+    db_session,
+    run_id: str,
+    workspace_id: str,
+    source_checksums: list[str] | None = None,
+) -> None:
     """Create a RunSnapshot row linking run_id to workspace_id."""
     repo = RunSnapshotRepository(db_session)
     dummy_uuid = uuid7()
@@ -57,7 +75,7 @@ async def _seed_run_snapshot(db_session, run_id: str, workspace_id: str) -> None
         mapping_library_version_id=dummy_uuid,
         assumption_library_version_id=dummy_uuid,
         prompt_pack_version_id=dummy_uuid,
-        source_checksums=[],
+        source_checksums=source_checksums or [],
         workspace_id=UUID(workspace_id),
     )
 
@@ -136,24 +154,18 @@ class TestEvidenceList:
         assert resp.status_code == 404
 
     @pytest.mark.anyio
-    async def test_list_returns_only_run_linked_snippets(
+    async def test_list_includes_unlinked_snippets(
         self, client: AsyncClient, db_session,
     ) -> None:
-        """Run-scoped: only snippets linked to claims in the run are returned."""
+        """Run filter returns ALL snippets from source docs, including unlinked."""
+        doc_id, doc_hash = await _seed_document(db_session, WS_ID)
         run_id = str(uuid7())
-        doc_id = await _seed_document(db_session, WS_ID)
-        await _seed_run_snapshot(db_session, run_id, WS_ID)
+        await _seed_run_snapshot(
+            db_session, run_id, WS_ID, source_checksums=[doc_hash],
+        )
 
         s1 = await _seed_snippet(db_session, source_id=doc_id, text="linked")
-        await _seed_snippet(db_session, source_id=doc_id, text="unlinked")
-
-        extract = await _extract_claims(client, _ASSUMPTION_TEXT, run_id=run_id)
-        claim_id = extract["claims"][0]["claim_id"]
-
-        await client.post(
-            f"/v1/workspaces/{WS_ID}/governance/claims/{claim_id}/evidence",
-            json={"evidence_ids": [str(s1.snippet_id)]},
-        )
+        s2 = await _seed_snippet(db_session, source_id=doc_id, text="unlinked")
 
         resp = await client.get(
             f"/v1/workspaces/{WS_ID}/governance/evidence",
@@ -161,39 +173,29 @@ class TestEvidenceList:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["total"] == 1
-        assert data["items"][0]["snippet_id"] == str(s1.snippet_id)
+        assert data["total"] == 2
+        returned_ids = {i["snippet_id"] for i in data["items"]}
+        assert returned_ids == {str(s1.snippet_id), str(s2.snippet_id)}
 
     @pytest.mark.anyio
     async def test_two_runs_isolation(
         self, client: AsyncClient, db_session,
     ) -> None:
-        """Same workspace, two runs with different snippets -> isolated results."""
+        """Same workspace, two runs, different source docs -> strict isolation."""
+        doc_a_id, hash_a = await _seed_document(db_session, WS_ID)
+        doc_b_id, hash_b = await _seed_document(db_session, WS_ID)
+
         run_a = str(uuid7())
         run_b = str(uuid7())
-        doc_a = await _seed_document(db_session, WS_ID)
-        doc_b = await _seed_document(db_session, WS_ID)
-        await _seed_run_snapshot(db_session, run_a, WS_ID)
-        await _seed_run_snapshot(db_session, run_b, WS_ID)
-
-        s_a = await _seed_snippet(db_session, source_id=doc_a, text="run A evidence")
-        s_b = await _seed_snippet(db_session, source_id=doc_b, text="run B evidence")
-
-        ext_a = await _extract_claims(client, _ASSUMPTION_TEXT, run_id=run_a)
-        ext_b = await _extract_claims(
-            client, "We assume 30% export share.", run_id=run_b,
+        await _seed_run_snapshot(
+            db_session, run_a, WS_ID, source_checksums=[hash_a],
         )
-        cid_a = ext_a["claims"][0]["claim_id"]
-        cid_b = ext_b["claims"][0]["claim_id"]
+        await _seed_run_snapshot(
+            db_session, run_b, WS_ID, source_checksums=[hash_b],
+        )
 
-        await client.post(
-            f"/v1/workspaces/{WS_ID}/governance/claims/{cid_a}/evidence",
-            json={"evidence_ids": [str(s_a.snippet_id)]},
-        )
-        await client.post(
-            f"/v1/workspaces/{WS_ID}/governance/claims/{cid_b}/evidence",
-            json={"evidence_ids": [str(s_b.snippet_id)]},
-        )
+        s_a = await _seed_snippet(db_session, source_id=doc_a_id, text="run A")
+        s_b = await _seed_snippet(db_session, source_id=doc_b_id, text="run B")
 
         resp_a = await client.get(
             f"/v1/workspaces/{WS_ID}/governance/evidence",
@@ -223,7 +225,7 @@ class TestEvidenceDetail:
         self, client: AsyncClient, db_session,
     ) -> None:
         """Seed doc + snippet, get by id -> 200 with all fields including bbox."""
-        doc_id = await _seed_document(db_session, WS_ID)
+        doc_id, _ = await _seed_document(db_session, WS_ID)
         row = await _seed_snippet(
             db_session, source_id=doc_id, text="detail test snippet",
         )
@@ -261,7 +263,7 @@ class TestEvidenceDetail:
         """Snippet's document belongs to ws_a, querying from ws_b -> 404."""
         ws_a = str(uuid7())
         ws_b = str(uuid7())
-        doc_id = await _seed_document(db_session, ws_a)
+        doc_id, _ = await _seed_document(db_session, ws_a)
         row = await _seed_snippet(
             db_session, source_id=doc_id, text="ws_a only",
         )
@@ -283,8 +285,10 @@ class TestEvidenceLink:
     ) -> None:
         """Link evidence to claim via POST /claims/{id}/evidence."""
         run_id = str(uuid7())
-        doc_id = await _seed_document(db_session, WS_ID)
-        await _seed_run_snapshot(db_session, run_id, WS_ID)
+        doc_id, doc_hash = await _seed_document(db_session, WS_ID)
+        await _seed_run_snapshot(
+            db_session, run_id, WS_ID, source_checksums=[doc_hash],
+        )
         extract = await _extract_claims(client, _ASSUMPTION_TEXT, run_id=run_id)
         claim_id = extract["claims"][0]["claim_id"]
 
@@ -314,8 +318,10 @@ class TestEvidenceLink:
     ) -> None:
         """Linking same evidence twice does not create duplicates."""
         run_id = str(uuid7())
-        doc_id = await _seed_document(db_session, WS_ID)
-        await _seed_run_snapshot(db_session, run_id, WS_ID)
+        doc_id, doc_hash = await _seed_document(db_session, WS_ID)
+        await _seed_run_snapshot(
+            db_session, run_id, WS_ID, source_checksums=[doc_hash],
+        )
         extract = await _extract_claims(client, _ASSUMPTION_TEXT, run_id=run_id)
         claim_id = extract["claims"][0]["claim_id"]
 
@@ -356,7 +362,7 @@ class TestEvidenceLink:
         self, client: AsyncClient, db_session,
     ) -> None:
         """Fake claim_id -> 404."""
-        doc_id = await _seed_document(db_session, WS_ID)
+        doc_id, _ = await _seed_document(db_session, WS_ID)
         row = await _seed_snippet(
             db_session, source_id=doc_id, text="orphan snippet",
         )
@@ -375,7 +381,7 @@ class TestEvidenceLink:
         ws_a = str(uuid7())
         ws_b = str(uuid7())
         run_id = str(uuid7())
-        doc_a = await _seed_document(db_session, ws_a)
+        doc_a, _ = await _seed_document(db_session, ws_a)
         await _seed_run_snapshot(db_session, run_id, ws_b)
         extract = await _extract_claims(
             client, _ASSUMPTION_TEXT, run_id=run_id, ws_id=ws_b,
@@ -404,14 +410,12 @@ class TestEvidencePersistenceWiring:
     async def test_extraction_persists_evidence_snippets(
         self, client: AsyncClient, db_session,
     ) -> None:
-        """Integration: extract CSV -> evidence snippets appear in DB."""
+        """Integration: extract CSV -> evidence snippets visible via run_id filter."""
         import csv
         import io
 
         ws_id = str(uuid7())
         uploaded_by = str(uuid7())
-        run_id = str(uuid7())
-        await _seed_run_snapshot(db_session, run_id, ws_id)
 
         buf = io.StringIO()
         writer = csv.writer(buf)
@@ -431,7 +435,13 @@ class TestEvidencePersistenceWiring:
             },
         )
         assert upload_resp.status_code == 201
+        doc_hash = upload_resp.json()["hash_sha256"]
         doc_id = upload_resp.json()["doc_id"]
+
+        run_id = str(uuid7())
+        await _seed_run_snapshot(
+            db_session, run_id, ws_id, source_checksums=[doc_hash],
+        )
 
         extract_resp = await client.post(
             f"/v1/workspaces/{ws_id}/documents/{doc_id}/extract",
@@ -442,6 +452,7 @@ class TestEvidencePersistenceWiring:
 
         evidence_resp = await client.get(
             f"/v1/workspaces/{ws_id}/governance/evidence",
+            params={"run_id": run_id},
         )
         assert evidence_resp.status_code == 200
         data = evidence_resp.json()
