@@ -96,15 +96,15 @@ class ExportOrchestrator:
                     blocking_reasons=[br.reason for br in gate_result.blocking_reasons],
                 )
 
-        # 2. Quality/provenance gate (governed: require quality record)
-        if request.mode == ExportMode.GOVERNED and quality_assessment is None:
+        # 2. Quality/provenance gate (both modes — D-5.1)
+        if quality_assessment is None:
             return ExportRecord(
                 export_id=export_id,
                 run_id=request.run_id,
                 mode=request.mode,
                 status=ExportStatus.BLOCKED,
                 blocking_reasons=[
-                    "Governed export blocked: no quality assessment available. "
+                    "Export blocked: no quality assessment available. "
                     "Data provenance cannot be verified without quality record."
                 ],
             )

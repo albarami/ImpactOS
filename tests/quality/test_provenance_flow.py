@@ -6,7 +6,7 @@ Governed also blocks when quality assessment is missing.
 
 from uuid_extensions import uuid7
 
-from src.data.real_io_loader import IODataProvenance, DataMode
+from src.data.real_io_loader import DataMode, IODataProvenance
 from src.export.orchestrator import (
     ExportOrchestrator,
     ExportRequest,

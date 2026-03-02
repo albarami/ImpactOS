@@ -66,10 +66,25 @@ class TestNFFEndToEnd:
 
     @pytest.mark.anyio
     async def test_sandbox_export_not_blocked_by_claims(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Sandbox export should NEVER be blocked regardless of claims."""
         run_id = str(uuid7())
+
+        row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(WS_ID),
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
+            created_at=utc_now(),
+        )
+        db_session.add(row)
+        await db_session.flush()
 
         # Extract claims
         await client.post(
@@ -517,6 +532,21 @@ class TestExportPersistence:
             created_at=utc_now(),
         )
         db_session.add(row)
+        await db_session.flush()
+
+        quality_row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(WS_ID),
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
+            created_at=utc_now(),
+        )
+        db_session.add(quality_row)
         await db_session.flush()
 
         create_resp = await client.post(

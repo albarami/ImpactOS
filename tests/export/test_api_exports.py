@@ -8,8 +8,10 @@ import pytest
 from httpx import AsyncClient
 from uuid_extensions import uuid7
 
-from src.db.tables import RunSnapshotRow
-from src.models.common import utc_now
+from uuid import UUID
+
+from src.db.tables import RunQualitySummaryRow, RunSnapshotRow
+from src.models.common import new_uuid7, utc_now
 
 WS_ID = str(uuid7())
 
@@ -74,16 +76,48 @@ class TestCreateExport:
         assert "status" in data
 
     @pytest.mark.anyio
-    async def test_create_sandbox_succeeds(self, client: AsyncClient) -> None:
-        payload = _make_export_payload()
+    async def test_create_sandbox_succeeds(self, client: AsyncClient, db_session) -> None:
+        run_id = str(uuid7())
+        quality_row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(WS_ID),
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
+            created_at=utc_now(),
+        )
+        db_session.add(quality_row)
+        await db_session.flush()
+
+        payload = _make_export_payload(run_id=run_id)
         payload["mode"] = "SANDBOX"
         response = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=payload)
         data = response.json()
         assert data["status"] == "COMPLETED"
 
     @pytest.mark.anyio
-    async def test_create_with_pptx_format(self, client: AsyncClient) -> None:
-        payload = _make_export_payload()
+    async def test_create_with_pptx_format(self, client: AsyncClient, db_session) -> None:
+        run_id = str(uuid7())
+        quality_row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(WS_ID),
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
+            created_at=utc_now(),
+        )
+        db_session.add(quality_row)
+        await db_session.flush()
+
+        payload = _make_export_payload(run_id=run_id)
         payload["export_formats"] = ["pptx"]
         response = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=payload)
         data = response.json()

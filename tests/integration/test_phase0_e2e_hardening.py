@@ -230,6 +230,21 @@ class TestPhase0E2EHardening:
 
         # --- 6. Sandbox export -> COMPLETED ---
         run_id = str(new_uuid7())
+        quality_row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(ws_id),
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
+            created_at=utc_now(),
+        )
+        db_session.add(quality_row)
+        await db_session.flush()
+
         export_resp = await client.post(
             f"/v1/workspaces/{ws_id}/exports",
             json=_make_export_payload(run_id, "SANDBOX"),

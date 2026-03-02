@@ -90,6 +90,8 @@ DEMO_EMPLOYMENT_COEFFICIENTS = {
     "indirect_multiplier": [1.8, 2.5, 2.2, 1.9, 1.6],
 }
 
+SEED_DEFAULT_PROFILE = "curated_real"
+
 # Demo workspace identifier (used for idempotency check)
 DEMO_ENGAGEMENT_CODE = "SG-DEMO-2026"
 
@@ -545,9 +547,9 @@ def _print_saudi20_summary() -> None:
 if __name__ == "__main__":
     _parser = argparse.ArgumentParser(description="Seed ImpactOS database")
     _parser.add_argument(
-        "--profile", default="demo",
-        choices=["demo", "saudi20", "curated_real"],
-        help="demo | saudi20 | curated_real (governed, STRICT_REAL)",
+        "--profile", default=SEED_DEFAULT_PROFILE,
+        choices=["curated_real", "demo", "saudi20"],
+        help="curated_real (governed, default) | demo (dev-only) | saudi20 (dev-only)",
     )
     _args = _parser.parse_args()
     asyncio.run(_run_seed(profile=_args.profile))

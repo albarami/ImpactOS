@@ -11,9 +11,9 @@ import pytest
 from uuid_extensions import uuid7
 
 from src.api.dependencies import get_export_artifact_storage
-from src.db.tables import ExportRow, RunSnapshotRow
+from src.db.tables import ExportRow, RunQualitySummaryRow, RunSnapshotRow
 from src.export.artifact_storage import ExportArtifactStorage
-from src.models.common import utc_now
+from src.models.common import new_uuid7, utc_now
 from src.repositories.exports import ExportRepository
 
 
@@ -214,6 +214,21 @@ class TestExportDownload:
         """Persist artifact bytes at create-export, then download exact bytes."""
         run_id = uuid7()
         await _seed_run_snapshot(db_session, run_id=run_id, workspace_id=WS_ID)
+
+        quality_row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=run_id,
+            workspace_id=WS_ID,
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
+            created_at=utc_now(),
+        )
+        db_session.add(quality_row)
+        await db_session.flush()
 
         payload = {
             "run_id": str(run_id),

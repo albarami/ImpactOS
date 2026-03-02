@@ -33,6 +33,8 @@ from src.engine.satellites import SatelliteCoefficients
 
 logger = logging.getLogger(__name__)
 
+RUNTIME_DATA_MODE = DataMode.STRICT_REAL
+
 # Default paths
 _CURATED_DIR = Path("data/curated")
 _SYNTHETIC_DIR = Path("data/synthetic")

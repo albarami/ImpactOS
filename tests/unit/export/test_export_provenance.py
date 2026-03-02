@@ -88,4 +88,4 @@ class TestExportWithProvenance:
             request=_make_request(ExportMode.SANDBOX),
             claims=[],
         )
-        assert result.status == ExportStatus.COMPLETED
+        assert result.status == ExportStatus.BLOCKED
