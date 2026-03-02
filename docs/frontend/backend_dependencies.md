@@ -1,86 +1,102 @@
 # Backend Dependencies for Phase 3B
 
-> These backend tickets must be completed before the corresponding frontend sprints can be fully implemented.
+> Status of backend tickets B-1 through B-17 as verified against `app.openapi()`.
 >
-> Date: 2026-03-01
+> Canonical ticket definitions from sprint prompt files.
+>
+> Date: 2026-03-02
 
-## Backend Tickets
+## B-Ticket Closure Table
 
-| Ticket | Endpoint | Purpose | Blocking Sprint |
-|--------|----------|---------|-----------------|
-| B-1 | `POST /v1/workspaces` | Create a new workspace | F-1 |
-| B-1 | `GET /v1/workspaces` | List all workspaces for the current user | F-1 |
-| B-1 | `GET /v1/workspaces/{workspace_id}` | Get workspace details by ID | F-1 |
-| B-1 | `PATCH /v1/workspaces/{workspace_id}` | Update workspace metadata | F-1 |
-| B-1 | `DELETE /v1/workspaces/{workspace_id}` | Delete a workspace | F-1 |
-| B-12 | `GET /v1/workspaces/{workspace_id}/exports/{export_id}/download` | Download the generated export artifact (PDF/PPTX/XLSX file) | F-6A |
-| B-14 | `GET /v1/engine/models` | List all registered model versions (currently only POST registration exists) | F-4A |
-| B-14 | `GET /v1/engine/models/{model_version_id}` | Get a model version by ID (metadata, sector count, checksum) | F-4A |
-| B-16 | `POST /v1/workspaces/{workspace_id}/scenarios/{scenario_id}/run` | Convenience endpoint to run a scenario directly without manually constructing shock vectors | F-4A |
-| B-17 | `GET /v1/workspaces/{workspace_id}/compiler/{compilation_id}` | Get the full compilation result with all suggestions (current status endpoint only returns counts) | F-3A |
+| Ticket | Canonical Name | Status | Routes Added by This Ticket | Resolved In |
+|--------|---------------|--------|----------------------------|-------------|
+| B-1 | Workspace CRUD | DONE | `POST /v1/workspaces`, `GET /v1/workspaces`, `GET /v1/workspaces/{workspace_id}`, `PUT /v1/workspaces/{workspace_id}` | Sprint 1 / PR #1 |
+| B-2 | Document list | DONE | `GET .../documents` | Sprint 2 / PR #2 |
+| B-3 | Document detail | DONE | `GET .../documents/{doc_id}` | Sprint 2 / PR #2 |
+| B-4 | Per-line mapping decision CRUD | DONE | `GET/PUT .../compiler/{id}/decisions/{li_id}` (POST .../decisions is pre-existing) | Sprint 3 / PR #3 |
+| B-5 | Bulk threshold approval | DONE | `POST .../compiler/{id}/decisions/bulk-approve` | Sprint 3 / PR #3 |
+| B-6 | Taxonomy browsing | DONE | `GET .../taxonomy/sectors`, `GET .../taxonomy/sectors/search`, `GET .../taxonomy/sectors/{code}` | Sprint 1 / PR #1 |
+| B-7 | Evidence list/detail/link | DONE | `GET .../governance/evidence`, `GET .../governance/evidence/{id}`, `POST .../governance/claims/{id}/evidence` | Sprint 4 / PR #5 |
+| B-8 | Mapping audit trail | DONE | `GET .../compiler/{id}/decisions/{li_id}/audit` | Sprint 3 / PR #3 |
+| B-9 | Scenario list | DONE | `GET .../scenarios` (paginated) | Sprint 2 / PR #2 |
+| B-10 | Scenario detail | DONE | `GET .../scenarios/{scenario_id}` | Sprint 2 / PR #2 |
+| B-11 | Claim list/detail/update | DONE | `GET .../governance/claims`, `GET .../governance/claims/{id}`, `PUT .../governance/claims/{id}` | Sprint 4 / PR #5 |
+| B-12 | Export artifact download | DONE | `GET .../exports/{id}/download/{format}` | Sprint 5 / PR #6 |
+| B-13 | Auth contract (dev stub) | DONE | `POST /v1/auth/login`, `POST /v1/auth/logout`, `GET /v1/auth/me` | Sprint 1 / PR #1 |
+| B-14 | Model version list/detail | DONE | `GET .../models/versions`, `GET .../models/versions/{id}` (workspace-scoped) | Sprint 1 / PR #1 |
+| B-15 | Coefficient retrieval | DONE | `GET .../models/versions/{id}/coefficients` | Sprint 1 / PR #1 |
+| B-16 | Run-from-scenario | DONE | `POST .../scenarios/{id}/run` | Sprint 5 / PR #6 |
+| B-17 | GET compilation detail | DONE | `GET .../compiler/{compilation_id}` (full compilation with suggestions) | Sprint 3 / PR #3 |
 
-## Ticket Details
+**All 17 B-tickets are DONE.** All required routes are present in OpenAPI.
 
-### B-1: Workspace CRUD Router
+## Notes
 
-**Priority:** Critical -- blocks F-1 (shell + auth)
+### B-1: Workspace CRUD
 
-No workspace router exists in the backend. All workspace-scoped routes assume a `workspace_id` path parameter, but there is no way to create, list, or manage workspaces via the API. The frontend needs workspace CRUD to:
+- `PUT` is used for update (not `PATCH`).
+- `DELETE /v1/workspaces/{workspace_id}` is not implemented. This is a future enhancement and does not block any current frontend sprint.
 
-- Display a workspace selector/switcher
-- Allow users to create new workspaces
-- Show workspace metadata in the UI shell
+### B-5: Bulk Threshold Approval
 
-**Required endpoints:**
-- `POST /v1/workspaces` -- create workspace (name, description, classification)
-- `GET /v1/workspaces` -- list workspaces (filtered by user RBAC)
-- `GET /v1/workspaces/{workspace_id}` -- get workspace details
-- `PATCH /v1/workspaces/{workspace_id}` -- update workspace
-- `DELETE /v1/workspaces/{workspace_id}` -- soft delete workspace
+- Accepts a confidence threshold and auto-approves all suggestions above it.
+- Route: `POST .../compiler/{compilation_id}/decisions/bulk-approve`
 
-### B-12: Export Artifact Download
+### B-7: Evidence List/Detail/Link
 
-**Priority:** High -- blocks F-6A (export UI)
+- `GET .../governance/evidence` lists evidence snippets (run-scoped via query params).
+- `GET .../governance/evidence/{snippet_id}` returns individual snippet.
+- `POST .../governance/claims/{claim_id}/evidence` links an evidence snippet to a claim.
 
-The export endpoint (`POST /exports`) creates export records and generates checksums, but there is no download endpoint. The frontend needs a way to download the generated PDF/PPTX/XLSX files.
+### B-8: Mapping Audit Trail
 
-**Required endpoint:**
-- `GET /v1/workspaces/{workspace_id}/exports/{export_id}/download` -- stream the artifact file with correct MIME type and content disposition
+- `GET .../compiler/{compilation_id}/decisions/{line_item_id}/audit` returns the full state-change history for a mapping decision.
 
-### B-14: Model Version List and Get
+### B-11: Claim List/Detail/Update
 
-**Priority:** Medium -- blocks F-4A (engine run UI)
+- `GET .../governance/claims` lists claims (workspace-scoped).
+- `PUT .../governance/claims/{claim_id}` updates claim status through governance lifecycle.
 
-Only `POST /v1/engine/models` exists for model registration. The frontend needs to list available models to populate dropdowns when configuring runs.
+### B-12: Export Download
 
-**Required endpoints:**
-- `GET /v1/engine/models` -- list all registered model versions
-- `GET /v1/engine/models/{model_version_id}` -- get model version details (sector_count, base_year, source, checksum)
+- Download path includes format parameter: `GET .../exports/{export_id}/download/{format}`
+- Accepted formats: `excel`, `pptx`
 
-### B-16: Run-from-Scenario Convenience
+### B-14: Model Versions
 
-**Priority:** Low -- F-4A can work without it (manual shock vector construction)
+- Model version list/detail routes are workspace-scoped: `/v1/workspaces/{workspace_id}/models/versions/...`
+- Model registration remains global: `POST /v1/engine/models`
 
-Currently, running a scenario requires manually constructing shock vectors from the compiled scenario. A convenience endpoint would auto-build the shock vector from the scenario's compiled shock items.
+### B-15: Coefficient Retrieval
 
-**Required endpoint:**
-- `POST /v1/workspaces/{workspace_id}/scenarios/{scenario_id}/run` -- compile and run in one step
+- Returns satellite coefficients for a specific model version.
+- Route: `GET .../models/versions/{model_version_id}/coefficients`
 
-### B-17: Full Compilation Result
+### B-16: Run-from-Scenario
 
-**Priority:** Medium -- blocks F-3A (HITL mapping UI)
+- Requires a compiled scenario (non-empty shock_items).
+- Governed mode requires locked scenario (`is_locked=true`).
 
-The current `GET /compiler/{compilationId}/status` endpoint only returns counts (high/medium/low confidence). The frontend HITL mapping UI needs the full list of suggestions with line item IDs, sector codes, confidence scores, and explanations to render an interactive approval table.
-
-**Required endpoint:**
-- `GET /v1/workspaces/{workspace_id}/compiler/{compilation_id}` -- return full compilation with all `mapping_suggestions`, `split_proposals`, and `assumption_drafts`
-
-## Dependency Graph
+## Dependency Graph (Resolved)
 
 ```
-F-1 (Shell + Auth)  ←── B-1 (Workspace CRUD)
-F-3A (Compiler UI)  ←── B-17 (Full compilation result)
-F-4A (Engine UI)    ←── B-14 (Model version list)
-F-4A (Engine UI)    ←── B-16 (Run-from-scenario) [nice-to-have]
-F-6A (Export UI)    ←── B-12 (Export download)
+F-1 (Shell + Auth)  <-- B-1  (Workspace CRUD)          [DONE Sprint 1]
+                     <-- B-13 (Auth stub)               [DONE Sprint 1]
+F-2 (Document UI)   <-- B-2  (Document list)            [DONE Sprint 2]
+                     <-- B-3  (Document detail)          [DONE Sprint 2]
+F-3A (Compiler UI)  <-- B-4  (Decision CRUD)            [DONE Sprint 3]
+                     <-- B-5  (Bulk threshold approval)  [DONE Sprint 3]
+                     <-- B-8  (Mapping audit trail)      [DONE Sprint 3]
+                     <-- B-17 (Compilation detail)       [DONE Sprint 3]
+F-4A (Engine UI)    <-- B-6  (Taxonomy)                  [DONE Sprint 1]
+                     <-- B-9  (Scenario list)            [DONE Sprint 2]
+                     <-- B-10 (Scenario detail)          [DONE Sprint 2]
+                     <-- B-14 (Model versions)           [DONE Sprint 1]
+                     <-- B-15 (Coefficients)             [DONE Sprint 1]
+                     <-- B-16 (Run-from-scenario)        [DONE Sprint 5]
+F-5A (Governance)   <-- B-7  (Evidence)                  [DONE Sprint 4]
+                     <-- B-11 (Claims)                   [DONE Sprint 4]
+F-6A (Export UI)    <-- B-12 (Export download)            [DONE Sprint 5]
 ```
+
+All frontend sprints F-1 through F-6A are unblocked by backend.
