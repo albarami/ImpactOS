@@ -188,20 +188,26 @@ class DocumentRow(Base):
 
 
 class ExtractionJobRow(Base):
-    """Operational — status transitions allowed."""
+    """Operational — status transitions allowed. Sprint 8: reliability metadata."""
 
     __tablename__ = "extraction_jobs"
 
     job_id: Mapped[UUID] = mapped_column(primary_key=True)
     doc_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
-    workspace_id: Mapped[UUID] = mapped_column(nullable=False)
+    workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     extract_tables: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     extract_line_items: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     language_hint: Mapped[str] = mapped_column(String(20), default="en", nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    provider_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    fallback_provider_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class LineItemRow(Base):
