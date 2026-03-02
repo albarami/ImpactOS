@@ -11,7 +11,7 @@
 | GET | `/health` | Liveness probe with component health checks | infra |
 | GET | `/api/version` | Return app name, version, environment | infra |
 
-## Auth (B-13)
+## Auth -- B-13 (Sprint 1)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -19,7 +19,7 @@
 | POST | `/v1/auth/logout` | Logout | auth |
 | GET | `/v1/auth/me` | Get current user | auth |
 
-## Workspaces (B-1)
+## Workspaces -- B-1 (Sprint 1)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -30,31 +30,37 @@
 
 > Note: DELETE workspace is not implemented (future enhancement).
 
-## Documents + Extraction (B-2, B-3)
+## Documents -- B-2 list (Sprint 2), B-3 detail (Sprint 2)
+
+Pre-existing upload/extract routes plus Sprint 2 read endpoints.
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
 | POST | `/v1/workspaces/{workspace_id}/documents` | Upload a document (multipart) | documents |
-| GET | `/v1/workspaces/{workspace_id}/documents` | List documents | documents |
-| GET | `/v1/workspaces/{workspace_id}/documents/{doc_id}` | Get document detail | documents |
+| GET | `/v1/workspaces/{workspace_id}/documents` | List documents (B-2) | documents |
+| GET | `/v1/workspaces/{workspace_id}/documents/{doc_id}` | Get document detail (B-3) | documents |
 | POST | `/v1/workspaces/{workspace_id}/documents/{doc_id}/extract` | Trigger extraction | documents |
 | GET | `/v1/workspaces/{workspace_id}/jobs/{job_id}` | Poll extraction job status | documents |
 | GET | `/v1/workspaces/{workspace_id}/documents/{doc_id}/line-items` | Get extracted line items | documents |
 
-## Compiler + HITL Decisions (B-4, B-17)
+## Compiler -- B-4 decisions (Sprint 3), B-5 bulk approve (Sprint 3), B-8 audit trail (Sprint 3), B-17 detail (Sprint 3)
+
+Pre-existing compile/status/decisions routes plus Sprint 3 additions.
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
 | POST | `/v1/workspaces/{workspace_id}/compiler/compile` | Trigger AI-assisted compilation | compiler |
 | GET | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}` | Get full compilation with suggestions (B-17) | compiler |
 | GET | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/status` | Get compilation status counts | compiler |
-| POST | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions` | Bulk decisions | compiler |
-| POST | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/bulk-approve` | Bulk approve decisions | compiler |
-| GET | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}` | Get decision | compiler |
-| PUT | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}` | Update decision | compiler |
-| GET | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}/audit` | Get decision audit trail | compiler |
+| POST | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions` | Bulk decisions (B-4) | compiler |
+| POST | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/bulk-approve` | Bulk threshold approval (B-5) | compiler |
+| GET | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}` | Get decision (B-4) | compiler |
+| PUT | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}` | Update decision (B-4) | compiler |
+| GET | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}/audit` | Get decision audit trail (B-8) | compiler |
 
-## Scenarios (B-5, B-9, B-10, B-16)
+## Scenarios -- B-9 list (Sprint 2), B-10 detail (Sprint 2), B-16 run (Sprint 5)
+
+Pre-existing create/compile/mapping-decisions/versions/lock routes plus Sprint 2 + Sprint 5 additions.
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -67,7 +73,7 @@
 | POST | `/v1/workspaces/{workspace_id}/scenarios/{scenario_id}/lock` | Lock for governed run | scenarios |
 | POST | `/v1/workspaces/{workspace_id}/scenarios/{scenario_id}/run` | Run from scenario (B-16) | scenarios |
 
-## Taxonomy (B-8)
+## Taxonomy -- B-6 (Sprint 1)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -75,7 +81,7 @@
 | GET | `/v1/workspaces/{workspace_id}/taxonomy/sectors/search` | Search sectors | taxonomy |
 | GET | `/v1/workspaces/{workspace_id}/taxonomy/sectors/{sector_code}` | Get sector | taxonomy |
 
-## Engine Runs (B-6)
+## Engine Runs (pre-existing)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -85,32 +91,36 @@
 | POST | `/v1/workspaces/{workspace_id}/engine/batch` | Execute batch runs | engine |
 | GET | `/v1/workspaces/{workspace_id}/engine/batch/{batch_id}` | Get batch status | engine |
 
-## Model Versions (B-14)
+## Model Versions -- B-14 list/detail (Sprint 1), B-15 coefficients (Sprint 1)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
-| GET | `/v1/workspaces/{workspace_id}/models/versions` | List model versions | models |
-| GET | `/v1/workspaces/{workspace_id}/models/versions/{model_version_id}` | Get model version | models |
-| GET | `/v1/workspaces/{workspace_id}/models/versions/{model_version_id}/coefficients` | Get coefficients | models |
+| GET | `/v1/workspaces/{workspace_id}/models/versions` | List model versions (B-14) | models |
+| GET | `/v1/workspaces/{workspace_id}/models/versions/{model_version_id}` | Get model version (B-14) | models |
+| GET | `/v1/workspaces/{workspace_id}/models/versions/{model_version_id}/coefficients` | Get coefficients (B-15) | models |
 
-## Governance + NFF (B-7, B-11)
+## Governance -- B-11 claims (Sprint 4), B-7 evidence (Sprint 4)
+
+Pre-existing claims/extract, nff/check, assumptions, status, blocking routes plus Sprint 4 additions.
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
 | POST | `/v1/workspaces/{workspace_id}/governance/claims/extract` | Extract claims from narrative | governance |
-| GET | `/v1/workspaces/{workspace_id}/governance/claims` | List claims | governance |
-| GET | `/v1/workspaces/{workspace_id}/governance/claims/{claim_id}` | Get claim detail | governance |
-| PUT | `/v1/workspaces/{workspace_id}/governance/claims/{claim_id}` | Update claim status | governance |
-| POST | `/v1/workspaces/{workspace_id}/governance/claims/{claim_id}/evidence` | Link evidence to claim | governance |
-| GET | `/v1/workspaces/{workspace_id}/governance/evidence` | List evidence (B-11) | governance |
-| GET | `/v1/workspaces/{workspace_id}/governance/evidence/{snippet_id}` | Get evidence detail (B-11) | governance |
+| GET | `/v1/workspaces/{workspace_id}/governance/claims` | List claims (B-11) | governance |
+| GET | `/v1/workspaces/{workspace_id}/governance/claims/{claim_id}` | Get claim detail (B-11) | governance |
+| PUT | `/v1/workspaces/{workspace_id}/governance/claims/{claim_id}` | Update claim status (B-11) | governance |
+| POST | `/v1/workspaces/{workspace_id}/governance/claims/{claim_id}/evidence` | Link evidence to claim (B-7) | governance |
+| GET | `/v1/workspaces/{workspace_id}/governance/evidence` | List evidence (B-7) | governance |
+| GET | `/v1/workspaces/{workspace_id}/governance/evidence/{snippet_id}` | Get evidence detail (B-7) | governance |
 | POST | `/v1/workspaces/{workspace_id}/governance/nff/check` | NFF gate check | governance |
 | POST | `/v1/workspaces/{workspace_id}/governance/assumptions` | Create assumption | governance |
 | POST | `/v1/workspaces/{workspace_id}/governance/assumptions/{assumption_id}/approve` | Approve assumption | governance |
 | GET | `/v1/workspaces/{workspace_id}/governance/status/{run_id}` | Get governance status | governance |
 | GET | `/v1/workspaces/{workspace_id}/governance/blocking-reasons/{run_id}` | Get blocking reasons | governance |
 
-## Exports (B-12)
+## Exports -- B-12 download (Sprint 5)
+
+Pre-existing create/status/variance-bridge routes plus Sprint 5 download.
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -119,7 +129,7 @@
 | GET | `/v1/workspaces/{workspace_id}/exports/{export_id}/download/{format}` | Download artifact (B-12) | exports |
 | POST | `/v1/workspaces/{workspace_id}/exports/variance-bridge` | Variance bridge comparison | exports |
 
-## Data Quality (B-15)
+## Data Quality (pre-existing)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -128,7 +138,7 @@
 | GET | `/v1/workspaces/{workspace_id}/quality` | Get quality overview | data-quality |
 | GET | `/v1/workspaces/{workspace_id}/quality/freshness` | Get freshness overview | data-quality |
 
-## Feasibility
+## Feasibility (pre-existing)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -138,7 +148,7 @@
 | POST | `/v1/workspaces/{workspace_id}/constraints/solve` | Run feasibility solver | feasibility |
 | GET | `/v1/workspaces/{workspace_id}/runs/{run_id}/feasibility` | Get feasibility results | feasibility |
 
-## Depth Engine
+## Depth Engine (pre-existing)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -147,7 +157,7 @@
 | GET | `/v1/workspaces/{workspace_id}/depth/plans/{plan_id}/artifacts/{step}` | Get depth artifact | depth |
 | GET | `/v1/workspaces/{workspace_id}/depth/plans/{plan_id}/suite` | Get scenario suite | depth |
 
-## Knowledge Flywheel Libraries
+## Knowledge Flywheel Libraries (pre-existing)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -171,7 +181,7 @@
 | PATCH | `/v1/workspaces/{workspace_id}/libraries/patterns/{pattern_id}/usage` | Increment pattern usage | libraries |
 | GET | `/v1/workspaces/{workspace_id}/libraries/stats` | Get library stats | libraries |
 
-## Workforce / Saudization
+## Workforce / Saudization (pre-existing)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
@@ -187,7 +197,7 @@
 | POST | `/v1/workspaces/{workspace_id}/runs/{run_id}/workforce` | Compute workforce impact | workforce |
 | GET | `/v1/workspaces/{workspace_id}/runs/{run_id}/workforce` | Get workforce results | workforce |
 
-## Metrics / Observability
+## Metrics / Observability (pre-existing)
 
 | Method | Route | Purpose | Tag |
 |--------|-------|---------|-----|
