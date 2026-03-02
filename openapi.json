@@ -1613,7 +1613,7 @@
           "exports"
         ],
         "summary": "Create Export",
-        "description": "Create a new export \u2014 generates requested formats with watermarks.\n\nS0-4: NFF claims now fetched from DB by run_id (not empty list).\nGoverned exports will be properly blocked if claims are unresolved.",
+        "description": "Create a new export \u2014 generates requested formats with watermarks.\n\nS0-4: NFF claims now fetched from DB by run_id (not empty list).\nB-12: Artifact bytes are persisted to object storage at creation time.",
         "operationId": "create_export_v1_workspaces__workspace_id__exports_post",
         "parameters": [
           {
@@ -1699,6 +1699,67 @@
                 "schema": {
                   "$ref": "#/components/schemas/ExportStatusResponse"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/exports/{export_id}/download/{format}": {
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Download Export Artifact",
+        "description": "B-12: Download a persisted export artifact by format (excel/pptx).\n\nReturns the raw bytes with correct MIME type and Content-Disposition.",
+        "operationId": "download_export_artifact_v1_workspaces__workspace_id__exports__export_id__download__format__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -4723,7 +4784,7 @@
           "scenarios"
         ],
         "summary": "Lock Scenario",
-        "description": "Lock mappings for governed run \u2014 creates new version.",
+        "description": "Lock mappings for governed run \u2014 creates new version with is_locked=True.",
         "operationId": "lock_scenario_v1_workspaces__workspace_id__scenarios__scenario_id__lock_post",
         "parameters": [
           {
@@ -4764,6 +4825,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LockResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/scenarios/{scenario_id}/run": {
+      "post": {
+        "tags": [
+          "scenarios"
+        ],
+        "summary": "Run From Scenario",
+        "description": "B-16: Execute an engine run from a compiled scenario.\n\nResolves latest scenario version by workspace, validates compilation\nand lock state, converts shock_items to annual_shocks, and reuses\nthe deterministic engine path.",
+        "operationId": "run_from_scenario_v1_workspaces__workspace_id__scenarios__scenario_id__run_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "scenario_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scenario Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunFromScenarioRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunFromScenarioResponse"
                 }
               }
             }
@@ -9911,6 +10036,106 @@
           "values"
         ],
         "title": "ResultSetResponse"
+      },
+      "RunFromScenarioRequest": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "default": "SANDBOX"
+          },
+          "satellite_coefficients": {
+            "$ref": "#/components/schemas/SatelliteCoeffsPayload"
+          },
+          "deflators": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deflators"
+          }
+        },
+        "type": "object",
+        "required": [
+          "satellite_coefficients"
+        ],
+        "title": "RunFromScenarioRequest"
+      },
+      "RunFromScenarioResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "result_sets": {
+            "items": {
+              "$ref": "#/components/schemas/RunFromScenarioResultSet"
+            },
+            "type": "array",
+            "title": "Result Sets"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/RunFromScenarioSnapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "result_sets",
+          "snapshot"
+        ],
+        "title": "RunFromScenarioResponse"
+      },
+      "RunFromScenarioResultSet": {
+        "properties": {
+          "result_id": {
+            "type": "string",
+            "title": "Result Id"
+          },
+          "metric_type": {
+            "type": "string",
+            "title": "Metric Type"
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "result_id",
+          "metric_type",
+          "values"
+        ],
+        "title": "RunFromScenarioResultSet"
+      },
+      "RunFromScenarioSnapshot": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "model_version_id": {
+            "type": "string",
+            "title": "Model Version Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "model_version_id"
+        ],
+        "title": "RunFromScenarioSnapshot"
       },
       "RunRequest": {
         "properties": {
