@@ -2,6 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ImpactOS API",
+    "description": "Impact & Scenario Intelligence System for Strategic Gears.",
     "version": "0.1.0"
   },
   "paths": {
@@ -2369,6 +2370,366 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BlockingReasonsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/governance/claims": {
+      "get": {
+        "tags": [
+          "governance"
+        ],
+        "summary": "List Claims",
+        "description": "List claims, optionally filtered by run_id.\n\nWhen run_id is provided, only claims whose run belongs to this workspace\nare returned (workspace-safe join).",
+        "operationId": "list_claims_v1_workspaces__workspace_id__governance_claims_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter claims by run_id",
+              "title": "Run Id"
+            },
+            "description": "Filter claims by run_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/governance/claims/{claim_id}": {
+      "get": {
+        "tags": [
+          "governance"
+        ],
+        "summary": "Get Claim Detail",
+        "description": "Get a single claim by ID (workspace-scoped via run linkage).",
+        "operationId": "get_claim_detail_v1_workspaces__workspace_id__governance_claims__claim_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "claim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Claim Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "governance"
+        ],
+        "summary": "Update Claim Status",
+        "description": "Update a claim's status with state-machine transition validation.\n\nReturns 409 if the requested transition is not allowed.\nReturns 404 if claim not found or wrong workspace.",
+        "operationId": "update_claim_status_v1_workspaces__workspace_id__governance_claims__claim_id__put",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "claim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Claim Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateClaimRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateClaimResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/governance/evidence": {
+      "get": {
+        "tags": [
+          "governance"
+        ],
+        "summary": "List Evidence",
+        "description": "B-7: List evidence snippets scoped to a run within a workspace.\n\nReturns 404 if run_id does not exist or belongs to another workspace.\nReturns only evidence snippets linked to claims in the specified run.",
+        "operationId": "list_evidence_v1_workspaces__workspace_id__governance_evidence_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter evidence by run_id",
+              "title": "Run Id"
+            },
+            "description": "Filter evidence by run_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/governance/evidence/{snippet_id}": {
+      "get": {
+        "tags": [
+          "governance"
+        ],
+        "summary": "Get Evidence Detail",
+        "description": "B-7: Get evidence snippet detail (workspace-scoped via document).",
+        "operationId": "get_evidence_detail_v1_workspaces__workspace_id__governance_evidence__snippet_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "snippet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Snippet Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/governance/claims/{claim_id}/evidence": {
+      "post": {
+        "tags": [
+          "governance"
+        ],
+        "summary": "Link Evidence To Claim",
+        "description": "B-7: Link evidence snippets to a claim (workspace-scoped, with dedupe).",
+        "operationId": "link_evidence_to_claim_v1_workspaces__workspace_id__governance_claims__claim_id__evidence_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "claim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Claim Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkEvidenceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkEvidenceResponse"
                 }
               }
             }
@@ -5678,6 +6039,34 @@
         "title": "AuthResponse",
         "description": "Successful login response with JWT token."
       },
+      "BBoxResponse": {
+        "properties": {
+          "x0": {
+            "type": "number",
+            "title": "X0"
+          },
+          "y0": {
+            "type": "number",
+            "title": "Y0"
+          },
+          "x1": {
+            "type": "number",
+            "title": "X1"
+          },
+          "y1": {
+            "type": "number",
+            "title": "Y1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x0",
+          "y0",
+          "x1",
+          "y1"
+        ],
+        "title": "BBoxResponse"
+      },
       "BatchResponse": {
         "properties": {
           "batch_id": {
@@ -6054,6 +6443,137 @@
           "total"
         ],
         "title": "BulkDecisionResponse"
+      },
+      "ClaimDetailResponse": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "title": "Claim Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "claim_type": {
+            "type": "string",
+            "title": "Claim Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "disclosure_tier": {
+            "type": "string",
+            "title": "Disclosure Tier"
+          },
+          "model_refs": {
+            "items": {},
+            "type": "array",
+            "title": "Model Refs"
+          },
+          "evidence_refs": {
+            "items": {},
+            "type": "array",
+            "title": "Evidence Refs"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim_id",
+          "text",
+          "claim_type",
+          "status",
+          "disclosure_tier",
+          "model_refs",
+          "evidence_refs",
+          "run_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ClaimDetailResponse"
+      },
+      "ClaimListItem": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "title": "Claim Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "claim_type": {
+            "type": "string",
+            "title": "Claim Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "disclosure_tier": {
+            "type": "string",
+            "title": "Disclosure Tier"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim_id",
+          "text",
+          "claim_type",
+          "status",
+          "disclosure_tier",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ClaimListItem"
+      },
+      "ClaimListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ClaimListResponse"
       },
       "ClaimResponse": {
         "properties": {
@@ -7795,6 +8315,118 @@
         ],
         "title": "EntryStatusValue"
       },
+      "EvidenceDetailResponse": {
+        "properties": {
+          "snippet_id": {
+            "type": "string",
+            "title": "Snippet Id"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "bbox": {
+            "$ref": "#/components/schemas/BBoxResponse"
+          },
+          "extracted_text": {
+            "type": "string",
+            "title": "Extracted Text"
+          },
+          "table_cell_ref": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Cell Ref"
+          },
+          "checksum": {
+            "type": "string",
+            "title": "Checksum"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snippet_id",
+          "source_id",
+          "page",
+          "bbox",
+          "extracted_text",
+          "checksum",
+          "created_at"
+        ],
+        "title": "EvidenceDetailResponse"
+      },
+      "EvidenceListItem": {
+        "properties": {
+          "snippet_id": {
+            "type": "string",
+            "title": "Snippet Id"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "extracted_text": {
+            "type": "string",
+            "title": "Extracted Text"
+          },
+          "checksum": {
+            "type": "string",
+            "title": "Checksum"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snippet_id",
+          "source_id",
+          "page",
+          "extracted_text",
+          "checksum",
+          "created_at"
+        ],
+        "title": "EvidenceListItem"
+      },
+      "EvidenceListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "EvidenceListResponse"
+      },
       "ExportStatusResponse": {
         "properties": {
           "export_id": {
@@ -8269,6 +8901,48 @@
           "items"
         ],
         "title": "LineItemsResponse"
+      },
+      "LinkEvidenceRequest": {
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidence_ids"
+        ],
+        "title": "LinkEvidenceRequest"
+      },
+      "LinkEvidenceResponse": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "title": "Claim Id"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "total_linked": {
+            "type": "integer",
+            "title": "Total Linked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim_id",
+          "evidence_ids",
+          "total_linked"
+        ],
+        "title": "LinkEvidenceResponse"
       },
       "LockRequest": {
         "properties": {
@@ -9887,6 +10561,64 @@
           "status"
         ],
         "title": "TriggerDepthPlanResponse"
+      },
+      "UpdateClaimRequest": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "resolution_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Text"
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "UpdateClaimRequest"
+      },
+      "UpdateClaimResponse": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "title": "Claim Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim_id",
+          "status",
+          "updated_at"
+        ],
+        "title": "UpdateClaimResponse"
       },
       "UpdateWorkspaceRequest": {
         "properties": {

@@ -28,7 +28,11 @@ from src.repositories.feasibility import (
     ConstraintSetRepository,
     FeasibilityResultRepository,
 )
-from src.repositories.governance import AssumptionRepository, ClaimRepository
+from src.repositories.governance import (
+    AssumptionRepository,
+    ClaimRepository,
+    EvidenceSnippetRepository,
+)
 from src.repositories.libraries import (
     AssumptionLibraryRepository,
     MappingLibraryRepository,
@@ -111,6 +115,12 @@ async def get_claim_repo(
     session: AsyncSession = Depends(get_async_session),
 ) -> ClaimRepository:
     return ClaimRepository(session)
+
+
+async def get_evidence_snippet_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> EvidenceSnippetRepository:
+    return EvidenceSnippetRepository(session)
 
 
 # ---------------------------------------------------------------------------
