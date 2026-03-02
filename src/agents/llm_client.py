@@ -1,20 +1,24 @@
-"""LLM client abstraction — MVP-8.
+"""LLM client abstraction — MVP-8 + Sprint 9 provider rollout.
 
 Unified interface for Anthropic/OpenAI/OpenRouter with:
 - Workspace classification-based routing (RESTRICTED → local,
   CONFIDENTIAL → enterprise ZDR, PUBLIC → any)
+- Hard policy enforcement: RESTRICTED never reaches external providers
 - Structured JSON output with Pydantic validation
 - Retry with exponential backoff
-- Token usage tracking
+- Token usage tracking and provider observability
 
 Agents use this client — they NEVER compute economic results.
 """
 
+import asyncio
 import json
+import logging
 import re
-from dataclasses import dataclass, field
+import time
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -22,10 +26,24 @@ from src.models.common import DataClassification
 
 T = TypeVar("T", bound=BaseModel)
 
+_logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Exceptions
+# ---------------------------------------------------------------------------
+
+
+class ProviderUnavailableError(Exception):
+    """Raised when the required LLM provider is unavailable or all retries exhausted."""
+
 
 # ---------------------------------------------------------------------------
 # Provider enum
 # ---------------------------------------------------------------------------
+
+
+_CLOUD_PROVIDERS = frozenset({"ANTHROPIC", "OPENAI", "OPENROUTER"})
 
 
 class LLMProvider(StrEnum):
@@ -138,13 +156,22 @@ class LLMClient:
         openrouter_key: str = "",
         max_retries: int = 3,
         base_delay: float = 1.0,
+        request_timeout: float = 60.0,
+        model_anthropic: str = "claude-sonnet-4-20250514",
+        model_openai: str = "gpt-4o",
+        model_openrouter: str = "anthropic/claude-sonnet-4-20250514",
+        routing_table: dict[DataClassification, LLMProvider] | None = None,
     ) -> None:
         self._anthropic_key = anthropic_key
         self._openai_key = openai_key
         self._openrouter_key = openrouter_key
         self.max_retries = max_retries
         self.base_delay = base_delay
-        self._router = ProviderRouter()
+        self._request_timeout = request_timeout
+        self._model_anthropic = model_anthropic
+        self._model_openai = model_openai
+        self._model_openrouter = model_openrouter
+        self._router = ProviderRouter(routing_table=routing_table)
         self._usage_log: list[TokenUsage] = []
 
     # ----- Structured output parsing -----
@@ -203,3 +230,233 @@ class LLMClient:
     def reset_usage(self) -> None:
         """Reset cumulative token usage."""
         self._usage_log.clear()
+
+    # ----- Provider call (Sprint 9) -----
+
+    async def call(
+        self,
+        request: LLMRequest,
+        *,
+        classification: DataClassification,
+    ) -> LLMResponse:
+        """Call an LLM provider with classification-based routing.
+
+        Hard policy: RESTRICTED classification is ALWAYS routed to LOCAL,
+        regardless of routing table or available keys. This is the
+        agent-to-math boundary's security enforcement.
+
+        Raises:
+            ProviderUnavailableError: When the required provider is not
+                available or all retries are exhausted.
+        """
+        provider = self._router.select(classification)
+
+        # Hard guard: RESTRICTED must NEVER reach external providers
+        if classification == DataClassification.RESTRICTED:
+            provider = LLMProvider.LOCAL
+
+        # LOCAL path — deterministic, always available, no network
+        if provider == LLMProvider.LOCAL:
+            response = self._call_local(request)
+            _logger.info(
+                "LLM call complete: classification=%s provider=%s model=%s "
+                "input_tokens=%d output_tokens=%d latency_ms=0",
+                classification, response.provider, response.model,
+                response.usage.input_tokens, response.usage.output_tokens,
+            )
+            return response
+
+        # Availability check before attempting external call
+        if provider not in self.available_providers():
+            raise ProviderUnavailableError(
+                f"Provider {provider} required for classification "
+                f"{classification} but no API key configured"
+            )
+
+        t0 = time.monotonic()
+        response = await self._call_external_with_retry(
+            request, provider=provider,
+        )
+        latency_ms = (time.monotonic() - t0) * 1000
+
+        _logger.info(
+            "LLM call complete: classification=%s provider=%s model=%s "
+            "input_tokens=%d output_tokens=%d latency_ms=%.1f",
+            classification, response.provider, response.model,
+            response.usage.input_tokens, response.usage.output_tokens,
+            latency_ms,
+        )
+        return response
+
+    async def _call_external_with_retry(
+        self,
+        request: LLMRequest,
+        *,
+        provider: LLMProvider,
+    ) -> LLMResponse:
+        """Dispatch to external provider with retry and backoff."""
+        dispatch: dict[LLMProvider, Any] = {
+            LLMProvider.ANTHROPIC: self._call_anthropic,
+            LLMProvider.OPENAI: self._call_openai,
+            LLMProvider.OPENROUTER: self._call_openrouter,
+        }
+        call_fn = dispatch[provider]
+        delays = self.compute_backoff_delays()
+
+        last_error: Exception | None = None
+        for attempt in range(self.max_retries):
+            try:
+                raw_response = await call_fn(request)
+                return self._normalize_response(
+                    raw_response,
+                    provider=provider,
+                    schema=request.output_schema,
+                )
+            except Exception as exc:
+                last_error = exc
+                _logger.warning(
+                    "Provider %s attempt %d/%d failed: %s",
+                    provider, attempt + 1, self.max_retries, exc,
+                )
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(delays[attempt])
+
+        raise ProviderUnavailableError(
+            f"All {self.max_retries} retries exhausted for {provider}: "
+            f"{last_error}"
+        )
+
+    def _call_local(self, request: LLMRequest) -> LLMResponse:
+        """Deterministic LOCAL provider — returns schema-valid defaults.
+
+        Works offline with no API keys or network. Used for RESTRICTED
+        workspaces and as dev/test fallback.
+        """
+        schema = request.output_schema
+        defaults: dict[str, Any] = {}
+        for field_name, field_info in schema.model_fields.items():
+            annotation = field_info.annotation
+            if annotation is str:
+                defaults[field_name] = "UNKNOWN"
+            elif annotation is float:
+                defaults[field_name] = 0.0
+            elif annotation is int:
+                defaults[field_name] = 0
+            elif annotation is bool:
+                defaults[field_name] = False
+            else:
+                defaults[field_name] = None
+
+        parsed = schema.model_validate(defaults)
+        content = parsed.model_dump_json()
+
+        return LLMResponse(
+            content=content,
+            parsed=parsed,
+            provider=LLMProvider.LOCAL,
+            model="local-deterministic",
+            usage=TokenUsage(input_tokens=0, output_tokens=0),
+        )
+
+    def _normalize_response(
+        self,
+        raw: Any,
+        *,
+        provider: LLMProvider,
+        schema: type[T],
+    ) -> LLMResponse:
+        """Normalize raw provider response into LLMResponse."""
+        if provider == LLMProvider.ANTHROPIC:
+            text = raw.content[0].text
+            model = raw.model
+            usage = TokenUsage(
+                input_tokens=raw.usage.input_tokens,
+                output_tokens=raw.usage.output_tokens,
+            )
+        elif provider == LLMProvider.OPENAI:
+            text = raw.choices[0].message.content
+            model = raw.model
+            usage = TokenUsage(
+                input_tokens=raw.usage.prompt_tokens,
+                output_tokens=raw.usage.completion_tokens,
+            )
+        elif provider == LLMProvider.OPENROUTER:
+            data = raw.json()
+            text = data["choices"][0]["message"]["content"]
+            model = data.get("model", "openrouter/unknown")
+            usage_data = data.get("usage", {})
+            usage = TokenUsage(
+                input_tokens=usage_data.get("prompt_tokens", 0),
+                output_tokens=usage_data.get("completion_tokens", 0),
+            )
+        else:
+            raise ValueError(f"Cannot normalize response from provider: {provider}")
+
+        parsed = self.parse_structured_output(raw=text, schema=schema)
+        self.record_usage(usage)
+
+        return LLMResponse(
+            content=text,
+            parsed=parsed,
+            provider=provider,
+            model=model,
+            usage=usage,
+        )
+
+    async def _call_anthropic(self, request: LLMRequest) -> Any:
+        """Call Anthropic API via SDK. Returns raw SDK response."""
+        import anthropic
+
+        client = anthropic.AsyncAnthropic(
+            api_key=self._anthropic_key,
+            timeout=self._request_timeout,
+        )
+        return await client.messages.create(
+            model=self._model_anthropic,
+            max_tokens=request.max_tokens,
+            temperature=request.temperature,
+            system=request.system_prompt,
+            messages=[{"role": "user", "content": request.user_prompt}],
+        )
+
+    async def _call_openai(self, request: LLMRequest) -> Any:
+        """Call OpenAI API via SDK. Returns raw SDK response."""
+        import openai
+
+        client = openai.AsyncOpenAI(
+            api_key=self._openai_key,
+            timeout=self._request_timeout,
+        )
+        return await client.chat.completions.create(
+            model=self._model_openai,
+            max_tokens=request.max_tokens,
+            temperature=request.temperature,
+            messages=[
+                {"role": "system", "content": request.system_prompt},
+                {"role": "user", "content": request.user_prompt},
+            ],
+        )
+
+    async def _call_openrouter(self, request: LLMRequest) -> Any:
+        """Call OpenRouter API via httpx. Returns raw httpx Response."""
+        import httpx
+
+        async with httpx.AsyncClient(timeout=self._request_timeout) as http:
+            resp = await http.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self._openrouter_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self._model_openrouter,
+                    "max_tokens": request.max_tokens,
+                    "temperature": request.temperature,
+                    "messages": [
+                        {"role": "system", "content": request.system_prompt},
+                        {"role": "user", "content": request.user_prompt},
+                    ],
+                },
+            )
+            resp.raise_for_status()
+            return resp

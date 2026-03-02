@@ -63,6 +63,32 @@ class Settings(BaseSettings):
         description="OpenRouter API key for model routing.",
     )
 
+    # --- LLM Provider Configuration ---
+    LLM_DEFAULT_MODEL_ANTHROPIC: str = Field(
+        default="claude-sonnet-4-20250514",
+        description="Default Anthropic model ID.",
+    )
+    LLM_DEFAULT_MODEL_OPENAI: str = Field(
+        default="gpt-4o",
+        description="Default OpenAI model ID.",
+    )
+    LLM_DEFAULT_MODEL_OPENROUTER: str = Field(
+        default="anthropic/claude-sonnet-4-20250514",
+        description="Default OpenRouter model path.",
+    )
+    LLM_REQUEST_TIMEOUT_SECONDS: float = Field(
+        default=60.0,
+        description="Per-request timeout for LLM API calls.",
+    )
+    LLM_MAX_RETRIES: int = Field(
+        default=3,
+        description="Maximum retries per LLM provider call.",
+    )
+    LLM_BASE_DELAY_SECONDS: float = Field(
+        default=1.0,
+        description="Base delay for exponential backoff between retries.",
+    )
+
     # --- Azure Document Intelligence ---
     AZURE_DI_ENDPOINT: str = Field(
         default="",
