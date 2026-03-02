@@ -1,15 +1,3 @@
-C:\Users\baram\AppData\Roaming\Python\Python312\site-packages\pydantic\_internal\_fields.py:161: UserWarning: Field "model_version_id" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-C:\Users\baram\AppData\Roaming\Python\Python312\site-packages\pydantic\_internal\_fields.py:161: UserWarning: Field "model_versions_loaded" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-C:\Users\baram\AppData\Roaming\Python\Python312\site-packages\pydantic\_internal\_fields.py:161: UserWarning: Field "model_version_id" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
 {
   "openapi": "3.1.0",
   "info": {
