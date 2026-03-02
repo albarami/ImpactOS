@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from src.api.auth import router as auth_router
 from src.api.compiler import router as compiler_router
 from src.api.data_quality import router as data_quality_router
 from src.api.depth import router as depth_router
@@ -22,7 +23,9 @@ from src.api.metrics import router as metrics_router
 from src.api.runs import models_router as engine_models_router
 from src.api.runs import router as engine_ws_router
 from src.api.scenarios import router as scenarios_router
+from src.api.taxonomy import router as taxonomy_router
 from src.api.workforce import router as workforce_router
+from src.api.workspaces import router as workspaces_router
 from src.config.settings import get_settings
 
 APP_VERSION = "0.1.0"
@@ -76,7 +79,9 @@ app.add_middleware(
 
 # --- Routers ---
 # Global routers (not workspace-scoped)
+app.include_router(auth_router)
 app.include_router(engine_models_router)
+app.include_router(workspaces_router)
 
 # Workspace-scoped routers (all under /v1/workspaces/{workspace_id}/...)
 app.include_router(compiler_router)
@@ -90,6 +95,7 @@ app.include_router(libraries_router)
 app.include_router(metrics_router)
 app.include_router(engine_ws_router)
 app.include_router(scenarios_router)
+app.include_router(taxonomy_router)
 app.include_router(workforce_router)
 
 
