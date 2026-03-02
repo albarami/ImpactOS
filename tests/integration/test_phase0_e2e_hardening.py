@@ -305,12 +305,12 @@ class TestPhase0E2EHardening:
         )
 
     @pytest.mark.anyio
-    async def test_sandbox_export_ignores_synthetic_quality(
+    async def test_sandbox_export_blocks_synthetic_quality(
         self,
         client: AsyncClient,
         db_session: AsyncSession,
     ) -> None:
-        """Sandbox export succeeds even with synthetic fallback quality."""
+        """Sandbox export blocked when synthetic fallback quality is used."""
         ws_id = WS_ID
         run_id = new_uuid7()
 
@@ -323,14 +323,16 @@ class TestPhase0E2EHardening:
             data_mode="synthetic_fallback",
         )
 
-        # POST sandbox export -> COMPLETED
+        # POST sandbox export -> BLOCKED
         export_resp = await client.post(
             f"/v1/workspaces/{ws_id}/exports",
             json=_make_export_payload(str(run_id), "SANDBOX"),
         )
         assert export_resp.status_code == 201
         export_data = export_resp.json()
-        assert export_data["status"] == "COMPLETED"
+        assert export_data["status"] == "BLOCKED"
+        blocking_text = " ".join(export_data["blocking_reasons"]).lower()
+        assert "synthetic" in blocking_text
 
     @pytest.mark.anyio
     async def test_governed_succeeds_when_claims_resolved_and_no_synthetic(

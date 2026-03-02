@@ -1,10 +1,9 @@
 """Tests for G1: export route must pass quality_assessment into ExportOrchestrator.
 
-Governed exports should be BLOCKED when the run used synthetic fallback data.
-Sandbox exports should ignore synthetic fallback and COMPLETE normally.
-Governed exports should also be BLOCKED when unresolved claims exist (independent
-of quality assessment). When no quality summary and no claims exist, governed
-exports should COMPLETE.
+Both governed and sandbox exports should be BLOCKED when synthetic fallback data
+is used. Governed exports should also be BLOCKED when no quality assessment is
+available or when unresolved claims exist. When a clean quality summary and no
+claims exist, governed exports should COMPLETE.
 
 These tests will FAIL until the export route (src/api/exports.py) is updated
 to fetch RunQualitySummaryRow from DB and reconstruct a RunQualityAssessment
@@ -171,10 +170,10 @@ class TestExportQualityWiring:
         assert any("synthetic" in r.lower() for r in data["blocking_reasons"])
 
     @pytest.mark.anyio
-    async def test_sandbox_export_ignores_synthetic_fallback(
+    async def test_sandbox_export_blocks_synthetic_fallback(
         self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
-        """Sandbox export should COMPLETE even with synthetic fallback data."""
+        """Sandbox export should be BLOCKED when synthetic fallback data is used."""
         run_id = str(uuid7())
 
         # Seed quality summary with synthetic fallback
@@ -193,7 +192,8 @@ class TestExportQualityWiring:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["status"] == "COMPLETED"
+        assert data["status"] == "BLOCKED"
+        assert any("synthetic" in r.lower() for r in data["blocking_reasons"])
 
     @pytest.mark.anyio
     async def test_governed_export_blocked_by_unresolved_claims_independently(
@@ -225,13 +225,20 @@ class TestExportQualityWiring:
         assert len(data["blocking_reasons"]) >= 1
 
     @pytest.mark.anyio
-    async def test_governed_export_succeeds_no_quality_summary(
+    async def test_governed_export_succeeds_with_clean_quality(
         self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
-        """Governed export with no quality summary and no claims should COMPLETE."""
+        """Governed export with clean quality summary and no claims should COMPLETE."""
         run_id = str(uuid7())
 
-        # No quality summary seeded, no claims seeded
+        await _seed_quality_summary(
+            db_session,
+            run_id=run_id,
+            ws_id=WS_ID,
+            used_synthetic_fallback=False,
+            data_mode="curated_real",
+        )
+
         payload = _make_export_payload(run_id, mode="GOVERNED")
         response = await client.post(
             f"/v1/workspaces/{WS_ID}/exports", json=payload,

@@ -8,9 +8,15 @@ Tests the key S0-4 deliverables:
 5. Workspace-scoped routing across all modules
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
+
+from src.db.tables import RunQualitySummaryRow
+from src.models.common import new_uuid7, utc_now
 
 WS_ID = "01961060-0000-7000-8000-000000000001"
 
@@ -90,10 +96,32 @@ class TestNFFEndToEnd:
 
     @pytest.mark.anyio
     async def test_governed_export_with_no_claims_passes(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
-        """Governed export with no claims should pass NFF gate."""
+        """Governed export with no claims and clean quality should pass."""
         run_id = str(uuid7())
+
+        row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(WS_ID),
+            overall_run_score=0.85,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            mapping_coverage_pct=0.8,
+            publication_gate_pass=True,
+            publication_gate_mode="GOVERNED",
+            summary_version="1.0.0",
+            summary_hash="sha256:test",
+            payload={
+                "assessment_version": 1,
+                "used_synthetic_fallback": False,
+                "data_mode": "curated_real",
+            },
+            created_at=utc_now(),
+        )
+        db_session.add(row)
+        await db_session.flush()
 
         export_resp = await client.post(
             f"/v1/workspaces/{WS_ID}/exports",

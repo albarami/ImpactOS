@@ -15,6 +15,7 @@ from src.export.orchestrator import (
 )
 from src.models.common import ClaimStatus, ClaimType, ExportMode
 from src.models.governance import Claim
+from src.quality.models import RunQualityAssessment
 
 
 # ---------------------------------------------------------------------------
@@ -119,7 +120,8 @@ class TestGovernedExport:
     def test_governed_passes_with_resolved_claims(self) -> None:
         orch = ExportOrchestrator()
         req = _make_request(mode=ExportMode.GOVERNED)
-        record = orch.execute(request=req, claims=_make_supported_claims())
+        qa = RunQualityAssessment.model_construct(used_synthetic_fallback=False)
+        record = orch.execute(request=req, claims=_make_supported_claims(), quality_assessment=qa)
         assert record.status == ExportStatus.COMPLETED
 
     def test_governed_blocked_with_unresolved(self) -> None:
@@ -137,7 +139,8 @@ class TestGovernedExport:
     def test_governed_empty_claims_passes(self) -> None:
         orch = ExportOrchestrator()
         req = _make_request(mode=ExportMode.GOVERNED)
-        record = orch.execute(request=req, claims=[])
+        qa = RunQualityAssessment.model_construct(used_synthetic_fallback=False)
+        record = orch.execute(request=req, claims=[], quality_assessment=qa)
         assert record.status == ExportStatus.COMPLETED
 
 

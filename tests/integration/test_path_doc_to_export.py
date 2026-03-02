@@ -345,6 +345,7 @@ class TestDocToExport:
                 },
             ),
             claims=resolved_claims,
+            quality_assessment=assessment,
         )
         assert record.status.value == "COMPLETED"
 
