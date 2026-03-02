@@ -87,8 +87,7 @@ class TestWorkspaceOwnership:
         resp = await client.get(
             f"/v1/workspaces/{WS_A}/documents/{doc_id}/line-items",
         )
-        assert resp.status_code == 200
-        assert resp.json()["items"] == []
+        assert resp.status_code == 404
 
     @pytest.mark.anyio
     async def test_job_status_correct_workspace_200(
@@ -240,3 +239,58 @@ class TestMigrationBackwardCompat:
         assert job.fallback_provider_name is None
         assert job.started_at is None
         assert job.completed_at is None
+
+
+class TestSyncAsyncParity:
+    """S8-4: run_extraction produces same side effects in both paths."""
+
+    @pytest.mark.anyio
+    async def test_sync_path_persists_provider_and_status(
+        self, db_session,
+    ):
+        """Sync run_extraction must set provider_name and terminal status."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from src.ingestion.tasks import run_extraction
+
+        doc_id = await _seed_doc(db_session)
+        job_repo = ExtractionJobRepository(db_session)
+        li_repo = LineItemRepository(db_session)
+        job = await job_repo.create(
+            job_id=uuid7(), doc_id=doc_id, workspace_id=WS_A,
+        )
+
+        mock_graph = MagicMock()
+        mock_graph.pages = []
+        mock_graph.tables = []
+
+        mock_provider = AsyncMock()
+        mock_provider.name = "test-provider"
+        mock_provider.extract = AsyncMock(return_value=mock_graph)
+
+        with patch(
+            "src.ingestion.tasks.ExtractionRouter"
+        ) as mock_router_cls:
+            mock_router_cls.return_value.select_provider.return_value = (
+                mock_provider
+            )
+            status = await run_extraction(
+                job_id=job.job_id,
+                doc_id=doc_id,
+                workspace_id=WS_A,
+                document_bytes=b"fake",
+                mime_type="application/pdf",
+                filename="test.pdf",
+                classification="INTERNAL",
+                doc_checksum="sha256:test",
+                job_repo=job_repo,
+                line_item_repo=li_repo,
+                evidence_snippet_repo=None,
+            )
+
+        assert status == "COMPLETED"
+        row = await job_repo.get(job.job_id)
+        assert row is not None
+        assert row.status == "COMPLETED"
+        assert row.provider_name == "test-provider"
+        assert row.completed_at is not None

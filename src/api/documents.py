@@ -393,10 +393,14 @@ async def get_job_status(
 async def get_line_items(
     workspace_id: UUID,
     doc_id: UUID,
+    doc_repo: DocumentRepository = Depends(get_document_repo),
     line_item_repo: LineItemRepository = Depends(get_line_item_repo),
 ) -> LineItemsResponse:
-    """Get extracted line items for a document. Workspace-scoped."""
-    rows = await line_item_repo.get_by_doc_for_workspace(doc_id, workspace_id)
+    """Get extracted line items for a document. Workspace-scoped (404 for wrong ws)."""
+    doc_row = await doc_repo.get_by_workspace(workspace_id, doc_id)
+    if doc_row is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    rows = await line_item_repo.get_by_doc(doc_id)
     items = [
         BoQLineItem(
             line_item_id=r.line_item_id,
