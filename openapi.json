@@ -942,6 +942,74 @@
       }
     },
     "/v1/workspaces/{workspace_id}/documents": {
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "List Documents",
+        "description": "B-2: List documents for a workspace (paginated).",
+        "operationId": "list_documents_v1_workspaces__workspace_id__documents_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "documents"
@@ -978,6 +1046,60 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/documents/{doc_id}": {
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Get Document Detail",
+        "description": "B-3: Get document detail with extraction status and line item count.",
+        "operationId": "get_document_detail_v1_workspaces__workspace_id__documents__doc_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetailResponse"
                 }
               }
             }
@@ -3559,6 +3681,74 @@
       }
     },
     "/v1/workspaces/{workspace_id}/scenarios": {
+      "get": {
+        "tags": [
+          "scenarios"
+        ],
+        "summary": "List Scenarios",
+        "description": "B-9: List scenarios for a workspace (latest version per spec, paginated).",
+        "operationId": "list_scenarios_v1_workspaces__workspace_id__scenarios_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "scenarios"
@@ -3595,6 +3785,60 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateScenarioResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/scenarios/{scenario_id}": {
+      "get": {
+        "tags": [
+          "scenarios"
+        ],
+        "summary": "Get Scenario Detail",
+        "description": "B-10: Get full scenario detail (latest version, workspace-scoped).",
+        "operationId": "get_scenario_detail_v1_workspaces__workspace_id__scenarios__scenario_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "scenario_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scenario Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioDetailResponse"
                 }
               }
             }
@@ -6559,6 +6803,150 @@
         ],
         "title": "DepthPlanStatusResponse"
       },
+      "DocumentDetailResponse": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "mime_type": {
+            "type": "string",
+            "title": "Mime Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "hash_sha256": {
+            "type": "string",
+            "title": "Hash Sha256"
+          },
+          "doc_type": {
+            "type": "string",
+            "title": "Doc Type"
+          },
+          "source_type": {
+            "type": "string",
+            "title": "Source Type"
+          },
+          "classification": {
+            "type": "string",
+            "title": "Classification"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "title": "Uploaded At"
+          },
+          "extraction_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extraction Status"
+          },
+          "line_item_count": {
+            "type": "integer",
+            "title": "Line Item Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_id",
+          "filename",
+          "mime_type",
+          "size_bytes",
+          "hash_sha256",
+          "doc_type",
+          "source_type",
+          "classification",
+          "language",
+          "uploaded_at"
+        ],
+        "title": "DocumentDetailResponse"
+      },
+      "DocumentListItem": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "doc_type": {
+            "type": "string",
+            "title": "Doc Type"
+          },
+          "classification": {
+            "type": "string",
+            "title": "Classification"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "title": "Uploaded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_id",
+          "filename",
+          "doc_type",
+          "classification",
+          "status",
+          "uploaded_at"
+        ],
+        "title": "DocumentListItem"
+      },
+      "DocumentListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "DocumentListResponse"
+      },
       "EmploymentCoefficientsResponse": {
         "properties": {
           "employment_coefficients_id": {
@@ -8231,6 +8619,159 @@
         ],
         "title": "SaudizationRulesResponse"
       },
+      "ScenarioDetailResponse": {
+        "properties": {
+          "scenario_spec_id": {
+            "type": "string",
+            "title": "Scenario Spec Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "base_model_version_id": {
+            "type": "string",
+            "title": "Base Model Version Id"
+          },
+          "base_year": {
+            "type": "integer",
+            "title": "Base Year"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "disclosure_tier": {
+            "type": "string",
+            "title": "Disclosure Tier"
+          },
+          "time_horizon": {
+            "$ref": "#/components/schemas/TimeHorizonResponse"
+          },
+          "shock_items": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Shock Items"
+          },
+          "assumption_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumption Ids"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scenario_spec_id",
+          "name",
+          "version",
+          "workspace_id",
+          "base_model_version_id",
+          "base_year",
+          "currency",
+          "disclosure_tier",
+          "time_horizon",
+          "shock_items",
+          "assumption_ids",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ScenarioDetailResponse"
+      },
+      "ScenarioListItem": {
+        "properties": {
+          "scenario_spec_id": {
+            "type": "string",
+            "title": "Scenario Spec Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scenario_spec_id",
+          "name",
+          "version",
+          "workspace_id",
+          "created_at",
+          "status"
+        ],
+        "title": "ScenarioListItem"
+      },
+      "ScenarioListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ScenarioListResponse"
+      },
       "ScenarioPayload": {
         "properties": {
           "name": {
@@ -8517,6 +9058,24 @@
           "suite_plan"
         ],
         "title": "SuitePlanResponse"
+      },
+      "TimeHorizonResponse": {
+        "properties": {
+          "start_year": {
+            "type": "integer",
+            "title": "Start Year"
+          },
+          "end_year": {
+            "type": "integer",
+            "title": "End Year"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_year",
+          "end_year"
+        ],
+        "title": "TimeHorizonResponse"
       },
       "TriggerDepthPlanRequest": {
         "properties": {

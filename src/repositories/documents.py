@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.tables import DocumentRow, ExtractionJobRow, LineItemRow
@@ -37,6 +37,62 @@ class DocumentRepository:
             select(DocumentRow).where(DocumentRow.workspace_id == workspace_id)
         )
         return list(result.scalars().all())
+
+    async def list_by_workspace_paginated(
+        self,
+        workspace_id: UUID,
+        *,
+        limit: int = 20,
+        cursor_uploaded_at: str | None = None,
+        cursor_doc_id: str | None = None,
+    ) -> tuple[list[DocumentRow], int]:
+        """Paginated document list for a workspace.
+
+        Returns (rows, total_count). Cursor-based on (uploaded_at, doc_id).
+        """
+        base = select(DocumentRow).where(
+            DocumentRow.workspace_id == workspace_id,
+        )
+
+        # Total count (unfiltered by cursor)
+        count_result = await self._session.execute(
+            select(func.count()).select_from(
+                base.subquery(),
+            )
+        )
+        total = count_result.scalar_one()
+
+        # Apply cursor filter
+        query = base.order_by(
+            DocumentRow.uploaded_at.asc(), DocumentRow.doc_id.asc(),
+        )
+        if cursor_uploaded_at is not None and cursor_doc_id is not None:
+            from datetime import datetime
+            ts = datetime.fromisoformat(cursor_uploaded_at)
+            cid = UUID(cursor_doc_id)
+            query = query.where(
+                (DocumentRow.uploaded_at > ts)
+                | (
+                    (DocumentRow.uploaded_at == ts)
+                    & (DocumentRow.doc_id > cid)
+                ),
+            )
+
+        query = query.limit(limit)
+        result = await self._session.execute(query)
+        return list(result.scalars().all()), total
+
+    async def get_by_workspace(
+        self, workspace_id: UUID, doc_id: UUID,
+    ) -> DocumentRow | None:
+        """Get a document only if it belongs to the given workspace."""
+        result = await self._session.execute(
+            select(DocumentRow).where(
+                DocumentRow.doc_id == doc_id,
+                DocumentRow.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
 
 
 class ExtractionJobRepository:
@@ -85,6 +141,16 @@ class ExtractionJobRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_latest_by_doc(self, doc_id: UUID) -> ExtractionJobRow | None:
+        """Return the most recent extraction job for a document (any status)."""
+        result = await self._session.execute(
+            select(ExtractionJobRow)
+            .where(ExtractionJobRow.doc_id == doc_id)
+            .order_by(ExtractionJobRow.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
 
 class LineItemRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -111,3 +177,10 @@ class LineItemRepository:
             select(LineItemRow).where(LineItemRow.extraction_job_id == job_id)
         )
         return list(result.scalars().all())
+
+    async def count_by_doc(self, doc_id: UUID) -> int:
+        """Count line items for a document."""
+        result = await self._session.execute(
+            select(func.count()).where(LineItemRow.doc_id == doc_id)
+        )
+        return result.scalar_one()

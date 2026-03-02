@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.tables import ScenarioSpecRow
@@ -63,3 +63,80 @@ class ScenarioVersionRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    async def get_latest_by_workspace(
+        self, scenario_spec_id: UUID, workspace_id: UUID,
+    ) -> ScenarioSpecRow | None:
+        """Get latest version of a scenario, scoped to workspace."""
+        result = await self._session.execute(
+            select(ScenarioSpecRow)
+            .where(
+                ScenarioSpecRow.scenario_spec_id == scenario_spec_id,
+                ScenarioSpecRow.workspace_id == workspace_id,
+            )
+            .order_by(ScenarioSpecRow.version.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_latest_by_workspace(
+        self,
+        workspace_id: UUID,
+        *,
+        limit: int = 20,
+        cursor_created_at: str | None = None,
+        cursor_scenario_spec_id: str | None = None,
+    ) -> tuple[list[ScenarioSpecRow], int]:
+        """List latest version of each scenario in a workspace (paginated).
+
+        Returns (rows, total_distinct_scenarios).
+        Uses a subquery to find max version per scenario_spec_id,
+        then joins back to get full rows.
+        """
+        # Subquery: max version per scenario_spec_id in this workspace
+        max_version_sq = (
+            select(
+                ScenarioSpecRow.scenario_spec_id,
+                func.max(ScenarioSpecRow.version).label("max_ver"),
+            )
+            .where(ScenarioSpecRow.workspace_id == workspace_id)
+            .group_by(ScenarioSpecRow.scenario_spec_id)
+            .subquery()
+        )
+
+        # Total distinct scenarios
+        count_result = await self._session.execute(
+            select(func.count()).select_from(max_version_sq)
+        )
+        total = count_result.scalar_one()
+
+        # Main query: join to get full rows for latest versions
+        query = (
+            select(ScenarioSpecRow)
+            .join(
+                max_version_sq,
+                (ScenarioSpecRow.scenario_spec_id == max_version_sq.c.scenario_spec_id)
+                & (ScenarioSpecRow.version == max_version_sq.c.max_ver),
+            )
+            .order_by(
+                ScenarioSpecRow.created_at.asc(),
+                ScenarioSpecRow.scenario_spec_id.asc(),
+            )
+        )
+
+        # Apply cursor
+        if cursor_created_at is not None and cursor_scenario_spec_id is not None:
+            from datetime import datetime
+            ts = datetime.fromisoformat(cursor_created_at)
+            cid = UUID(cursor_scenario_spec_id)
+            query = query.where(
+                (ScenarioSpecRow.created_at > ts)
+                | (
+                    (ScenarioSpecRow.created_at == ts)
+                    & (ScenarioSpecRow.scenario_spec_id > cid)
+                ),
+            )
+
+        query = query.limit(limit)
+        result = await self._session.execute(query)
+        return list(result.scalars().all()), total

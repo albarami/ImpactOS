@@ -1,5 +1,7 @@
 """FastAPI scenario endpoints — MVP-4.
 
+GET  /v1/workspaces/{workspace_id}/scenarios                          — list (B-9)
+GET  /v1/workspaces/{workspace_id}/scenarios/{id}                     — detail (B-10)
 POST /v1/workspaces/{workspace_id}/scenarios                          — create
 POST /v1/workspaces/{workspace_id}/scenarios/{id}/compile             — compile
 POST /v1/workspaces/{workspace_id}/scenarios/{id}/mapping-decisions   — bulk
@@ -120,6 +122,49 @@ class LockRequest(BaseModel):
 class LockResponse(BaseModel):
     new_version: int
     status: str
+
+
+# --- B-9: Scenario list response ---
+
+
+class ScenarioListItem(BaseModel):
+    scenario_spec_id: str
+    name: str
+    version: int
+    workspace_id: str
+    created_at: str
+    status: str
+
+
+class ScenarioListResponse(BaseModel):
+    items: list[ScenarioListItem]
+    total: int
+    next_cursor: str | None = None
+
+
+# --- B-10: Scenario detail response ---
+
+
+class TimeHorizonResponse(BaseModel):
+    start_year: int
+    end_year: int
+
+
+class ScenarioDetailResponse(BaseModel):
+    scenario_spec_id: str
+    name: str
+    version: int
+    workspace_id: str
+    base_model_version_id: str
+    base_year: int
+    currency: str
+    disclosure_tier: str
+    time_horizon: TimeHorizonResponse
+    shock_items: list[dict]
+    assumption_ids: list[str]
+    status: str
+    created_at: str
+    updated_at: str
 
 
 # ---------------------------------------------------------------------------
@@ -254,9 +299,114 @@ async def _load_items_from_document(
     return boq_items
 
 
+def _derive_status(row) -> str:
+    """Derive scenario status from data (no explicit status column).
+
+    - Empty shock_items → DRAFT
+    - Non-empty shock_items → COMPILED
+    """
+    shock_items = row.shock_items
+    if shock_items and len(shock_items) > 0:
+        return "COMPILED"
+    return "DRAFT"
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+
+# --- B-9: Scenario list ---
+
+
+@router.get("/{workspace_id}/scenarios", response_model=ScenarioListResponse)
+async def list_scenarios(
+    workspace_id: UUID,
+    limit: int = 20,
+    cursor: str | None = None,
+    repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+) -> ScenarioListResponse:
+    """B-9: List scenarios for a workspace (latest version per spec, paginated)."""
+    cursor_created_at: str | None = None
+    cursor_scenario_spec_id: str | None = None
+    if cursor:
+        import base64
+        decoded = base64.b64decode(cursor).decode("utf-8")
+        parts = decoded.split("|", 1)
+        if len(parts) == 2:
+            cursor_created_at, cursor_scenario_spec_id = parts
+
+    rows, total = await repo.list_latest_by_workspace(
+        workspace_id,
+        limit=limit,
+        cursor_created_at=cursor_created_at,
+        cursor_scenario_spec_id=cursor_scenario_spec_id,
+    )
+
+    items = [
+        ScenarioListItem(
+            scenario_spec_id=str(r.scenario_spec_id),
+            name=r.name,
+            version=r.version,
+            workspace_id=str(r.workspace_id),
+            created_at=r.created_at.isoformat(),
+            status=_derive_status(r),
+        )
+        for r in rows
+    ]
+
+    next_cursor: str | None = None
+    if len(rows) == limit:
+        import base64
+        last = rows[-1]
+        raw = f"{last.created_at.isoformat()}|{last.scenario_spec_id}"
+        next_cursor = base64.b64encode(raw.encode("utf-8")).decode("utf-8")
+
+    return ScenarioListResponse(
+        items=items,
+        total=total,
+        next_cursor=next_cursor,
+    )
+
+
+# --- B-10: Scenario detail ---
+
+
+@router.get(
+    "/{workspace_id}/scenarios/{scenario_id}",
+    response_model=ScenarioDetailResponse,
+)
+async def get_scenario_detail(
+    workspace_id: UUID,
+    scenario_id: UUID,
+    repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+) -> ScenarioDetailResponse:
+    """B-10: Get full scenario detail (latest version, workspace-scoped)."""
+    row = await repo.get_latest_by_workspace(scenario_id, workspace_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+
+    th = row.time_horizon or {}
+
+    return ScenarioDetailResponse(
+        scenario_spec_id=str(row.scenario_spec_id),
+        name=row.name,
+        version=row.version,
+        workspace_id=str(row.workspace_id),
+        base_model_version_id=str(row.base_model_version_id),
+        base_year=row.base_year,
+        currency=row.currency,
+        disclosure_tier=row.disclosure_tier,
+        time_horizon=TimeHorizonResponse(
+            start_year=th.get("start_year", row.base_year),
+            end_year=th.get("end_year", row.base_year),
+        ),
+        shock_items=row.shock_items or [],
+        assumption_ids=[str(a) for a in (row.assumption_ids or [])],
+        status=_derive_status(row),
+        created_at=row.created_at.isoformat(),
+        updated_at=row.updated_at.isoformat(),
+    )
 
 
 @router.post("/{workspace_id}/scenarios", status_code=201, response_model=CreateScenarioResponse)
