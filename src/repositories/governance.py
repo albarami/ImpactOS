@@ -124,3 +124,74 @@ class ClaimRepository:
     async def list_all(self) -> list[ClaimRow]:
         result = await self._session.execute(select(ClaimRow))
         return list(result.scalars().all())
+
+
+class EvidenceSnippetRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        *,
+        snippet_id: UUID,
+        source_id: UUID,
+        page: int,
+        bbox_x0: float,
+        bbox_y0: float,
+        bbox_x1: float,
+        bbox_y1: float,
+        extracted_text: str,
+        table_cell_ref: dict | None = None,
+        checksum: str,
+    ) -> EvidenceSnippetRow:
+        now = utc_now()
+        row = EvidenceSnippetRow(
+            snippet_id=snippet_id,
+            source_id=source_id,
+            page=page,
+            bbox_x0=bbox_x0,
+            bbox_y0=bbox_y0,
+            bbox_x1=bbox_x1,
+            bbox_y1=bbox_y1,
+            extracted_text=extracted_text,
+            table_cell_ref=table_cell_ref,
+            checksum=checksum,
+            created_at=now,
+        )
+        self._session.add(row)
+        await self._session.flush()
+        return row
+
+    async def create_many(self, snippets: list[dict]) -> list[EvidenceSnippetRow]:
+        """Bulk-insert evidence snippets from dicts."""
+        rows = []
+        now = utc_now()
+        for s in snippets:
+            s.setdefault("created_at", now)
+            row = EvidenceSnippetRow(**s)
+            self._session.add(row)
+            rows.append(row)
+        await self._session.flush()
+        return rows
+
+    async def get(self, snippet_id: UUID) -> EvidenceSnippetRow | None:
+        return await self._session.get(EvidenceSnippetRow, snippet_id)
+
+    async def list_by_source(self, source_id: UUID) -> list[EvidenceSnippetRow]:
+        result = await self._session.execute(
+            select(EvidenceSnippetRow)
+            .where(EvidenceSnippetRow.source_id == source_id)
+            .order_by(EvidenceSnippetRow.page.asc(), EvidenceSnippetRow.snippet_id.asc())
+        )
+        return list(result.scalars().all())
+
+    async def list_by_source_ids(self, source_ids: list[UUID]) -> list[EvidenceSnippetRow]:
+        """Get all snippets for multiple source documents."""
+        if not source_ids:
+            return []
+        result = await self._session.execute(
+            select(EvidenceSnippetRow)
+            .where(EvidenceSnippetRow.source_id.in_(source_ids))
+            .order_by(EvidenceSnippetRow.created_at.asc())
+        )
+        return list(result.scalars().all())
