@@ -1,7 +1,7 @@
 """Tests that satellite_coeff_loader prefers curated real IO over synthetic.
 
 Correction 4: Test through PUBLIC API load_satellite_coefficients() only.
-D-5 Task 4.
+D-5 Task 4. These tests use PREFER_REAL mode (non-runtime, dev/test only).
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import json
 import numpy as np
 import pytest
 
+from src.data.real_io_loader import DataMode
 from src.data.workforce.satellite_coeff_loader import load_satellite_coefficients
 
 
@@ -130,6 +131,7 @@ class TestSatellitePrefersCuratedIO:
             year=2018,
             sector_codes=["F", "C", "G"],
             curated_dir=str(curated_dir),
+            data_mode=DataMode.PREFER_REAL,
         )
 
         # VA ratios from real IO should NOT be [0.01, 0.01, 0.01]
@@ -150,6 +152,7 @@ class TestSatellitePrefersCuratedIO:
             year=2018,
             sector_codes=["F", "C", "G"],
             curated_dir=str(curated_dir),
+            data_mode=DataMode.PREFER_REAL,
         )
 
         io_fallbacks = [
@@ -179,6 +182,7 @@ class TestSatellitePrefersCuratedIO:
             year=2018,
             sector_codes=["F", "C", "G"],
             curated_dir=str(curated_dir),
+            data_mode=DataMode.PREFER_REAL,
         )
 
         # Should still work, just from synthetic
@@ -203,6 +207,7 @@ class TestSatellitePrefersCuratedIO:
             year=2020,
             sector_codes=["F", "C", "G"],
             curated_dir=str(curated_dir),
+            data_mode=DataMode.PREFER_REAL,
         )
 
         # Should find the 2018 file (within +/- 4 range)
@@ -221,6 +226,7 @@ class TestSatellitePrefersCuratedIO:
             year=2018,
             sector_codes=["F", "C", "G"],
             curated_dir=str(curated_dir),
+            data_mode=DataMode.PREFER_REAL,
         )
 
         # Import ratios should be the 0.15 default, NOT 0.99 from synthetic
@@ -239,6 +245,7 @@ class TestSatellitePrefersCuratedIO:
             year=2018,
             sector_codes=["F", "C", "G"],
             curated_dir=str(curated_dir),
+            data_mode=DataMode.PREFER_REAL,
         )
 
         assert result.provenance.io_base_year == 2018

@@ -71,14 +71,13 @@ def load_satellite_coefficients(
     year: int = 2019,
     sector_codes: list[str] | None = None,
     curated_dir: str | Path = "data/curated",
-    data_mode: DataMode = DataMode.PREFER_REAL,
+    data_mode: DataMode = DataMode.STRICT_REAL,
 ) -> LoadedCoefficients:
     """Load curated employment + import + VA coefficients.
 
-    D-5.1: data_mode controls fallback behavior:
-      STRICT_REAL  — fail if any component needs synthetic fallback.
-      PREFER_REAL  — curated first, synthetic fallback with provenance.
-      SYNTHETIC_ONLY — synthetic only (for offline/test use).
+    D-5.1: Default is STRICT_REAL (fail fast if curated data missing).
+    PREFER_REAL and SYNTHETIC_ONLY are available for offline test/dev
+    tooling only — they must never be used by runtime API flows.
 
     Raises:
         FileNotFoundError: In STRICT_REAL when curated data is incomplete.

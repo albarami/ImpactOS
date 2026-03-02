@@ -32,11 +32,16 @@ SYNTHETIC_PATH = SYNTHETIC_DIR / "saudi_io_synthetic_v1.json"
 
 
 class DataMode(str, Enum):
-    """Controls how the IO loader resolves data sources."""
+    """Controls how the IO loader resolves data sources.
 
-    STRICT_REAL = "strict_real"          # Fail if curated data absent
-    PREFER_REAL = "prefer_real"          # Use curated if present, synthetic otherwise
-    SYNTHETIC_ONLY = "synthetic_only"    # Always synthetic
+    STRICT_REAL is the only mode permitted in runtime API flows.
+    PREFER_REAL and SYNTHETIC_ONLY exist for offline dev/test tooling
+    only and must never be used by API-driven execution paths.
+    """
+
+    STRICT_REAL = "strict_real"
+    PREFER_REAL = "prefer_real"          # Non-runtime: dev/test only
+    SYNTHETIC_ONLY = "synthetic_only"    # Non-runtime: dev/test only
 
 
 # ---------------------------------------------------------------------------
@@ -292,10 +297,9 @@ def load_real_saudi_io(
 ) -> IOModelData:
     """Load real Saudi IO model from curated KAPSARC data.
 
-    Backward-compatible wrapper around load_real_saudi_io_strict().
-    Uses PREFER_REAL mode.
-
-    Falls back to synthetic model if curated data not available.
+    NON-RUNTIME: This backward-compatible wrapper uses PREFER_REAL
+    mode with synthetic fallback. It must NOT be called from API
+    runtime paths. Use load_real_saudi_io_strict(STRICT_REAL) instead.
 
     Args:
         year: Target year for the IO model (tries nearest available).
