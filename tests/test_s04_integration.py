@@ -469,12 +469,32 @@ class TestExportPersistence:
     """Export metadata persists to DB and can be retrieved."""
 
     @pytest.mark.anyio
-    async def test_export_can_be_retrieved(self, client: AsyncClient) -> None:
-        """Created export can be retrieved by ID."""
+    async def test_export_can_be_retrieved(self, client: AsyncClient, db_session) -> None:
+        """Created export can be retrieved by ID (workspace-scoped via run linkage)."""
+        from uuid import UUID
+        from src.db.tables import RunSnapshotRow
+        from src.models.common import utc_now
+
+        run_id = str(uuid7())
+        row = RunSnapshotRow(
+            run_id=UUID(run_id),
+            model_version_id=uuid7(),
+            taxonomy_version_id=uuid7(),
+            concordance_version_id=uuid7(),
+            mapping_library_version_id=uuid7(),
+            assumption_library_version_id=uuid7(),
+            prompt_pack_version_id=uuid7(),
+            workspace_id=UUID(WS_ID),
+            source_checksums=[],
+            created_at=utc_now(),
+        )
+        db_session.add(row)
+        await db_session.flush()
+
         create_resp = await client.post(
             f"/v1/workspaces/{WS_ID}/exports",
             json={
-                "run_id": str(uuid7()),
+                "run_id": run_id,
                 "mode": "SANDBOX",
                 "export_formats": ["excel"],
                 "pack_data": {"title": "Persistence Test"},
@@ -483,7 +503,6 @@ class TestExportPersistence:
         assert create_resp.status_code == 201
         export_id = create_resp.json()["export_id"]
 
-        # Retrieve by ID
         get_resp = await client.get(f"/v1/workspaces/{WS_ID}/exports/{export_id}")
         assert get_resp.status_code == 200
         data = get_resp.json()

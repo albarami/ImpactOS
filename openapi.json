@@ -1667,7 +1667,7 @@
           "exports"
         ],
         "summary": "Get Export Status",
-        "description": "Get export status and metadata.",
+        "description": "Get export status and metadata (workspace-scoped via run linkage).",
         "operationId": "get_export_status_v1_workspaces__workspace_id__exports__export_id__get",
         "parameters": [
           {

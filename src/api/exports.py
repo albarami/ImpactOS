@@ -197,8 +197,8 @@ async def get_export_status(
     export_id: UUID,
     repo: ExportRepository = Depends(get_export_repo),
 ) -> ExportStatusResponse:
-    """Get export status and metadata."""
-    row = await repo.get(export_id)
+    """Get export status and metadata (workspace-scoped via run linkage)."""
+    row = await repo.get_for_workspace(export_id, workspace_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Export {export_id} not found.")
 

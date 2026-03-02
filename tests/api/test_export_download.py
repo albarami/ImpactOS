@@ -260,6 +260,29 @@ class TestExportDownload:
         assert len(dl_pptx.content) > 0
 
 
+class TestExportStatusWorkspaceScope:
+    """Export status endpoint workspace enforcement."""
+
+    @pytest.mark.anyio
+    async def test_status_correct_workspace_returns_200(self, client, db_session):
+        export_id, _ = await _seed_completed_export(db_session, workspace_id=WS_ID)
+        resp = await client.get(
+            f"/v1/workspaces/{WS_ID}/exports/{export_id}"
+        )
+        assert resp.status_code == 200
+        assert resp.json()["export_id"] == str(export_id)
+
+    @pytest.mark.anyio
+    async def test_status_wrong_workspace_returns_404(self, client, db_session):
+        export_id, _ = await _seed_completed_export(
+            db_session, workspace_id=OTHER_WS_ID,
+        )
+        resp = await client.get(
+            f"/v1/workspaces/{WS_ID}/exports/{export_id}"
+        )
+        assert resp.status_code == 404
+
+
 class TestExportRepoWorkspaceScope:
     """Repository-level tests for workspace-safe export access."""
 

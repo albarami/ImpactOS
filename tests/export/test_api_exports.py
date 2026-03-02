@@ -8,16 +8,39 @@ import pytest
 from httpx import AsyncClient
 from uuid_extensions import uuid7
 
+from src.db.tables import RunSnapshotRow
+from src.models.common import utc_now
+
 WS_ID = str(uuid7())
 
 
-def _make_export_payload() -> dict:
+async def _seed_run_snapshot(db_session, run_id: str, workspace_id: str):
+    """Seed a RunSnapshotRow so export -> run -> workspace linkage works."""
+    from uuid import UUID
+    row = RunSnapshotRow(
+        run_id=UUID(run_id),
+        model_version_id=uuid7(),
+        taxonomy_version_id=uuid7(),
+        concordance_version_id=uuid7(),
+        mapping_library_version_id=uuid7(),
+        assumption_library_version_id=uuid7(),
+        prompt_pack_version_id=uuid7(),
+        workspace_id=UUID(workspace_id),
+        source_checksums=[],
+        created_at=utc_now(),
+    )
+    db_session.add(row)
+    await db_session.flush()
+
+
+def _make_export_payload(*, run_id: str | None = None) -> dict:
+    rid = run_id or str(uuid7())
     return {
-        "run_id": str(uuid7()),
+        "run_id": rid,
         "mode": "SANDBOX",
         "export_formats": ["excel"],
         "pack_data": {
-            "run_id": str(uuid7()),
+            "run_id": rid,
             "scenario_name": "Test Scenario",
             "base_year": 2023,
             "currency": "SAR",
@@ -75,15 +98,21 @@ class TestCreateExport:
 
 class TestGetExportStatus:
     @pytest.mark.anyio
-    async def test_get_status_returns_200(self, client: AsyncClient) -> None:
-        create_resp = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=_make_export_payload())
+    async def test_get_status_returns_200(self, client: AsyncClient, db_session) -> None:
+        run_id = str(uuid7())
+        await _seed_run_snapshot(db_session, run_id, WS_ID)
+        payload = _make_export_payload(run_id=run_id)
+        create_resp = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=payload)
         export_id = create_resp.json()["export_id"]
         response = await client.get(f"/v1/workspaces/{WS_ID}/exports/{export_id}")
         assert response.status_code == 200
 
     @pytest.mark.anyio
-    async def test_get_status_contains_fields(self, client: AsyncClient) -> None:
-        create_resp = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=_make_export_payload())
+    async def test_get_status_contains_fields(self, client: AsyncClient, db_session) -> None:
+        run_id = str(uuid7())
+        await _seed_run_snapshot(db_session, run_id, WS_ID)
+        payload = _make_export_payload(run_id=run_id)
+        create_resp = await client.post(f"/v1/workspaces/{WS_ID}/exports", json=payload)
         export_id = create_resp.json()["export_id"]
         response = await client.get(f"/v1/workspaces/{WS_ID}/exports/{export_id}")
         data = response.json()
