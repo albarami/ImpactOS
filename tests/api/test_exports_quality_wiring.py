@@ -1,10 +1,9 @@
 """Tests for G1: export route must pass quality_assessment into ExportOrchestrator.
 
-Governed exports should be BLOCKED when the run used synthetic fallback data.
-Sandbox exports should ignore synthetic fallback and COMPLETE normally.
-Governed exports should also be BLOCKED when unresolved claims exist (independent
-of quality assessment). When no quality summary and no claims exist, governed
-exports should COMPLETE.
+Both governed and sandbox exports should be BLOCKED when synthetic fallback data
+is used. Governed exports should also be BLOCKED when no quality assessment is
+available or when unresolved claims exist. When a clean quality summary and no
+claims exist, governed exports should COMPLETE.
 
 These tests will FAIL until the export route (src/api/exports.py) is updated
 to fetch RunQualitySummaryRow from DB and reconstruct a RunQualityAssessment
@@ -135,6 +134,29 @@ async def _seed_unresolved_claim(
 WS_ID = str(uuid7())
 
 
+async def _seed_curated_run(db_session: AsyncSession, *, run_id: str | UUID, ws_id: str | UUID) -> None:
+    """Create ModelVersionRow + RunSnapshotRow so provenance check passes."""
+    from src.db.tables import ModelVersionRow, RunSnapshotRow
+    mid = new_uuid7()
+    mv = ModelVersionRow(
+        model_version_id=mid, base_year=2023, source="test",
+        sector_count=2, checksum="sha256:" + "a" * 64,
+        provenance_class="curated_real", created_at=utc_now(),
+    )
+    db_session.add(mv)
+    snap = RunSnapshotRow(
+        run_id=_to_uuid(run_id), model_version_id=mid,
+        taxonomy_version_id=new_uuid7(), concordance_version_id=new_uuid7(),
+        mapping_library_version_id=new_uuid7(),
+        assumption_library_version_id=new_uuid7(),
+        prompt_pack_version_id=new_uuid7(),
+        workspace_id=_to_uuid(ws_id), source_checksums=[],
+        created_at=utc_now(),
+    )
+    db_session.add(snap)
+    await db_session.flush()
+
+
 class TestExportQualityWiring:
     """G1: Export route must pass quality_assessment into ExportOrchestrator.
 
@@ -171,10 +193,10 @@ class TestExportQualityWiring:
         assert any("synthetic" in r.lower() for r in data["blocking_reasons"])
 
     @pytest.mark.anyio
-    async def test_sandbox_export_ignores_synthetic_fallback(
+    async def test_sandbox_export_blocks_synthetic_fallback(
         self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
-        """Sandbox export should COMPLETE even with synthetic fallback data."""
+        """Sandbox export should be BLOCKED when synthetic fallback data is used."""
         run_id = str(uuid7())
 
         # Seed quality summary with synthetic fallback
@@ -193,7 +215,8 @@ class TestExportQualityWiring:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["status"] == "COMPLETED"
+        assert data["status"] == "BLOCKED"
+        assert any("synthetic" in r.lower() for r in data["blocking_reasons"])
 
     @pytest.mark.anyio
     async def test_governed_export_blocked_by_unresolved_claims_independently(
@@ -225,13 +248,21 @@ class TestExportQualityWiring:
         assert len(data["blocking_reasons"]) >= 1
 
     @pytest.mark.anyio
-    async def test_governed_export_succeeds_no_quality_summary(
+    async def test_governed_export_succeeds_with_clean_quality(
         self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
-        """Governed export with no quality summary and no claims should COMPLETE."""
+        """Governed export with clean quality summary and no claims should COMPLETE."""
         run_id = str(uuid7())
 
-        # No quality summary seeded, no claims seeded
+        await _seed_curated_run(db_session, run_id=run_id, ws_id=WS_ID)
+        await _seed_quality_summary(
+            db_session,
+            run_id=run_id,
+            ws_id=WS_ID,
+            used_synthetic_fallback=False,
+            data_mode="curated_real",
+        )
+
         payload = _make_export_payload(run_id, mode="GOVERNED")
         response = await client.post(
             f"/v1/workspaces/{WS_ID}/exports", json=payload,

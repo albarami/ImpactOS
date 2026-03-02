@@ -4,9 +4,15 @@ End-to-end: register → run → feasibility → workforce → quality → expor
 Tests all moat modules chaining together via real API calls.
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
+
+from src.db.tables import RunQualitySummaryRow
+from src.models.common import new_uuid7, utc_now
 
 # ---------------------------------------------------------------------------
 # Register → Run
@@ -489,10 +495,26 @@ class TestFullChain:
         self,
         client: AsyncClient,
         seeded_run: dict,
+        db_session: AsyncSession,
     ) -> None:
         """Full chain + SANDBOX export → COMPLETED."""
         ws_id = seeded_run["ws_id"]
         run_id = seeded_run["run_id"]
+
+        row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(ws_id),
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
+            created_at=utc_now(),
+        )
+        db_session.add(row)
+        await db_session.flush()
 
         export_resp = await client.post(
             f"/v1/workspaces/{ws_id}/exports",
@@ -511,10 +533,33 @@ class TestFullChain:
         self,
         client: AsyncClient,
         seeded_run: dict,
+        db_session: AsyncSession,
     ) -> None:
-        """No claims → governed export → COMPLETED."""
+        """No claims + clean quality → governed export → COMPLETED."""
         ws_id = seeded_run["ws_id"]
         run_id = seeded_run["run_id"]
+
+        row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(ws_id),
+            overall_run_score=0.85,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            mapping_coverage_pct=0.8,
+            publication_gate_pass=True,
+            publication_gate_mode="GOVERNED",
+            summary_version="1.0.0",
+            summary_hash="sha256:test",
+            payload={
+                "assessment_version": 1,
+                "used_synthetic_fallback": False,
+                "data_mode": "curated_real",
+            },
+            created_at=utc_now(),
+        )
+        db_session.add(row)
+        await db_session.flush()
 
         export_resp = await client.post(
             f"/v1/workspaces/{ws_id}/exports",

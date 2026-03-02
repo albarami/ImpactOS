@@ -1,7 +1,7 @@
 """Tests for provenance wiring in ExportOrchestrator (D-5 Task 6).
 
 Verifies that ExportOrchestrator enforces synthetic-fallback blocking
-for GOVERNED exports while allowing SANDBOX exports regardless of data mode.
+for both GOVERNED and SANDBOX exports when used_synthetic_fallback is True.
 """
 
 from uuid import uuid4
@@ -36,7 +36,7 @@ class TestExportWithProvenance:
         )
         assert result.status == ExportStatus.COMPLETED
 
-    def test_sandbox_with_synthetic_still_exports(self) -> None:
+    def test_sandbox_with_synthetic_blocked(self) -> None:
         orch = ExportOrchestrator()
         assessment = RunQualityAssessment(
             assessment_version=1,
@@ -49,7 +49,8 @@ class TestExportWithProvenance:
             claims=[],
             quality_assessment=assessment,
         )
-        assert result.status == ExportStatus.COMPLETED
+        assert result.status == ExportStatus.BLOCKED
+        assert any("synthetic" in r.lower() for r in result.blocking_reasons)
 
     def test_governed_with_synthetic_blocked(self) -> None:
         orch = ExportOrchestrator()
@@ -87,4 +88,4 @@ class TestExportWithProvenance:
             request=_make_request(ExportMode.SANDBOX),
             claims=[],
         )
-        assert result.status == ExportStatus.COMPLETED
+        assert result.status == ExportStatus.BLOCKED

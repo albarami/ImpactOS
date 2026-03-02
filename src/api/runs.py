@@ -233,6 +233,36 @@ async def _ensure_model_loaded(
         return loaded
 
 
+ALLOWED_RUNTIME_PROVENANCE = frozenset({"curated_real"})
+
+
+async def _enforce_model_provenance(
+    model_version_id: UUID,
+    mv_repo: ModelVersionRepository,
+) -> None:
+    """Reject models with non-curated_real provenance at runtime.
+
+    D-5.1: Only curated_real models are permitted in runtime API flows.
+    synthetic, unknown, and curated_estimated are all blocked.
+    """
+    mv_row = await mv_repo.get(model_version_id)
+    if mv_row is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model {model_version_id} not found.",
+        )
+    prov = getattr(mv_row, "provenance_class", "unknown")
+    if prov not in ALLOWED_RUNTIME_PROVENANCE:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Model {model_version_id} has provenance_class='{prov}'. "
+                f"Runtime execution requires provenance_class "
+                f"in {sorted(ALLOWED_RUNTIME_PROVENANCE)}."
+            ),
+        )
+
+
 def _make_satellite_coefficients(payload: SatelliteCoeffsPayload) -> SatelliteCoefficients:
     return SatelliteCoefficients(
         jobs_coeff=np.array(payload.jobs_coeff),
@@ -368,7 +398,6 @@ async def register_model(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # Persist to DB
     await mv_repo.create(
         model_version_id=mv.model_version_id,
         base_year=mv.base_year,
@@ -406,6 +435,7 @@ async def create_run(
 ) -> RunResponse:
     """Execute a single scenario run."""
     model_version_id = UUID(body.model_version_id)
+    await _enforce_model_provenance(model_version_id, mv_repo)
     await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
 
     coeffs = _make_satellite_coefficients(body.satellite_coefficients)
@@ -462,6 +492,7 @@ async def create_batch_run(
 ) -> BatchResponse:
     """Execute a batch of scenario runs with status tracking."""
     model_version_id = UUID(body.model_version_id)
+    await _enforce_model_provenance(model_version_id, mv_repo)
     await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
 
     batch_id = new_uuid7()
@@ -538,7 +569,9 @@ async def get_batch_status(
 
     responses: list[RunResponse] = []
     for rid_str in batch_row.run_ids:
-        resp = await _load_run_response(UUID(rid_str), snap_repo, rs_repo, workspace_id=workspace_id)
+        resp = await _load_run_response(
+            UUID(rid_str), snap_repo, rs_repo, workspace_id=workspace_id,
+        )
         if resp is not None:
             responses.append(resp)
 

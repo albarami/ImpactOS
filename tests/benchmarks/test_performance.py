@@ -7,9 +7,15 @@ Generous ceilings (3-5x expected). Skipped by default (requires -m benchmark).
 import logging
 import time
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
+
+from src.db.tables import ModelVersionRow
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +33,16 @@ _SATELLITE_COEFFICIENTS = {
     "import_ratio": [0.30, 0.20],
     "va_ratio": [0.40, 0.55],
 }
+
+
+async def _promote_model(db_session: AsyncSession, model_version_id: str) -> None:
+    """Promote API-registered model to curated_real so run endpoints accept it."""
+    await db_session.execute(
+        update(ModelVersionRow)
+        .where(ModelVersionRow.model_version_id == UUID(model_version_id))
+        .values(provenance_class="curated_real")
+    )
+    await db_session.flush()
 
 
 @pytest.mark.benchmark
@@ -51,10 +67,12 @@ class TestPerformanceBenchmarks:
     async def test_single_run_latency(
         self,
         client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """Single run < 3000ms."""
         reg_resp = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         mid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mid)
         ws_id = str(uuid7())
 
         start = time.perf_counter()
@@ -77,10 +95,12 @@ class TestPerformanceBenchmarks:
     async def test_batch_10_scenarios_latency(
         self,
         client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """10-scenario batch < 15000ms."""
         reg_resp = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         mid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mid)
         ws_id = str(uuid7())
 
         scenarios = [
@@ -111,10 +131,12 @@ class TestPerformanceBenchmarks:
     async def test_feasibility_solve_latency(
         self,
         client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """Feasibility solve < 2000ms."""
         reg_resp = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         mid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mid)
         ws_id = str(uuid7())
 
         # Run to create result sets
@@ -163,10 +185,12 @@ class TestPerformanceBenchmarks:
     async def test_workforce_compute_latency(
         self,
         client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """Workforce compute < 2000ms."""
         reg_resp = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         mid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mid)
         ws_id = str(uuid7())
 
         run_resp = await client.post(

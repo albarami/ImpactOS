@@ -341,7 +341,10 @@ async def _load_items_from_document(
             currency_code=row.currency_code,
             category_code=row.category_code,
             page_ref=row.page_ref,
-            evidence_snippet_ids=[UUID(eid) if isinstance(eid, str) else eid for eid in evidence_ids],
+            evidence_snippet_ids=[
+                UUID(eid) if isinstance(eid, str) else eid
+                for eid in evidence_ids
+            ],
         ))
     return boq_items
 
@@ -731,17 +734,21 @@ async def run_from_scenario(
         )
 
     from src.api.runs import (
+        SatelliteCoeffsPayload as RunSatPayload,
+    )
+    from src.api.runs import (
+        _enforce_model_provenance,
         _ensure_model_loaded,
         _make_satellite_coefficients,
         _make_version_refs,
         _model_store,
         _persist_run_result,
         _single_run_to_response,
-        SatelliteCoeffsPayload as RunSatPayload,
     )
     from src.engine.batch import BatchRequest, BatchRunner, ScenarioInput
 
     model_version_id = row.base_model_version_id
+    await _enforce_model_provenance(model_version_id, mv_repo)
     loaded = await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
 
     annual_shocks = _shock_items_to_annual_shocks(

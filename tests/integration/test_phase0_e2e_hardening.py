@@ -19,8 +19,32 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.tables import ClaimRow, RunQualitySummaryRow
+from src.db.tables import ClaimRow, ModelVersionRow, RunQualitySummaryRow, RunSnapshotRow
 from src.models.common import new_uuid7, utc_now
+
+
+async def _seed_curated_run(
+    db_session: AsyncSession, run_id: UUID, workspace_id: UUID,
+) -> None:
+    """Create ModelVersionRow + RunSnapshotRow so provenance check passes."""
+    mid = new_uuid7()
+    mv = ModelVersionRow(
+        model_version_id=mid, base_year=2023, source="test",
+        sector_count=2, checksum="sha256:" + "a" * 64,
+        provenance_class="curated_real", created_at=utc_now(),
+    )
+    db_session.add(mv)
+    snap = RunSnapshotRow(
+        run_id=run_id, model_version_id=mid,
+        taxonomy_version_id=new_uuid7(), concordance_version_id=new_uuid7(),
+        mapping_library_version_id=new_uuid7(),
+        assumption_library_version_id=new_uuid7(),
+        prompt_pack_version_id=new_uuid7(),
+        workspace_id=workspace_id, source_checksums=[],
+        created_at=utc_now(),
+    )
+    db_session.add(snap)
+    await db_session.flush()
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -230,6 +254,22 @@ class TestPhase0E2EHardening:
 
         # --- 6. Sandbox export -> COMPLETED ---
         run_id = str(new_uuid7())
+        await _seed_curated_run(db_session, UUID(run_id), UUID(ws_id))
+        quality_row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(ws_id),
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
+            created_at=utc_now(),
+        )
+        db_session.add(quality_row)
+        await db_session.flush()
+
         export_resp = await client.post(
             f"/v1/workspaces/{ws_id}/exports",
             json=_make_export_payload(run_id, "SANDBOX"),
@@ -305,12 +345,12 @@ class TestPhase0E2EHardening:
         )
 
     @pytest.mark.anyio
-    async def test_sandbox_export_ignores_synthetic_quality(
+    async def test_sandbox_export_blocks_synthetic_quality(
         self,
         client: AsyncClient,
         db_session: AsyncSession,
     ) -> None:
-        """Sandbox export succeeds even with synthetic fallback quality."""
+        """Sandbox export blocked when synthetic fallback quality is used."""
         ws_id = WS_ID
         run_id = new_uuid7()
 
@@ -323,14 +363,16 @@ class TestPhase0E2EHardening:
             data_mode="synthetic_fallback",
         )
 
-        # POST sandbox export -> COMPLETED
+        # POST sandbox export -> BLOCKED
         export_resp = await client.post(
             f"/v1/workspaces/{ws_id}/exports",
             json=_make_export_payload(str(run_id), "SANDBOX"),
         )
         assert export_resp.status_code == 201
         export_data = export_resp.json()
-        assert export_data["status"] == "COMPLETED"
+        assert export_data["status"] == "BLOCKED"
+        blocking_text = " ".join(export_data["blocking_reasons"]).lower()
+        assert "synthetic" in blocking_text
 
     @pytest.mark.anyio
     async def test_governed_succeeds_when_claims_resolved_and_no_synthetic(
@@ -341,6 +383,8 @@ class TestPhase0E2EHardening:
         """Governed export succeeds with resolved claim and clean quality."""
         ws_id = WS_ID
         run_id = new_uuid7()
+
+        await _seed_curated_run(db_session, run_id, UUID(ws_id))
 
         # Seed claim with status="SUPPORTED"
         await _seed_claim(

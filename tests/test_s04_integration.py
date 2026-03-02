@@ -8,11 +8,42 @@ Tests the key S0-4 deliverables:
 5. Workspace-scoped routing across all modules
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
 
+from src.db.tables import ModelVersionRow, RunQualitySummaryRow, RunSnapshotRow
+from src.models.common import new_uuid7, utc_now
+
 WS_ID = "01961060-0000-7000-8000-000000000001"
+
+
+async def _seed_curated_run(db_session: AsyncSession) -> str:
+    """Create a run_id backed by a curated_real model + snapshot."""
+    mid = new_uuid7()
+    run_id = new_uuid7()
+    mv = ModelVersionRow(
+        model_version_id=mid, base_year=2023, source="test",
+        sector_count=2, checksum="sha256:" + "a" * 64,
+        provenance_class="curated_real", created_at=utc_now(),
+    )
+    db_session.add(mv)
+    snap = RunSnapshotRow(
+        run_id=run_id, model_version_id=mid,
+        taxonomy_version_id=new_uuid7(), concordance_version_id=new_uuid7(),
+        mapping_library_version_id=new_uuid7(),
+        assumption_library_version_id=new_uuid7(),
+        prompt_pack_version_id=new_uuid7(),
+        workspace_id=UUID(WS_ID), source_checksums=[],
+        created_at=utc_now(),
+    )
+    db_session.add(snap)
+    await db_session.flush()
+    return str(run_id)
 
 
 # ===================================================================
@@ -60,10 +91,25 @@ class TestNFFEndToEnd:
 
     @pytest.mark.anyio
     async def test_sandbox_export_not_blocked_by_claims(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Sandbox export should NEVER be blocked regardless of claims."""
-        run_id = str(uuid7())
+        run_id = await _seed_curated_run(db_session)
+
+        row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(WS_ID),
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
+            created_at=utc_now(),
+        )
+        db_session.add(row)
+        await db_session.flush()
 
         # Extract claims
         await client.post(
@@ -90,10 +136,32 @@ class TestNFFEndToEnd:
 
     @pytest.mark.anyio
     async def test_governed_export_with_no_claims_passes(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
-        """Governed export with no claims should pass NFF gate."""
-        run_id = str(uuid7())
+        """Governed export with no claims and clean quality should pass."""
+        run_id = await _seed_curated_run(db_session)
+
+        row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(WS_ID),
+            overall_run_score=0.85,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            mapping_coverage_pct=0.8,
+            publication_gate_pass=True,
+            publication_gate_mode="GOVERNED",
+            summary_version="1.0.0",
+            summary_hash="sha256:test",
+            payload={
+                "assessment_version": 1,
+                "used_synthetic_fallback": False,
+                "data_mode": "curated_real",
+            },
+            created_at=utc_now(),
+        )
+        db_session.add(row)
+        await db_session.flush()
 
         export_resp = await client.post(
             f"/v1/workspaces/{WS_ID}/exports",
@@ -173,7 +241,7 @@ class TestBatchStatusTracking:
     """Batch operations track status RUNNING → COMPLETED."""
 
     @pytest.mark.anyio
-    async def test_batch_completed_status(self, client: AsyncClient) -> None:
+    async def test_batch_completed_status(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """Successful batch shows COMPLETED status."""
         # Register model
         reg_resp = await client.post("/v1/engine/models", json={
@@ -184,6 +252,12 @@ class TestBatchStatusTracking:
             "source": "test",
         })
         model_version_id = reg_resp.json()["model_version_id"]
+        await db_session.execute(
+            update(ModelVersionRow)
+            .where(ModelVersionRow.model_version_id == UUID(model_version_id))
+            .values(provenance_class="curated_real")
+        )
+        await db_session.flush()
 
         # Run batch
         batch_resp = await client.post(f"/v1/workspaces/{WS_ID}/engine/batch", json={
@@ -349,7 +423,7 @@ class TestWorkspaceScopedRouting:
         assert resp.status_code == 201
 
     @pytest.mark.anyio
-    async def test_run_requires_workspace(self, client: AsyncClient) -> None:
+    async def test_run_requires_workspace(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """Run endpoint is workspace-scoped."""
         reg_resp = await client.post("/v1/engine/models", json={
             "Z": [[150.0, 500.0], [200.0, 100.0]],
@@ -359,6 +433,12 @@ class TestWorkspaceScopedRouting:
             "source": "test",
         })
         mid = reg_resp.json()["model_version_id"]
+        await db_session.execute(
+            update(ModelVersionRow)
+            .where(ModelVersionRow.model_version_id == UUID(mid))
+            .values(provenance_class="curated_real")
+        )
+        await db_session.flush()
 
         # Old URL (no workspace) should 404 or 405
         old_resp = await client.post("/v1/engine/runs", json={
@@ -471,24 +551,21 @@ class TestExportPersistence:
     @pytest.mark.anyio
     async def test_export_can_be_retrieved(self, client: AsyncClient, db_session) -> None:
         """Created export can be retrieved by ID (workspace-scoped via run linkage)."""
-        from uuid import UUID
-        from src.db.tables import RunSnapshotRow
-        from src.models.common import utc_now
+        run_id = await _seed_curated_run(db_session)
 
-        run_id = str(uuid7())
-        row = RunSnapshotRow(
+        quality_row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
             run_id=UUID(run_id),
-            model_version_id=uuid7(),
-            taxonomy_version_id=uuid7(),
-            concordance_version_id=uuid7(),
-            mapping_library_version_id=uuid7(),
-            assumption_library_version_id=uuid7(),
-            prompt_pack_version_id=uuid7(),
             workspace_id=UUID(WS_ID),
-            source_checksums=[],
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
             created_at=utc_now(),
         )
-        db_session.add(row)
+        db_session.add(quality_row)
         await db_session.flush()
 
         create_resp = await client.post(

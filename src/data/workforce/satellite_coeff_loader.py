@@ -21,6 +21,7 @@ import numpy as np
 from uuid_extensions import uuid7
 
 from src.data.io_loader import load_from_json, load_satellites_from_json
+from src.data.real_io_loader import DataMode
 from src.data.workforce.build_employment_coefficients import (
     load_employment_coefficients,
 )
@@ -32,6 +33,8 @@ from src.engine.satellites import SatelliteCoefficients
 
 logger = logging.getLogger(__name__)
 
+RUNTIME_DATA_MODE = DataMode.STRICT_REAL
+
 # Default paths
 _CURATED_DIR = Path("data/curated")
 _SYNTHETIC_DIR = Path("data/synthetic")
@@ -41,7 +44,11 @@ _SYNTHETIC_IO = _SYNTHETIC_DIR / "saudi_io_synthetic_v1.json"
 
 @dataclass(frozen=True)
 class CoefficientProvenance:
-    """Track which year each component came from (Amendment 5)."""
+    """Track which year each component came from (Amendment 5).
+
+    D-5.1: used_synthetic_fallback indicates whether any component
+    used synthetic data, for quality/export gate decisions.
+    """
 
     employment_coeff_year: int
     io_base_year: int
@@ -49,6 +56,7 @@ class CoefficientProvenance:
     va_ratio_year: int
     fallback_flags: list[str] = field(default_factory=list)
     synchronized: bool = False
+    used_synthetic_fallback: bool = False
 
 
 @dataclass(frozen=True)
@@ -63,23 +71,16 @@ def load_satellite_coefficients(
     year: int = 2019,
     sector_codes: list[str] | None = None,
     curated_dir: str | Path = "data/curated",
+    data_mode: DataMode = DataMode.STRICT_REAL,
 ) -> LoadedCoefficients:
-    """Load curated employment + import + VA coefficients into SatelliteCoefficients.
+    """Load curated employment + import + VA coefficients.
 
-    Reads D-4 employment coefficients + D-3 IO data to build a complete
-    SatelliteCoefficients object compatible with SatelliteAccounts.compute().
+    D-5.1: Default is STRICT_REAL (fail fast if curated data missing).
+    PREFER_REAL and SYNTHETIC_ONLY are available for offline test/dev
+    tooling only — they must never be used by runtime API flows.
 
-    Falls back to synthetic if curated data unavailable.
-    Logs which sources were used for each component.
-
-    Args:
-        year: Target year.
-        sector_codes: Ordered sector codes matching model dimensions.
-            If None, uses codes from IO model.
-        curated_dir: Path to curated data directory.
-
-    Returns:
-        LoadedCoefficients with SatelliteCoefficients + provenance.
+    Raises:
+        FileNotFoundError: In STRICT_REAL when curated data is incomplete.
     """
     base = Path(curated_dir)
     fallback_flags: list[str] = []
@@ -93,6 +94,14 @@ def load_satellite_coefficients(
     io_year, import_ratio, va_ratio, resolved_codes = _load_io_ratios(
         base, year, sector_codes, fallback_flags,
     )
+
+    # STRICT_REAL: fail if any synthetic fallback occurred
+    if data_mode == DataMode.STRICT_REAL and fallback_flags:
+        msg = (
+            f"STRICT_REAL: curated satellite data incomplete for year {year}. "
+            f"Fallbacks: {fallback_flags}"
+        )
+        raise FileNotFoundError(msg)
 
     # Use resolved sector codes if not provided
     if sector_codes is None:
@@ -117,6 +126,11 @@ def load_satellite_coefficients(
         warnings.warn(msg, stacklevel=2)
         logger.warning(msg)
 
+    used_synthetic = any(
+        "synthetic" in f.lower() or "zeros" in f.lower()
+        for f in fallback_flags
+    )
+
     provenance = CoefficientProvenance(
         employment_coeff_year=emp_year,
         io_base_year=io_year,
@@ -124,6 +138,7 @@ def load_satellite_coefficients(
         va_ratio_year=io_year,
         fallback_flags=fallback_flags,
         synchronized=synchronized,
+        used_synthetic_fallback=used_synthetic,
     )
 
     coefficients = SatelliteCoefficients(
@@ -255,7 +270,8 @@ def _load_io_ratios(
             fallback_flags.append("va_ratio: synthetic fallback")
             sat_data = load_satellites_from_json(str(synth_sat_path))
             codes = sat_data.sector_codes
-            return sat_data.metadata.get("base_year", 2022), sat_data.import_ratio, sat_data.va_ratio, codes
+            base_yr = sat_data.metadata.get("base_year", 2022)
+            return base_yr, sat_data.import_ratio, sat_data.va_ratio, codes
 
     # 3. Try synthetic IO model to derive VA ratios
     synth_io_candidates = [

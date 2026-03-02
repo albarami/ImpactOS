@@ -3,9 +3,40 @@
 NFF governance: claims → evidence → assumptions → publication gate → export.
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
+
+from src.db.tables import ModelVersionRow, RunQualitySummaryRow, RunSnapshotRow
+from src.models.common import new_uuid7, utc_now
+
+
+async def _seed_curated_run(
+    db_session: AsyncSession, *, run_id: str | UUID, ws_id: str | UUID,
+) -> None:
+    """Create ModelVersionRow + RunSnapshotRow so provenance check passes."""
+    mid = new_uuid7()
+    _uuid = lambda v: v if isinstance(v, UUID) else UUID(v)  # noqa: E731
+    mv = ModelVersionRow(
+        model_version_id=mid, base_year=2023, source="test",
+        sector_count=2, checksum="sha256:" + "a" * 64,
+        provenance_class="curated_real", created_at=utc_now(),
+    )
+    db_session.add(mv)
+    snap = RunSnapshotRow(
+        run_id=_uuid(run_id), model_version_id=mid,
+        taxonomy_version_id=new_uuid7(), concordance_version_id=new_uuid7(),
+        mapping_library_version_id=new_uuid7(),
+        assumption_library_version_id=new_uuid7(),
+        prompt_pack_version_id=new_uuid7(),
+        workspace_id=_uuid(ws_id), source_checksums=[],
+        created_at=utc_now(),
+    )
+    db_session.add(snap)
+    await db_session.flush()
 
 # ---------------------------------------------------------------------------
 # Claims → Gate
@@ -79,10 +110,27 @@ class TestClaimsToGate:
     async def test_sandbox_export_never_blocked(
         self,
         client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """Extract → sandbox export → COMPLETED regardless of claims."""
         ws_id = str(uuid7())
         run_id = str(uuid7())
+
+        await _seed_curated_run(db_session, run_id=run_id, ws_id=ws_id)
+        row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(ws_id),
+            overall_run_score=0.8,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            publication_gate_pass=True,
+            publication_gate_mode="ADVISORY",
+            payload={"assessment_version": 1, "used_synthetic_fallback": False, "data_mode": "curated_real"},
+            created_at=utc_now(),
+        )
+        db_session.add(row)
+        await db_session.flush()
 
         await client.post(
             f"/v1/workspaces/{ws_id}/governance/claims/extract",
@@ -203,10 +251,34 @@ class TestNFFGateIntegrity:
     async def test_no_claims_governed_export_passes(
         self,
         client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
-        """No claims → governed export → COMPLETED."""
+        """No claims + clean quality → governed export → COMPLETED."""
         ws_id = str(uuid7())
         run_id = str(uuid7())
+
+        await _seed_curated_run(db_session, run_id=run_id, ws_id=ws_id)
+        row = RunQualitySummaryRow(
+            summary_id=new_uuid7(),
+            run_id=UUID(run_id),
+            workspace_id=UUID(ws_id),
+            overall_run_score=0.85,
+            overall_run_grade="B",
+            coverage_pct=0.9,
+            mapping_coverage_pct=0.8,
+            publication_gate_pass=True,
+            publication_gate_mode="GOVERNED",
+            summary_version="1.0.0",
+            summary_hash="sha256:test",
+            payload={
+                "assessment_version": 1,
+                "used_synthetic_fallback": False,
+                "data_mode": "curated_real",
+            },
+            created_at=utc_now(),
+        )
+        db_session.add(row)
+        await db_session.flush()
 
         export_resp = await client.post(
             f"/v1/workspaces/{ws_id}/exports",

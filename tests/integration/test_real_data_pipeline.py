@@ -170,8 +170,15 @@ class TestRealDataPipeline:
 
     # 9. Satellite coefficients prefer curated IO ratios
     def test_satellite_coefficients_prefer_curated(self) -> None:
-        """load_satellite_coefficients() uses curated IO ratios, no synthetic fallback."""
-        result = load_satellite_coefficients(year=2018)
+        """load_satellite_coefficients() uses curated IO ratios, no synthetic fallback.
+
+        Uses PREFER_REAL (non-runtime) to test fallback behavior for IO ratios
+        while employment coefficients may fall back to synthetic.
+        """
+        from src.data.real_io_loader import DataMode
+        result = load_satellite_coefficients(
+            year=2018, data_mode=DataMode.PREFER_REAL,
+        )
         # With curated IO at data/curated/saudi_io_kapsarc_2018.json,
         # should use real ratios -- no "synthetic fallback" flags for import/VA ratios
         io_synthetic_flags = [

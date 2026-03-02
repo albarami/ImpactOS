@@ -207,6 +207,7 @@ class TestDocToExport:
                 },
             ),
             claims=[],
+            quality_assessment=assessment,
         )
         assert record.status.value == "COMPLETED"
         assert "excel" in record.artifacts
@@ -345,6 +346,7 @@ class TestDocToExport:
                 },
             ),
             claims=resolved_claims,
+            quality_assessment=assessment,
         )
         assert record.status.value == "COMPLETED"
 

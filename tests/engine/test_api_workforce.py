@@ -43,6 +43,7 @@ async def seeded_model_with_results(db_session):
         source="test",
         sector_count=3,
         checksum="abc123",
+        provenance_class="curated_real",
     )
     await md_repo.create(
         model_version_id=mv_id,

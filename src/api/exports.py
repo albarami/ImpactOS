@@ -20,17 +20,18 @@ from src.api.dependencies import (
     get_data_quality_repo,
     get_export_artifact_storage,
     get_export_repo,
+    get_model_version_repo,
+    get_run_snapshot_repo,
 )
+from src.api.runs import ALLOWED_RUNTIME_PROVENANCE
 from src.export.artifact_storage import ExportArtifactStorage
-from src.export.orchestrator import (
-    ExportOrchestrator,
-    ExportRequest,
-)
-from src.quality.models import RunQualityAssessment
-from src.repositories.data_quality import DataQualityRepository
+from src.export.orchestrator import ExportOrchestrator, ExportRequest
 from src.export.variance_bridge import VarianceBridge
 from src.models.common import ClaimStatus, ClaimType, DisclosureTier, ExportMode
 from src.models.governance import Claim
+from src.quality.models import RunQualityAssessment
+from src.repositories.data_quality import DataQualityRepository
+from src.repositories.engine import ModelVersionRepository, RunSnapshotRepository
 from src.repositories.exports import ExportRepository
 from src.repositories.governance import ClaimRepository
 
@@ -123,6 +124,28 @@ def _claim_row_to_model(row) -> Claim:
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+async def _check_model_provenance(
+    run_id: UUID, snap_repo, mv_repo,
+) -> bool:
+    """Check if the run's model has disallowed provenance.
+
+    Returns True if provenance_class is NOT in ALLOWED_RUNTIME_PROVENANCE.
+    """
+    snap_row = await snap_repo.get(run_id)
+    if snap_row is None:
+        return True
+    mv_row = await mv_repo.get(snap_row.model_version_id)
+    if mv_row is None:
+        return True
+    prov = getattr(mv_row, "provenance_class", "unknown")
+    return prov not in ALLOWED_RUNTIME_PROVENANCE
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -135,11 +158,13 @@ async def create_export(
     claim_repo: ClaimRepository = Depends(get_claim_repo),
     quality_repo: DataQualityRepository = Depends(get_data_quality_repo),
     artifact_store: ExportArtifactStorage = Depends(get_export_artifact_storage),
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
 ) -> CreateExportResponse:
     """Create a new export — generates requested formats with watermarks.
 
-    S0-4: NFF claims now fetched from DB by run_id (not empty list).
-    B-12: Artifact bytes are persisted to object storage at creation time.
+    D-5.1: Computes effective_used_synthetic from quality payload AND
+    model provenance_class. Does not trust quality payload alone.
     """
     request = ExportRequest(
         run_id=UUID(body.run_id),
@@ -156,14 +181,21 @@ async def create_export(
     quality_row = await quality_repo.get_by_run(UUID(body.run_id))
     if quality_row is not None and quality_row.payload:
         try:
-            quality_assessment = RunQualityAssessment.model_validate(quality_row.payload)
+            quality_assessment = RunQualityAssessment.model_validate(
+                quality_row.payload,
+            )
         except Exception:
             pass
+
+    model_provenance_disallowed = await _check_model_provenance(
+        UUID(body.run_id), snap_repo, mv_repo,
+    )
 
     record = _orchestrator.execute(
         request=request,
         claims=claims,
         quality_assessment=quality_assessment,
+        model_provenance_disallowed=model_provenance_disallowed,
     )
 
     artifact_refs: dict[str, str] = {}
