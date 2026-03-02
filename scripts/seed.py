@@ -378,16 +378,101 @@ async def seed_saudi20_demo(session: AsyncSession) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# CLI entry point: python -m scripts.seed [--profile demo|saudi20]
+# D-5.1: Curated real data seed (STRICT_REAL)
+# ---------------------------------------------------------------------------
+
+CURATED_REAL_ENGAGEMENT_CODE = "SG-CURATED-REAL-2026"
+
+
+async def seed_curated_real_model(
+    session: AsyncSession,
+) -> tuple[ModelVersionRow, ModelDataRow]:
+    """Register IO model from curated real data using STRICT_REAL mode."""
+    from src.data.real_io_loader import DataMode, load_real_saudi_io_strict
+
+    provenance_result = load_real_saudi_io_strict(
+        mode=DataMode.STRICT_REAL, year=2018,
+    )
+    io_data = provenance_result.io_data
+
+    from src.engine.model_store import ModelStore
+    store = ModelStore()
+    mv = store.register(
+        Z=io_data.Z, x=io_data.x,
+        sector_codes=io_data.sector_codes,
+        base_year=io_data.base_year,
+        source=f"KAPSARC curated real ({provenance_result.provenance.resolved_source})",
+    )
+
+    mv_repo = ModelVersionRepository(session)
+    md_repo = ModelDataRepository(session)
+    mv_row = await mv_repo.create(
+        model_version_id=mv.model_version_id, base_year=mv.base_year,
+        source=mv.source, sector_count=mv.sector_count, checksum=mv.checksum,
+    )
+    md_row = await md_repo.create(
+        model_version_id=mv.model_version_id,
+        z_matrix_json=io_data.Z.tolist(),
+        x_vector_json=io_data.x.tolist(),
+        sector_codes=io_data.sector_codes,
+    )
+    return mv_row, md_row
+
+
+async def seed_curated_real_demo(session: AsyncSession) -> dict:
+    """Idempotent curated-real seed (STRICT_REAL, governed path default)."""
+    result = await session.execute(
+        select(WorkspaceRow).where(
+            WorkspaceRow.engagement_code == CURATED_REAL_ENGAGEMENT_CODE,
+        ),
+    )
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        return {
+            "created": False,
+            "workspace_id": existing.workspace_id,
+            "model_version_id": None,
+        }
+
+    ws_repo = WorkspaceRepository(session)
+    ws = await ws_repo.create(
+        workspace_id=uuid7(),
+        client_name="Strategic Gears (Curated Real)",
+        engagement_code=CURATED_REAL_ENGAGEMENT_CODE,
+        classification="INTERNAL",
+        description="Curated real data — governed path default.",
+        created_by=uuid7(),
+    )
+    mv_row, _md = await seed_curated_real_model(session)
+    return {
+        "created": True,
+        "workspace_id": ws.workspace_id,
+        "model_version_id": mv_row.model_version_id,
+        "model_sector_count": mv_row.sector_count,
+        "data_mode": "STRICT_REAL",
+    }
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
 # ---------------------------------------------------------------------------
 
 
 async def _run_seed(profile: str = "demo") -> None:
-    """Run the full seed against the real database."""
+    """Run the full seed against the real database.
+
+    Profiles:
+      demo         — 5-sector synthetic demo
+      saudi20      — 20-sector synthetic model
+      curated_real — curated real KAPSARC data (STRICT_REAL, governed)
+    """
     from src.db.session import async_session_factory
 
     async with async_session_factory() as session:
-        if profile == "saudi20":
+        if profile == "curated_real":
+            result = await seed_curated_real_demo(session)
+            label = "Curated real (STRICT_REAL)"
+        elif profile == "saudi20":
             result = await seed_saudi20_demo(session)
             label = "Saudi 20-sector"
         else:
@@ -407,9 +492,14 @@ async def _run_seed(profile: str = "demo") -> None:
               f" ({result['model_sector_count']} sectors)")
         if "boq_item_count" in result:
             print(f"  BoQ items:    {result['boq_item_count']}")
+        if "data_mode" in result:
+            print(f"  Data mode:    {result['data_mode']}")
         print()
 
-        if profile == "saudi20":
+        if profile == "curated_real":
+            print("  Curated real data loaded via STRICT_REAL mode.")
+            print("  No synthetic fallback. Ready for governed exports.")
+        elif profile == "saudi20":
             _print_saudi20_summary()
         else:
             _print_summary()
@@ -455,8 +545,9 @@ def _print_saudi20_summary() -> None:
 if __name__ == "__main__":
     _parser = argparse.ArgumentParser(description="Seed ImpactOS database")
     _parser.add_argument(
-        "--profile", default="demo", choices=["demo", "saudi20"],
-        help="Data profile to seed (default: demo)",
+        "--profile", default="demo",
+        choices=["demo", "saudi20", "curated_real"],
+        help="demo | saudi20 | curated_real (governed, STRICT_REAL)",
     )
     _args = _parser.parse_args()
     asyncio.run(_run_seed(profile=_args.profile))
