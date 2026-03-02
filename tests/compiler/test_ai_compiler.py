@@ -8,19 +8,18 @@ ScenarioSpec production.
 import pytest
 from uuid_extensions import uuid7
 
+from src.agents.assumption_agent import AssumptionDraftAgent
 from src.agents.mapping_agent import MappingSuggestionAgent
 from src.agents.split_agent import SplitAgent, SplitDefaults
-from src.agents.assumption_agent import AssumptionDraftAgent
 from src.compiler.ai_compiler import (
-    AICompiler,
     AICompilationInput,
     AICompilationResult,
+    AICompiler,
     CompilationMode,
 )
 from src.models.document import BoQLineItem
 from src.models.mapping import MappingLibraryEntry
 from src.models.scenario import TimeHorizon
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -61,9 +60,15 @@ def _make_line_items() -> list[BoQLineItem]:
 
 def _make_library() -> list[MappingLibraryEntry]:
     return [
-        MappingLibraryEntry(pattern="concrete works", sector_code="F", confidence=0.95),
-        MappingLibraryEntry(pattern="steel reinforcement", sector_code="F", confidence=0.90),
-        MappingLibraryEntry(pattern="transport services", sector_code="H", confidence=0.88),
+        MappingLibraryEntry(
+            pattern="concrete works", sector_code="F", confidence=0.95,
+        ),
+        MappingLibraryEntry(
+            pattern="steel reinforcement", sector_code="F", confidence=0.90,
+        ),
+        MappingLibraryEntry(
+            pattern="transport services", sector_code="H", confidence=0.88,
+        ),
     ]
 
 
@@ -77,7 +82,12 @@ def _make_taxonomy() -> list[dict]:
 
 def _make_split_defaults() -> list[SplitDefaults]:
     return [
-        SplitDefaults(sector_code="F", domestic_share=0.65, import_share=0.35, source="GASTAT"),
+        SplitDefaults(
+            sector_code="F",
+            domestic_share=0.65,
+            import_share=0.35,
+            source="GASTAT",
+        ),
     ]
 
 
@@ -97,9 +107,10 @@ def _make_compiler() -> AICompiler:
 class TestAICompilationPipeline:
     """End-to-end AI-assisted compilation."""
 
-    def test_compile_produces_result(self) -> None:
+    @pytest.mark.anyio
+    async def test_compile_produces_result(self) -> None:
         compiler = _make_compiler()
-        result = compiler.compile(
+        result = await compiler.compile(
             AICompilationInput(
                 workspace_id=uuid7(),
                 scenario_name="Test Scenario",
@@ -113,9 +124,10 @@ class TestAICompilationPipeline:
         )
         assert isinstance(result, AICompilationResult)
 
-    def test_compile_has_mapping_suggestions(self) -> None:
+    @pytest.mark.anyio
+    async def test_compile_has_mapping_suggestions(self) -> None:
         compiler = _make_compiler()
-        result = compiler.compile(
+        result = await compiler.compile(
             AICompilationInput(
                 workspace_id=uuid7(),
                 scenario_name="Test",
@@ -129,9 +141,10 @@ class TestAICompilationPipeline:
         )
         assert len(result.mapping_suggestions) == 3
 
-    def test_compile_has_split_proposals(self) -> None:
+    @pytest.mark.anyio
+    async def test_compile_has_split_proposals(self) -> None:
         compiler = _make_compiler()
-        result = compiler.compile(
+        result = await compiler.compile(
             AICompilationInput(
                 workspace_id=uuid7(),
                 scenario_name="Test",
@@ -145,9 +158,10 @@ class TestAICompilationPipeline:
         )
         assert len(result.split_proposals) >= 1
 
-    def test_compile_classifies_confidence(self) -> None:
+    @pytest.mark.anyio
+    async def test_compile_classifies_confidence(self) -> None:
         compiler = _make_compiler()
-        result = compiler.compile(
+        result = await compiler.compile(
             AICompilationInput(
                 workspace_id=uuid7(),
                 scenario_name="Test",
@@ -162,9 +176,10 @@ class TestAICompilationPipeline:
         assert result.high_confidence_count >= 0
         assert result.low_confidence_count >= 0
 
-    def test_compile_drafts_assumptions_for_residuals(self) -> None:
+    @pytest.mark.anyio
+    async def test_compile_drafts_assumptions_for_residuals(self) -> None:
         compiler = _make_compiler()
-        result = compiler.compile(
+        result = await compiler.compile(
             AICompilationInput(
                 workspace_id=uuid7(),
                 scenario_name="Test",
@@ -176,7 +191,6 @@ class TestAICompilationPipeline:
                 phasing={2026: 0.5, 2027: 0.3, 2028: 0.2},
             ),
         )
-        # Low confidence items should generate assumption drafts
         assert result.assumption_drafts is not None
 
 
@@ -188,9 +202,10 @@ class TestAICompilationPipeline:
 class TestManualFallback:
     """Graceful fallback when LLM unavailable — manual-only mode."""
 
-    def test_manual_mode_still_uses_library(self) -> None:
+    @pytest.mark.anyio
+    async def test_manual_mode_still_uses_library(self) -> None:
         compiler = _make_compiler()
-        result = compiler.compile(
+        result = await compiler.compile(
             AICompilationInput(
                 workspace_id=uuid7(),
                 scenario_name="Manual",
@@ -203,12 +218,12 @@ class TestManualFallback:
                 mode=CompilationMode.MANUAL,
             ),
         )
-        # Even in manual mode, library matching works
         assert len(result.mapping_suggestions) == 3
 
-    def test_manual_mode_flag(self) -> None:
+    @pytest.mark.anyio
+    async def test_manual_mode_flag(self) -> None:
         compiler = _make_compiler()
-        result = compiler.compile(
+        result = await compiler.compile(
             AICompilationInput(
                 workspace_id=uuid7(),
                 scenario_name="Manual",
@@ -232,9 +247,10 @@ class TestManualFallback:
 class TestConfidenceBands:
     """Route suggestions by confidence band."""
 
-    def test_high_confidence_auto_approve_eligible(self) -> None:
+    @pytest.mark.anyio
+    async def test_high_confidence_auto_approve_eligible(self) -> None:
         compiler = _make_compiler()
-        result = compiler.compile(
+        result = await compiler.compile(
             AICompilationInput(
                 workspace_id=uuid7(),
                 scenario_name="Test",
@@ -246,12 +262,12 @@ class TestConfidenceBands:
                 phasing={2026: 1.0},
             ),
         )
-        # Items matching "concrete works" and "steel reinforcement" should be high confidence
         assert result.high_confidence_count >= 1
 
-    def test_low_confidence_flagged_for_review(self) -> None:
+    @pytest.mark.anyio
+    async def test_low_confidence_flagged_for_review(self) -> None:
         compiler = _make_compiler()
-        result = compiler.compile(
+        result = await compiler.compile(
             AICompilationInput(
                 workspace_id=uuid7(),
                 scenario_name="Test",
@@ -263,7 +279,6 @@ class TestConfidenceBands:
                 phasing={2026: 1.0},
             ),
         )
-        # "miscellaneous overhead" has no library match → low confidence
         assert result.low_confidence_count >= 1
 
 
@@ -275,9 +290,10 @@ class TestConfidenceBands:
 class TestEmptyInputs:
     """Handle edge cases gracefully."""
 
-    def test_no_line_items(self) -> None:
+    @pytest.mark.anyio
+    async def test_no_line_items(self) -> None:
         compiler = _make_compiler()
-        result = compiler.compile(
+        result = await compiler.compile(
             AICompilationInput(
                 workspace_id=uuid7(),
                 scenario_name="Empty",

@@ -259,7 +259,7 @@ async def trigger_compilation(
         phasing=phasing,
     )
 
-    result = compiler.compile(inp)
+    result = await compiler.compile(inp)
 
     # Serialize result for DB storage
     result_json = {
@@ -378,7 +378,10 @@ async def _load_items_from_document(
             currency_code=row.currency_code,
             category_code=row.category_code,
             page_ref=row.page_ref,
-            evidence_snippet_ids=[UUID(eid) if isinstance(eid, str) else eid for eid in evidence_ids],
+            evidence_snippet_ids=[
+                UUID(eid) if isinstance(eid, str) else eid
+                for eid in evidence_ids
+            ],
         ))
 
     return boq_items
