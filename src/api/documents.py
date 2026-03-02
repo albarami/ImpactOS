@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from src.api.dependencies import (
     get_document_repo,
     get_document_storage,
+    get_evidence_snippet_repo,
     get_extraction_job_repo,
     get_line_item_repo,
 )
@@ -40,6 +41,7 @@ from src.repositories.documents import (
     ExtractionJobRepository,
     LineItemRepository,
 )
+from src.repositories.governance import EvidenceSnippetRepository
 
 router = APIRouter(prefix="/v1/workspaces", tags=["documents"])
 
@@ -274,6 +276,7 @@ async def extract_document(
     doc_repo: DocumentRepository = Depends(get_document_repo),
     job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
     line_item_repo: LineItemRepository = Depends(get_line_item_repo),
+    evidence_snippet_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
     storage: DocumentStorageService = Depends(get_document_storage),
 ) -> ExtractResponse:
     """Trigger extraction (Section 6.2.5).
@@ -350,6 +353,7 @@ async def extract_document(
             language_hint=body.language_hint or "en",
             job_repo=job_repo,
             line_item_repo=line_item_repo,
+            evidence_snippet_repo=evidence_snippet_repo,
         )
     except HTTPException:
         raise

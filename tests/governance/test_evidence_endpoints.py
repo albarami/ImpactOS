@@ -221,3 +221,63 @@ class TestEvidenceLink:
             json={"claim_id": fake_claim},
         )
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# TestEvidencePersistenceWiring — Sprint 4 Task 8
+# ---------------------------------------------------------------------------
+
+
+class TestEvidencePersistenceWiring:
+    """Integration: extract CSV -> evidence snippets appear in DB."""
+
+    @pytest.mark.anyio
+    async def test_extraction_persists_evidence_snippets(
+        self, client: AsyncClient, db_session,
+    ) -> None:
+        """Integration: extract CSV -> evidence snippets appear in DB."""
+        import csv
+        import io
+
+        ws_id = str(uuid7())
+        uploaded_by = str(uuid7())
+
+        # Build a simple CSV with header + 2 data rows
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["item", "qty", "price"])
+        writer.writerow(["Steel beams", "100", "50000"])
+        writer.writerow(["Concrete", "200", "30000"])
+        csv_bytes = buf.getvalue().encode("utf-8")
+
+        # Upload document
+        upload_resp = await client.post(
+            f"/v1/workspaces/{ws_id}/documents",
+            files={"file": ("test.csv", csv_bytes, "text/csv")},
+            data={
+                "doc_type": "BOQ",
+                "source_type": "CLIENT",
+                "classification": "INTERNAL",
+                "uploaded_by": uploaded_by,
+            },
+        )
+        assert upload_resp.status_code == 201
+        doc_id = upload_resp.json()["doc_id"]
+
+        # Trigger extraction
+        extract_resp = await client.post(
+            f"/v1/workspaces/{ws_id}/documents/{doc_id}/extract",
+            json={"extract_tables": True, "extract_line_items": True},
+        )
+        assert extract_resp.status_code == 202
+        assert extract_resp.json()["status"] == "COMPLETED"
+
+        # Evidence snippets should now exist via the evidence list endpoint
+        evidence_resp = await client.get(
+            f"/v1/workspaces/{ws_id}/governance/evidence",
+            params={"source_id": doc_id},
+        )
+        assert evidence_resp.status_code == 200
+        data = evidence_resp.json()
+        # CSV has 2 data rows (header is skipped), so expect >= 2 snippets
+        assert data["total"] >= 2, f"Expected >=2 snippets, got {data['total']}"

@@ -68,6 +68,7 @@ async def run_extraction(
     language_hint: str = "en",
     job_repo=None,
     line_item_repo=None,
+    evidence_snippet_repo=None,
 ) -> str:
     """Run the full extraction pipeline.
 
@@ -132,6 +133,24 @@ async def run_extraction(
             doc_checksum=doc_checksum,
         )
 
+        # Persist evidence snippets
+        if evidence_snippet_repo is not None and snippets:
+            snippet_dicts = []
+            for s in snippets:
+                snippet_dicts.append({
+                    "snippet_id": s.snippet_id,
+                    "source_id": s.source_id,
+                    "page": s.page,
+                    "bbox_x0": s.bbox.x0,
+                    "bbox_y0": s.bbox.y0,
+                    "bbox_x1": s.bbox.x1,
+                    "bbox_y1": s.bbox.y1,
+                    "extracted_text": s.extracted_text,
+                    "table_cell_ref": s.table_cell_ref.model_dump() if s.table_cell_ref else None,
+                    "checksum": s.checksum,
+                })
+            await evidence_snippet_repo.create_many(snippet_dicts)
+
         # Structure BoQ line items
         if extract_line_items and line_item_repo is not None:
             items = _boq_pipeline.structure(
@@ -185,11 +204,13 @@ def _celery_extract_task(
     """
     from src.db.session import async_session_factory
     from src.repositories.documents import ExtractionJobRepository, LineItemRepository
+    from src.repositories.governance import EvidenceSnippetRepository
 
     async def _run():
         async with async_session_factory() as session:
             job_repo = ExtractionJobRepository(session)
             line_item_repo = LineItemRepository(session)
+            evidence_snippet_repo = EvidenceSnippetRepository(session)
 
             result = await run_extraction(
                 job_id=UUID(job_id_str),
@@ -205,6 +226,7 @@ def _celery_extract_task(
                 language_hint=language_hint,
                 job_repo=job_repo,
                 line_item_repo=line_item_repo,
+                evidence_snippet_repo=evidence_snippet_repo,
             )
 
             await session.commit()
