@@ -1559,7 +1559,7 @@
           "documents"
         ],
         "summary": "Get Line Items",
-        "description": "Get extracted line items for a document. Workspace-scoped.",
+        "description": "Get extracted line items for a document. Workspace-scoped (404 for wrong ws).",
         "operationId": "get_line_items_v1_workspaces__workspace_id__documents__doc_id__line_items_get",
         "parameters": [
           {
