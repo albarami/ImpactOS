@@ -22,7 +22,6 @@ from src.agents.llm_client import (
 )
 from src.models.common import DataClassification
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -103,7 +102,10 @@ class TestAnthropicProviderAdapter:
         mock_response.model = "claude-sonnet-4-20250514"
         mock_response.usage = MagicMock(input_tokens=50, output_tokens=30)
 
-        with patch.object(client, "_call_anthropic", new_callable=AsyncMock, return_value=mock_response):
+        with patch.object(
+            client, "_call_anthropic",
+            new_callable=AsyncMock, return_value=mock_response,
+        ):
             response = await client.call(
                 _make_request(),
                 classification=DataClassification.CONFIDENTIAL,
@@ -142,7 +144,10 @@ class TestOpenAIProviderAdapter:
         mock_response.model = "gpt-4o"
         mock_response.usage = MagicMock(prompt_tokens=40, completion_tokens=25)
 
-        with patch.object(client, "_call_openai", new_callable=AsyncMock, return_value=mock_response):
+        with patch.object(
+            client, "_call_openai",
+            new_callable=AsyncMock, return_value=mock_response,
+        ):
             response = await client.call(
                 _make_request(),
                 classification=DataClassification.INTERNAL,
@@ -176,7 +181,10 @@ class TestOpenRouterProviderAdapter:
         mock_resp.json.return_value = mock_json
         mock_resp.raise_for_status = MagicMock()
 
-        with patch.object(client, "_call_openrouter", new_callable=AsyncMock, return_value=mock_resp):
+        with patch.object(
+            client, "_call_openrouter",
+            new_callable=AsyncMock, return_value=mock_resp,
+        ):
             response = await client.call(
                 _make_request(),
                 classification=DataClassification.PUBLIC,

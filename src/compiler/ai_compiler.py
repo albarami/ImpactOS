@@ -119,21 +119,18 @@ class AICompiler:
         self._llm_client = llm_client
         self._classification = classification
 
-    def compile(self, inp: AICompilationInput) -> AICompilationResult:
+    async def compile(self, inp: AICompilationInput) -> AICompilationResult:
         """Run the full AI-assisted compilation pipeline.
 
         Steps per Section 9.3:
         1. AI mapping suggestions for all line items
+           (LLM-enhanced when llm_client available, library fallback per item)
         2. Confidence classification
         3. AI split suggestions for mapped items
         4. Assumption drafting for residuals (low confidence items)
         """
-        # Step 1: Mapping suggestions (library-based, works in all modes)
-        batch = self._mapping_agent.suggest_batch(
-            inp.line_items,
-            taxonomy=inp.taxonomy,
-        )
-        suggestions = batch.suggestions
+        # Step 1: Mapping suggestions
+        suggestions = await self._mapping_step(inp)
 
         # Step 2: Confidence classification
         high = 0
@@ -202,3 +199,64 @@ class AICompiler:
             low_confidence_count=low,
             mode=inp.mode,
         )
+
+    async def _mapping_step(
+        self,
+        inp: AICompilationInput,
+    ) -> list[MappingSuggestion]:
+        """Produce mapping suggestions, trying LLM then library fallback.
+
+        When ``llm_client`` and ``classification`` are set and mode is
+        AI_ASSISTED, each line item is sent to the LLM first.  If the
+        LLM call fails for any item the library fallback is used for
+        that item.  The caller always gets a complete suggestion list.
+        """
+        from src.agents.llm_client import LLMRequest, ProviderUnavailableError
+
+        use_llm = (
+            self._llm_client is not None
+            and self._classification is not None
+            and inp.mode == CompilationMode.AI_ASSISTED
+        )
+
+        if not use_llm:
+            batch = self._mapping_agent.suggest_batch(
+                inp.line_items, taxonomy=inp.taxonomy,
+            )
+            return batch.suggestions
+
+        suggestions: list[MappingSuggestion] = []
+        for item in inp.line_items:
+            try:
+                prompt = self._mapping_agent.build_mapping_prompt(
+                    item, taxonomy=inp.taxonomy,
+                )
+                response = await self._llm_client.call(
+                    LLMRequest(
+                        system_prompt="Map procurement line items to ISIC sectors.",
+                        user_prompt=prompt,
+                        output_schema=MappingSuggestion,
+                        max_tokens=256,
+                    ),
+                    classification=self._classification,
+                )
+                suggestion = response.parsed
+                if not isinstance(suggestion, MappingSuggestion):
+                    suggestion = MappingSuggestion.model_validate(
+                        suggestion.model_dump(),
+                    )
+                if suggestion.line_item_id != item.line_item_id:
+                    suggestion = suggestion.model_copy(
+                        update={"line_item_id": item.line_item_id},
+                    )
+                suggestions.append(suggestion)
+            except (ProviderUnavailableError, ValueError, Exception) as exc:
+                _logger.warning(
+                    "LLM mapping failed for item %s, falling back to library: %s",
+                    item.line_item_id, exc,
+                )
+                fallback = self._mapping_agent.suggest_one(
+                    item, taxonomy=inp.taxonomy,
+                )
+                suggestions.append(fallback)
+        return suggestions

@@ -1,19 +1,26 @@
 """Tests for compiler fallback safety when LLM path unavailable (Sprint 9, S9-3).
 
-Covers: AICompiler with optional LLMClient falls back to deterministic
-library/rule-based behavior when LLM is unavailable or raises
-ProviderUnavailableError. Fallback output matches manual mode.
-No economic computation occurs in any path.
+Covers: AICompiler with LLMClient attempts real LLM-enhanced mapping,
+falls back to deterministic library/rule-based behavior when LLM
+raises ProviderUnavailableError. Verifies the LLM path is actually
+invoked and that fallback output matches manual mode.
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from uuid_extensions import uuid7
 
 from src.agents.assumption_agent import AssumptionDraftAgent
-from src.agents.llm_client import LLMClient, ProviderUnavailableError
-from src.agents.mapping_agent import MappingSuggestionAgent
-from src.agents.split_agent import SplitAgent, SplitDefaults
+from src.agents.llm_client import (
+    LLMClient,
+    LLMProvider,
+    LLMResponse,
+    ProviderUnavailableError,
+    TokenUsage,
+)
+from src.agents.mapping_agent import MappingSuggestion, MappingSuggestionAgent
+from src.agents.split_agent import SplitAgent
 from src.compiler.ai_compiler import (
     AICompilationInput,
     AICompilationResult,
@@ -25,7 +32,6 @@ from src.models.document import BoQLineItem
 from src.models.mapping import MappingLibraryEntry
 from src.models.scenario import TimeHorizon
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -33,8 +39,12 @@ from src.models.scenario import TimeHorizon
 
 def _make_library() -> list[MappingLibraryEntry]:
     return [
-        MappingLibraryEntry(pattern="concrete works", sector_code="F", confidence=0.95),
-        MappingLibraryEntry(pattern="steel reinforcement", sector_code="F", confidence=0.90),
+        MappingLibraryEntry(
+            pattern="concrete works", sector_code="F", confidence=0.95,
+        ),
+        MappingLibraryEntry(
+            pattern="steel reinforcement", sector_code="F", confidence=0.90,
+        ),
     ]
 
 
@@ -57,7 +67,9 @@ def _make_line_items() -> list[BoQLineItem]:
     ]
 
 
-def _make_input(mode: CompilationMode = CompilationMode.AI_ASSISTED) -> AICompilationInput:
+def _make_input(
+    mode: CompilationMode = CompilationMode.AI_ASSISTED,
+) -> AICompilationInput:
     return AICompilationInput(
         workspace_id=uuid7(),
         scenario_name="Fallback Test",
@@ -74,73 +86,208 @@ def _make_input(mode: CompilationMode = CompilationMode.AI_ASSISTED) -> AICompil
     )
 
 
-def _make_compiler(
-    *,
-    llm_client: LLMClient | None = None,
-    classification: DataClassification = DataClassification.CONFIDENTIAL,
-) -> AICompiler:
-    """Build compiler with optional LLM client for fallback testing."""
-    return AICompiler(
-        mapping_agent=MappingSuggestionAgent(library=_make_library()),
-        split_agent=SplitAgent(defaults=[]),
-        assumption_agent=AssumptionDraftAgent(),
-        llm_client=llm_client,
-        classification=classification,
+def _build_mock_llm_response(item: BoQLineItem) -> LLMResponse:
+    """Build a valid LLMResponse for a line item."""
+    suggestion = MappingSuggestion(
+        line_item_id=item.line_item_id,
+        sector_code="F",
+        confidence=0.95,
+        explanation="LLM-enhanced mapping",
+    )
+    return LLMResponse(
+        content=suggestion.model_dump_json(),
+        parsed=suggestion,
+        provider=LLMProvider.ANTHROPIC,
+        model="claude-sonnet-4-20250514",
+        usage=TokenUsage(input_tokens=50, output_tokens=30),
     )
 
 
 # ===================================================================
-# S9-3: Compiler fallback when LLM unavailable
+# S9-3: Compiler with no LLM client — library-only
 # ===================================================================
 
 
-class TestCompilerFallbackSafety:
-    """Compiler produces valid results even when LLM path fails."""
+class TestCompilerWithoutLLM:
+    """No LLM client → library-only path, same as before Sprint 9."""
 
-    def test_compiler_with_no_llm_client_uses_library(self) -> None:
-        """No LLM client → library-only path, same as before Sprint 9."""
-        compiler = _make_compiler(llm_client=None)
-        result = compiler.compile(_make_input())
+    @pytest.mark.anyio
+    async def test_no_llm_client_uses_library(self) -> None:
+        compiler = AICompiler(
+            mapping_agent=MappingSuggestionAgent(library=_make_library()),
+            split_agent=SplitAgent(defaults=[]),
+            assumption_agent=AssumptionDraftAgent(),
+        )
+        result = await compiler.compile(_make_input())
 
         assert isinstance(result, AICompilationResult)
         assert len(result.mapping_suggestions) == 2
         assert result.mode == CompilationMode.AI_ASSISTED
 
-    def test_compiler_with_failing_llm_falls_back(self) -> None:
-        """LLM client that raises → compiler still produces valid result."""
-        failing_client = LLMClient(anthropic_key="sk-test", max_retries=1, base_delay=0.0)
 
-        compiler = _make_compiler(llm_client=failing_client)
-        result = compiler.compile(_make_input())
+# ===================================================================
+# S9-3: Compiler with LLM — LLM path actually exercised
+# ===================================================================
 
-        assert isinstance(result, AICompilationResult)
-        assert len(result.mapping_suggestions) == 2
 
-    def test_compiler_fallback_matches_manual_mode(self) -> None:
-        """Fallback result is identical in structure to MANUAL mode output."""
-        manual_compiler = AICompiler(
+class TestCompilerLLMPathExercised:
+    """When LLM client is provided, compile() actually calls it."""
+
+    @pytest.mark.anyio
+    async def test_llm_call_is_invoked_for_each_item(self) -> None:
+        """Verify LLMClient.call() is invoked once per line item."""
+        mock_client = AsyncMock(spec=LLMClient)
+        items = _make_line_items()
+
+        responses = [_build_mock_llm_response(item) for item in items]
+        mock_client.call = AsyncMock(side_effect=responses)
+
+        compiler = AICompiler(
             mapping_agent=MappingSuggestionAgent(library=_make_library()),
             split_agent=SplitAgent(defaults=[]),
             assumption_agent=AssumptionDraftAgent(),
+            llm_client=mock_client,
+            classification=DataClassification.CONFIDENTIAL,
         )
-        manual_result = manual_compiler.compile(_make_input(mode=CompilationMode.MANUAL))
+        result = await compiler.compile(_make_input())
 
-        failing_client = LLMClient(anthropic_key="sk-test", max_retries=1, base_delay=0.0)
-        fallback_compiler = _make_compiler(llm_client=failing_client)
-        fallback_result = fallback_compiler.compile(
-            _make_input(mode=CompilationMode.AI_ASSISTED),
+        assert mock_client.call.call_count == len(items)
+        assert len(result.mapping_suggestions) == len(items)
+
+    @pytest.mark.anyio
+    async def test_llm_success_uses_llm_explanation(self) -> None:
+        """When LLM succeeds, the suggestion carries the LLM explanation."""
+        mock_client = AsyncMock(spec=LLMClient)
+        items = _make_line_items()
+
+        responses = [_build_mock_llm_response(item) for item in items]
+        mock_client.call = AsyncMock(side_effect=responses)
+
+        compiler = AICompiler(
+            mapping_agent=MappingSuggestionAgent(library=_make_library()),
+            split_agent=SplitAgent(defaults=[]),
+            assumption_agent=AssumptionDraftAgent(),
+            llm_client=mock_client,
+            classification=DataClassification.CONFIDENTIAL,
+        )
+        result = await compiler.compile(_make_input())
+
+        assert any(
+            "LLM-enhanced" in s.explanation
+            for s in result.mapping_suggestions
         )
 
-        # Same number of suggestions (library path produces same output)
-        assert len(fallback_result.mapping_suggestions) == len(manual_result.mapping_suggestions)
-        assert fallback_result.high_confidence_count == manual_result.high_confidence_count
-        assert fallback_result.low_confidence_count == manual_result.low_confidence_count
 
-    def test_compiler_never_returns_partial_result(self) -> None:
-        """Even if LLM fails mid-pipeline, result has all expected fields."""
-        failing_client = LLMClient(anthropic_key="sk-test", max_retries=1, base_delay=0.0)
-        compiler = _make_compiler(llm_client=failing_client)
-        result = compiler.compile(_make_input())
+# ===================================================================
+# S9-3: Compiler fallback when LLM fails
+# ===================================================================
+
+
+class TestCompilerFallbackOnLLMFailure:
+    """When LLM call raises, compiler falls back to library per item."""
+
+    @pytest.mark.anyio
+    async def test_all_items_fail_falls_back_to_library(self) -> None:
+        """Every LLM call fails → all items use library fallback."""
+        mock_client = AsyncMock(spec=LLMClient)
+        mock_client.call = AsyncMock(
+            side_effect=ProviderUnavailableError("no key"),
+        )
+
+        compiler = AICompiler(
+            mapping_agent=MappingSuggestionAgent(library=_make_library()),
+            split_agent=SplitAgent(defaults=[]),
+            assumption_agent=AssumptionDraftAgent(),
+            llm_client=mock_client,
+            classification=DataClassification.CONFIDENTIAL,
+        )
+        result = await compiler.compile(_make_input())
+
+        assert isinstance(result, AICompilationResult)
+        assert len(result.mapping_suggestions) == 2
+        assert mock_client.call.call_count == 2
+
+    @pytest.mark.anyio
+    async def test_partial_failure_mixed_sources(self) -> None:
+        """First item LLM succeeds, second fails → mixed sources."""
+        mock_client = AsyncMock(spec=LLMClient)
+        items = _make_line_items()
+
+        mock_client.call = AsyncMock(
+            side_effect=[
+                _build_mock_llm_response(items[0]),
+                ProviderUnavailableError("timeout"),
+            ],
+        )
+
+        compiler = AICompiler(
+            mapping_agent=MappingSuggestionAgent(library=_make_library()),
+            split_agent=SplitAgent(defaults=[]),
+            assumption_agent=AssumptionDraftAgent(),
+            llm_client=mock_client,
+            classification=DataClassification.CONFIDENTIAL,
+        )
+        result = await compiler.compile(_make_input())
+
+        assert len(result.mapping_suggestions) == 2
+        assert result.mapping_suggestions[0].explanation == "LLM-enhanced mapping"
+        assert "LLM-enhanced" not in result.mapping_suggestions[1].explanation
+
+    @pytest.mark.anyio
+    async def test_fallback_matches_manual_mode_output(self) -> None:
+        """Fallback result has same structure as MANUAL mode output."""
+        library = _make_library()
+
+        manual_compiler = AICompiler(
+            mapping_agent=MappingSuggestionAgent(library=library),
+            split_agent=SplitAgent(defaults=[]),
+            assumption_agent=AssumptionDraftAgent(),
+        )
+        manual_result = await manual_compiler.compile(
+            _make_input(mode=CompilationMode.MANUAL),
+        )
+
+        mock_client = AsyncMock(spec=LLMClient)
+        mock_client.call = AsyncMock(
+            side_effect=ProviderUnavailableError("no key"),
+        )
+        fallback_compiler = AICompiler(
+            mapping_agent=MappingSuggestionAgent(library=library),
+            split_agent=SplitAgent(defaults=[]),
+            assumption_agent=AssumptionDraftAgent(),
+            llm_client=mock_client,
+            classification=DataClassification.CONFIDENTIAL,
+        )
+        fallback_result = await fallback_compiler.compile(_make_input())
+
+        assert len(fallback_result.mapping_suggestions) == len(
+            manual_result.mapping_suggestions,
+        )
+        assert (
+            fallback_result.high_confidence_count
+            == manual_result.high_confidence_count
+        )
+        assert (
+            fallback_result.low_confidence_count
+            == manual_result.low_confidence_count
+        )
+
+    @pytest.mark.anyio
+    async def test_never_returns_partial_result(self) -> None:
+        """Even with mixed LLM failures, result has all expected fields."""
+        mock_client = AsyncMock(spec=LLMClient)
+        mock_client.call = AsyncMock(
+            side_effect=ProviderUnavailableError("err"),
+        )
+
+        compiler = AICompiler(
+            mapping_agent=MappingSuggestionAgent(library=_make_library()),
+            split_agent=SplitAgent(defaults=[]),
+            assumption_agent=AssumptionDraftAgent(),
+            llm_client=mock_client,
+            classification=DataClassification.CONFIDENTIAL,
+        )
+        result = await compiler.compile(_make_input())
 
         assert result.mapping_suggestions is not None
         assert result.split_proposals is not None

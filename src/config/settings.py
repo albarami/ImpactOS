@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     # --- Extraction ---
     EXTRACTION_PROVIDER: str = Field(
         default="local",
-        description="Default extraction provider (local or azure_di). Router overrides per classification.",
+        description="Default extraction provider (local or azure_di).",
     )
 
     # --- Celery ---

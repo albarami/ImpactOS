@@ -16,12 +16,9 @@ from src.agents.llm_client import (
     LLMClient,
     LLMProvider,
     LLMRequest,
-    LLMResponse,
     ProviderUnavailableError,
-    TokenUsage,
 )
 from src.models.common import DataClassification
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -233,7 +230,9 @@ class TestSecretRedaction:
         assert "super-secret" not in all_log_text
 
     @pytest.mark.anyio
-    async def test_openrouter_bearer_token_not_in_logs(self, caplog: pytest.LogCaptureFixture) -> None:
+    async def test_openrouter_bearer_token_not_in_logs(
+        self, caplog: pytest.LogCaptureFixture,
+    ) -> None:
         """OpenRouter bearer token never appears in logs."""
         or_key = "sk-or-very-secret-router-token"
         client = LLMClient(openrouter_key=or_key, max_retries=1, base_delay=0.0)
