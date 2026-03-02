@@ -357,9 +357,8 @@ async def extract_document(
         )
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         final_status = "FAILED"
-        await job_repo.update_status(job.job_id, "FAILED", error_message=str(exc))
 
     return ExtractResponse(
         job_id=str(job.job_id),

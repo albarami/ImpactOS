@@ -163,7 +163,7 @@ class ExtractionJobRepository:
         """Increment attempt_count for retries."""
         row = await self.get(job_id)
         if row is not None:
-            row.attempt_count = (row.attempt_count or 1) + 1
+            row.attempt_count = (row.attempt_count or 0) + 1
             row.updated_at = utc_now()
             await self._session.flush()
 

@@ -90,7 +90,6 @@ async def run_extraction(
     status = "RUNNING"
 
     if job_repo is not None:
-        await job_repo.increment_attempt(job_id)
         await job_repo.update_status(job_id, "RUNNING")
 
     try:
@@ -135,11 +134,9 @@ async def run_extraction(
             doc_checksum=doc_checksum,
         )
 
-        # Idempotent persistence: clear previous artifacts before insert
+        # Idempotent persistence: clear previous job artifacts before insert
         if line_item_repo is not None:
             await line_item_repo.delete_by_job(job_id)
-        if evidence_snippet_repo is not None:
-            await evidence_snippet_repo.delete_by_source(doc_id)
 
         if evidence_snippet_repo is not None and snippets:
             snippet_dicts = []
@@ -192,6 +189,11 @@ async def run_extraction(
             provider_name=provider_name,
             fallback_provider_name=fallback_provider_name,
         )
+        if status == "FAILED":
+            await job_repo.increment_attempt(job_id)
+
+    if status == "FAILED" and error_message is not None:
+        raise RuntimeError(error_message)
 
     return status
 

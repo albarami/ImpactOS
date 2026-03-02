@@ -149,11 +149,11 @@ class TestFailureMetadata:
         job = await repo.create(
             job_id=uuid7(), doc_id=doc_id, workspace_id=WS_A,
         )
-        assert job.attempt_count == 1
+        assert job.attempt_count == 0
         await repo.increment_attempt(job.job_id)
         row = await repo.get(job.job_id)
         assert row is not None
-        assert row.attempt_count == 2
+        assert row.attempt_count == 1
 
     @pytest.mark.anyio
     async def test_lifecycle_timestamps(self, db_session):
@@ -219,13 +219,13 @@ class TestMigrationBackwardCompat:
     """Migration 009: new columns have defaults, existing rows work."""
 
     @pytest.mark.anyio
-    async def test_default_attempt_count_is_1(self, db_session):
+    async def test_default_attempt_count_is_0(self, db_session):
         repo = ExtractionJobRepository(db_session)
         doc_id = await _seed_doc(db_session)
         job = await repo.create(
             job_id=uuid7(), doc_id=doc_id, workspace_id=WS_A,
         )
-        assert job.attempt_count == 1
+        assert job.attempt_count == 0
 
     @pytest.mark.anyio
     async def test_new_columns_nullable(self, db_session):
@@ -296,10 +296,10 @@ class TestSyncAsyncParity:
         assert row.completed_at is not None
 
     @pytest.mark.anyio
-    async def test_run_extraction_increments_attempt_count(
+    async def test_successful_run_does_not_increment_attempt(
         self, db_session,
     ):
-        """run_extraction increments attempt_count on each call."""
+        """Successful run_extraction keeps attempt_count at 0."""
         from unittest.mock import AsyncMock, MagicMock, patch
 
         from src.ingestion.tasks import run_extraction
@@ -310,7 +310,7 @@ class TestSyncAsyncParity:
         job = await job_repo.create(
             job_id=uuid7(), doc_id=doc_id, workspace_id=WS_A,
         )
-        assert job.attempt_count == 1
+        assert job.attempt_count == 0
 
         mock_graph = MagicMock()
         mock_graph.pages = []
@@ -326,7 +326,7 @@ class TestSyncAsyncParity:
             mock_router_cls.return_value.select_provider.return_value = (
                 mock_provider
             )
-            await run_extraction(
+            status = await run_extraction(
                 job_id=job.job_id,
                 doc_id=doc_id,
                 workspace_id=WS_A,
@@ -340,16 +340,69 @@ class TestSyncAsyncParity:
                 evidence_snippet_repo=None,
             )
 
+        assert status == "COMPLETED"
         row = await job_repo.get(job.job_id)
         assert row is not None
-        assert row.attempt_count == 2
+        assert row.attempt_count == 0
+
+    @pytest.mark.anyio
+    async def test_failed_run_increments_attempt_and_reraises(
+        self, db_session,
+    ):
+        """Failed run_extraction increments attempt_count and re-raises."""
+        from unittest.mock import AsyncMock, patch
+
+        import pytest as pt
+
+        from src.ingestion.tasks import run_extraction
+
+        doc_id = await _seed_doc(db_session)
+        job_repo = ExtractionJobRepository(db_session)
+        job = await job_repo.create(
+            job_id=uuid7(), doc_id=doc_id, workspace_id=WS_A,
+        )
+
+        mock_provider = AsyncMock()
+        mock_provider.name = "local-pdf"
+        mock_provider.extract = AsyncMock(
+            side_effect=RuntimeError("crash"),
+        )
+
+        with patch(
+            "src.ingestion.tasks.ExtractionRouter",
+        ) as mock_router_cls:
+            mock_router_cls.return_value.select_provider.return_value = (
+                mock_provider
+            )
+            with pt.raises(RuntimeError, match="crash"):
+                await run_extraction(
+                    job_id=job.job_id,
+                    doc_id=doc_id,
+                    workspace_id=WS_A,
+                    document_bytes=b"fake",
+                    mime_type="application/pdf",
+                    filename="test.pdf",
+                    classification="INTERNAL",
+                    doc_checksum="sha256:test",
+                    job_repo=job_repo,
+                    line_item_repo=None,
+                    evidence_snippet_repo=None,
+                )
+
+        row = await job_repo.get(job.job_id)
+        assert row is not None
+        assert row.status == "FAILED"
+        assert row.attempt_count == 1
+        assert row.error_code == "RuntimeError"
 
     @pytest.mark.anyio
     async def test_run_extraction_failure_records_error_code(
         self, db_session,
     ):
-        """Failed extraction records error_code from exception type."""
+        """Failed extraction records error_code and re-raises."""
         from unittest.mock import AsyncMock, patch
+
+        import pytest as pt
 
         from src.ingestion.tasks import run_extraction
 
@@ -371,21 +424,21 @@ class TestSyncAsyncParity:
             mock_router_cls.return_value.select_provider.return_value = (
                 mock_provider
             )
-            status = await run_extraction(
-                job_id=job.job_id,
-                doc_id=doc_id,
-                workspace_id=WS_A,
-                document_bytes=b"fake",
-                mime_type="application/pdf",
-                filename="test.pdf",
-                classification="INTERNAL",
-                doc_checksum="sha256:test",
-                job_repo=job_repo,
-                line_item_repo=None,
-                evidence_snippet_repo=None,
-            )
+            with pt.raises(RuntimeError, match="provider crash"):
+                await run_extraction(
+                    job_id=job.job_id,
+                    doc_id=doc_id,
+                    workspace_id=WS_A,
+                    document_bytes=b"fake",
+                    mime_type="application/pdf",
+                    filename="test.pdf",
+                    classification="INTERNAL",
+                    doc_checksum="sha256:test",
+                    job_repo=job_repo,
+                    line_item_repo=None,
+                    evidence_snippet_repo=None,
+                )
 
-        assert status == "FAILED"
         row = await job_repo.get(job.job_id)
         assert row is not None
         assert row.error_code == "RuntimeError"

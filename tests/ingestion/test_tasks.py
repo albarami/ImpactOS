@@ -254,20 +254,19 @@ class TestRunExtractionErrorHandling:
             new_callable=AsyncMock,
             side_effect=RuntimeError("pdfplumber crashed"),
         ):
-            status = await run_extraction(
-                job_id=uuid7(),
-                doc_id=uuid7(),
-                workspace_id=uuid7(),
-                document_bytes=b"bad-pdf",
-                mime_type="application/pdf",
-                filename="bad.pdf",
-                classification="RESTRICTED",
-                doc_checksum=VALID_CHECKSUM,
-                extract_line_items=False,
-                job_repo=mock_job_repo,
-            )
-
-        assert status == "FAILED"
+            with pytest.raises(RuntimeError, match="pdfplumber crashed"):
+                await run_extraction(
+                    job_id=uuid7(),
+                    doc_id=uuid7(),
+                    workspace_id=uuid7(),
+                    document_bytes=b"bad-pdf",
+                    mime_type="application/pdf",
+                    filename="bad.pdf",
+                    classification="RESTRICTED",
+                    doc_checksum=VALID_CHECKSUM,
+                    extract_line_items=False,
+                    job_repo=mock_job_repo,
+                )
 
     @pytest.mark.anyio
     async def test_failure_updates_job_with_error(self) -> None:
@@ -279,17 +278,18 @@ class TestRunExtractionErrorHandling:
             new_callable=AsyncMock,
             side_effect=RuntimeError("pdfplumber crashed"),
         ):
-            await run_extraction(
-                job_id=job_id,
-                doc_id=uuid7(),
-                workspace_id=uuid7(),
-                document_bytes=b"bad-pdf",
-                mime_type="application/pdf",
-                filename="bad.pdf",
-                classification="RESTRICTED",
-                doc_checksum=VALID_CHECKSUM,
-                job_repo=mock_job_repo,
-            )
+            with pytest.raises(RuntimeError, match="pdfplumber crashed"):
+                await run_extraction(
+                    job_id=job_id,
+                    doc_id=uuid7(),
+                    workspace_id=uuid7(),
+                    document_bytes=b"bad-pdf",
+                    mime_type="application/pdf",
+                    filename="bad.pdf",
+                    classification="RESTRICTED",
+                    doc_checksum=VALID_CHECKSUM,
+                    job_repo=mock_job_repo,
+                )
 
         mock_job_repo.update_status.assert_called_with(
             job_id, "FAILED",
