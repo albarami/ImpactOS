@@ -13,7 +13,7 @@ Deterministic — no LLM calls.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from src.api.dependencies import get_assumption_repo, get_claim_repo
@@ -25,7 +25,7 @@ from src.models.common import (
     ClaimType,
     DisclosureTier,
 )
-from src.models.governance import Assumption, Claim
+from src.models.governance import VALID_CLAIM_TRANSITIONS, Assumption, Claim
 from src.repositories.governance import AssumptionRepository, ClaimRepository
 
 router = APIRouter(prefix="/v1/workspaces", tags=["governance"])
@@ -116,6 +116,47 @@ class GovernanceStatusResponse(BaseModel):
 class BlockingReasonsResponse(BaseModel):
     run_id: str
     blocking_reasons: list[BlockingReasonResponse]
+
+
+# --- B-11: Claim list / detail / update schemas ---
+
+
+class ClaimListItem(BaseModel):
+    claim_id: str
+    text: str
+    claim_type: str
+    status: str
+    disclosure_tier: str
+    created_at: str
+    updated_at: str
+
+
+class ClaimListResponse(BaseModel):
+    items: list[ClaimListItem]
+    total: int
+
+
+class ClaimDetailResponse(BaseModel):
+    claim_id: str
+    text: str
+    claim_type: str
+    status: str
+    disclosure_tier: str
+    model_refs: list
+    evidence_refs: list
+    run_id: str | None
+    created_at: str
+    updated_at: str
+
+
+class UpdateClaimRequest(BaseModel):
+    status: str
+
+
+class UpdateClaimResponse(BaseModel):
+    claim_id: str
+    status: str
+    updated_at: str
 
 
 # ---------------------------------------------------------------------------
@@ -358,4 +399,113 @@ async def get_blocking_reasons(
     return BlockingReasonsResponse(
         run_id=str(run_id),
         blocking_reasons=blocking,
+    )
+
+
+# ---------------------------------------------------------------------------
+# B-11: Claim list / detail / update
+# TODO: Workspace ownership enforcement via run_id→RunSnapshot JOIN is
+#       deferred to a future sprint. Currently workspace_id from the URL
+#       path is accepted without verification against the claim's run_id.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{workspace_id}/governance/claims", response_model=ClaimListResponse)
+async def list_claims(
+    workspace_id: UUID,
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
+    run_id: UUID | None = Query(default=None, description="Filter claims by run_id"),
+) -> ClaimListResponse:
+    """List claims, optionally filtered by run_id."""
+    if run_id is not None:
+        rows = await claim_repo.get_by_run(run_id)
+    else:
+        rows = await claim_repo.list_all()
+
+    items = [
+        ClaimListItem(
+            claim_id=str(r.claim_id),
+            text=r.text,
+            claim_type=r.claim_type,
+            status=r.status,
+            disclosure_tier=r.disclosure_tier,
+            created_at=r.created_at.isoformat(),
+            updated_at=r.updated_at.isoformat(),
+        )
+        for r in rows
+    ]
+    return ClaimListResponse(items=items, total=len(items))
+
+
+@router.get(
+    "/{workspace_id}/governance/claims/{claim_id}",
+    response_model=ClaimDetailResponse,
+)
+async def get_claim_detail(
+    workspace_id: UUID,
+    claim_id: UUID,
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
+) -> ClaimDetailResponse:
+    """Get a single claim by ID."""
+    row = await claim_repo.get(claim_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Claim {claim_id} not found.")
+
+    return ClaimDetailResponse(
+        claim_id=str(row.claim_id),
+        text=row.text,
+        claim_type=row.claim_type,
+        status=row.status,
+        disclosure_tier=row.disclosure_tier,
+        model_refs=row.model_refs or [],
+        evidence_refs=row.evidence_refs or [],
+        run_id=str(row.run_id) if row.run_id else None,
+        created_at=row.created_at.isoformat(),
+        updated_at=row.updated_at.isoformat(),
+    )
+
+
+@router.patch(
+    "/{workspace_id}/governance/claims/{claim_id}",
+    response_model=UpdateClaimResponse,
+)
+async def update_claim_status(
+    workspace_id: UUID,
+    claim_id: UUID,
+    body: UpdateClaimRequest,
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
+) -> UpdateClaimResponse:
+    """Update a claim's status with state-machine transition validation.
+
+    Returns 409 if the requested transition is not allowed.
+    """
+    row = await claim_repo.get(claim_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Claim {claim_id} not found.")
+
+    current_status = ClaimStatus(row.status)
+    try:
+        target_status = ClaimStatus(body.status)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid status value: {body.status}",
+        )
+
+    allowed = VALID_CLAIM_TRANSITIONS.get(current_status, frozenset())
+    if target_status not in allowed:
+        allowed_names = sorted(s.value for s in allowed) if allowed else []
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Cannot transition from {current_status.value} to {target_status.value}. "
+                f"Allowed transitions: {allowed_names}"
+            ),
+        )
+
+    updated = await claim_repo.update_status(claim_id, target_status.value)
+    return UpdateClaimResponse(
+        claim_id=str(updated.claim_id),
+        status=updated.status,
+        updated_at=updated.updated_at.isoformat(),
     )
