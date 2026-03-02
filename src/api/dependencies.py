@@ -36,6 +36,7 @@ from src.repositories.libraries import (
 from src.repositories.metrics import EngagementRepository, MetricEventRepository
 from src.repositories.scenarios import ScenarioVersionRepository
 from src.repositories.data_quality import DataQualityRepository
+from src.repositories.workspace import WorkspaceRepository
 from src.repositories.workforce import (
     EmploymentCoefficientsRepository,
     SaudizationRulesRepository,
@@ -288,3 +289,14 @@ def get_document_storage() -> "DocumentStorageService":
 
     settings = get_settings()
     return DocumentStorageService(storage_root=settings.OBJECT_STORAGE_PATH)
+
+
+# ---------------------------------------------------------------------------
+# Workspaces
+# ---------------------------------------------------------------------------
+
+
+async def get_workspace_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> WorkspaceRepository:
+    return WorkspaceRepository(session)
