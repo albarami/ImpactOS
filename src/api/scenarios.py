@@ -731,6 +731,7 @@ async def run_from_scenario(
         )
 
     from src.api.runs import (
+        _enforce_model_provenance,
         _ensure_model_loaded,
         _make_satellite_coefficients,
         _make_version_refs,
@@ -742,6 +743,7 @@ async def run_from_scenario(
     from src.engine.batch import BatchRequest, BatchRunner, ScenarioInput
 
     model_version_id = row.base_model_version_id
+    await _enforce_model_provenance(model_version_id, mv_repo)
     loaded = await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
 
     annual_shocks = _shock_items_to_annual_shocks(

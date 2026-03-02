@@ -6,11 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.tables import (
-    ModelVersionRow,
-    ModelDataRow,
-    RunSnapshotRow,
-    ResultSetRow,
     BatchRow,
+    ModelDataRow,
+    ModelVersionRow,
+    ResultSetRow,
+    RunSnapshotRow,
 )
 from src.models.common import utc_now
 
@@ -19,11 +19,15 @@ class ModelVersionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(self, *, model_version_id: UUID, base_year: int,
-                     source: str, sector_count: int, checksum: str) -> ModelVersionRow:
+    async def create(
+        self, *, model_version_id: UUID, base_year: int,
+        source: str, sector_count: int, checksum: str,
+        provenance_class: str = "unknown",
+    ) -> ModelVersionRow:
         row = ModelVersionRow(
             model_version_id=model_version_id, base_year=base_year,
             source=source, sector_count=sector_count, checksum=checksum,
+            provenance_class=provenance_class,
             created_at=utc_now(),
         )
         self._session.add(row)

@@ -155,6 +155,7 @@ async def seed_model(session: AsyncSession) -> tuple[ModelVersionRow, ModelDataR
         source="GASTAT simplified 3-sector (demo)",
         sector_count=len(SAMPLE_SECTOR_CODES),
         checksum=checksum,
+        provenance_class="curated_real",
     )
     md_row = await md_repo.create(
         model_version_id=mvid,
@@ -240,6 +241,7 @@ async def seed_5sector_model(
         source="GASTAT simplified 5-sector Saudi IO (demo)",
         sector_count=len(DEMO_SECTOR_CODES),
         checksum=checksum,
+        provenance_class="curated_real",
     )
     md_row = await md_repo.create(
         model_version_id=mvid,
@@ -329,6 +331,7 @@ async def seed_saudi20_model(
         source=mv.source,
         sector_count=mv.sector_count,
         checksum=mv.checksum,
+        provenance_class="curated_real",
     )
     md_row = await md_repo.create(
         model_version_id=mv.model_version_id,
@@ -411,6 +414,7 @@ async def seed_curated_real_model(
     mv_row = await mv_repo.create(
         model_version_id=mv.model_version_id, base_year=mv.base_year,
         source=mv.source, sector_count=mv.sector_count, checksum=mv.checksum,
+        provenance_class="curated_real",
     )
     md_row = await md_repo.create(
         model_version_id=mv.model_version_id,

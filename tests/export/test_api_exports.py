@@ -17,11 +17,18 @@ WS_ID = str(uuid7())
 
 
 async def _seed_run_snapshot(db_session, run_id: str, workspace_id: str):
-    """Seed a RunSnapshotRow so export -> run -> workspace linkage works."""
-    from uuid import UUID
+    """Seed ModelVersionRow + RunSnapshotRow so provenance check passes."""
+    from src.db.tables import ModelVersionRow
+    mid = uuid7()
+    mv = ModelVersionRow(
+        model_version_id=mid, base_year=2023, source="test",
+        sector_count=2, checksum="sha256:" + "a" * 64,
+        provenance_class="curated_real", created_at=utc_now(),
+    )
+    db_session.add(mv)
     row = RunSnapshotRow(
         run_id=UUID(run_id),
-        model_version_id=uuid7(),
+        model_version_id=mid,
         taxonomy_version_id=uuid7(),
         concordance_version_id=uuid7(),
         mapping_library_version_id=uuid7(),
@@ -78,6 +85,7 @@ class TestCreateExport:
     @pytest.mark.anyio
     async def test_create_sandbox_succeeds(self, client: AsyncClient, db_session) -> None:
         run_id = str(uuid7())
+        await _seed_run_snapshot(db_session, run_id, WS_ID)
         quality_row = RunQualitySummaryRow(
             summary_id=new_uuid7(),
             run_id=UUID(run_id),
@@ -102,6 +110,7 @@ class TestCreateExport:
     @pytest.mark.anyio
     async def test_create_with_pptx_format(self, client: AsyncClient, db_session) -> None:
         run_id = str(uuid7())
+        await _seed_run_snapshot(db_session, run_id, WS_ID)
         quality_row = RunQualitySummaryRow(
             summary_id=new_uuid7(),
             run_id=UUID(run_id),

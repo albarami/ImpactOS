@@ -66,6 +66,9 @@ class ModelVersionRow(Base):
     source: Mapped[str] = mapped_column(String(500), nullable=False)
     sector_count: Mapped[int] = mapped_column(Integer, nullable=False)
     checksum: Mapped[str] = mapped_column(String(100), nullable=False)
+    provenance_class: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="unknown",
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

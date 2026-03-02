@@ -46,7 +46,8 @@ async def _seed_model(db_session):
 
     mv = ModelVersionRow(
         model_version_id=mid, base_year=2023, source="test",
-        sector_count=N, checksum=checksum, created_at=utc_now(),
+        sector_count=N, checksum=checksum,
+        provenance_class="curated_real", created_at=utc_now(),
     )
     db_session.add(mv)
 

@@ -21,6 +21,7 @@ class TestModelVersionRepository:
         row = await repo.create(
             model_version_id=mvid, base_year=2023,
             source="test", sector_count=3, checksum="sha256:abc",
+            provenance_class="curated_real",
         )
         assert row.model_version_id == mvid
 
@@ -31,8 +32,8 @@ class TestModelVersionRepository:
     @pytest.mark.anyio
     async def test_list_all(self, db_session: AsyncSession) -> None:
         repo = ModelVersionRepository(db_session)
-        await repo.create(model_version_id=uuid7(), base_year=2023, source="a", sector_count=2, checksum="sha256:1")
-        await repo.create(model_version_id=uuid7(), base_year=2024, source="b", sector_count=3, checksum="sha256:2")
+        await repo.create(model_version_id=uuid7(), base_year=2023, source="a", sector_count=2, checksum="sha256:1", provenance_class="curated_real")
+        await repo.create(model_version_id=uuid7(), base_year=2024, source="b", sector_count=3, checksum="sha256:2", provenance_class="curated_real")
         rows = await repo.list_all()
         assert len(rows) == 2
 
@@ -42,7 +43,7 @@ class TestModelDataRepository:
     async def test_create_and_get(self, db_session: AsyncSession) -> None:
         mv_repo = ModelVersionRepository(db_session)
         mvid = uuid7()
-        await mv_repo.create(model_version_id=mvid, base_year=2023, source="t", sector_count=2, checksum="sha256:x")
+        await mv_repo.create(model_version_id=mvid, base_year=2023, source="t", sector_count=2, checksum="sha256:x", provenance_class="curated_real")
 
         data_repo = ModelDataRepository(db_session)
         row = await data_repo.create(

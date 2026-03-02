@@ -19,8 +19,32 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.tables import ClaimRow, RunQualitySummaryRow
+from src.db.tables import ClaimRow, ModelVersionRow, RunQualitySummaryRow, RunSnapshotRow
 from src.models.common import new_uuid7, utc_now
+
+
+async def _seed_curated_run(
+    db_session: AsyncSession, run_id: UUID, workspace_id: UUID,
+) -> None:
+    """Create ModelVersionRow + RunSnapshotRow so provenance check passes."""
+    mid = new_uuid7()
+    mv = ModelVersionRow(
+        model_version_id=mid, base_year=2023, source="test",
+        sector_count=2, checksum="sha256:" + "a" * 64,
+        provenance_class="curated_real", created_at=utc_now(),
+    )
+    db_session.add(mv)
+    snap = RunSnapshotRow(
+        run_id=run_id, model_version_id=mid,
+        taxonomy_version_id=new_uuid7(), concordance_version_id=new_uuid7(),
+        mapping_library_version_id=new_uuid7(),
+        assumption_library_version_id=new_uuid7(),
+        prompt_pack_version_id=new_uuid7(),
+        workspace_id=workspace_id, source_checksums=[],
+        created_at=utc_now(),
+    )
+    db_session.add(snap)
+    await db_session.flush()
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -230,6 +254,7 @@ class TestPhase0E2EHardening:
 
         # --- 6. Sandbox export -> COMPLETED ---
         run_id = str(new_uuid7())
+        await _seed_curated_run(db_session, UUID(run_id), UUID(ws_id))
         quality_row = RunQualitySummaryRow(
             summary_id=new_uuid7(),
             run_id=UUID(run_id),
@@ -358,6 +383,8 @@ class TestPhase0E2EHardening:
         """Governed export succeeds with resolved claim and clean quality."""
         ws_id = WS_ID
         run_id = new_uuid7()
+
+        await _seed_curated_run(db_session, run_id, UUID(ws_id))
 
         # Seed claim with status="SUPPORTED"
         await _seed_claim(

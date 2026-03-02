@@ -34,10 +34,18 @@ def _artifact_storage(client):
 
 
 async def _seed_run_snapshot(db_session, *, run_id, workspace_id=WS_ID):
-    """Create a minimal RunSnapshotRow so export -> run -> workspace linkage works."""
+    """Create a minimal RunSnapshotRow + ModelVersionRow so provenance check passes."""
+    from src.db.tables import ModelVersionRow
+    mid = uuid7()
+    mv = ModelVersionRow(
+        model_version_id=mid, base_year=2023, source="test",
+        sector_count=2, checksum="sha256:" + "a" * 64,
+        provenance_class="curated_real", created_at=utc_now(),
+    )
+    db_session.add(mv)
     row = RunSnapshotRow(
         run_id=run_id,
-        model_version_id=uuid7(),
+        model_version_id=mid,
         taxonomy_version_id=uuid7(),
         concordance_version_id=uuid7(),
         mapping_library_version_id=uuid7(),

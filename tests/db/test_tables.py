@@ -139,6 +139,7 @@ class TestModelVersionRow:
             source="GASTAT 2019 IO Table",
             sector_count=45,
             checksum="sha256:" + "a" * 64,
+            provenance_class="curated_real",
             created_at=utc_now(),
         )
         session.add(mv)
@@ -157,6 +158,7 @@ class TestModelVersionRow:
             source="test",
             sector_count=3,
             checksum="sha256:" + "b" * 64,
+            provenance_class="curated_real",
             created_at=utc_now(),
         )
         session.add(mv)

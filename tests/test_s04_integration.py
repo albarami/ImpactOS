@@ -15,10 +15,34 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
 
-from src.db.tables import RunQualitySummaryRow
+from src.db.tables import ModelVersionRow, RunQualitySummaryRow, RunSnapshotRow
 from src.models.common import new_uuid7, utc_now
 
 WS_ID = "01961060-0000-7000-8000-000000000001"
+
+
+async def _seed_curated_run(db_session: AsyncSession) -> str:
+    """Create a run_id backed by a curated_real model + snapshot."""
+    mid = new_uuid7()
+    run_id = new_uuid7()
+    mv = ModelVersionRow(
+        model_version_id=mid, base_year=2023, source="test",
+        sector_count=2, checksum="sha256:" + "a" * 64,
+        provenance_class="curated_real", created_at=utc_now(),
+    )
+    db_session.add(mv)
+    snap = RunSnapshotRow(
+        run_id=run_id, model_version_id=mid,
+        taxonomy_version_id=new_uuid7(), concordance_version_id=new_uuid7(),
+        mapping_library_version_id=new_uuid7(),
+        assumption_library_version_id=new_uuid7(),
+        prompt_pack_version_id=new_uuid7(),
+        workspace_id=UUID(WS_ID), source_checksums=[],
+        created_at=utc_now(),
+    )
+    db_session.add(snap)
+    await db_session.flush()
+    return str(run_id)
 
 
 # ===================================================================
@@ -69,7 +93,7 @@ class TestNFFEndToEnd:
         self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Sandbox export should NEVER be blocked regardless of claims."""
-        run_id = str(uuid7())
+        run_id = await _seed_curated_run(db_session)
 
         row = RunQualitySummaryRow(
             summary_id=new_uuid7(),
@@ -114,7 +138,7 @@ class TestNFFEndToEnd:
         self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Governed export with no claims and clean quality should pass."""
-        run_id = str(uuid7())
+        run_id = await _seed_curated_run(db_session)
 
         row = RunQualitySummaryRow(
             summary_id=new_uuid7(),
@@ -514,25 +538,7 @@ class TestExportPersistence:
     @pytest.mark.anyio
     async def test_export_can_be_retrieved(self, client: AsyncClient, db_session) -> None:
         """Created export can be retrieved by ID (workspace-scoped via run linkage)."""
-        from uuid import UUID
-        from src.db.tables import RunSnapshotRow
-        from src.models.common import utc_now
-
-        run_id = str(uuid7())
-        row = RunSnapshotRow(
-            run_id=UUID(run_id),
-            model_version_id=uuid7(),
-            taxonomy_version_id=uuid7(),
-            concordance_version_id=uuid7(),
-            mapping_library_version_id=uuid7(),
-            assumption_library_version_id=uuid7(),
-            prompt_pack_version_id=uuid7(),
-            workspace_id=UUID(WS_ID),
-            source_checksums=[],
-            created_at=utc_now(),
-        )
-        db_session.add(row)
-        await db_session.flush()
+        run_id = await _seed_curated_run(db_session)
 
         quality_row = RunQualitySummaryRow(
             summary_id=new_uuid7(),

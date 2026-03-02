@@ -134,6 +134,29 @@ async def _seed_unresolved_claim(
 WS_ID = str(uuid7())
 
 
+async def _seed_curated_run(db_session: AsyncSession, *, run_id: str | UUID, ws_id: str | UUID) -> None:
+    """Create ModelVersionRow + RunSnapshotRow so provenance check passes."""
+    from src.db.tables import ModelVersionRow, RunSnapshotRow
+    mid = new_uuid7()
+    mv = ModelVersionRow(
+        model_version_id=mid, base_year=2023, source="test",
+        sector_count=2, checksum="sha256:" + "a" * 64,
+        provenance_class="curated_real", created_at=utc_now(),
+    )
+    db_session.add(mv)
+    snap = RunSnapshotRow(
+        run_id=_to_uuid(run_id), model_version_id=mid,
+        taxonomy_version_id=new_uuid7(), concordance_version_id=new_uuid7(),
+        mapping_library_version_id=new_uuid7(),
+        assumption_library_version_id=new_uuid7(),
+        prompt_pack_version_id=new_uuid7(),
+        workspace_id=_to_uuid(ws_id), source_checksums=[],
+        created_at=utc_now(),
+    )
+    db_session.add(snap)
+    await db_session.flush()
+
+
 class TestExportQualityWiring:
     """G1: Export route must pass quality_assessment into ExportOrchestrator.
 
@@ -231,6 +254,7 @@ class TestExportQualityWiring:
         """Governed export with clean quality summary and no claims should COMPLETE."""
         run_id = str(uuid7())
 
+        await _seed_curated_run(db_session, run_id=run_id, ws_id=WS_ID)
         await _seed_quality_summary(
             db_session,
             run_id=run_id,

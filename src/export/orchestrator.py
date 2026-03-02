@@ -75,12 +75,13 @@ class ExportOrchestrator:
         request: ExportRequest,
         claims: list[Claim],
         quality_assessment: RunQualityAssessment | None = None,
+        model_provenance_disallowed: bool = False,
     ) -> ExportRecord:
         """Execute the export pipeline.
 
-        For governed mode: check NFF gate first, block if any claim is unresolved.
-        Then check synthetic-fallback provenance, block if run used synthetic data.
-        For sandbox mode: always proceed with watermarks.
+        D-5.1: effective_used_synthetic = quality flag OR model provenance
+        disallowed. Does not mutate the quality payload — computes the
+        effective decision independently.
         """
         export_id = new_uuid7()
 
@@ -93,7 +94,9 @@ class ExportOrchestrator:
                     run_id=request.run_id,
                     mode=request.mode,
                     status=ExportStatus.BLOCKED,
-                    blocking_reasons=[br.reason for br in gate_result.blocking_reasons],
+                    blocking_reasons=[
+                        br.reason for br in gate_result.blocking_reasons
+                    ],
                 )
 
         # 2. Quality/provenance gate (both modes — D-5.1)
@@ -105,24 +108,30 @@ class ExportOrchestrator:
                 status=ExportStatus.BLOCKED,
                 blocking_reasons=[
                     "Export blocked: no quality assessment available. "
-                    "Data provenance cannot be verified without quality record."
+                    "Data provenance cannot be verified."
                 ],
             )
 
-        # 3. Synthetic-fallback check (both sandbox and governed — D-5.1)
-        if (
-            quality_assessment is not None
-            and quality_assessment.used_synthetic_fallback
-        ):
+        # 3. Effective synthetic check (both modes — D-5.1)
+        quality_says_synthetic = quality_assessment.used_synthetic_fallback
+        effective_synthetic = quality_says_synthetic or model_provenance_disallowed
+        if effective_synthetic:
+            reasons = []
+            if quality_says_synthetic:
+                reasons.append(
+                    "Export blocked: run used synthetic fallback data."
+                )
+            if model_provenance_disallowed:
+                reasons.append(
+                    "Export blocked: model provenance_class is not "
+                    "curated_real."
+                )
             return ExportRecord(
                 export_id=export_id,
                 run_id=request.run_id,
                 mode=request.mode,
                 status=ExportStatus.BLOCKED,
-                blocking_reasons=[
-                    "Export blocked: run used synthetic fallback data. "
-                    "Re-run with curated real data or obtain explicit waiver."
-                ],
+                blocking_reasons=reasons,
             )
 
         # 3. Generate formats
