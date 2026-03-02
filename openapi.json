@@ -2,7 +2,6 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ImpactOS API",
-    "description": "Impact & Scenario Intelligence System for Strategic Gears.",
     "version": "0.1.0"
   },
   "paths": {
@@ -5576,15 +5575,11 @@
       },
       "AuditEntryResponse": {
         "properties": {
-          "mapping_decision_id": {
+          "action": {
             "type": "string",
-            "title": "Mapping Decision Id"
+            "title": "Action"
           },
-          "state": {
-            "type": "string",
-            "title": "State"
-          },
-          "suggested_sector_code": {
+          "from_state": {
             "anyOf": [
               {
                 "type": "string"
@@ -5593,20 +5588,17 @@
                 "type": "null"
               }
             ],
-            "title": "Suggested Sector Code"
+            "title": "From State"
           },
-          "suggested_confidence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Suggested Confidence"
+          "to_state": {
+            "type": "string",
+            "title": "To State"
           },
-          "final_sector_code": {
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "rationale": {
             "anyOf": [
               {
                 "type": "string"
@@ -5615,50 +5607,21 @@
                 "type": "null"
               }
             ],
-            "title": "Final Sector Code"
+            "title": "Rationale"
           },
-          "decision_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decision Type"
-          },
-          "decision_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decision Note"
-          },
-          "decided_by": {
+          "timestamp": {
             "type": "string",
-            "title": "Decided By"
-          },
-          "decided_at": {
-            "type": "string",
-            "title": "Decided At"
-          },
-          "created_at": {
-            "type": "string",
-            "title": "Created At"
+            "title": "Timestamp"
           }
         },
         "type": "object",
         "required": [
-          "mapping_decision_id",
-          "state",
-          "decided_by",
-          "decided_at",
-          "created_at"
+          "action",
+          "from_state",
+          "to_state",
+          "actor",
+          "rationale",
+          "timestamp"
         ],
         "title": "AuditEntryResponse"
       },
@@ -6019,14 +5982,14 @@
             "title": "Confidence Threshold",
             "default": 0.85
           },
-          "actor": {
+          "decided_by": {
             "type": "string",
-            "title": "Actor"
+            "title": "Decided By"
           }
         },
         "type": "object",
         "required": [
-          "actor"
+          "decided_by"
         ],
         "title": "BulkApproveRequest"
       },
@@ -6036,15 +5999,20 @@
             "type": "integer",
             "title": "Approved Count"
           },
-          "total_eligible": {
+          "skipped_count": {
             "type": "integer",
-            "title": "Total Eligible"
+            "title": "Skipped Count"
+          },
+          "total_items": {
+            "type": "integer",
+            "title": "Total Items"
           }
         },
         "type": "object",
         "required": [
           "approved_count",
-          "total_eligible"
+          "skipped_count",
+          "total_items"
         ],
         "title": "BulkApproveResponse"
       },

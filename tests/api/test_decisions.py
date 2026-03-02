@@ -383,12 +383,14 @@ class TestBulkApprove:
             f"/v1/workspaces/{workspace_id}/compiler/{cid}/decisions/bulk-approve",
             json={
                 "confidence_threshold": 0.85,
-                "actor": str(uuid7()),
+                "decided_by": str(uuid7()),
             },
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["approved_count"] == 1  # Only the high-confidence one
+        assert data["approved_count"] == 1
+        assert data["skipped_count"] == 1
+        assert data["total_items"] == 2
 
         # Verify high-confidence is now APPROVED
         resp_high = await client.get(
@@ -416,7 +418,7 @@ class TestBulkApprove:
 
         resp = await client.post(
             f"/v1/workspaces/{workspace_id}/compiler/{cid}/decisions/bulk-approve",
-            json={"actor": str(uuid7())},
+            json={"decided_by": str(uuid7())},
         )
         assert resp.status_code == 200
         assert resp.json()["approved_count"] == 1
@@ -452,11 +454,13 @@ class TestBulkApprove:
             f"/v1/workspaces/{workspace_id}/compiler/{cid}/decisions/bulk-approve",
             json={
                 "confidence_threshold": 0.85,
-                "actor": str(uuid7()),
+                "decided_by": str(uuid7()),
             },
         )
         assert resp.status_code == 200
-        assert resp.json()["approved_count"] == 0
+        data = resp.json()
+        assert data["approved_count"] == 0
+        assert data["total_items"] == 0
 
     @pytest.mark.anyio
     async def test_bulk_approve_empty_compilation(
@@ -468,29 +472,33 @@ class TestBulkApprove:
             f"/v1/workspaces/{workspace_id}/compiler/{cid}/decisions/bulk-approve",
             json={
                 "confidence_threshold": 0.85,
-                "actor": str(uuid7()),
+                "decided_by": str(uuid7()),
             },
         )
         assert resp.status_code == 200
-        assert resp.json()["approved_count"] == 0
+        data = resp.json()
+        assert data["approved_count"] == 0
+        assert data["skipped_count"] == 0
+        assert data["total_items"] == 0
 
     @pytest.mark.anyio
     async def test_bulk_approve_response_fields(
         self, client: AsyncClient, workspace_id: str,
     ) -> None:
-        """Response must include approved_count and total_eligible."""
+        """Response must include approved_count, skipped_count, total_items."""
         cid = await _trigger_compilation(client, workspace_id)
         resp = await client.post(
             f"/v1/workspaces/{workspace_id}/compiler/{cid}/decisions/bulk-approve",
             json={
                 "confidence_threshold": 0.85,
-                "actor": str(uuid7()),
+                "decided_by": str(uuid7()),
             },
         )
         assert resp.status_code == 200
         data = resp.json()
         assert "approved_count" in data
-        assert "total_eligible" in data
+        assert "skipped_count" in data
+        assert "total_items" in data
 
     @pytest.mark.anyio
     async def test_bulk_approve_threshold_zero_approves_all(
@@ -514,12 +522,14 @@ class TestBulkApprove:
             f"/v1/workspaces/{workspace_id}/compiler/{cid}/decisions/bulk-approve",
             json={
                 "confidence_threshold": 0.0,
-                "actor": str(uuid7()),
+                "decided_by": str(uuid7()),
             },
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["approved_count"] == 2
+        assert data["skipped_count"] == 0
+        assert data["total_items"] == 2
 
     @pytest.mark.anyio
     async def test_bulk_approve_threshold_one_approves_none_below(
@@ -538,11 +548,14 @@ class TestBulkApprove:
             f"/v1/workspaces/{workspace_id}/compiler/{cid}/decisions/bulk-approve",
             json={
                 "confidence_threshold": 1.0,
-                "actor": str(uuid7()),
+                "decided_by": str(uuid7()),
             },
         )
         assert resp.status_code == 200
-        assert resp.json()["approved_count"] == 0
+        data = resp.json()
+        assert data["approved_count"] == 0
+        assert data["skipped_count"] == 1
+        assert data["total_items"] == 1
 
 
 # =========================================================================
@@ -570,15 +583,17 @@ class TestAuditTrail:
         assert "entries" in data
         assert len(data["entries"]) == 1
         entry = data["entries"][0]
-        assert entry["state"] == "AI_SUGGESTED"
-        assert "decided_by" in entry
-        assert "decided_at" in entry
+        assert entry["action"] == "suggest"
+        assert entry["from_state"] is None
+        assert entry["to_state"] == "AI_SUGGESTED"
+        assert "actor" in entry
+        assert "timestamp" in entry
 
     @pytest.mark.anyio
     async def test_audit_trail_multiple_entries(
         self, client: AsyncClient, workspace_id: str,
     ) -> None:
-        """After multiple state transitions, audit trail shows all entries."""
+        """After multiple state transitions, audit trail shows transitions."""
         cid = await _trigger_compilation(client, workspace_id)
         li_id = str(uuid7())
 
@@ -608,9 +623,19 @@ class TestAuditTrail:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["entries"]) == 2
-        # Should be ordered chronologically (oldest first)
-        assert data["entries"][0]["state"] == "AI_SUGGESTED"
-        assert data["entries"][1]["state"] == "APPROVED"
+
+        # First entry: initial suggestion
+        e0 = data["entries"][0]
+        assert e0["action"] == "suggest"
+        assert e0["from_state"] is None
+        assert e0["to_state"] == "AI_SUGGESTED"
+
+        # Second entry: approval transition
+        e1 = data["entries"][1]
+        assert e1["action"] == "approve"
+        assert e1["from_state"] == "AI_SUGGESTED"
+        assert e1["to_state"] == "APPROVED"
+        assert e1["rationale"] == "Approved by analyst"
 
     @pytest.mark.anyio
     async def test_audit_trail_empty_returns_empty_list(
@@ -630,7 +655,7 @@ class TestAuditTrail:
     async def test_audit_trail_entry_fields(
         self, client: AsyncClient, workspace_id: str,
     ) -> None:
-        """Each audit entry must have required fields."""
+        """Each audit entry must have the transition-style fields."""
         cid = await _trigger_compilation(client, workspace_id)
         li_id = str(uuid7())
         await _create_decision(client, workspace_id, cid, li_id)
@@ -642,9 +667,8 @@ class TestAuditTrail:
         assert resp.status_code == 200
         entry = resp.json()["entries"][0]
         required_fields = [
-            "mapping_decision_id", "state", "suggested_sector_code",
-            "final_sector_code", "decision_type", "decision_note",
-            "decided_by", "decided_at", "created_at",
+            "action", "from_state", "to_state",
+            "actor", "rationale", "timestamp",
         ]
         for field in required_fields:
             assert field in entry, f"Missing audit field: {field}"

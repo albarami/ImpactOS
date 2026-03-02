@@ -3,9 +3,14 @@
 GET /v1/workspaces/{ws}/compiler/{compilation_id}  — B-17
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
+
+from src.repositories.compiler import CompilationRepository
 
 
 @pytest.fixture
@@ -170,3 +175,22 @@ class TestCompilationDetail:
         data = resp.json()
         assert "split_proposals" in data
         assert isinstance(data["split_proposals"], list)
+
+    @pytest.mark.anyio
+    async def test_compilation_missing_workspace_metadata_404(
+        self, client: AsyncClient, workspace_id: str,
+        db_session: AsyncSession,
+    ) -> None:
+        """Legacy compilation with no workspace_id in metadata -> 404."""
+        comp_repo = CompilationRepository(db_session)
+        comp_id = uuid7()
+        await comp_repo.create(
+            compilation_id=comp_id,
+            result_json={"mapping_suggestions": []},
+            metadata_json={"document_id": None},  # no workspace_id
+        )
+
+        resp = await client.get(
+            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}",
+        )
+        assert resp.status_code == 404

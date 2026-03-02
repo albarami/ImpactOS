@@ -526,10 +526,10 @@ async def _get_compilation_or_404(
     if row is None:
         raise HTTPException(status_code=404, detail="Compilation not found.")
 
-    # Verify workspace ownership via metadata
+    # Verify workspace ownership via metadata — strict: missing ws = 404
     meta = row.metadata_json or {}
     stored_ws = meta.get("workspace_id")
-    if stored_ws is not None and stored_ws != str(workspace_id):
+    if stored_ws is None or stored_ws != str(workspace_id):
         raise HTTPException(status_code=404, detail="Compilation not found.")
 
     return row
@@ -753,12 +753,13 @@ async def put_decision(
 
 class BulkApproveRequest(BaseModel):
     confidence_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
-    actor: str
+    decided_by: str
 
 
 class BulkApproveResponse(BaseModel):
     approved_count: int
-    total_eligible: int
+    skipped_count: int
+    total_items: int
 
 
 @router.post(
@@ -775,13 +776,21 @@ async def bulk_approve_decisions(
     """B-5: Bulk-approve AI_SUGGESTED decisions above confidence threshold."""
     await _get_compilation_or_404(comp_repo, compilation_id, workspace_id)
 
-    eligible = await decision_repo.list_latest_by_scenario_and_state(
+    # Get ALL latest AI_SUGGESTED decisions (regardless of threshold)
+    all_suggested = await decision_repo.list_latest_by_scenario_and_state(
         compilation_id,
         MappingState.AI_SUGGESTED.value,
-        min_confidence=body.confidence_threshold,
     )
+    total_items = len(all_suggested)
 
-    actor_id = UUID(body.actor)
+    # Filter by confidence threshold
+    eligible = [
+        row for row in all_suggested
+        if row.suggested_confidence is not None
+        and row.suggested_confidence >= body.confidence_threshold
+    ]
+
+    actor_id = UUID(body.decided_by)
     approved_count = 0
 
     for decision_row in eligible:
@@ -798,7 +807,8 @@ async def bulk_approve_decisions(
             ),
             decision_type="APPROVED",
             decision_note=(
-                f"Bulk approved (threshold={body.confidence_threshold})"
+                f"Bulk approved "
+                f"(threshold={body.confidence_threshold})"
             ),
             decided_by=actor_id,
         )
@@ -806,7 +816,8 @@ async def bulk_approve_decisions(
 
     return BulkApproveResponse(
         approved_count=approved_count,
-        total_eligible=len(eligible),
+        skipped_count=total_items - approved_count,
+        total_items=total_items,
     )
 
 
@@ -814,18 +825,24 @@ async def bulk_approve_decisions(
 # B-8: Mapping audit trail (compiler-scoped)
 # ---------------------------------------------------------------------------
 
+_STATE_TO_ACTION: dict[str, str] = {
+    "UNMAPPED": "reset",
+    "AI_SUGGESTED": "suggest",
+    "APPROVED": "approve",
+    "OVERRIDDEN": "override",
+    "MANAGER_REVIEW": "escalate",
+    "EXCLUDED": "exclude",
+    "LOCKED": "lock",
+}
+
 
 class AuditEntryResponse(BaseModel):
-    mapping_decision_id: str
-    state: str
-    suggested_sector_code: str | None = None
-    suggested_confidence: float | None = None
-    final_sector_code: str | None = None
-    decision_type: str | None = None
-    decision_note: str | None = None
-    decided_by: str
-    decided_at: str
-    created_at: str
+    action: str
+    from_state: str | None
+    to_state: str
+    actor: str
+    rationale: str | None
+    timestamp: str
 
 
 class AuditTrailResponse(BaseModel):
@@ -848,20 +865,18 @@ async def get_decision_audit_trail(
 
     rows = await decision_repo.list_history(compilation_id, line_item_id)
 
-    entries = [
-        AuditEntryResponse(
-            mapping_decision_id=str(r.mapping_decision_id),
-            state=r.state,
-            suggested_sector_code=r.suggested_sector_code,
-            suggested_confidence=r.suggested_confidence,
-            final_sector_code=r.final_sector_code,
-            decision_type=r.decision_type,
-            decision_note=r.decision_note,
-            decided_by=str(r.decided_by),
-            decided_at=r.decided_at.isoformat(),
-            created_at=r.created_at.isoformat(),
-        )
-        for r in rows
-    ]
+    entries: list[AuditEntryResponse] = []
+    prev_state: str | None = None
+    for r in rows:
+        to_state = r.state
+        entries.append(AuditEntryResponse(
+            action=_STATE_TO_ACTION.get(to_state, to_state.lower()),
+            from_state=prev_state,
+            to_state=to_state,
+            actor=str(r.decided_by),
+            rationale=r.decision_note,
+            timestamp=r.decided_at.isoformat(),
+        ))
+        prev_state = to_state
 
     return AuditTrailResponse(entries=entries)
