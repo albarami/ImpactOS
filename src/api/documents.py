@@ -1,6 +1,8 @@
 """FastAPI document endpoints — MVP-2 Section 6.2.5 + S0-3 async jobs.
 
 POST /v1/workspaces/{workspace_id}/documents               — upload
+GET  /v1/workspaces/{workspace_id}/documents               — list (B-2)
+GET  /v1/workspaces/{workspace_id}/documents/{doc_id}      — detail (B-3)
 POST /v1/workspaces/{workspace_id}/documents/{doc_id}/extract  — trigger extraction
 GET  /v1/workspaces/{workspace_id}/jobs/{job_id}           — job status
 GET  /v1/workspaces/{workspace_id}/documents/{doc_id}/line-items — extracted items
@@ -74,9 +76,137 @@ class LineItemsResponse(BaseModel):
     items: list[BoQLineItem]
 
 
+# --- B-2: Document list response ---
+
+
+class DocumentListItem(BaseModel):
+    doc_id: str
+    filename: str
+    doc_type: str
+    classification: str
+    status: str
+    uploaded_at: str
+
+
+class DocumentListResponse(BaseModel):
+    items: list[DocumentListItem]
+    total: int
+    next_cursor: str | None = None
+
+
+# --- B-3: Document detail response ---
+
+
+class DocumentDetailResponse(BaseModel):
+    doc_id: str
+    filename: str
+    mime_type: str
+    size_bytes: int
+    hash_sha256: str
+    doc_type: str
+    source_type: str
+    classification: str
+    language: str
+    uploaded_at: str
+    extraction_status: str | None = None
+    line_item_count: int = 0
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+
+# --- B-2: Document list ---
+
+
+@router.get("/{workspace_id}/documents", response_model=DocumentListResponse)
+async def list_documents(
+    workspace_id: UUID,
+    limit: int = 20,
+    cursor: str | None = None,
+    doc_repo: DocumentRepository = Depends(get_document_repo),
+) -> DocumentListResponse:
+    """B-2: List documents for a workspace (paginated)."""
+    cursor_uploaded_at: str | None = None
+    cursor_doc_id: str | None = None
+    if cursor:
+        import base64
+        decoded = base64.b64decode(cursor).decode("utf-8")
+        parts = decoded.split("|", 1)
+        if len(parts) == 2:
+            cursor_uploaded_at, cursor_doc_id = parts
+
+    rows, total = await doc_repo.list_by_workspace_paginated(
+        workspace_id,
+        limit=limit,
+        cursor_uploaded_at=cursor_uploaded_at,
+        cursor_doc_id=cursor_doc_id,
+    )
+
+    items = [
+        DocumentListItem(
+            doc_id=str(r.doc_id),
+            filename=r.filename,
+            doc_type=r.doc_type,
+            classification=r.classification,
+            status="stored",
+            uploaded_at=r.uploaded_at.isoformat(),
+        )
+        for r in rows
+    ]
+
+    next_cursor: str | None = None
+    if len(rows) == limit:
+        import base64
+        last = rows[-1]
+        raw = f"{last.uploaded_at.isoformat()}|{last.doc_id}"
+        next_cursor = base64.b64encode(raw.encode("utf-8")).decode("utf-8")
+
+    return DocumentListResponse(
+        items=items,
+        total=total,
+        next_cursor=next_cursor,
+    )
+
+
+# --- B-3: Document detail ---
+
+
+@router.get("/{workspace_id}/documents/{doc_id}", response_model=DocumentDetailResponse)
+async def get_document_detail(
+    workspace_id: UUID,
+    doc_id: UUID,
+    doc_repo: DocumentRepository = Depends(get_document_repo),
+    job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
+    line_item_repo: LineItemRepository = Depends(get_line_item_repo),
+) -> DocumentDetailResponse:
+    """B-3: Get document detail with extraction status and line item count."""
+    row = await doc_repo.get_by_workspace(workspace_id, doc_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Extraction status from latest job (any status)
+    latest_job = await job_repo.get_latest_by_doc(doc_id)
+    extraction_status = latest_job.status if latest_job else None
+
+    # Line item count
+    line_item_count = await line_item_repo.count_by_doc(doc_id)
+
+    return DocumentDetailResponse(
+        doc_id=str(row.doc_id),
+        filename=row.filename,
+        mime_type=row.mime_type,
+        size_bytes=row.size_bytes,
+        hash_sha256=row.hash_sha256,
+        doc_type=row.doc_type,
+        source_type=row.source_type,
+        classification=row.classification,
+        language=row.language,
+        uploaded_at=row.uploaded_at.isoformat(),
+        extraction_status=extraction_status,
+        line_item_count=line_item_count,
+    )
 
 
 @router.post("/{workspace_id}/documents", status_code=201, response_model=UploadResponse)
