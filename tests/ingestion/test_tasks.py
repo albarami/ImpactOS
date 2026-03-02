@@ -11,12 +11,11 @@ from uuid import UUID
 import pytest
 from uuid_extensions import uuid7
 
-from src.ingestion.providers.base import ExtractionOptions
 from src.ingestion.tasks import run_extraction
 from src.models.document import (
     DocumentGraph,
-    ExtractionMetadata,
     ExtractedTable,
+    ExtractionMetadata,
     PageBlock,
     TableCell,
 )
@@ -38,11 +37,24 @@ def _make_csv_bytes() -> bytes:
 
 def _make_mock_graph(doc_id: UUID) -> DocumentGraph:
     """Build a simple DocumentGraph for testing."""
+    bb = BoundingBox
     cells = [
-        TableCell(row=0, col=0, text="Description", bbox=BoundingBox(x0=0, y0=0, x1=0.5, y1=0.5), confidence=1.0),
-        TableCell(row=0, col=1, text="Total", bbox=BoundingBox(x0=0.5, y0=0, x1=1, y1=0.5), confidence=1.0),
-        TableCell(row=1, col=0, text="Steel", bbox=BoundingBox(x0=0, y0=0.5, x1=0.5, y1=1), confidence=1.0),
-        TableCell(row=1, col=1, text="17500000", bbox=BoundingBox(x0=0.5, y0=0.5, x1=1, y1=1), confidence=1.0),
+        TableCell(
+            row=0, col=0, text="Description",
+            bbox=bb(x0=0, y0=0, x1=0.5, y1=0.5), confidence=1.0,
+        ),
+        TableCell(
+            row=0, col=1, text="Total",
+            bbox=bb(x0=0.5, y0=0, x1=1, y1=0.5), confidence=1.0,
+        ),
+        TableCell(
+            row=1, col=0, text="Steel",
+            bbox=bb(x0=0, y0=0.5, x1=0.5, y1=1), confidence=1.0,
+        ),
+        TableCell(
+            row=1, col=1, text="17500000",
+            bbox=bb(x0=0.5, y0=0.5, x1=1, y1=1), confidence=1.0,
+        ),
     ]
     table = ExtractedTable(
         table_id="test_table_0",
@@ -242,20 +254,19 @@ class TestRunExtractionErrorHandling:
             new_callable=AsyncMock,
             side_effect=RuntimeError("pdfplumber crashed"),
         ):
-            status = await run_extraction(
-                job_id=uuid7(),
-                doc_id=uuid7(),
-                workspace_id=uuid7(),
-                document_bytes=b"bad-pdf",
-                mime_type="application/pdf",
-                filename="bad.pdf",
-                classification="RESTRICTED",
-                doc_checksum=VALID_CHECKSUM,
-                extract_line_items=False,
-                job_repo=mock_job_repo,
-            )
-
-        assert status == "FAILED"
+            with pytest.raises(RuntimeError, match="pdfplumber crashed"):
+                await run_extraction(
+                    job_id=uuid7(),
+                    doc_id=uuid7(),
+                    workspace_id=uuid7(),
+                    document_bytes=b"bad-pdf",
+                    mime_type="application/pdf",
+                    filename="bad.pdf",
+                    classification="RESTRICTED",
+                    doc_checksum=VALID_CHECKSUM,
+                    extract_line_items=False,
+                    job_repo=mock_job_repo,
+                )
 
     @pytest.mark.anyio
     async def test_failure_updates_job_with_error(self) -> None:
@@ -267,17 +278,18 @@ class TestRunExtractionErrorHandling:
             new_callable=AsyncMock,
             side_effect=RuntimeError("pdfplumber crashed"),
         ):
-            await run_extraction(
-                job_id=job_id,
-                doc_id=uuid7(),
-                workspace_id=uuid7(),
-                document_bytes=b"bad-pdf",
-                mime_type="application/pdf",
-                filename="bad.pdf",
-                classification="RESTRICTED",
-                doc_checksum=VALID_CHECKSUM,
-                job_repo=mock_job_repo,
-            )
+            with pytest.raises(RuntimeError, match="pdfplumber crashed"):
+                await run_extraction(
+                    job_id=job_id,
+                    doc_id=uuid7(),
+                    workspace_id=uuid7(),
+                    document_bytes=b"bad-pdf",
+                    mime_type="application/pdf",
+                    filename="bad.pdf",
+                    classification="RESTRICTED",
+                    doc_checksum=VALID_CHECKSUM,
+                    job_repo=mock_job_repo,
+                )
 
         mock_job_repo.update_status.assert_called_with(
             job_id, "FAILED",

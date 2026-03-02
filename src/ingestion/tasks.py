@@ -16,7 +16,6 @@ from src.ingestion.boq_structuring import BoQStructuringPipeline
 from src.ingestion.extraction import ExtractionService
 from src.ingestion.providers.base import ExtractionOptions
 from src.ingestion.providers.router import ExtractionRouter
-from src.models.document import LanguageCode
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +89,6 @@ async def run_extraction(
     fallback_provider_name: str | None = None
     status = "RUNNING"
 
-    # Update job to RUNNING
     if job_repo is not None:
         await job_repo.update_status(job_id, "RUNNING")
 
@@ -136,7 +134,7 @@ async def run_extraction(
             doc_checksum=doc_checksum,
         )
 
-        # Idempotent persistence: clear previous artifacts before insert
+        # Idempotent persistence: clear previous job artifacts before insert
         if line_item_repo is not None:
             await line_item_repo.delete_by_job(job_id)
 
@@ -191,6 +189,11 @@ async def run_extraction(
             provider_name=provider_name,
             fallback_provider_name=fallback_provider_name,
         )
+        if status == "FAILED":
+            await job_repo.increment_attempt(job_id)
+
+    if status == "FAILED" and error_message is not None:
+        raise RuntimeError(error_message)
 
     return status
 
@@ -270,7 +273,13 @@ def dispatch_extraction(
     Serializes all arguments as JSON-safe types for Celery transport.
     """
     app = get_celery_app()
-    task = app.task(name="impactos.extract")(_celery_extract_task)
+    task = app.task(
+        name="impactos.extract",
+        autoretry_for=(Exception,),
+        retry_backoff=True,
+        retry_backoff_max=300,
+        max_retries=3,
+    )(_celery_extract_task)
     task.delay(
         str(job_id),
         str(doc_id),

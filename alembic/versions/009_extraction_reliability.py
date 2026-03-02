@@ -44,7 +44,7 @@ def upgrade() -> None:
         "extraction_jobs",
         sa.Column(
             "attempt_count", sa.Integer(),
-            nullable=False, server_default=sa.text("1"),
+            nullable=False, server_default=sa.text("0"),
         ),
     )
     op.add_column(
