@@ -16,7 +16,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from src.api.dependencies import get_assumption_repo, get_claim_repo
+from src.api.dependencies import get_assumption_repo, get_claim_repo, get_evidence_snippet_repo
 from src.governance.claim_extractor import ClaimExtractor
 from src.governance.publication_gate import PublicationGate
 from src.models.common import (
@@ -26,7 +26,7 @@ from src.models.common import (
     DisclosureTier,
 )
 from src.models.governance import VALID_CLAIM_TRANSITIONS, Assumption, Claim
-from src.repositories.governance import AssumptionRepository, ClaimRepository
+from src.repositories.governance import AssumptionRepository, ClaimRepository, EvidenceSnippetRepository
 
 router = APIRouter(prefix="/v1/workspaces", tags=["governance"])
 
@@ -157,6 +157,51 @@ class UpdateClaimResponse(BaseModel):
     claim_id: str
     status: str
     updated_at: str
+
+
+# --- B-7: Evidence list / detail / link schemas ---
+
+
+class EvidenceListItem(BaseModel):
+    snippet_id: str
+    source_id: str
+    page: int
+    extracted_text: str
+    checksum: str
+    created_at: str
+
+
+class EvidenceListResponse(BaseModel):
+    items: list[EvidenceListItem]
+    total: int
+
+
+class BBoxResponse(BaseModel):
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+
+class EvidenceDetailResponse(BaseModel):
+    snippet_id: str
+    source_id: str
+    page: int
+    bbox: BBoxResponse
+    extracted_text: str
+    table_cell_ref: dict | None = None
+    checksum: str
+    created_at: str
+
+
+class LinkEvidenceRequest(BaseModel):
+    claim_id: str
+
+
+class LinkEvidenceResponse(BaseModel):
+    linked: bool
+    snippet_id: str
+    claim_id: str
 
 
 # ---------------------------------------------------------------------------
@@ -509,3 +554,81 @@ async def update_claim_status(
         status=updated.status,
         updated_at=updated.updated_at.isoformat(),
     )
+
+
+# ---------------------------------------------------------------------------
+# B-7: Evidence list / detail / link
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{workspace_id}/governance/evidence", response_model=EvidenceListResponse)
+async def list_evidence(
+    workspace_id: UUID,
+    source_id: UUID | None = Query(default=None, description="Filter by source document ID"),
+    evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
+) -> EvidenceListResponse:
+    """B-7: List evidence snippets, filtered by source document."""
+    if source_id is not None:
+        rows = await evidence_repo.list_by_source(source_id)
+    else:
+        rows = []
+    items = [
+        EvidenceListItem(
+            snippet_id=str(r.snippet_id),
+            source_id=str(r.source_id),
+            page=r.page,
+            extracted_text=r.extracted_text,
+            checksum=r.checksum,
+            created_at=r.created_at.isoformat(),
+        )
+        for r in rows
+    ]
+    return EvidenceListResponse(items=items, total=len(items))
+
+
+@router.get(
+    "/{workspace_id}/governance/evidence/{snippet_id}",
+    response_model=EvidenceDetailResponse,
+)
+async def get_evidence_detail(
+    workspace_id: UUID,
+    snippet_id: UUID,
+    evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
+) -> EvidenceDetailResponse:
+    """B-7: Get evidence snippet detail."""
+    row = await evidence_repo.get(snippet_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Evidence snippet {snippet_id} not found.")
+    return EvidenceDetailResponse(
+        snippet_id=str(row.snippet_id),
+        source_id=str(row.source_id),
+        page=row.page,
+        bbox=BBoxResponse(x0=row.bbox_x0, y0=row.bbox_y0, x1=row.bbox_x1, y1=row.bbox_y1),
+        extracted_text=row.extracted_text,
+        table_cell_ref=row.table_cell_ref,
+        checksum=row.checksum,
+        created_at=row.created_at.isoformat(),
+    )
+
+
+@router.post(
+    "/{workspace_id}/governance/evidence/{snippet_id}/link",
+    response_model=LinkEvidenceResponse,
+)
+async def link_evidence_to_claim(
+    workspace_id: UUID,
+    snippet_id: UUID,
+    body: LinkEvidenceRequest,
+    evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
+) -> LinkEvidenceResponse:
+    """B-7: Link an evidence snippet to a claim."""
+    snippet_row = await evidence_repo.get(snippet_id)
+    if snippet_row is None:
+        raise HTTPException(status_code=404, detail=f"Evidence snippet {snippet_id} not found.")
+    claim_id = UUID(body.claim_id)
+    claim_row = await claim_repo.get(claim_id)
+    if claim_row is None:
+        raise HTTPException(status_code=404, detail=f"Claim {body.claim_id} not found.")
+    await claim_repo.link_evidence(claim_id, snippet_id)
+    return LinkEvidenceResponse(linked=True, snippet_id=str(snippet_id), claim_id=body.claim_id)

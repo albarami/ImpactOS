@@ -125,6 +125,19 @@ class ClaimRepository:
         result = await self._session.execute(select(ClaimRow))
         return list(result.scalars().all())
 
+    async def link_evidence(self, claim_id: UUID, snippet_id: UUID) -> ClaimRow | None:
+        """Append a snippet_id to the claim's evidence_refs list."""
+        row = await self.get(claim_id)
+        if row is not None:
+            refs = list(row.evidence_refs or [])
+            sid = str(snippet_id)
+            if sid not in refs:
+                refs.append(sid)
+            row.evidence_refs = refs
+            row.updated_at = utc_now()
+            await self._session.flush()
+        return row
+
 
 class EvidenceSnippetRepository:
     def __init__(self, session: AsyncSession) -> None:
