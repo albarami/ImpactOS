@@ -584,16 +584,25 @@ async def list_evidence(
     evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
     run_snapshot_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
 ) -> EvidenceListResponse:
-    """B-7: List evidence snippets for a workspace, optionally filtered by run.
+    """B-7: List evidence snippets scoped to a run within a workspace.
 
-    When run_id is provided, verifies the run belongs to this workspace.
-    Returns all evidence snippets from documents in this workspace.
+    Returns 404 if run_id does not exist or belongs to another workspace.
+    Returns only evidence snippets linked to claims in the specified run.
     """
     if run_id is not None:
         snapshot = await run_snapshot_repo.get(run_id)
-        if snapshot is None or snapshot.workspace_id != workspace_id:
-            return EvidenceListResponse(items=[], total=0)
-    rows = await evidence_repo.list_by_workspace(workspace_id)
+        if snapshot is None:
+            raise HTTPException(
+                status_code=404, detail=f"Run {run_id} not found.",
+            )
+        if snapshot.workspace_id != workspace_id:
+            raise HTTPException(
+                status_code=404, detail=f"Run {run_id} not found.",
+            )
+        rows = await evidence_repo.list_by_run_for_workspace(run_id, workspace_id)
+    else:
+        rows = await evidence_repo.list_by_workspace(workspace_id)
+
     items = [
         EvidenceListItem(
             snippet_id=str(r.snippet_id),

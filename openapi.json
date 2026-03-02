@@ -2572,7 +2572,7 @@
           "governance"
         ],
         "summary": "List Evidence",
-        "description": "B-7: List evidence snippets for a workspace, optionally filtered by run.\n\nWhen run_id is provided, verifies the run belongs to this workspace.\nReturns all evidence snippets from documents in this workspace.",
+        "description": "B-7: List evidence snippets scoped to a run within a workspace.\n\nReturns 404 if run_id does not exist or belongs to another workspace.\nReturns only evidence snippets linked to claims in the specified run.",
         "operationId": "list_evidence_v1_workspaces__workspace_id__governance_evidence_get",
         "parameters": [
           {

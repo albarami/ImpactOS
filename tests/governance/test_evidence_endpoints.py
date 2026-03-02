@@ -109,29 +109,51 @@ async def _extract_claims(
 
 class TestEvidenceList:
     @pytest.mark.anyio
-    async def test_list_empty_workspace(self, client: AsyncClient) -> None:
-        """Workspace with no documents -> 200, empty items."""
+    async def test_missing_run_404(self, client: AsyncClient) -> None:
+        """Nonexistent run_id -> 404."""
         ws = str(uuid7())
-        run_id = str(uuid7())
+        fake_run = str(uuid7())
         resp = await client.get(
             f"/v1/workspaces/{ws}/governance/evidence",
-            params={"run_id": run_id},
+            params={"run_id": fake_run},
         )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["items"] == []
-        assert data["total"] == 0
+        assert resp.status_code == 404
 
     @pytest.mark.anyio
-    async def test_list_returns_snippets_by_run(
+    async def test_wrong_workspace_run_404(
         self, client: AsyncClient, db_session,
     ) -> None:
-        """Seed doc + snippets + run snapshot, list by run_id -> finds snippets."""
+        """Run belongs to ws_a, querying from ws_b -> 404."""
+        ws_a = str(uuid7())
+        ws_b = str(uuid7())
+        run_id = str(uuid7())
+        await _seed_run_snapshot(db_session, run_id, ws_a)
+
+        resp = await client.get(
+            f"/v1/workspaces/{ws_b}/governance/evidence",
+            params={"run_id": run_id},
+        )
+        assert resp.status_code == 404
+
+    @pytest.mark.anyio
+    async def test_list_returns_only_run_linked_snippets(
+        self, client: AsyncClient, db_session,
+    ) -> None:
+        """Run-scoped: only snippets linked to claims in the run are returned."""
         run_id = str(uuid7())
         doc_id = await _seed_document(db_session, WS_ID)
         await _seed_run_snapshot(db_session, run_id, WS_ID)
-        await _seed_snippet(db_session, source_id=doc_id, page=0, text="first")
-        await _seed_snippet(db_session, source_id=doc_id, page=1, text="second")
+
+        s1 = await _seed_snippet(db_session, source_id=doc_id, text="linked")
+        await _seed_snippet(db_session, source_id=doc_id, text="unlinked")
+
+        extract = await _extract_claims(client, _ASSUMPTION_TEXT, run_id=run_id)
+        claim_id = extract["claims"][0]["claim_id"]
+
+        await client.post(
+            f"/v1/workspaces/{WS_ID}/governance/claims/{claim_id}/evidence",
+            json={"evidence_ids": [str(s1.snippet_id)]},
+        )
 
         resp = await client.get(
             f"/v1/workspaces/{WS_ID}/governance/evidence",
@@ -139,34 +161,55 @@ class TestEvidenceList:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["total"] == 2
-        assert len(data["items"]) == 2
-        for item in data["items"]:
-            assert "snippet_id" in item
-            assert "source_id" in item
-            assert "page" in item
-            assert "extracted_text" in item
-            assert "checksum" in item
-            assert "created_at" in item
+        assert data["total"] == 1
+        assert data["items"][0]["snippet_id"] == str(s1.snippet_id)
 
     @pytest.mark.anyio
-    async def test_list_run_wrong_workspace_empty(
+    async def test_two_runs_isolation(
         self, client: AsyncClient, db_session,
     ) -> None:
-        """Run belongs to ws_a, querying from ws_b -> empty result."""
-        ws_a = str(uuid7())
-        ws_b = str(uuid7())
-        run_id = str(uuid7())
-        doc_id = await _seed_document(db_session, ws_a)
-        await _seed_run_snapshot(db_session, run_id, ws_a)
-        await _seed_snippet(db_session, source_id=doc_id, text="ws_a snippet")
+        """Same workspace, two runs with different snippets -> isolated results."""
+        run_a = str(uuid7())
+        run_b = str(uuid7())
+        doc_a = await _seed_document(db_session, WS_ID)
+        doc_b = await _seed_document(db_session, WS_ID)
+        await _seed_run_snapshot(db_session, run_a, WS_ID)
+        await _seed_run_snapshot(db_session, run_b, WS_ID)
 
-        resp = await client.get(
-            f"/v1/workspaces/{ws_b}/governance/evidence",
-            params={"run_id": run_id},
+        s_a = await _seed_snippet(db_session, source_id=doc_a, text="run A evidence")
+        s_b = await _seed_snippet(db_session, source_id=doc_b, text="run B evidence")
+
+        ext_a = await _extract_claims(client, _ASSUMPTION_TEXT, run_id=run_a)
+        ext_b = await _extract_claims(
+            client, "We assume 30% export share.", run_id=run_b,
         )
-        assert resp.status_code == 200
-        assert resp.json()["total"] == 0
+        cid_a = ext_a["claims"][0]["claim_id"]
+        cid_b = ext_b["claims"][0]["claim_id"]
+
+        await client.post(
+            f"/v1/workspaces/{WS_ID}/governance/claims/{cid_a}/evidence",
+            json={"evidence_ids": [str(s_a.snippet_id)]},
+        )
+        await client.post(
+            f"/v1/workspaces/{WS_ID}/governance/claims/{cid_b}/evidence",
+            json={"evidence_ids": [str(s_b.snippet_id)]},
+        )
+
+        resp_a = await client.get(
+            f"/v1/workspaces/{WS_ID}/governance/evidence",
+            params={"run_id": run_a},
+        )
+        resp_b = await client.get(
+            f"/v1/workspaces/{WS_ID}/governance/evidence",
+            params={"run_id": run_b},
+        )
+        assert resp_a.status_code == 200
+        assert resp_b.status_code == 200
+        ids_a = {i["snippet_id"] for i in resp_a.json()["items"]}
+        ids_b = {i["snippet_id"] for i in resp_b.json()["items"]}
+        assert ids_a == {str(s_a.snippet_id)}
+        assert ids_b == {str(s_b.snippet_id)}
+        assert ids_a.isdisjoint(ids_b)
 
 
 # ---------------------------------------------------------------------------
@@ -399,7 +442,6 @@ class TestEvidencePersistenceWiring:
 
         evidence_resp = await client.get(
             f"/v1/workspaces/{ws_id}/governance/evidence",
-            params={"run_id": run_id},
         )
         assert evidence_resp.status_code == 200
         data = evidence_resp.json()

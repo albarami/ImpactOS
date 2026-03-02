@@ -285,3 +285,39 @@ class EvidenceSnippetRepository:
             .order_by(EvidenceSnippetRow.created_at.asc())
         )
         return list(result.scalars().all())
+
+    async def list_by_run_for_workspace(
+        self, run_id: UUID, workspace_id: UUID,
+    ) -> list[EvidenceSnippetRow]:
+        """Get evidence snippets tied to a specific run via claims' evidence_refs.
+
+        Resolves run → claims (workspace-verified) → evidence_refs → snippets.
+        """
+        claim_result = await self._session.execute(
+            select(ClaimRow)
+            .join(RunSnapshotRow, ClaimRow.run_id == RunSnapshotRow.run_id)
+            .where(
+                ClaimRow.run_id == run_id,
+                RunSnapshotRow.workspace_id == workspace_id,
+            )
+        )
+        claims = list(claim_result.scalars().all())
+
+        snippet_ids: list[UUID] = []
+        seen: set[str] = set()
+        for claim in claims:
+            for ref in claim.evidence_refs or []:
+                ref_str = str(ref)
+                if ref_str not in seen:
+                    seen.add(ref_str)
+                    snippet_ids.append(UUID(ref_str))
+
+        if not snippet_ids:
+            return []
+
+        result = await self._session.execute(
+            select(EvidenceSnippetRow)
+            .where(EvidenceSnippetRow.snippet_id.in_(snippet_ids))
+            .order_by(EvidenceSnippetRow.created_at.asc())
+        )
+        return list(result.scalars().all())
