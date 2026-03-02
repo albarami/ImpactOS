@@ -13,7 +13,7 @@
 | B-1 | Workspace CRUD | DONE | `POST /v1/workspaces`, `GET /v1/workspaces`, `GET /v1/workspaces/{workspace_id}`, `PUT /v1/workspaces/{workspace_id}` | Sprint 1 / PR #1 |
 | B-2 | Document list | DONE | `GET .../documents` | Sprint 2 / PR #2 |
 | B-3 | Document detail | DONE | `GET .../documents/{doc_id}` | Sprint 2 / PR #2 |
-| B-4 | Per-line mapping decision CRUD | DONE | `GET/PUT .../compiler/{id}/decisions/{li_id}`, `POST .../compiler/{id}/decisions` | Sprint 3 / PR #3 |
+| B-4 | Per-line mapping decision CRUD | DONE | `GET/PUT .../compiler/{id}/decisions/{li_id}` (POST .../decisions is pre-existing) | Sprint 3 / PR #3 |
 | B-5 | Bulk threshold approval | DONE | `POST .../compiler/{id}/decisions/bulk-approve` | Sprint 3 / PR #3 |
 | B-6 | Taxonomy browsing | DONE | `GET .../taxonomy/sectors`, `GET .../taxonomy/sectors/search`, `GET .../taxonomy/sectors/{code}` | Sprint 1 / PR #1 |
 | B-7 | Evidence list/detail/link | DONE | `GET .../governance/evidence`, `GET .../governance/evidence/{id}`, `POST .../governance/claims/{id}/evidence` | Sprint 4 / PR #5 |

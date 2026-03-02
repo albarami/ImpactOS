@@ -89,6 +89,7 @@ B10_ROUTES = [
 # ---- Sprint 3 ----
 
 # B-4: Per-line mapping decision state CRUD
+# POST .../decisions is pre-existing (Phase 0); B-4 added GET/PUT per-line
 B4_ROUTES = [
     (
         "get",
@@ -97,10 +98,6 @@ B4_ROUTES = [
     (
         "put",
         "/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}",
-    ),
-    (
-        "post",
-        "/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions",
     ),
 ]
 

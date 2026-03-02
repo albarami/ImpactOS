@@ -52,7 +52,7 @@ Pre-existing compile/status/decisions routes plus Sprint 3 additions.
 | POST | `/v1/workspaces/{workspace_id}/compiler/compile` | Trigger AI-assisted compilation | compiler |
 | GET | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}` | Get full compilation with suggestions (B-17) | compiler |
 | GET | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/status` | Get compilation status counts | compiler |
-| POST | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions` | Bulk decisions (B-4) | compiler |
+| POST | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions` | Bulk decisions (pre-existing) | compiler |
 | POST | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/bulk-approve` | Bulk threshold approval (B-5) | compiler |
 | GET | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}` | Get decision (B-4) | compiler |
 | PUT | `/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}` | Update decision (B-4) | compiler |
