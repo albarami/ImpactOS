@@ -11,12 +11,11 @@ from uuid import UUID
 import pytest
 from uuid_extensions import uuid7
 
-from src.ingestion.providers.base import ExtractionOptions
 from src.ingestion.tasks import run_extraction
 from src.models.document import (
     DocumentGraph,
-    ExtractionMetadata,
     ExtractedTable,
+    ExtractionMetadata,
     PageBlock,
     TableCell,
 )
@@ -38,11 +37,24 @@ def _make_csv_bytes() -> bytes:
 
 def _make_mock_graph(doc_id: UUID) -> DocumentGraph:
     """Build a simple DocumentGraph for testing."""
+    bb = BoundingBox
     cells = [
-        TableCell(row=0, col=0, text="Description", bbox=BoundingBox(x0=0, y0=0, x1=0.5, y1=0.5), confidence=1.0),
-        TableCell(row=0, col=1, text="Total", bbox=BoundingBox(x0=0.5, y0=0, x1=1, y1=0.5), confidence=1.0),
-        TableCell(row=1, col=0, text="Steel", bbox=BoundingBox(x0=0, y0=0.5, x1=0.5, y1=1), confidence=1.0),
-        TableCell(row=1, col=1, text="17500000", bbox=BoundingBox(x0=0.5, y0=0.5, x1=1, y1=1), confidence=1.0),
+        TableCell(
+            row=0, col=0, text="Description",
+            bbox=bb(x0=0, y0=0, x1=0.5, y1=0.5), confidence=1.0,
+        ),
+        TableCell(
+            row=0, col=1, text="Total",
+            bbox=bb(x0=0.5, y0=0, x1=1, y1=0.5), confidence=1.0,
+        ),
+        TableCell(
+            row=1, col=0, text="Steel",
+            bbox=bb(x0=0, y0=0.5, x1=0.5, y1=1), confidence=1.0,
+        ),
+        TableCell(
+            row=1, col=1, text="17500000",
+            bbox=bb(x0=0.5, y0=0.5, x1=1, y1=1), confidence=1.0,
+        ),
     ]
     table = ExtractedTable(
         table_id="test_table_0",
