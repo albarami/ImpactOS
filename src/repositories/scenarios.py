@@ -19,7 +19,8 @@ class ScenarioVersionRepository:
                      disclosure_tier: str = "TIER0", currency: str = "SAR",
                      shock_items: list | None = None,
                      assumption_ids: list | None = None,
-                     data_quality_summary: dict | None = None) -> ScenarioSpecRow:
+                     data_quality_summary: dict | None = None,
+                     is_locked: bool = False) -> ScenarioSpecRow:
         now = utc_now()
         row = ScenarioSpecRow(
             scenario_spec_id=scenario_spec_id, version=version, name=name,
@@ -30,6 +31,7 @@ class ScenarioVersionRepository:
             shock_items=shock_items or [],
             assumption_ids=assumption_ids or [],
             data_quality_summary=data_quality_summary,
+            is_locked=is_locked,
             created_at=now, updated_at=now,
         )
         self._session.add(row)

@@ -153,6 +153,9 @@ class ScenarioSpecRow(Base):
     time_horizon = mapped_column(FlexJSON, nullable=False)
     shock_items = mapped_column(FlexJSON, nullable=False)
     assumption_ids = mapped_column(FlexJSON, nullable=False)
+    is_locked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false",
+    )
     data_quality_summary = mapped_column(FlexJSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -365,6 +368,7 @@ class ExportRow(Base):
     checksum: Mapped[str | None] = mapped_column(String(100), nullable=True)
     checksums_json = mapped_column(FlexJSON, nullable=True)
     blocked_reasons = mapped_column(FlexJSON, nullable=False)
+    artifact_refs_json = mapped_column(FlexJSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
