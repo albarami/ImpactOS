@@ -1,8 +1,13 @@
 """FastAPI AI compiler endpoints — MVP-8, amended MVP-12, S0-4.
 
-POST /v1/workspaces/{workspace_id}/compiler/compile              — trigger compilation
-GET  /v1/workspaces/{workspace_id}/compiler/{id}/status          — suggestion status
-POST /v1/workspaces/{workspace_id}/compiler/{id}/decisions       — accept/reject bulk
+POST /v1/workspaces/{workspace_id}/compiler/compile                        — trigger
+GET  /v1/workspaces/{workspace_id}/compiler/{id}                           — detail (B-17)
+GET  /v1/workspaces/{workspace_id}/compiler/{id}/status                    — suggestion status
+POST /v1/workspaces/{workspace_id}/compiler/{id}/decisions                 — accept/reject
+GET  /v1/workspaces/{workspace_id}/compiler/{id}/decisions/{li}            — B-4 get
+PUT  /v1/workspaces/{workspace_id}/compiler/{id}/decisions/{li}            — B-4 put
+POST /v1/workspaces/{workspace_id}/compiler/{id}/decisions/bulk-approve    — B-5
+GET  /v1/workspaces/{workspace_id}/compiler/{id}/decisions/{li}/audit      — B-8
 
 S0-4: Doc→shock wiring — compile accepts document_id to load stored line items.
 CRITICAL: Agent-to-Math Boundary enforced. All outputs are Pydantic-validated
@@ -20,6 +25,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
+from starlette.responses import JSONResponse
 from uuid_extensions import uuid7
 
 from src.agents.assumption_agent import AssumptionDraftAgent
@@ -30,6 +36,7 @@ from src.api.dependencies import (
     get_document_repo,
     get_extraction_job_repo,
     get_line_item_repo,
+    get_mapping_decision_repo,
     get_mapping_library_repo,
     get_override_pair_repo,
 )
@@ -37,6 +44,9 @@ from src.compiler.ai_compiler import (
     AICompilationInput,
     AICompiler,
 )
+from src.compiler.mapping_state import VALID_MAPPING_TRANSITIONS, MappingState
+from src.db.tables import CompilationRow, MappingDecisionRow
+from src.models.common import new_uuid7
 from src.models.document import BoQLineItem
 from src.models.mapping import MappingLibraryEntry
 from src.models.scenario import TimeHorizon
@@ -47,6 +57,7 @@ from src.repositories.documents import (
     LineItemRepository,
 )
 from src.repositories.libraries import MappingLibraryRepository
+from src.repositories.mapping_decisions import MappingDecisionRepository
 
 _logger = logging.getLogger(__name__)
 
@@ -269,6 +280,7 @@ async def trigger_compilation(
         "mode": str(result.mode),
     }
     metadata_json = {
+        "workspace_id": str(workspace_id),
         "document_id": body.document_id,
         "line_items": (
             [li.model_dump(mode="json") for li in body.line_items]
@@ -500,7 +512,31 @@ async def bulk_decisions(
 
 
 # ---------------------------------------------------------------------------
-# B-17: Compilation detail
+# Helpers: compilation workspace ownership
+# ---------------------------------------------------------------------------
+
+
+async def _get_compilation_or_404(
+    comp_repo: CompilationRepository,
+    compilation_id: UUID,
+    workspace_id: UUID,
+) -> CompilationRow:
+    """Get compilation and verify workspace ownership, raise 404 otherwise."""
+    row = await comp_repo.get(compilation_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Compilation not found.")
+
+    # Verify workspace ownership via metadata
+    meta = row.metadata_json or {}
+    stored_ws = meta.get("workspace_id")
+    if stored_ws is not None and stored_ws != str(workspace_id):
+        raise HTTPException(status_code=404, detail="Compilation not found.")
+
+    return row
+
+
+# ---------------------------------------------------------------------------
+# B-17: Compilation detail — GET /compiler/{compilation_id}
 # ---------------------------------------------------------------------------
 
 
@@ -523,7 +559,7 @@ class CompilationDetailResponse(BaseModel):
 
 
 @router.get(
-    "/{workspace_id}/compiler/{compilation_id}/detail",
+    "/{workspace_id}/compiler/{compilation_id}",
     response_model=CompilationDetailResponse,
 )
 async def get_compilation_detail(
@@ -532,9 +568,7 @@ async def get_compilation_detail(
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
 ) -> CompilationDetailResponse:
     """B-17: Get full compilation detail including suggestions, proposals, and metadata."""
-    row = await comp_repo.get(compilation_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Compilation not found.")
+    row = await _get_compilation_or_404(comp_repo, compilation_id, workspace_id)
 
     rj = row.result_json or {}
 
@@ -558,3 +592,276 @@ async def get_compilation_detail(
         low_confidence=rj.get("low_confidence_count", 0),
         metadata=row.metadata_json or {},
     )
+
+
+# ---------------------------------------------------------------------------
+# B-4: Per-line mapping decision CRUD (compiler-scoped)
+# ---------------------------------------------------------------------------
+
+
+class DecisionPutRequest(BaseModel):
+    state: str
+    suggested_sector_code: str | None = None
+    suggested_confidence: float | None = None
+    final_sector_code: str | None = None
+    decision_type: str | None = None
+    decision_note: str | None = None
+    decided_by: str
+
+
+class DecisionResponse(BaseModel):
+    mapping_decision_id: str
+    line_item_id: str
+    compilation_id: str
+    state: str
+    suggested_sector_code: str | None = None
+    suggested_confidence: float | None = None
+    final_sector_code: str | None = None
+    decision_type: str | None = None
+    decision_note: str | None = None
+    decided_by: str
+    decided_at: str
+    created_at: str
+
+
+def _decision_row_to_response(row: MappingDecisionRow) -> DecisionResponse:
+    """Convert MappingDecisionRow to response schema."""
+    return DecisionResponse(
+        mapping_decision_id=str(row.mapping_decision_id),
+        line_item_id=str(row.line_item_id),
+        compilation_id=str(row.scenario_spec_id),
+        state=row.state,
+        suggested_sector_code=row.suggested_sector_code,
+        suggested_confidence=row.suggested_confidence,
+        final_sector_code=row.final_sector_code,
+        decision_type=row.decision_type,
+        decision_note=row.decision_note,
+        decided_by=str(row.decided_by),
+        decided_at=row.decided_at.isoformat(),
+        created_at=row.created_at.isoformat(),
+    )
+
+
+@router.get(
+    "/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}",
+    response_model=DecisionResponse,
+)
+async def get_decision(
+    workspace_id: UUID,
+    compilation_id: UUID,
+    line_item_id: UUID,
+    comp_repo: CompilationRepository = Depends(get_compilation_repo),
+    decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
+) -> DecisionResponse:
+    """B-4: Get current mapping decision for a line item in a compilation."""
+    await _get_compilation_or_404(comp_repo, compilation_id, workspace_id)
+
+    row = await decision_repo.get_latest(compilation_id, line_item_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    return _decision_row_to_response(row)
+
+
+@router.put(
+    "/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}",
+    response_model=DecisionResponse,
+)
+async def put_decision(
+    workspace_id: UUID,
+    compilation_id: UUID,
+    line_item_id: UUID,
+    body: DecisionPutRequest,
+    comp_repo: CompilationRepository = Depends(get_compilation_repo),
+    decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
+) -> JSONResponse:
+    """B-4: Create or update a mapping decision (append-only, state validated)."""
+    await _get_compilation_or_404(comp_repo, compilation_id, workspace_id)
+
+    # Validate target state is a valid MappingState
+    try:
+        target_state = MappingState(body.state)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid state: {body.state}. "
+                   f"Valid states: {[s.value for s in MappingState]}",
+        )
+
+    # Validate: APPROVED/OVERRIDDEN require final_sector_code
+    if target_state in (MappingState.APPROVED, MappingState.OVERRIDDEN):
+        if not body.final_sector_code:
+            raise HTTPException(
+                status_code=422,
+                detail="final_sector_code is required for "
+                       "APPROVED/OVERRIDDEN states",
+            )
+
+    # Validate: EXCLUDED requires non-empty decision_note (rationale)
+    if target_state == MappingState.EXCLUDED:
+        if not body.decision_note or not body.decision_note.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="decision_note (rationale) is required for "
+                       "EXCLUDED state",
+            )
+
+    # Check existing decision for state transition validation
+    existing = await decision_repo.get_latest(compilation_id, line_item_id)
+
+    if existing is not None:
+        # Validate transition
+        current_state = MappingState(existing.state)
+        allowed = VALID_MAPPING_TRANSITIONS.get(current_state, frozenset())
+        if target_state not in allowed:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot transition from {current_state.value} "
+                       f"to {target_state.value}. "
+                       f"Allowed: {sorted(s.value for s in allowed)}",
+            )
+        status_code = 200
+    else:
+        status_code = 201
+
+    # Create new append-only decision row
+    # (scenario_spec_id column stores compilation_id for compiler scope)
+    row = await decision_repo.create(
+        mapping_decision_id=new_uuid7(),
+        line_item_id=line_item_id,
+        scenario_spec_id=compilation_id,
+        state=target_state.value,
+        suggested_sector_code=body.suggested_sector_code,
+        suggested_confidence=body.suggested_confidence,
+        final_sector_code=body.final_sector_code,
+        decision_type=body.decision_type,
+        decision_note=body.decision_note,
+        decided_by=UUID(body.decided_by),
+    )
+
+    response_data = _decision_row_to_response(row)
+    return JSONResponse(
+        content=response_data.model_dump(),
+        status_code=status_code,
+    )
+
+
+# ---------------------------------------------------------------------------
+# B-5: Bulk threshold approval (compiler-scoped)
+# ---------------------------------------------------------------------------
+
+
+class BulkApproveRequest(BaseModel):
+    confidence_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+    actor: str
+
+
+class BulkApproveResponse(BaseModel):
+    approved_count: int
+    total_eligible: int
+
+
+@router.post(
+    "/{workspace_id}/compiler/{compilation_id}/decisions/bulk-approve",
+    response_model=BulkApproveResponse,
+)
+async def bulk_approve_decisions(
+    workspace_id: UUID,
+    compilation_id: UUID,
+    body: BulkApproveRequest,
+    comp_repo: CompilationRepository = Depends(get_compilation_repo),
+    decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
+) -> BulkApproveResponse:
+    """B-5: Bulk-approve AI_SUGGESTED decisions above confidence threshold."""
+    await _get_compilation_or_404(comp_repo, compilation_id, workspace_id)
+
+    eligible = await decision_repo.list_latest_by_scenario_and_state(
+        compilation_id,
+        MappingState.AI_SUGGESTED.value,
+        min_confidence=body.confidence_threshold,
+    )
+
+    actor_id = UUID(body.actor)
+    approved_count = 0
+
+    for decision_row in eligible:
+        await decision_repo.create(
+            mapping_decision_id=new_uuid7(),
+            line_item_id=decision_row.line_item_id,
+            scenario_spec_id=compilation_id,
+            state=MappingState.APPROVED.value,
+            suggested_sector_code=decision_row.suggested_sector_code,
+            suggested_confidence=decision_row.suggested_confidence,
+            final_sector_code=(
+                decision_row.final_sector_code
+                or decision_row.suggested_sector_code
+            ),
+            decision_type="APPROVED",
+            decision_note=(
+                f"Bulk approved (threshold={body.confidence_threshold})"
+            ),
+            decided_by=actor_id,
+        )
+        approved_count += 1
+
+    return BulkApproveResponse(
+        approved_count=approved_count,
+        total_eligible=len(eligible),
+    )
+
+
+# ---------------------------------------------------------------------------
+# B-8: Mapping audit trail (compiler-scoped)
+# ---------------------------------------------------------------------------
+
+
+class AuditEntryResponse(BaseModel):
+    mapping_decision_id: str
+    state: str
+    suggested_sector_code: str | None = None
+    suggested_confidence: float | None = None
+    final_sector_code: str | None = None
+    decision_type: str | None = None
+    decision_note: str | None = None
+    decided_by: str
+    decided_at: str
+    created_at: str
+
+
+class AuditTrailResponse(BaseModel):
+    entries: list[AuditEntryResponse]
+
+
+@router.get(
+    "/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}/audit",
+    response_model=AuditTrailResponse,
+)
+async def get_decision_audit_trail(
+    workspace_id: UUID,
+    compilation_id: UUID,
+    line_item_id: UUID,
+    comp_repo: CompilationRepository = Depends(get_compilation_repo),
+    decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
+) -> AuditTrailResponse:
+    """B-8: Get full audit trail for a line item's mapping decisions."""
+    await _get_compilation_or_404(comp_repo, compilation_id, workspace_id)
+
+    rows = await decision_repo.list_history(compilation_id, line_item_id)
+
+    entries = [
+        AuditEntryResponse(
+            mapping_decision_id=str(r.mapping_decision_id),
+            state=r.state,
+            suggested_sector_code=r.suggested_sector_code,
+            suggested_confidence=r.suggested_confidence,
+            final_sector_code=r.final_sector_code,
+            decision_type=r.decision_type,
+            decision_note=r.decision_note,
+            decided_by=str(r.decided_by),
+            decided_at=r.decided_at.isoformat(),
+            created_at=r.created_at.isoformat(),
+        )
+        for r in rows
+    ]
+
+    return AuditTrailResponse(entries=entries)

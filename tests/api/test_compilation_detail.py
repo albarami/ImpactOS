@@ -1,4 +1,7 @@
-"""Tests for B-17: GET compilation detail."""
+"""Tests for B-17: GET compilation detail.
+
+GET /v1/workspaces/{ws}/compiler/{compilation_id}  — B-17
+"""
 
 import pytest
 from httpx import AsyncClient
@@ -58,7 +61,7 @@ class TestCompilationDetail:
     ) -> None:
         comp_id = await _trigger_compilation(client, workspace_id)
         resp = await client.get(
-            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}/detail",
+            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}",
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -76,7 +79,7 @@ class TestCompilationDetail:
         """Each suggestion should have line_item_id, sector_code, confidence, explanation."""
         comp_id = await _trigger_compilation(client, workspace_id)
         resp = await client.get(
-            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}/detail",
+            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}",
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -92,7 +95,18 @@ class TestCompilationDetail:
         self, client: AsyncClient, workspace_id: str,
     ) -> None:
         resp = await client.get(
-            f"/v1/workspaces/{workspace_id}/compiler/{uuid7()}/detail",
+            f"/v1/workspaces/{workspace_id}/compiler/{uuid7()}",
+        )
+        assert resp.status_code == 404
+
+    @pytest.mark.anyio
+    async def test_compilation_detail_wrong_workspace_404(
+        self, client: AsyncClient, workspace_id: str, other_workspace_id: str,
+    ) -> None:
+        """Compilation exists but queried from wrong workspace -> 404."""
+        comp_id = await _trigger_compilation(client, workspace_id)
+        resp = await client.get(
+            f"/v1/workspaces/{other_workspace_id}/compiler/{comp_id}",
         )
         assert resp.status_code == 404
 
@@ -103,7 +117,7 @@ class TestCompilationDetail:
         """Detail should include metadata about the compilation input."""
         comp_id = await _trigger_compilation(client, workspace_id)
         resp = await client.get(
-            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}/detail",
+            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}",
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -118,7 +132,7 @@ class TestCompilationDetail:
         """Confidence counts should be non-negative integers."""
         comp_id = await _trigger_compilation(client, workspace_id)
         resp = await client.get(
-            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}/detail",
+            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}",
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -136,7 +150,7 @@ class TestCompilationDetail:
         """Detail should include assumption_drafts list."""
         comp_id = await _trigger_compilation(client, workspace_id)
         resp = await client.get(
-            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}/detail",
+            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}",
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -150,7 +164,7 @@ class TestCompilationDetail:
         """Detail should include split_proposals list."""
         comp_id = await _trigger_compilation(client, workspace_id)
         resp = await client.get(
-            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}/detail",
+            f"/v1/workspaces/{workspace_id}/compiler/{comp_id}",
         )
         assert resp.status_code == 200
         data = resp.json()

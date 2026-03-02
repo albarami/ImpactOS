@@ -2,6 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ImpactOS API",
+    "description": "Impact & Scenario Intelligence System for Strategic Gears.",
     "version": "0.1.0"
   },
   "paths": {
@@ -463,14 +464,14 @@
         }
       }
     },
-    "/v1/workspaces/{workspace_id}/compiler/{compilation_id}/detail": {
+    "/v1/workspaces/{workspace_id}/compiler/{compilation_id}": {
       "get": {
         "tags": [
           "compiler"
         ],
         "summary": "Get Compilation Detail",
         "description": "B-17: Get full compilation detail including suggestions, proposals, and metadata.",
-        "operationId": "get_compilation_detail_v1_workspaces__workspace_id__compiler__compilation_id__detail_get",
+        "operationId": "get_compilation_detail_v1_workspaces__workspace_id__compiler__compilation_id__get",
         "parameters": [
           {
             "name": "workspace_id",
@@ -500,6 +501,270 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CompilationDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}": {
+      "get": {
+        "tags": [
+          "compiler"
+        ],
+        "summary": "Get Decision",
+        "description": "B-4: Get current mapping decision for a line item in a compilation.",
+        "operationId": "get_decision_v1_workspaces__workspace_id__compiler__compilation_id__decisions__line_item_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "compilation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Compilation Id"
+            }
+          },
+          {
+            "name": "line_item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Line Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "compiler"
+        ],
+        "summary": "Put Decision",
+        "description": "B-4: Create or update a mapping decision (append-only, state validated).",
+        "operationId": "put_decision_v1_workspaces__workspace_id__compiler__compilation_id__decisions__line_item_id__put",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "compilation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Compilation Id"
+            }
+          },
+          {
+            "name": "line_item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Line Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionPutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/bulk-approve": {
+      "post": {
+        "tags": [
+          "compiler"
+        ],
+        "summary": "Bulk Approve Decisions",
+        "description": "B-5: Bulk-approve AI_SUGGESTED decisions above confidence threshold.",
+        "operationId": "bulk_approve_decisions_v1_workspaces__workspace_id__compiler__compilation_id__decisions_bulk_approve_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "compilation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Compilation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkApproveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkApproveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}/audit": {
+      "get": {
+        "tags": [
+          "compiler"
+        ],
+        "summary": "Get Decision Audit Trail",
+        "description": "B-8: Get full audit trail for a line item's mapping decisions.",
+        "operationId": "get_decision_audit_trail_v1_workspaces__workspace_id__compiler__compilation_id__decisions__line_item_id__audit_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "compilation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Compilation Id"
+            }
+          },
+          {
+            "name": "line_item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Line Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditTrailResponse"
                 }
               }
             }
@@ -4156,270 +4421,6 @@
         }
       }
     },
-    "/v1/workspaces/{workspace_id}/scenarios/{scenario_id}/decisions/{line_item_id}": {
-      "get": {
-        "tags": [
-          "scenarios"
-        ],
-        "summary": "Get Decision",
-        "description": "B-4: Get current mapping decision for a line item in a scenario.",
-        "operationId": "get_decision_v1_workspaces__workspace_id__scenarios__scenario_id__decisions__line_item_id__get",
-        "parameters": [
-          {
-            "name": "workspace_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Workspace Id"
-            }
-          },
-          {
-            "name": "scenario_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Scenario Id"
-            }
-          },
-          {
-            "name": "line_item_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Line Item Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DecisionResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "scenarios"
-        ],
-        "summary": "Put Decision",
-        "description": "B-4: Create or update a mapping decision (append-only, state validated).",
-        "operationId": "put_decision_v1_workspaces__workspace_id__scenarios__scenario_id__decisions__line_item_id__put",
-        "parameters": [
-          {
-            "name": "workspace_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Workspace Id"
-            }
-          },
-          {
-            "name": "scenario_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Scenario Id"
-            }
-          },
-          {
-            "name": "line_item_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Line Item Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DecisionPutRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DecisionResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/workspaces/{workspace_id}/scenarios/{scenario_id}/decisions/bulk-approve": {
-      "post": {
-        "tags": [
-          "scenarios"
-        ],
-        "summary": "Bulk Approve Decisions",
-        "description": "B-5: Bulk-approve AI_SUGGESTED decisions above confidence threshold.",
-        "operationId": "bulk_approve_decisions_v1_workspaces__workspace_id__scenarios__scenario_id__decisions_bulk_approve_post",
-        "parameters": [
-          {
-            "name": "workspace_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Workspace Id"
-            }
-          },
-          {
-            "name": "scenario_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Scenario Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BulkApproveRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BulkApproveResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/workspaces/{workspace_id}/scenarios/{scenario_id}/decisions/{line_item_id}/audit": {
-      "get": {
-        "tags": [
-          "scenarios"
-        ],
-        "summary": "Get Decision Audit Trail",
-        "description": "B-8: Get full audit trail for a line item's mapping decisions.",
-        "operationId": "get_decision_audit_trail_v1_workspaces__workspace_id__scenarios__scenario_id__decisions__line_item_id__audit_get",
-        "parameters": [
-          {
-            "name": "workspace_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Workspace Id"
-            }
-          },
-          {
-            "name": "scenario_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Scenario Id"
-            }
-          },
-          {
-            "name": "line_item_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Line Item Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuditTrailResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/workspaces/{workspace_id}/taxonomy/sectors": {
       "get": {
         "tags": [
@@ -7367,9 +7368,9 @@
             "type": "string",
             "title": "Line Item Id"
           },
-          "scenario_spec_id": {
+          "compilation_id": {
             "type": "string",
-            "title": "Scenario Spec Id"
+            "title": "Compilation Id"
           },
           "state": {
             "type": "string",
@@ -7447,7 +7448,7 @@
         "required": [
           "mapping_decision_id",
           "line_item_id",
-          "scenario_spec_id",
+          "compilation_id",
           "state",
           "decided_by",
           "decided_at",
