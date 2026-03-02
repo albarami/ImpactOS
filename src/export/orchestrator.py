@@ -96,10 +96,22 @@ class ExportOrchestrator:
                     blocking_reasons=[br.reason for br in gate_result.blocking_reasons],
                 )
 
-        # 2. Synthetic-fallback check (governed only)
+        # 2. Quality/provenance gate (governed: require quality record)
+        if request.mode == ExportMode.GOVERNED and quality_assessment is None:
+            return ExportRecord(
+                export_id=export_id,
+                run_id=request.run_id,
+                mode=request.mode,
+                status=ExportStatus.BLOCKED,
+                blocking_reasons=[
+                    "Governed export blocked: no quality assessment available. "
+                    "Data provenance cannot be verified without quality record."
+                ],
+            )
+
+        # 3. Synthetic-fallback check (both sandbox and governed — D-5.1)
         if (
-            request.mode == ExportMode.GOVERNED
-            and quality_assessment is not None
+            quality_assessment is not None
             and quality_assessment.used_synthetic_fallback
         ):
             return ExportRecord(
@@ -108,7 +120,7 @@ class ExportOrchestrator:
                 mode=request.mode,
                 status=ExportStatus.BLOCKED,
                 blocking_reasons=[
-                    "Governed export blocked: run used synthetic fallback data. "
+                    "Export blocked: run used synthetic fallback data. "
                     "Re-run with curated real data or obtain explicit waiver."
                 ],
             )
