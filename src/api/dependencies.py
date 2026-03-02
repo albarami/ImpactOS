@@ -313,6 +313,15 @@ def get_document_storage() -> "DocumentStorageService":
     return DocumentStorageService(storage_root=settings.OBJECT_STORAGE_PATH)
 
 
+def get_export_artifact_storage() -> "ExportArtifactStorage":
+    """Factory for export artifact storage."""
+    from src.config.settings import get_settings
+    from src.export.artifact_storage import ExportArtifactStorage
+
+    settings = get_settings()
+    return ExportArtifactStorage(storage_root=settings.OBJECT_STORAGE_PATH)
+
+
 # ---------------------------------------------------------------------------
 # Workspaces
 # ---------------------------------------------------------------------------
