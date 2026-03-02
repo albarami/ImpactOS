@@ -89,6 +89,17 @@ class EmploymentCoefficientsRepository:
         )
         return list(result.scalars().all())
 
+    async def get_by_model_version(
+        self, model_version_id: UUID,
+    ) -> list[EmploymentCoefficientsRow]:
+        """Get all employment coefficient sets for a model version (newest first)."""
+        result = await self._session.execute(
+            select(EmploymentCoefficientsRow)
+            .where(EmploymentCoefficientsRow.model_version_id == model_version_id)
+            .order_by(EmploymentCoefficientsRow.created_at.desc())
+        )
+        return list(result.scalars().all())
+
 
 class SectorOccupationBridgeRepository:
     """Repository for versioned sector-occupation bridge (append-only)."""

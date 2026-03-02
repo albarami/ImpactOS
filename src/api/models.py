@@ -2,27 +2,29 @@
 
 Workspace-scoped URLs for consistency. Model versions are global resources.
 
-NOTE: Satellite coefficients are loaded from a reference data file, not stored
-per model version. A future sprint will add a coefficient persistence layer
-(SatelliteCoefficientRow table) so that coefficients are model-version-specific.
-Until then, the same reference coefficients are returned for all model versions
-with a ``source: "reference"`` marker and a sector-count mismatch warning.
+B-15 coefficients are model-linked:
+- sector_codes, VA ratios, import ratios derived from persisted ModelDataRow (Z, x)
+- employment coefficients from EmploymentCoefficientsRow when registered
+- fallback to zero jobs_coeff when no employment coefficients exist for the model
 """
 
 from __future__ import annotations
 
-import json
 import logging
-from pathlib import Path
-from typing import Any
 from uuid import UUID
 
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from src.api.dependencies import get_model_version_repo
+from src.api.dependencies import (
+    get_employment_coefficients_repo,
+    get_model_data_repo,
+    get_model_version_repo,
+)
 from src.db.tables import ModelVersionRow
-from src.repositories.engine import ModelVersionRepository
+from src.repositories.engine import ModelDataRepository, ModelVersionRepository
+from src.repositories.workforce import EmploymentCoefficientsRepository
 
 logger = logging.getLogger(__name__)
 
@@ -77,24 +79,6 @@ def _row_to_response(row: ModelVersionRow) -> ModelVersionResponse:
 
 
 # ---------------------------------------------------------------------------
-# Coefficient data (loaded once from synthetic file)
-# ---------------------------------------------------------------------------
-
-_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "synthetic"
-
-
-def _load_default_coefficients() -> dict[str, Any]:
-    path = _DATA_DIR / "saudi_satellites_synthetic_v1.json"
-    if not path.exists():
-        return {}
-    with open(path) as f:
-        return json.load(f)
-
-
-_DEFAULT_COEFFICIENTS: dict[str, Any] = _load_default_coefficients()
-
-
-# ---------------------------------------------------------------------------
 # B-14: Model Version List/Detail
 # ---------------------------------------------------------------------------
 
@@ -124,8 +108,29 @@ async def get_model_version(
 
 
 # ---------------------------------------------------------------------------
-# B-15: Coefficient Retrieval
+# B-15: Coefficient Retrieval (model-linked)
 # ---------------------------------------------------------------------------
+
+
+def _compute_va_ratios(z_matrix: list[list[float]], x_vector: list[float]) -> np.ndarray:
+    """Compute value-added ratios from IO model: va_i = 1 - sum(A_col_i).
+
+    Same formula as satellite_coeff_loader._load_io_ratios().
+    """
+    z = np.array(z_matrix, dtype=np.float64)
+    x = np.array(x_vector, dtype=np.float64)
+    x_safe = np.where(x > 0, x, 1.0)
+    a_mat = z / x_safe[np.newaxis, :]
+    va = 1.0 - a_mat.sum(axis=0)
+    return np.clip(va, 0.0, 1.0)
+
+
+def _default_import_ratios(n: int) -> np.ndarray:
+    """Default import ratios when curated data unavailable.
+
+    Matches satellite_coeff_loader.py default (0.15 per sector).
+    """
+    return np.full(n, 0.15, dtype=np.float64)
 
 
 @router.get(
@@ -135,40 +140,70 @@ async def get_model_version(
 async def get_coefficients(
     workspace_id: UUID,  # noqa: ARG001
     model_version_id: UUID,
-    repo: ModelVersionRepository = Depends(get_model_version_repo),
+    mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
+    md_repo: ModelDataRepository = Depends(get_model_data_repo),
+    ec_repo: EmploymentCoefficientsRepository = Depends(get_employment_coefficients_repo),
 ) -> CoefficientsResponse:
-    row = await repo.get(model_version_id)
-    if row is None:
+    # 1. Verify model version exists
+    mv_row = await mv_repo.get(model_version_id)
+    if mv_row is None:
         raise HTTPException(status_code=404, detail="Model version not found")
 
-    sector_codes: list[str] = _DEFAULT_COEFFICIENTS.get("sector_codes", [])
-    employment: dict[str, Any] = _DEFAULT_COEFFICIENTS.get("employment", {})
-    jobs: list[float] = employment.get("jobs_per_sar_million", [])
-    imports: list[float] = _DEFAULT_COEFFICIENTS.get("import_ratios", {}).get("values", [])
-    va: list[float] = _DEFAULT_COEFFICIENTS.get("va_ratios", {}).get("values", [])
+    # 2. Load persisted model data (Z, x, sector_codes)
+    model_data = await md_repo.get(model_version_id)
+    if model_data is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Model data not found for this version",
+        )
 
-    # Warn if reference data sector count differs from model's actual sector count
-    if len(sector_codes) != row.sector_count:
-        logger.warning(
-            "Coefficient sector count (%d) != model sector count (%d) for %s. "
-            "Returning reference data — model-specific coefficients not yet supported.",
-            len(sector_codes),
-            row.sector_count,
+    sector_codes: list[str] = model_data.sector_codes
+    n = len(sector_codes)
+
+    # 3. Compute VA ratios from persisted IO model
+    va_ratios = _compute_va_ratios(model_data.z_matrix_json, model_data.x_vector_json)
+    import_ratios = _default_import_ratios(n)
+
+    # 4. Load employment coefficients linked to this model version (if any)
+    ec_rows = await ec_repo.get_by_model_version(model_version_id)
+    jobs_by_sector: dict[str, float] = {}
+    source = "model-data"
+
+    if ec_rows:
+        # Use the latest version's coefficients
+        latest = ec_rows[0]  # already ordered by created_at desc
+        for coeff in latest.coefficients:
+            code = coeff.get("sector_code", "")
+            jobs = coeff.get("jobs_per_million_sar", 0.0)
+            jobs_by_sector[code] = jobs
+        source = "model-data+employment"
+        logger.info(
+            "Loaded %d employment coefficients for model %s (ec_id=%s, v%d)",
+            len(jobs_by_sector),
+            model_version_id,
+            latest.employment_coefficients_id,
+            latest.version,
+        )
+    else:
+        logger.info(
+            "No employment coefficients registered for model %s; "
+            "jobs_coeff will be 0.0 for all sectors.",
             model_version_id,
         )
 
+    # 5. Build aligned response
     coefficients = [
         SectorCoefficient(
             sector_code=code,
-            jobs_coeff=jobs[i] if i < len(jobs) else 0.0,
-            import_ratio=imports[i] if i < len(imports) else 0.0,
-            va_ratio=va[i] if i < len(va) else 0.0,
+            jobs_coeff=jobs_by_sector.get(code, 0.0),
+            import_ratio=float(import_ratios[i]),
+            va_ratio=float(va_ratios[i]),
         )
         for i, code in enumerate(sector_codes)
     ]
 
     return CoefficientsResponse(
         model_version_id=str(model_version_id),
-        source=_DEFAULT_COEFFICIENTS.get("source", "reference"),
+        source=source,
         sector_coefficients=coefficients,
     )
