@@ -2,7 +2,6 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ImpactOS API",
-    "description": "Impact & Scenario Intelligence System for Strategic Gears.",
     "version": "0.1.0"
   },
   "paths": {
@@ -447,6 +446,324 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BulkDecisionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/compiler/{compilation_id}": {
+      "get": {
+        "tags": [
+          "compiler"
+        ],
+        "summary": "Get Compilation Detail",
+        "description": "B-17: Get full compilation detail with merged per-line decision state.\n\nReturns the immutable AI compilation output (suggestions, split proposals,\nassumption drafts) enriched with the latest HITL decision state per line\nitem from the mapping_decisions table, plus overall status fields.",
+        "operationId": "get_compilation_detail_v1_workspaces__workspace_id__compiler__compilation_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "compilation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Compilation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompilationDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}": {
+      "get": {
+        "tags": [
+          "compiler"
+        ],
+        "summary": "Get Decision",
+        "description": "B-4: Get current mapping decision for a line item in a compilation.",
+        "operationId": "get_decision_v1_workspaces__workspace_id__compiler__compilation_id__decisions__line_item_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "compilation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Compilation Id"
+            }
+          },
+          {
+            "name": "line_item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Line Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "compiler"
+        ],
+        "summary": "Put Decision",
+        "description": "B-4: Create or update a mapping decision (append-only, state validated).",
+        "operationId": "put_decision_v1_workspaces__workspace_id__compiler__compilation_id__decisions__line_item_id__put",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "compilation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Compilation Id"
+            }
+          },
+          {
+            "name": "line_item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Line Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionPutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/bulk-approve": {
+      "post": {
+        "tags": [
+          "compiler"
+        ],
+        "summary": "Bulk Approve Decisions",
+        "description": "B-5: Bulk-approve AI_SUGGESTED decisions above confidence threshold.",
+        "operationId": "bulk_approve_decisions_v1_workspaces__workspace_id__compiler__compilation_id__decisions_bulk_approve_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "compilation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Compilation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkApproveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkApproveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/compiler/{compilation_id}/decisions/{line_item_id}/audit": {
+      "get": {
+        "tags": [
+          "compiler"
+        ],
+        "summary": "Get Decision Audit Trail",
+        "description": "B-8: Get full audit trail for a line item's mapping decisions.",
+        "operationId": "get_decision_audit_trail_v1_workspaces__workspace_id__compiler__compilation_id__decisions__line_item_id__audit_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "compilation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Compilation Id"
+            }
+          },
+          {
+            "name": "line_item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Line Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditTrailResponse"
                 }
               }
             }
@@ -5256,6 +5573,74 @@
         ],
         "title": "AssumptionVersionResponse"
       },
+      "AuditEntryResponse": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "from_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From State"
+          },
+          "to_state": {
+            "type": "string",
+            "title": "To State"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "from_state",
+          "to_state",
+          "actor",
+          "rationale",
+          "timestamp"
+        ],
+        "title": "AuditEntryResponse"
+      },
+      "AuditTrailResponse": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEntryResponse"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "title": "AuditTrailResponse"
+      },
       "AuthResponse": {
         "properties": {
           "token": {
@@ -5588,6 +5973,49 @@
         ],
         "title": "Body_upload_document_v1_workspaces__workspace_id__documents_post"
       },
+      "BulkApproveRequest": {
+        "properties": {
+          "confidence_threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence Threshold",
+            "default": 0.85
+          },
+          "decided_by": {
+            "type": "string",
+            "title": "Decided By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decided_by"
+        ],
+        "title": "BulkApproveRequest"
+      },
+      "BulkApproveResponse": {
+        "properties": {
+          "approved_count": {
+            "type": "integer",
+            "title": "Approved Count"
+          },
+          "skipped_count": {
+            "type": "integer",
+            "title": "Skipped Count"
+          },
+          "total_items": {
+            "type": "integer",
+            "title": "Total Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approved_count",
+          "skipped_count",
+          "total_items"
+        ],
+        "title": "BulkApproveResponse"
+      },
       "BulkDecisionRequest": {
         "properties": {
           "decisions": {
@@ -5680,6 +6108,174 @@
           "sector_coefficients"
         ],
         "title": "CoefficientsResponse"
+      },
+      "CompilationDetailResponse": {
+        "properties": {
+          "compilation_id": {
+            "type": "string",
+            "title": "Compilation Id"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/CompilationDetailSuggestion"
+            },
+            "type": "array",
+            "title": "Suggestions"
+          },
+          "split_proposals": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Split Proposals"
+          },
+          "assumption_drafts": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Assumption Drafts"
+          },
+          "high_confidence": {
+            "type": "integer",
+            "title": "High Confidence"
+          },
+          "medium_confidence": {
+            "type": "integer",
+            "title": "Medium Confidence"
+          },
+          "low_confidence": {
+            "type": "integer",
+            "title": "Low Confidence"
+          },
+          "metadata": {
+            "type": "object",
+            "title": "Metadata"
+          },
+          "total_line_items": {
+            "type": "integer",
+            "title": "Total Line Items",
+            "default": 0
+          },
+          "decided_count": {
+            "type": "integer",
+            "title": "Decided Count",
+            "default": 0
+          },
+          "status_summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Status Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "compilation_id",
+          "suggestions",
+          "split_proposals",
+          "assumption_drafts",
+          "high_confidence",
+          "medium_confidence",
+          "low_confidence",
+          "metadata"
+        ],
+        "title": "CompilationDetailResponse"
+      },
+      "CompilationDetailSuggestion": {
+        "properties": {
+          "line_item_id": {
+            "type": "string",
+            "title": "Line Item Id"
+          },
+          "sector_code": {
+            "type": "string",
+            "title": "Sector Code"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "decision_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision State"
+          },
+          "final_sector_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Sector Code"
+          },
+          "decision_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Type"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "line_item_id",
+          "sector_code",
+          "confidence",
+          "explanation"
+        ],
+        "title": "CompilationDetailSuggestion"
       },
       "CompileLineItem": {
         "properties": {
@@ -6739,6 +7335,177 @@
           "decided_by"
         ],
         "title": "DecisionPayload"
+      },
+      "DecisionPutRequest": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "suggested_sector_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Sector Code"
+          },
+          "suggested_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Confidence"
+          },
+          "final_sector_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Sector Code"
+          },
+          "decision_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Type"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
+          "decided_by": {
+            "type": "string",
+            "title": "Decided By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "decided_by"
+        ],
+        "title": "DecisionPutRequest"
+      },
+      "DecisionResponse": {
+        "properties": {
+          "mapping_decision_id": {
+            "type": "string",
+            "title": "Mapping Decision Id"
+          },
+          "line_item_id": {
+            "type": "string",
+            "title": "Line Item Id"
+          },
+          "compilation_id": {
+            "type": "string",
+            "title": "Compilation Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "suggested_sector_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Sector Code"
+          },
+          "suggested_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Confidence"
+          },
+          "final_sector_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Sector Code"
+          },
+          "decision_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Type"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
+          "decided_by": {
+            "type": "string",
+            "title": "Decided By"
+          },
+          "decided_at": {
+            "type": "string",
+            "title": "Decided At"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mapping_decision_id",
+          "line_item_id",
+          "compilation_id",
+          "state",
+          "decided_by",
+          "decided_at",
+          "created_at"
+        ],
+        "title": "DecisionResponse"
       },
       "DepthPlanStatusResponse": {
         "properties": {

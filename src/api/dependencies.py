@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.session import get_async_session
 from src.repositories.compiler import CompilationRepository, OverridePairRepository
+from src.repositories.data_quality import DataQualityRepository
 from src.repositories.depth import DepthArtifactRepository, DepthPlanRepository
 from src.repositories.documents import (
     DocumentRepository,
@@ -33,16 +34,16 @@ from src.repositories.libraries import (
     MappingLibraryRepository,
     ScenarioPatternRepository,
 )
+from src.repositories.mapping_decisions import MappingDecisionRepository
 from src.repositories.metrics import EngagementRepository, MetricEventRepository
 from src.repositories.scenarios import ScenarioVersionRepository
-from src.repositories.data_quality import DataQualityRepository
-from src.repositories.workspace import WorkspaceRepository
 from src.repositories.workforce import (
     EmploymentCoefficientsRepository,
     SaudizationRulesRepository,
     SectorOccupationBridgeRepository,
     WorkforceResultRepository,
 )
+from src.repositories.workspace import WorkspaceRepository
 
 # ---------------------------------------------------------------------------
 # Export
@@ -138,6 +139,17 @@ async def get_override_pair_repo(
     session: AsyncSession = Depends(get_async_session),
 ) -> OverridePairRepository:
     return OverridePairRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Mapping Decisions
+# ---------------------------------------------------------------------------
+
+
+async def get_mapping_decision_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> MappingDecisionRepository:
+    return MappingDecisionRepository(session)
 
 
 # ---------------------------------------------------------------------------
