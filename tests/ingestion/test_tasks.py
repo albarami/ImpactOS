@@ -129,9 +129,12 @@ class TestRunExtraction:
             line_item_repo=mock_line_item_repo,
         )
 
-        # Last call should be update to COMPLETED
         mock_job_repo.update_status.assert_called_with(
-            job_id, "COMPLETED", error_message=None,
+            job_id, "COMPLETED",
+            error_message=None,
+            error_code=None,
+            provider_name="local-spreadsheet",
+            fallback_provider_name=None,
         )
 
     @pytest.mark.anyio
@@ -277,5 +280,9 @@ class TestRunExtractionErrorHandling:
             )
 
         mock_job_repo.update_status.assert_called_with(
-            job_id, "FAILED", error_message="pdfplumber crashed",
+            job_id, "FAILED",
+            error_message="pdfplumber crashed",
+            error_code="RuntimeError",
+            provider_name="local-pdf",
+            fallback_provider_name=None,
         )

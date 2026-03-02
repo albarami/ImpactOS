@@ -99,11 +99,12 @@ class ExtractionJobRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(self, *, job_id: UUID, doc_id: UUID, workspace_id: UUID,
-                     status: str = "QUEUED", extract_tables: bool = True,
-                     extract_line_items: bool = True,
-                     language_hint: str = "en",
-                     error_message: str | None = None) -> ExtractionJobRow:
+    async def create(
+        self, *, job_id: UUID, doc_id: UUID, workspace_id: UUID,
+        status: str = "QUEUED", extract_tables: bool = True,
+        extract_line_items: bool = True, language_hint: str = "en",
+        error_message: str | None = None,
+    ) -> ExtractionJobRow:
         now = utc_now()
         row = ExtractionJobRow(
             job_id=job_id, doc_id=doc_id, workspace_id=workspace_id,
@@ -120,18 +121,55 @@ class ExtractionJobRepository:
     async def get(self, job_id: UUID) -> ExtractionJobRow | None:
         return await self._session.get(ExtractionJobRow, job_id)
 
-    async def update_status(self, job_id: UUID, status: str,
-                            error_message: str | None = None) -> ExtractionJobRow | None:
+    async def get_for_workspace(
+        self, job_id: UUID, workspace_id: UUID,
+    ) -> ExtractionJobRow | None:
+        """Get job only if it belongs to the given workspace."""
+        result = await self._session.execute(
+            select(ExtractionJobRow).where(
+                ExtractionJobRow.job_id == job_id,
+                ExtractionJobRow.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def update_status(
+        self, job_id: UUID, status: str, *,
+        error_message: str | None = None,
+        error_code: str | None = None,
+        provider_name: str | None = None,
+        fallback_provider_name: str | None = None,
+    ) -> ExtractionJobRow | None:
         row = await self.get(job_id)
         if row is not None:
+            now = utc_now()
             row.status = status
             row.error_message = error_message
-            row.updated_at = utc_now()
+            row.updated_at = now
+            if error_code is not None:
+                row.error_code = error_code
+            if provider_name is not None:
+                row.provider_name = provider_name
+            if fallback_provider_name is not None:
+                row.fallback_provider_name = fallback_provider_name
+            if status == "RUNNING":
+                row.started_at = now
+            if status in ("COMPLETED", "FAILED"):
+                row.completed_at = now
             await self._session.flush()
         return row
 
-    async def get_latest_completed(self, doc_id: UUID) -> ExtractionJobRow | None:
-        """Return the most recent COMPLETED extraction job for a document."""
+    async def increment_attempt(self, job_id: UUID) -> None:
+        """Increment attempt_count for retries."""
+        row = await self.get(job_id)
+        if row is not None:
+            row.attempt_count = (row.attempt_count or 1) + 1
+            row.updated_at = utc_now()
+            await self._session.flush()
+
+    async def get_latest_completed(
+        self, doc_id: UUID,
+    ) -> ExtractionJobRow | None:
         result = await self._session.execute(
             select(ExtractionJobRow)
             .where(ExtractionJobRow.doc_id == doc_id)
@@ -141,8 +179,9 @@ class ExtractionJobRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_latest_by_doc(self, doc_id: UUID) -> ExtractionJobRow | None:
-        """Return the most recent extraction job for a document (any status)."""
+    async def get_latest_by_doc(
+        self, doc_id: UUID,
+    ) -> ExtractionJobRow | None:
         result = await self._session.execute(
             select(ExtractionJobRow)
             .where(ExtractionJobRow.doc_id == doc_id)
@@ -165,21 +204,48 @@ class LineItemRepository:
         await self._session.flush()
         return rows
 
+    async def delete_by_job(self, job_id: UUID) -> int:
+        """Delete all line items for a job (idempotent retry support)."""
+        from sqlalchemy import delete
+        result = await self._session.execute(
+            delete(LineItemRow).where(
+                LineItemRow.extraction_job_id == job_id,
+            )
+        )
+        await self._session.flush()
+        return result.rowcount  # type: ignore[return-value]
+
     async def get_by_doc(self, doc_id: UUID) -> list[LineItemRow]:
         result = await self._session.execute(
             select(LineItemRow).where(LineItemRow.doc_id == doc_id)
         )
         return list(result.scalars().all())
 
-    async def get_by_extraction_job(self, job_id: UUID) -> list[LineItemRow]:
-        """Return line items produced by a specific extraction job."""
+    async def get_by_doc_for_workspace(
+        self, doc_id: UUID, workspace_id: UUID,
+    ) -> list[LineItemRow]:
+        """Get line items only if the doc belongs to the workspace."""
         result = await self._session.execute(
-            select(LineItemRow).where(LineItemRow.extraction_job_id == job_id)
+            select(LineItemRow)
+            .join(DocumentRow, LineItemRow.doc_id == DocumentRow.doc_id)
+            .where(
+                LineItemRow.doc_id == doc_id,
+                DocumentRow.workspace_id == workspace_id,
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_by_extraction_job(
+        self, job_id: UUID,
+    ) -> list[LineItemRow]:
+        result = await self._session.execute(
+            select(LineItemRow).where(
+                LineItemRow.extraction_job_id == job_id,
+            )
         )
         return list(result.scalars().all())
 
     async def count_by_doc(self, doc_id: UUID) -> int:
-        """Count line items for a document."""
         result = await self._session.execute(
             select(func.count()).where(LineItemRow.doc_id == doc_id)
         )

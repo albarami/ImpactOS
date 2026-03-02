@@ -85,6 +85,9 @@ async def run_extraction(
     )
 
     error_message: str | None = None
+    error_code: str | None = None
+    provider_name: str | None = None
+    fallback_provider_name: str | None = None
     status = "RUNNING"
 
     # Update job to RUNNING
@@ -92,14 +95,13 @@ async def run_extraction(
         await job_repo.update_status(job_id, "RUNNING")
 
     try:
-        # Select provider based on classification + MIME type
         provider = router.select_provider(classification, mime_type)
+        provider_name = provider.name
         logger.info(
             "Extraction job %s: using provider %s for %s [%s]",
-            job_id, provider.name, mime_type, classification,
+            job_id, provider_name, mime_type, classification,
         )
 
-        # Extract document → DocumentGraph
         options = ExtractionOptions(
             extract_tables=extract_tables,
             extract_line_items=extract_line_items,
@@ -112,28 +114,32 @@ async def run_extraction(
                 document_bytes, mime_type, doc_id, options,
             )
         except Exception as exc:
-            # If Azure DI fails, fall back to local PDF
             if provider.name == "azure-di":
                 logger.warning(
-                    "Azure DI failed for job %s, falling back to local-pdf: %s",
-                    job_id, exc,
+                    "Azure DI failed for job %s, falling back to "
+                    "local-pdf: %s", job_id, exc,
                 )
-                from src.ingestion.providers.local_pdf import LocalPdfProvider
+                from src.ingestion.providers.local_pdf import (
+                    LocalPdfProvider,
+                )
                 fallback = LocalPdfProvider()
+                fallback_provider_name = fallback.name
                 graph = await fallback.extract(
                     document_bytes, mime_type, doc_id, options,
                 )
             else:
                 raise
 
-        # Generate evidence snippets
         snippets = _extraction_service.generate_evidence_snippets(
             document_graph=graph,
             source_id=doc_id,
             doc_checksum=doc_checksum,
         )
 
-        # Persist evidence snippets
+        # Idempotent persistence: clear previous artifacts before insert
+        if line_item_repo is not None:
+            await line_item_repo.delete_by_job(job_id)
+
         if evidence_snippet_repo is not None and snippets:
             snippet_dicts = []
             for s in snippets:
@@ -146,12 +152,14 @@ async def run_extraction(
                     "bbox_x1": s.bbox.x1,
                     "bbox_y1": s.bbox.y1,
                     "extracted_text": s.extracted_text,
-                    "table_cell_ref": s.table_cell_ref.model_dump() if s.table_cell_ref else None,
+                    "table_cell_ref": (
+                        s.table_cell_ref.model_dump()
+                        if s.table_cell_ref else None
+                    ),
                     "checksum": s.checksum,
                 })
             await evidence_snippet_repo.create_many(snippet_dicts)
 
-        # Structure BoQ line items
         if extract_line_items and line_item_repo is not None:
             items = _boq_pipeline.structure(
                 document_graph=graph,
@@ -161,7 +169,9 @@ async def run_extraction(
             line_item_dicts = []
             for item in items:
                 d = item.model_dump()
-                d["evidence_snippet_ids"] = [str(uid) for uid in d["evidence_snippet_ids"]]
+                d["evidence_snippet_ids"] = [
+                    str(uid) for uid in d["evidence_snippet_ids"]
+                ]
                 line_item_dicts.append(d)
             await line_item_repo.create_many(line_item_dicts)
 
@@ -171,10 +181,16 @@ async def run_extraction(
         logger.exception("Extraction job %s failed: %s", job_id, exc)
         status = "FAILED"
         error_message = str(exc)
+        error_code = type(exc).__name__
 
-    # Update job status
     if job_repo is not None:
-        await job_repo.update_status(job_id, status, error_message=error_message)
+        await job_repo.update_status(
+            job_id, status,
+            error_message=error_message,
+            error_code=error_code,
+            provider_name=provider_name,
+            fallback_provider_name=fallback_provider_name,
+        )
 
     return status
 

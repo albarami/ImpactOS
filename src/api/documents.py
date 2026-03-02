@@ -284,7 +284,7 @@ async def extract_document(
     Sync mode (dev/test): runs extraction inline, returns final status.
     Async mode (CELERY_BROKER_URL set): dispatches to Celery, returns QUEUED.
     """
-    doc_row = await doc_repo.get(doc_id)
+    doc_row = await doc_repo.get_by_workspace(workspace_id, doc_id)
     if doc_row is None:
         raise HTTPException(status_code=404, detail=f"Document {doc_id} not found.")
 
@@ -373,8 +373,8 @@ async def get_job_status(
     job_id: UUID,
     job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
 ) -> JobStatusResponse:
-    """Poll job status (Section 6.2.5)."""
-    row = await job_repo.get(job_id)
+    """Poll job status (Section 6.2.5). Workspace-scoped."""
+    row = await job_repo.get_for_workspace(job_id, workspace_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found.")
 
@@ -393,9 +393,13 @@ async def get_job_status(
 async def get_line_items(
     workspace_id: UUID,
     doc_id: UUID,
+    doc_repo: DocumentRepository = Depends(get_document_repo),
     line_item_repo: LineItemRepository = Depends(get_line_item_repo),
 ) -> LineItemsResponse:
-    """Get extracted line items for a document."""
+    """Get extracted line items for a document. Workspace-scoped (404 for wrong ws)."""
+    doc_row = await doc_repo.get_by_workspace(workspace_id, doc_id)
+    if doc_row is None:
+        raise HTTPException(status_code=404, detail="Document not found")
     rows = await line_item_repo.get_by_doc(doc_id)
     items = [
         BoQLineItem(
