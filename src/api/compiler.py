@@ -545,6 +545,13 @@ class CompilationDetailSuggestion(BaseModel):
     sector_code: str
     confidence: float
     explanation: str
+    # Merged decision state (None when no decision exists for this line item)
+    decision_state: str | None = None
+    final_sector_code: str | None = None
+    decision_type: str | None = None
+    decision_note: str | None = None
+    decided_by: str | None = None
+    decided_at: str | None = None
 
 
 class CompilationDetailResponse(BaseModel):
@@ -556,6 +563,10 @@ class CompilationDetailResponse(BaseModel):
     medium_confidence: int
     low_confidence: int
     metadata: dict
+    # Overall decision status derived from merged per-line state
+    total_line_items: int = 0
+    decided_count: int = 0
+    status_summary: dict[str, int] = Field(default_factory=dict)
 
 
 @router.get(
@@ -566,21 +577,50 @@ async def get_compilation_detail(
     workspace_id: UUID,
     compilation_id: UUID,
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
+    decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
 ) -> CompilationDetailResponse:
-    """B-17: Get full compilation detail including suggestions, proposals, and metadata."""
+    """B-17: Get full compilation detail with merged per-line decision state.
+
+    Returns the immutable AI compilation output (suggestions, split proposals,
+    assumption drafts) enriched with the latest HITL decision state per line
+    item from the mapping_decisions table, plus overall status fields.
+    """
     row = await _get_compilation_or_404(comp_repo, compilation_id, workspace_id)
 
     rj = row.result_json or {}
 
-    suggestions = [
-        CompilationDetailSuggestion(
-            line_item_id=s.get("line_item_id", ""),
+    # Load latest decision per line_item for this compilation
+    decision_rows = await decision_repo.list_latest_by_compilation(compilation_id)
+    decision_map: dict[str, MappingDecisionRow] = {
+        str(d.line_item_id): d for d in decision_rows
+    }
+
+    # Build suggestions with merged decision state
+    suggestions: list[CompilationDetailSuggestion] = []
+    decided_count = 0
+    status_summary: dict[str, int] = {}
+
+    for s in rj.get("mapping_suggestions", []):
+        li_id = s.get("line_item_id", "")
+        dec = decision_map.get(li_id)
+
+        suggestions.append(CompilationDetailSuggestion(
+            line_item_id=li_id,
             sector_code=s.get("sector_code", ""),
             confidence=s.get("confidence", 0.0),
             explanation=s.get("explanation", ""),
-        )
-        for s in rj.get("mapping_suggestions", [])
-    ]
+            decision_state=dec.state if dec else None,
+            final_sector_code=dec.final_sector_code if dec else None,
+            decision_type=dec.decision_type if dec else None,
+            decision_note=dec.decision_note if dec else None,
+            decided_by=str(dec.decided_by) if dec else None,
+            decided_at=dec.decided_at.isoformat() if dec else None,
+        ))
+
+        # Count only matched decisions (ignore orphans)
+        if dec is not None:
+            decided_count += 1
+            status_summary[dec.state] = status_summary.get(dec.state, 0) + 1
 
     return CompilationDetailResponse(
         compilation_id=str(compilation_id),
@@ -591,6 +631,9 @@ async def get_compilation_detail(
         medium_confidence=rj.get("medium_confidence_count", 0),
         low_confidence=rj.get("low_confidence_count", 0),
         metadata=row.metadata_json or {},
+        total_line_items=len(suggestions),
+        decided_count=decided_count,
+        status_summary=status_summary,
     )
 
 

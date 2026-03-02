@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from src.db.tables import MappingDecisionRow
 from src.models.common import utc_now
@@ -84,6 +85,43 @@ class MappingDecisionRepository:
             .where(MappingDecisionRow.scenario_spec_id == scenario_spec_id)
             .order_by(MappingDecisionRow.created_at.asc())
         )
+        return list(result.scalars().all())
+
+    async def list_latest_by_compilation(
+        self, compilation_id: UUID,
+    ) -> list[MappingDecisionRow]:
+        """Get latest decision per line_item for a compilation (any state).
+
+        Uses ``row_number()`` window function with deterministic tie-break
+        (``created_at DESC, mapping_decision_id DESC``) to guarantee exactly
+        one row per ``line_item_id``.  The base query is pre-filtered by
+        ``scenario_spec_id == compilation_id`` before the window is applied.
+        """
+        from sqlalchemy import func
+
+        # Windowed subquery: assign row numbers per line_item_id
+        rn = (
+            func.row_number()
+            .over(
+                partition_by=MappingDecisionRow.line_item_id,
+                order_by=[
+                    MappingDecisionRow.created_at.desc(),
+                    MappingDecisionRow.mapping_decision_id.desc(),
+                ],
+            )
+            .label("rn")
+        )
+
+        sub = (
+            select(MappingDecisionRow, rn)
+            .where(MappingDecisionRow.scenario_spec_id == compilation_id)
+            .subquery()
+        )
+
+        mapped = aliased(MappingDecisionRow, sub, flat=True)
+        query = select(mapped).where(sub.c.rn == 1)
+
+        result = await self._session.execute(query)
         return list(result.scalars().all())
 
     async def list_latest_by_scenario_and_state(

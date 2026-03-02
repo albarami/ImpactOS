@@ -469,7 +469,7 @@
           "compiler"
         ],
         "summary": "Get Compilation Detail",
-        "description": "B-17: Get full compilation detail including suggestions, proposals, and metadata.",
+        "description": "B-17: Get full compilation detail with merged per-line decision state.\n\nReturns the immutable AI compilation output (suggestions, split proposals,\nassumption drafts) enriched with the latest HITL decision state per line\nitem from the mapping_decisions table, plus overall status fields.",
         "operationId": "get_compilation_detail_v1_workspaces__workspace_id__compiler__compilation_id__get",
         "parameters": [
           {
@@ -6151,6 +6151,23 @@
           "metadata": {
             "type": "object",
             "title": "Metadata"
+          },
+          "total_line_items": {
+            "type": "integer",
+            "title": "Total Line Items",
+            "default": 0
+          },
+          "decided_count": {
+            "type": "integer",
+            "title": "Decided Count",
+            "default": 0
+          },
+          "status_summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Status Summary"
           }
         },
         "type": "object",
@@ -6183,6 +6200,72 @@
           "explanation": {
             "type": "string",
             "title": "Explanation"
+          },
+          "decision_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision State"
+          },
+          "final_sector_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Sector Code"
+          },
+          "decision_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Type"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
           }
         },
         "type": "object",
