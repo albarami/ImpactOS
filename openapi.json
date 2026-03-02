@@ -1,3 +1,15 @@
+C:\Users\baram\AppData\Roaming\Python\Python312\site-packages\pydantic\_internal\_fields.py:161: UserWarning: Field "model_version_id" has conflict with protected namespace "model_".
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
+C:\Users\baram\AppData\Roaming\Python\Python312\site-packages\pydantic\_internal\_fields.py:161: UserWarning: Field "model_versions_loaded" has conflict with protected namespace "model_".
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
+C:\Users\baram\AppData\Roaming\Python\Python312\site-packages\pydantic\_internal\_fields.py:161: UserWarning: Field "model_version_id" has conflict with protected namespace "model_".
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
 {
   "openapi": "3.1.0",
   "info": {
@@ -6,6 +18,96 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "description": "Authenticate a dev user and return a JWT token.",
+        "operationId": "login_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Me",
+        "description": "Return the current user profile from the JWT token.",
+        "operationId": "me_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "description": "Revoke the current token by adding it to the denylist.",
+        "operationId": "logout_v1_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Logout V1 Auth Logout Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/engine/models": {
       "post": {
         "tags": [
@@ -31,6 +133,160 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RegisterModelResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces": {
+      "get": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "List Workspaces",
+        "operationId": "list_workspaces_v1_workspaces_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Create Workspace",
+        "operationId": "create_workspace_v1_workspaces_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkspaceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}": {
+      "get": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Get Workspace",
+        "operationId": "get_workspace_v1_workspaces__workspace_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Update Workspace",
+        "operationId": "update_workspace_v1_workspaces__workspace_id__put",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWorkspaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceResponse"
                 }
               }
             }
@@ -2949,6 +3205,155 @@
         }
       }
     },
+    "/v1/workspaces/{workspace_id}/models/versions": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "List Model Versions",
+        "operationId": "list_model_versions_v1_workspaces__workspace_id__models_versions_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/models/versions/{model_version_id}": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Get Model Version",
+        "operationId": "get_model_version_v1_workspaces__workspace_id__models_versions__model_version_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "model_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Model Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/models/versions/{model_version_id}/coefficients": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Get Coefficients",
+        "operationId": "get_coefficients_v1_workspaces__workspace_id__models_versions__model_version_id__coefficients_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "model_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Model Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoefficientsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace_id}/engine/runs": {
       "post": {
         "tags": [
@@ -3449,6 +3854,177 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LockResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/taxonomy/sectors": {
+      "get": {
+        "tags": [
+          "taxonomy"
+        ],
+        "summary": "List Sectors",
+        "description": "List all taxonomy sectors, optionally filtered by level.",
+        "operationId": "list_sectors_v1_workspaces__workspace_id__taxonomy_sectors_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by level: section or division",
+              "title": "Level"
+            },
+            "description": "Filter by level: section or division"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectorListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/taxonomy/sectors/search": {
+      "get": {
+        "tags": [
+          "taxonomy"
+        ],
+        "summary": "Search Sectors",
+        "description": "Search sectors by code or English name (case-insensitive).",
+        "operationId": "search_sectors_v1_workspaces__workspace_id__taxonomy_sectors_search_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Search query",
+              "title": "Q"
+            },
+            "description": "Search query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectorListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/taxonomy/sectors/{sector_code}": {
+      "get": {
+        "tags": [
+          "taxonomy"
+        ],
+        "summary": "Get Sector",
+        "description": "Get a single sector by its code.",
+        "operationId": "get_sector_v1_workspaces__workspace_id__taxonomy_sectors__sector_code__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "sector_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sector Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectorItem"
                 }
               }
             }
@@ -4448,6 +5024,43 @@
         ],
         "title": "AssumptionVersionResponse"
       },
+      "AuthResponse": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "workspace_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Workspace Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "user_id",
+          "username",
+          "role",
+          "workspace_ids"
+        ],
+        "title": "AuthResponse",
+        "description": "Successful login response with JWT token."
+      },
       "BatchResponse": {
         "properties": {
           "batch_id": {
@@ -4809,6 +5422,32 @@
           "status"
         ],
         "title": "ClaimResponse"
+      },
+      "CoefficientsResponse": {
+        "properties": {
+          "model_version_id": {
+            "type": "string",
+            "title": "Model Version Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "sector_coefficients": {
+            "items": {
+              "$ref": "#/components/schemas/SectorCoefficient"
+            },
+            "type": "array",
+            "title": "Sector Coefficients"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version_id",
+          "source",
+          "sector_coefficients"
+        ],
+        "title": "CoefficientsResponse"
       },
       "CompileLineItem": {
         "properties": {
@@ -5606,6 +6245,48 @@
         ],
         "title": "CreateScenarioResponse"
       },
+      "CreateWorkspaceRequest": {
+        "properties": {
+          "client_name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Client Name"
+          },
+          "engagement_code": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Engagement Code"
+          },
+          "classification": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DataClassification"
+              }
+            ],
+            "default": "CONFIDENTIAL"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Description",
+            "default": ""
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Created By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_name",
+          "engagement_code",
+          "created_by"
+        ],
+        "title": "CreateWorkspaceRequest"
+      },
       "DashboardRequest": {
         "properties": {
           "engagements": {
@@ -5687,6 +6368,17 @@
           "library_patterns"
         ],
         "title": "DashboardResponse"
+      },
+      "DataClassification": {
+        "type": "string",
+        "enum": [
+          "PUBLIC",
+          "INTERNAL",
+          "CONFIDENTIAL",
+          "RESTRICTED"
+        ],
+        "title": "DataClassification",
+        "description": "Workspace data classification per Section 4.3."
       },
       "DataInputSpec": {
         "properties": {
@@ -6466,6 +7158,25 @@
         ],
         "title": "LockResponse"
       },
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "description": "Credentials for dev login."
+      },
       "MappingDecisionBulkItem": {
         "properties": {
           "line_item_id": {
@@ -6680,6 +7391,38 @@
         ],
         "title": "MappingVersionResponse"
       },
+      "MeResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "workspace_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Workspace Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "username",
+          "role",
+          "workspace_ids"
+        ],
+        "title": "MeResponse",
+        "description": "Current user profile response."
+      },
       "MetricEventOut": {
         "properties": {
           "event_id": {
@@ -6720,6 +7463,70 @@
         ],
         "title": "MetricType",
         "description": "Time-motion metric types per Section 21."
+      },
+      "ModelVersionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ModelVersionResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ModelVersionListResponse"
+      },
+      "ModelVersionResponse": {
+        "properties": {
+          "model_version_id": {
+            "type": "string",
+            "title": "Model Version Id"
+          },
+          "base_year": {
+            "type": "integer",
+            "title": "Base Year"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "sector_count": {
+            "type": "integer",
+            "title": "Sector Count"
+          },
+          "checksum": {
+            "type": "string",
+            "title": "Checksum"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "AVAILABLE"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version_id",
+          "base_year",
+          "source",
+          "sector_count",
+          "checksum",
+          "created_at"
+        ],
+        "title": "ModelVersionResponse"
       },
       "NFFCheckRequest": {
         "properties": {
@@ -7493,6 +8300,105 @@
         ],
         "title": "ScenarioPayload"
       },
+      "SectorCoefficient": {
+        "properties": {
+          "sector_code": {
+            "type": "string",
+            "title": "Sector Code"
+          },
+          "jobs_coeff": {
+            "type": "number",
+            "title": "Jobs Coeff"
+          },
+          "import_ratio": {
+            "type": "number",
+            "title": "Import Ratio"
+          },
+          "va_ratio": {
+            "type": "number",
+            "title": "Va Ratio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sector_code",
+          "jobs_coeff",
+          "import_ratio",
+          "va_ratio"
+        ],
+        "title": "SectorCoefficient"
+      },
+      "SectorItem": {
+        "properties": {
+          "sector_code": {
+            "type": "string",
+            "title": "Sector Code"
+          },
+          "name_en": {
+            "type": "string",
+            "title": "Name En"
+          },
+          "name_ar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Ar"
+          },
+          "parent_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Code"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "sector_code",
+          "name_en",
+          "level"
+        ],
+        "title": "SectorItem"
+      },
+      "SectorListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SectorItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "SectorListResponse"
+      },
       "SnapshotResponse": {
         "properties": {
           "run_id": {
@@ -7667,6 +8573,60 @@
           "status"
         ],
         "title": "TriggerDepthPlanResponse"
+      },
+      "UpdateWorkspaceRequest": {
+        "properties": {
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Name"
+          },
+          "engagement_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engagement Code"
+          },
+          "classification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataClassification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "title": "UpdateWorkspaceRequest"
       },
       "UploadResponse": {
         "properties": {
@@ -7975,6 +8935,75 @@
           "coefficient_unit"
         ],
         "title": "WorkforceResultResponse"
+      },
+      "WorkspaceListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "WorkspaceListResponse"
+      },
+      "WorkspaceResponse": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "client_name": {
+            "type": "string",
+            "title": "Client Name"
+          },
+          "engagement_code": {
+            "type": "string",
+            "title": "Engagement Code"
+          },
+          "classification": {
+            "type": "string",
+            "title": "Classification"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "client_name",
+          "engagement_code",
+          "classification",
+          "description",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WorkspaceResponse"
       },
       "src__api__compiler__CompileRequest": {
         "properties": {
