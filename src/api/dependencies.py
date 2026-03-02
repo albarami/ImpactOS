@@ -28,7 +28,11 @@ from src.repositories.feasibility import (
     ConstraintSetRepository,
     FeasibilityResultRepository,
 )
-from src.repositories.governance import AssumptionRepository, ClaimRepository, EvidenceSnippetRepository
+from src.repositories.governance import (
+    AssumptionRepository,
+    ClaimRepository,
+    EvidenceSnippetRepository,
+)
 from src.repositories.libraries import (
     AssumptionLibraryRepository,
     MappingLibraryRepository,

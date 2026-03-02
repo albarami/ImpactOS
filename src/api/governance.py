@@ -16,7 +16,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from src.api.dependencies import get_assumption_repo, get_claim_repo, get_evidence_snippet_repo
+from src.api.dependencies import (
+    get_assumption_repo,
+    get_claim_repo,
+    get_evidence_snippet_repo,
+)
 from src.governance.claim_extractor import ClaimExtractor
 from src.governance.publication_gate import PublicationGate
 from src.models.common import (
@@ -26,7 +30,11 @@ from src.models.common import (
     DisclosureTier,
 )
 from src.models.governance import VALID_CLAIM_TRANSITIONS, Assumption, Claim
-from src.repositories.governance import AssumptionRepository, ClaimRepository, EvidenceSnippetRepository
+from src.repositories.governance import (
+    AssumptionRepository,
+    ClaimRepository,
+    EvidenceSnippetRepository,
+)
 
 router = APIRouter(prefix="/v1/workspaces", tags=["governance"])
 
@@ -209,7 +217,7 @@ class LinkEvidenceResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _row_to_claim(row) -> Claim:
+def _row_to_claim(row: object) -> Claim:
     """Convert ClaimRow to Claim Pydantic model for gate checks."""
     return Claim(
         claim_id=row.claim_id,
@@ -531,11 +539,11 @@ async def update_claim_status(
     current_status = ClaimStatus(row.status)
     try:
         target_status = ClaimStatus(body.status)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=422,
             detail=f"Invalid status value: {body.status}",
-        )
+        ) from exc
 
     allowed = VALID_CLAIM_TRANSITIONS.get(current_status, frozenset())
     if target_status not in allowed:
