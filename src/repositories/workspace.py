@@ -33,3 +33,16 @@ class WorkspaceRepository:
     async def list_all(self) -> list[WorkspaceRow]:
         result = await self._session.execute(select(WorkspaceRow))
         return list(result.scalars().all())
+
+    async def update(
+        self, workspace_id: UUID, **fields: object,
+    ) -> WorkspaceRow | None:
+        row = await self.get(workspace_id)
+        if row is None:
+            return None
+        for key, value in fields.items():
+            if hasattr(row, key):
+                setattr(row, key, value)
+        row.updated_at = utc_now()
+        await self._session.flush()
+        return row

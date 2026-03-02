@@ -45,6 +45,9 @@ dependencies = [
     "openai>=1.10.0",
     "httpx>=0.26.0",
 
+    # Auth (JWT)
+    "PyJWT>=2.8.0",
+
     # Utilities
     "python-dotenv>=1.0.0",
     "structlog>=24.1.0",
