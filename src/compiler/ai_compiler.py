@@ -1,4 +1,4 @@
-"""AI-enhanced compiler orchestrator — MVP-8.
+"""AI-enhanced compiler orchestrator — MVP-8 + Sprint 9 fallback safety.
 
 Chains: extract line items → AI mapping suggestions → confidence
 classification → AI split suggestions → assumption drafting for
@@ -6,13 +6,20 @@ residuals → produce compilation result ready for ScenarioSpec.
 
 Falls back gracefully if LLM is unavailable (manual-only mode).
 Library-based matching always works regardless of LLM availability.
+When an optional LLMClient is provided and the AI path fails
+(ProviderUnavailableError, timeout, validation error), the compiler
+falls back to the deterministic library/rule path automatically.
 
 CRITICAL: Agent-to-Math Boundary enforced. All agent outputs are
 Pydantic-validated JSON. The deterministic engine remains untouched.
 """
 
+from __future__ import annotations
+
+import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from src.agents.assumption_agent import AssumptionDraft, AssumptionDraftAgent, ResidualContext
@@ -20,6 +27,12 @@ from src.agents.mapping_agent import MappingSuggestion, MappingSuggestionAgent
 from src.agents.split_agent import SplitAgent, SplitProposal
 from src.models.document import BoQLineItem
 from src.models.scenario import TimeHorizon
+
+if TYPE_CHECKING:
+    from src.agents.llm_client import LLMClient
+    from src.models.common import DataClassification
+
+_logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +95,14 @@ _MEDIUM_THRESHOLD = 0.60
 
 
 class AICompiler:
-    """Enhanced compilation pipeline with AI-assisted agents."""
+    """Enhanced compilation pipeline with AI-assisted agents.
+
+    When ``llm_client`` is provided the compiler may attempt an LLM-enhanced
+    path for mapping suggestions.  If the LLM call raises (provider
+    unavailable, timeout, validation error) the compiler silently falls back
+    to the deterministic library/rule path.  The caller never sees partial or
+    invalid output.
+    """
 
     def __init__(
         self,
@@ -90,10 +110,14 @@ class AICompiler:
         mapping_agent: MappingSuggestionAgent,
         split_agent: SplitAgent,
         assumption_agent: AssumptionDraftAgent,
+        llm_client: LLMClient | None = None,
+        classification: DataClassification | None = None,
     ) -> None:
         self._mapping_agent = mapping_agent
         self._split_agent = split_agent
         self._assumption_agent = assumption_agent
+        self._llm_client = llm_client
+        self._classification = classification
 
     def compile(self, inp: AICompilationInput) -> AICompilationResult:
         """Run the full AI-assisted compilation pipeline.
