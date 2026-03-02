@@ -4,9 +4,15 @@ Section 15.5.2 gate checks: compiler, feasibility, workforce, governance, qualit
 Each test verifies a Phase 2 module's integration contract.
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
+
+from src.db.tables import ModelVersionRow
 
 # ---------------------------------------------------------------------------
 # Shared payloads
@@ -69,10 +75,17 @@ class TestPhase2Gate:
     async def test_feasibility_consistent_with_without(
         self,
         client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """Feasible delta_x ≤ unconstrained delta_x per sector."""
         reg_resp = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         mid = reg_resp.json()["model_version_id"]
+        await db_session.execute(
+            update(ModelVersionRow)
+            .where(ModelVersionRow.model_version_id == UUID(mid))
+            .values(provenance_class="curated_real")
+        )
+        await db_session.flush()
         ws_id = str(uuid7())
 
         # Unconstrained run
@@ -133,10 +146,17 @@ class TestPhase2Gate:
     async def test_workforce_produces_saudization_metrics(
         self,
         client: AsyncClient,
+        db_session: AsyncSession,
     ) -> None:
         """Workforce result has saudization_gaps dict."""
         reg_resp = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         mid = reg_resp.json()["model_version_id"]
+        await db_session.execute(
+            update(ModelVersionRow)
+            .where(ModelVersionRow.model_version_id == UUID(mid))
+            .values(provenance_class="curated_real")
+        )
+        await db_session.flush()
         ws_id = str(uuid7())
 
         run_resp = await client.post(

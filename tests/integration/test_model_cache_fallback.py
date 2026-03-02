@@ -7,11 +7,16 @@ Proves that the DB-fallback mechanism in _ensure_model_loaded() works:
 - Nonexistent model still 404s
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
 
 from src.api.runs import _model_store
+from src.db.tables import ModelVersionRow
 
 # ---------------------------------------------------------------------------
 # Standard 2-sector IO model payloads
@@ -37,16 +42,27 @@ def _clear_model_cache() -> None:
     _model_store._models.clear()
 
 
+async def _promote_model(db_session: AsyncSession, model_version_id: str) -> None:
+    """Promote API-registered model to curated_real so run endpoints accept it."""
+    await db_session.execute(
+        update(ModelVersionRow)
+        .where(ModelVersionRow.model_version_id == UUID(model_version_id))
+        .values(provenance_class="curated_real")
+    )
+    await db_session.flush()
+
+
 class TestModelCacheFallback:
     """Verify DB-fallback on ModelStore cache miss (S0-1)."""
 
     @pytest.mark.anyio
-    async def test_run_after_cache_clear(self, client: AsyncClient) -> None:
+    async def test_run_after_cache_clear(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """Register model → clear cache → POST run → succeeds from DB."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         # Clear cache — simulates server restart
         _clear_model_cache()
@@ -67,12 +83,13 @@ class TestModelCacheFallback:
         assert len(data["result_sets"]) >= 1
 
     @pytest.mark.anyio
-    async def test_batch_after_cache_clear(self, client: AsyncClient) -> None:
+    async def test_batch_after_cache_clear(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """Register model → clear cache → POST batch → succeeds from DB."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         _clear_model_cache()
 
@@ -101,13 +118,13 @@ class TestModelCacheFallback:
         assert len(data["results"]) == 2
 
     @pytest.mark.anyio
-    async def test_cache_populated_after_fallback(self, client: AsyncClient) -> None:
+    async def test_cache_populated_after_fallback(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """After DB-fallback, model is in cache for next access."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
-        from uuid import UUID
+        await _promote_model(db_session, mid)
 
         mid_uuid = UUID(mid)
 
@@ -130,7 +147,7 @@ class TestModelCacheFallback:
         assert mid_uuid in _model_store._models
 
     @pytest.mark.anyio
-    async def test_multiple_models_fallback(self, client: AsyncClient) -> None:
+    async def test_multiple_models_fallback(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """Register 2 models → clear → run on each → both succeed."""
         ws_id = str(uuid7())
 
@@ -138,12 +155,14 @@ class TestModelCacheFallback:
         reg1 = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg1.status_code == 201
         mid1 = reg1.json()["model_version_id"]
+        await _promote_model(db_session, mid1)
 
         # Register model 2 (different source)
         payload2 = {**_MODEL_PAYLOAD, "source": "cache-fallback-model-2"}
         reg2 = await client.post("/v1/engine/models", json=payload2)
         assert reg2.status_code == 201
         mid2 = reg2.json()["model_version_id"]
+        await _promote_model(db_session, mid2)
 
         _clear_model_cache()
 
@@ -191,12 +210,13 @@ class TestModelCacheFallback:
         assert resp.status_code == 404
 
     @pytest.mark.anyio
-    async def test_fallback_result_matches_cached(self, client: AsyncClient) -> None:
+    async def test_fallback_result_matches_cached(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """Results from DB-fallback match results from cached model."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         run_payload = {
             "model_version_id": mid,
@@ -239,12 +259,13 @@ class TestModelCacheFallback:
                 )
 
     @pytest.mark.anyio
-    async def test_sequential_runs_after_clear(self, client: AsyncClient) -> None:
+    async def test_sequential_runs_after_clear(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """Register → clear → 3 sequential runs → all succeed."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         _clear_model_cache()
 
@@ -262,14 +283,13 @@ class TestModelCacheFallback:
 
     @pytest.mark.anyio
     async def test_checksum_preserved_after_rehydrate(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Checksum after DB-rehydrate matches original registration checksum."""
-        from uuid import UUID
-
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
         original_checksum = reg.json()["checksum"]
         mid_uuid = UUID(mid)
 

@@ -6,9 +6,15 @@ Provides:
 - seeded_batch: Batch run with 2 scenarios
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
+
+from src.db.tables import ModelVersionRow
 
 
 def pytest_addoption(parser):
@@ -48,7 +54,10 @@ _SATELLITE_COEFFICIENTS = {
 
 
 @pytest.fixture
-async def registered_model(client: AsyncClient) -> dict:
+async def registered_model(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> dict:
     """Register a 2-sector IO model via POST /v1/engine/models.
 
     Returns dict with: model_version_id, ws_id, sector_codes.
@@ -56,8 +65,17 @@ async def registered_model(client: AsyncClient) -> dict:
     resp = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
     assert resp.status_code == 201, f"Model registration failed: {resp.text}"
     data = resp.json()
+    model_version_id = data["model_version_id"]
+
+    await db_session.execute(
+        update(ModelVersionRow)
+        .where(ModelVersionRow.model_version_id == UUID(model_version_id))
+        .values(provenance_class="curated_real")
+    )
+    await db_session.flush()
+
     return {
-        "model_version_id": data["model_version_id"],
+        "model_version_id": model_version_id,
         "ws_id": WS_ID,
         "sector_codes": ["S1", "S2"],
     }

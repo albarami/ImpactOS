@@ -7,11 +7,16 @@ Covers: models, runs, batches, governance, documents, scenarios, feasibility,
 workforce, exports, workspace scoping.
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
 
 from src.api.runs import _model_store
+from src.db.tables import ModelVersionRow
 
 # ---------------------------------------------------------------------------
 # Standard payloads
@@ -37,6 +42,16 @@ def _clear_model_cache() -> None:
     _model_store._models.clear()
 
 
+async def _promote_model(db_session: AsyncSession, model_version_id: str) -> None:
+    """Promote API-registered model to curated_real so run endpoints accept it."""
+    await db_session.execute(
+        update(ModelVersionRow)
+        .where(ModelVersionRow.model_version_id == UUID(model_version_id))
+        .values(provenance_class="curated_real")
+    )
+    await db_session.flush()
+
+
 # ---------------------------------------------------------------------------
 # Model Persistence
 # ---------------------------------------------------------------------------
@@ -47,13 +62,14 @@ class TestModelPersistence:
 
     @pytest.mark.anyio
     async def test_registered_model_survives_cache_clear(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Register → clear cache → run with same model → succeeds."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         _clear_model_cache()
 
@@ -70,13 +86,14 @@ class TestModelPersistence:
 
     @pytest.mark.anyio
     async def test_model_data_matches_original(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Register → run (cached) → clear → run (DB) → same metric types."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         run_payload = {
             "model_version_id": mid,
@@ -101,14 +118,13 @@ class TestModelPersistence:
 
     @pytest.mark.anyio
     async def test_model_checksum_preserved(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Register → checksum from API matches rehydrated model checksum."""
-        from uuid import UUID
-
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
         expected_checksum = reg.json()["checksum"]
 
         _clear_model_cache()
@@ -139,13 +155,14 @@ class TestRunPersistence:
 
     @pytest.mark.anyio
     async def test_run_results_survive_cache_clear(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Run → clear cache → GET run → same result_sets returned."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         run_resp = await client.post(
             f"/v1/workspaces/{ws_id}/engine/runs",
@@ -170,13 +187,14 @@ class TestRunPersistence:
 
     @pytest.mark.anyio
     async def test_batch_results_persist(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Batch run → GET batch → status COMPLETED + all results present."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         batch_resp = await client.post(
             f"/v1/workspaces/{ws_id}/engine/batch",
@@ -202,13 +220,14 @@ class TestRunPersistence:
 
     @pytest.mark.anyio
     async def test_run_snapshot_has_workspace_id(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Run with workspace → GET run in that workspace → found."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         run_resp = await client.post(
             f"/v1/workspaces/{ws_id}/engine/runs",
@@ -437,13 +456,14 @@ class TestFeasibilityPersistence:
 
     @pytest.mark.anyio
     async def test_feasibility_result_persists(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Solve → GET result → values present."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         # Run
         run_resp = await client.post(
@@ -498,13 +518,14 @@ class TestWorkforcePersistence:
 
     @pytest.mark.anyio
     async def test_employment_coefficients_and_workforce_persist(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Create coefficients → compute workforce → result persists."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         run_resp = await client.post(
             f"/v1/workspaces/{ws_id}/engine/runs",
@@ -564,13 +585,14 @@ class TestExportPersistence:
 
     @pytest.mark.anyio
     async def test_export_metadata_persists(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Create sandbox export → GET by ID → mode and status match."""
         ws_id = str(uuid7())
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         run_resp = await client.post(
             f"/v1/workspaces/{ws_id}/engine/runs",
@@ -615,7 +637,7 @@ class TestWorkspaceScoping:
 
     @pytest.mark.anyio
     async def test_run_invisible_across_workspaces(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Run in ws1 → GET from ws2 → 404."""
         ws1 = str(uuid7())
@@ -624,6 +646,7 @@ class TestWorkspaceScoping:
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         # Run in ws1
         run_resp = await client.post(
@@ -648,7 +671,7 @@ class TestWorkspaceScoping:
 
     @pytest.mark.anyio
     async def test_batch_invisible_across_workspaces(
-        self, client: AsyncClient,
+        self, client: AsyncClient, db_session: AsyncSession,
     ) -> None:
         """Batch in ws1 → GET from ws2 → 404."""
         ws1 = str(uuid7())
@@ -657,6 +680,7 @@ class TestWorkspaceScoping:
         reg = await client.post("/v1/engine/models", json=_MODEL_PAYLOAD)
         assert reg.status_code == 201
         mid = reg.json()["model_version_id"]
+        await _promote_model(db_session, mid)
 
         # Batch in ws1
         batch_resp = await client.post(

@@ -12,6 +12,7 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
 
@@ -240,7 +241,7 @@ class TestBatchStatusTracking:
     """Batch operations track status RUNNING → COMPLETED."""
 
     @pytest.mark.anyio
-    async def test_batch_completed_status(self, client: AsyncClient) -> None:
+    async def test_batch_completed_status(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """Successful batch shows COMPLETED status."""
         # Register model
         reg_resp = await client.post("/v1/engine/models", json={
@@ -251,6 +252,12 @@ class TestBatchStatusTracking:
             "source": "test",
         })
         model_version_id = reg_resp.json()["model_version_id"]
+        await db_session.execute(
+            update(ModelVersionRow)
+            .where(ModelVersionRow.model_version_id == UUID(model_version_id))
+            .values(provenance_class="curated_real")
+        )
+        await db_session.flush()
 
         # Run batch
         batch_resp = await client.post(f"/v1/workspaces/{WS_ID}/engine/batch", json={
@@ -416,7 +423,7 @@ class TestWorkspaceScopedRouting:
         assert resp.status_code == 201
 
     @pytest.mark.anyio
-    async def test_run_requires_workspace(self, client: AsyncClient) -> None:
+    async def test_run_requires_workspace(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """Run endpoint is workspace-scoped."""
         reg_resp = await client.post("/v1/engine/models", json={
             "Z": [[150.0, 500.0], [200.0, 100.0]],
@@ -426,6 +433,12 @@ class TestWorkspaceScopedRouting:
             "source": "test",
         })
         mid = reg_resp.json()["model_version_id"]
+        await db_session.execute(
+            update(ModelVersionRow)
+            .where(ModelVersionRow.model_version_id == UUID(mid))
+            .values(provenance_class="curated_real")
+        )
+        await db_session.flush()
 
         # Old URL (no workspace) should 404 or 405
         old_resp = await client.post("/v1/engine/runs", json={

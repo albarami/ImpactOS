@@ -6,9 +6,15 @@ S0-4: Model registration stays global at /v1/engine/models.
 Runs/batch are workspace-scoped under /v1/workspaces/{workspace_id}/engine/...
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
+
+from src.db.tables import ModelVersionRow
 
 WS_ID = "01961060-0000-7000-8000-000000000001"
 
@@ -30,6 +36,16 @@ def _satellite_payload() -> dict:
         "import_ratio": [0.30, 0.20],
         "va_ratio": [0.40, 0.55],
     }
+
+
+async def _promote_model(db_session: AsyncSession, model_version_id: str) -> None:
+    """Promote API-registered model to curated_real so run endpoints accept it."""
+    await db_session.execute(
+        update(ModelVersionRow)
+        .where(ModelVersionRow.model_version_id == UUID(model_version_id))
+        .values(provenance_class="curated_real")
+    )
+    await db_session.flush()
 
 
 # ===================================================================
@@ -63,10 +79,11 @@ class TestCreateRunEndpoint:
     """POST single run executes and returns results."""
 
     @pytest.mark.anyio
-    async def test_run_returns_200(self, client: AsyncClient) -> None:
+    async def test_run_returns_200(self, client: AsyncClient, db_session: AsyncSession) -> None:
         # Register model first (global endpoint)
         reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
         model_version_id = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, model_version_id)
 
         run_payload = {
             "model_version_id": model_version_id,
@@ -78,9 +95,10 @@ class TestCreateRunEndpoint:
         assert response.status_code == 200
 
     @pytest.mark.anyio
-    async def test_run_returns_result_sets(self, client: AsyncClient) -> None:
+    async def test_run_returns_result_sets(self, client: AsyncClient, db_session: AsyncSession) -> None:
         reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
         model_version_id = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, model_version_id)
 
         run_payload = {
             "model_version_id": model_version_id,
@@ -95,9 +113,10 @@ class TestCreateRunEndpoint:
         assert len(data["result_sets"]) >= 3
 
     @pytest.mark.anyio
-    async def test_run_returns_snapshot(self, client: AsyncClient) -> None:
+    async def test_run_returns_snapshot(self, client: AsyncClient, db_session: AsyncSession) -> None:
         reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
         model_version_id = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, model_version_id)
 
         run_payload = {
             "model_version_id": model_version_id,
@@ -131,9 +150,10 @@ class TestGetRunResultsEndpoint:
     """GET run results by run_id."""
 
     @pytest.mark.anyio
-    async def test_get_run_returns_200(self, client: AsyncClient) -> None:
+    async def test_get_run_returns_200(self, client: AsyncClient, db_session: AsyncSession) -> None:
         reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
         model_version_id = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, model_version_id)
 
         run_resp = await client.post(f"/v1/workspaces/{WS_ID}/engine/runs", json={
             "model_version_id": model_version_id,
@@ -161,9 +181,10 @@ class TestBatchRunEndpoint:
     """POST batch runs multiple scenarios."""
 
     @pytest.mark.anyio
-    async def test_batch_returns_200(self, client: AsyncClient) -> None:
+    async def test_batch_returns_200(self, client: AsyncClient, db_session: AsyncSession) -> None:
         reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
         model_version_id = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, model_version_id)
 
         batch_payload = {
             "model_version_id": model_version_id,
@@ -178,9 +199,10 @@ class TestBatchRunEndpoint:
         assert response.status_code == 200
 
     @pytest.mark.anyio
-    async def test_batch_returns_multiple_results(self, client: AsyncClient) -> None:
+    async def test_batch_returns_multiple_results(self, client: AsyncClient, db_session: AsyncSession) -> None:
         reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
         model_version_id = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, model_version_id)
 
         batch_payload = {
             "model_version_id": model_version_id,
@@ -196,10 +218,11 @@ class TestBatchRunEndpoint:
         assert len(data["results"]) == 2
 
     @pytest.mark.anyio
-    async def test_batch_returns_completed_status(self, client: AsyncClient) -> None:
+    async def test_batch_returns_completed_status(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """S0-4: Batch response includes status field."""
         reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
         model_version_id = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, model_version_id)
 
         batch_payload = {
             "model_version_id": model_version_id,
@@ -213,9 +236,10 @@ class TestBatchRunEndpoint:
         assert data["status"] == "COMPLETED"
 
     @pytest.mark.anyio
-    async def test_batch_status_returns_200(self, client: AsyncClient) -> None:
+    async def test_batch_status_returns_200(self, client: AsyncClient, db_session: AsyncSession) -> None:
         reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
         model_version_id = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, model_version_id)
 
         batch_payload = {
             "model_version_id": model_version_id,

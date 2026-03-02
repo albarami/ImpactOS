@@ -398,14 +398,12 @@ async def register_model(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # Persist to DB
     await mv_repo.create(
         model_version_id=mv.model_version_id,
         base_year=mv.base_year,
         source=mv.source,
         sector_count=mv.sector_count,
         checksum=mv.checksum,
-        provenance_class="curated_real",
     )
     await md_repo.create(
         model_version_id=mv.model_version_id,
@@ -571,7 +569,9 @@ async def get_batch_status(
 
     responses: list[RunResponse] = []
     for rid_str in batch_row.run_ids:
-        resp = await _load_run_response(UUID(rid_str), snap_repo, rs_repo, workspace_id=workspace_id)
+        resp = await _load_run_response(
+            UUID(rid_str), snap_repo, rs_repo, workspace_id=workspace_id,
+        )
         if resp is not None:
             responses.append(resp)
 
