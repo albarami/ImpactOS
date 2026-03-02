@@ -1,4 +1,4 @@
-"""FastAPI scenario endpoints — MVP-4.
+"""FastAPI scenario endpoints — MVP-4 + B-16 run-from-scenario.
 
 GET  /v1/workspaces/{workspace_id}/scenarios                          — list (B-9)
 GET  /v1/workspaces/{workspace_id}/scenarios/{id}                     — detail (B-10)
@@ -7,6 +7,7 @@ POST /v1/workspaces/{workspace_id}/scenarios/{id}/compile             — compil
 POST /v1/workspaces/{workspace_id}/scenarios/{id}/mapping-decisions   — bulk
 GET  /v1/workspaces/{workspace_id}/scenarios/{id}/versions            — history
 POST /v1/workspaces/{workspace_id}/scenarios/{id}/lock                — lock
+POST /v1/workspaces/{workspace_id}/scenarios/{id}/run                 — run (B-16)
 
 S0-4: Workspace-scoped routes.
 Deterministic — no LLM calls.
@@ -15,6 +16,7 @@ Deterministic — no LLM calls.
 import warnings
 from uuid import UUID
 
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
@@ -23,6 +25,10 @@ from src.api.dependencies import (
     get_document_repo,
     get_extraction_job_repo,
     get_line_item_repo,
+    get_model_data_repo,
+    get_model_version_repo,
+    get_result_set_repo,
+    get_run_snapshot_repo,
     get_scenario_version_repo,
 )
 from src.compiler.scenario_compiler import CompilationInput, ScenarioCompiler
@@ -34,6 +40,12 @@ from src.repositories.documents import (
     DocumentRepository,
     ExtractionJobRepository,
     LineItemRepository,
+)
+from src.repositories.engine import (
+    ModelDataRepository,
+    ModelVersionRepository,
+    ResultSetRepository,
+    RunSnapshotRepository,
 )
 from src.repositories.scenarios import ScenarioVersionRepository
 
@@ -124,6 +136,38 @@ class LockResponse(BaseModel):
     status: str
 
 
+# --- B-16: Run-from-scenario ---
+
+
+class SatelliteCoeffsPayload(BaseModel):
+    jobs_coeff: list[float]
+    import_ratio: list[float]
+    va_ratio: list[float]
+
+
+class RunFromScenarioRequest(BaseModel):
+    mode: str = "SANDBOX"
+    satellite_coefficients: SatelliteCoeffsPayload
+    deflators: dict[str, float] | None = None
+
+
+class RunFromScenarioResultSet(BaseModel):
+    result_id: str
+    metric_type: str
+    values: dict[str, float]
+
+
+class RunFromScenarioSnapshot(BaseModel):
+    run_id: str
+    model_version_id: str
+
+
+class RunFromScenarioResponse(BaseModel):
+    run_id: str
+    result_sets: list[RunFromScenarioResultSet]
+    snapshot: RunFromScenarioSnapshot
+
+
 # --- B-9: Scenario list response ---
 
 
@@ -208,6 +252,8 @@ async def _get_latest_or_404(
 async def _record_new_version(
     repo: ScenarioVersionRepository,
     spec: ScenarioSpec,
+    *,
+    is_locked: bool = False,
 ) -> ScenarioSpec:
     """Create a new version of a scenario in the DB."""
     new_spec = spec.next_version()
@@ -227,6 +273,7 @@ async def _record_new_version(
             [str(aid) for aid in new_spec.assumption_ids]
             if new_spec.assumption_ids else []
         ),
+        is_locked=is_locked,
     )
     return new_spec
 
@@ -300,11 +347,14 @@ async def _load_items_from_document(
 
 
 def _derive_status(row) -> str:
-    """Derive scenario status from data (no explicit status column).
+    """Derive scenario status from data.
 
-    - Empty shock_items → DRAFT
+    - is_locked=True → LOCKED
     - Non-empty shock_items → COMPILED
+    - Otherwise → DRAFT
     """
+    if getattr(row, "is_locked", False):
+        return "LOCKED"
     shock_items = row.shock_items
     if shock_items and len(shock_items) > 0:
         return "COMPILED"
@@ -597,11 +647,153 @@ async def lock_scenario(
     body: LockRequest,
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> LockResponse:
-    """Lock mappings for governed run — creates new version."""
+    """Lock mappings for governed run — creates new version with is_locked=True."""
     spec = await _get_latest_or_404(repo, scenario_id)
-    new_spec = await _record_new_version(repo, spec)
+    new_spec = await _record_new_version(repo, spec, is_locked=True)
 
     return LockResponse(
         new_version=new_spec.version,
         status="locked",
+    )
+
+
+# ---------------------------------------------------------------------------
+# B-16: Run-from-scenario convenience endpoint
+# ---------------------------------------------------------------------------
+
+
+def _shock_items_to_annual_shocks(
+    shock_items: list[dict],
+    sector_codes: list[str],
+) -> dict[int, np.ndarray]:
+    """Convert scenario shock_items into annual_shocks aligned to model sector order.
+
+    Only FINAL_DEMAND_SHOCK items contribute to final demand vectors.
+    Other shock types are ignored for the base I-O run.
+    """
+    sector_index = {code: i for i, code in enumerate(sector_codes)}
+    n = len(sector_codes)
+    year_shocks: dict[int, np.ndarray] = {}
+
+    for item in shock_items:
+        if item.get("type") != "FINAL_DEMAND_SHOCK":
+            continue
+        year = item["year"]
+        code = item["sector_code"]
+        amount = item["amount_real_base_year"]
+        domestic_share = item.get("domestic_share", 1.0)
+
+        if code not in sector_index:
+            continue
+
+        if year not in year_shocks:
+            year_shocks[year] = np.zeros(n, dtype=np.float64)
+
+        year_shocks[year][sector_index[code]] += amount * domestic_share
+
+    return year_shocks
+
+
+@router.post(
+    "/{workspace_id}/scenarios/{scenario_id}/run",
+    response_model=RunFromScenarioResponse,
+)
+async def run_from_scenario(
+    workspace_id: UUID,
+    scenario_id: UUID,
+    body: RunFromScenarioRequest,
+    repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+    mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
+    md_repo: ModelDataRepository = Depends(get_model_data_repo),
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+) -> RunFromScenarioResponse:
+    """B-16: Execute an engine run from a compiled scenario.
+
+    Resolves latest scenario version by workspace, validates compilation
+    and lock state, converts shock_items to annual_shocks, and reuses
+    the deterministic engine path.
+    """
+    row = await repo.get_latest_by_workspace(scenario_id, workspace_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+
+    if not row.shock_items:
+        raise HTTPException(
+            status_code=409,
+            detail="Scenario is not compiled (no shock items).",
+        )
+
+    if body.mode == "GOVERNED" and not row.is_locked:
+        raise HTTPException(
+            status_code=409,
+            detail="Governed runs require a locked scenario.",
+        )
+
+    from src.api.runs import (
+        _ensure_model_loaded,
+        _make_satellite_coefficients,
+        _make_version_refs,
+        _model_store,
+        _persist_run_result,
+        _single_run_to_response,
+        SatelliteCoeffsPayload as RunSatPayload,
+    )
+    from src.engine.batch import BatchRequest, BatchRunner, ScenarioInput
+
+    model_version_id = row.base_model_version_id
+    loaded = await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
+
+    annual_shocks = _shock_items_to_annual_shocks(
+        row.shock_items, loaded.sector_codes,
+    )
+
+    sat_payload = RunSatPayload(
+        jobs_coeff=body.satellite_coefficients.jobs_coeff,
+        import_ratio=body.satellite_coefficients.import_ratio,
+        va_ratio=body.satellite_coefficients.va_ratio,
+    )
+    coeffs = _make_satellite_coefficients(sat_payload)
+
+    deflators: dict[int, float] | None = None
+    if body.deflators:
+        deflators = {int(y): v for y, v in body.deflators.items()}
+
+    scenario_input = ScenarioInput(
+        scenario_spec_id=row.scenario_spec_id,
+        scenario_spec_version=row.version,
+        name=row.name,
+        annual_shocks=annual_shocks,
+        base_year=row.base_year,
+        deflators=deflators,
+    )
+
+    runner = BatchRunner(model_store=_model_store)
+    request = BatchRequest(
+        scenarios=[scenario_input],
+        model_version_id=model_version_id,
+        satellite_coefficients=coeffs,
+        version_refs=_make_version_refs(),
+    )
+
+    result = runner.run(request)
+    sr = result.run_results[0]
+
+    await _persist_run_result(sr, snap_repo, rs_repo, workspace_id=workspace_id)
+
+    run_resp = _single_run_to_response(sr)
+    return RunFromScenarioResponse(
+        run_id=run_resp.run_id,
+        result_sets=[
+            RunFromScenarioResultSet(
+                result_id=rs.result_id,
+                metric_type=rs.metric_type,
+                values=rs.values,
+            )
+            for rs in run_resp.result_sets
+        ],
+        snapshot=RunFromScenarioSnapshot(
+            run_id=run_resp.snapshot.run_id,
+            model_version_id=run_resp.snapshot.model_version_id,
+        ),
     )
