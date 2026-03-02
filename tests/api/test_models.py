@@ -1,5 +1,9 @@
 """Tests for B-14 + B-15: Model version list/detail + coefficient retrieval."""
 
+import ast
+import inspect
+from pathlib import Path
+
 import numpy as np
 import pytest
 from httpx import AsyncClient
@@ -239,3 +243,35 @@ class TestGetCoefficients:
             f"/v1/workspaces/{workspace_id}/models/versions/{uuid7()}/coefficients",
         )
         assert resp.status_code == 404
+
+
+class TestNoSyntheticInRuntime:
+    """Guardrail: B-15 code path must never import from data/synthetic."""
+
+    def test_models_py_has_no_synthetic_imports(self) -> None:
+        """src/api/models.py must not reference synthetic data paths."""
+        source_path = Path(inspect.getfile(inspect.getmodule(
+            __import__("src.api.models", fromlist=["models"]),
+        ))).resolve()  # type: ignore[arg-type]
+        source_text = source_path.read_text(encoding="utf-8")
+        assert "synthetic" not in source_text.lower(), (
+            f"src/api/models.py contains 'synthetic' reference: "
+            f"runtime B-15 code must not use synthetic data"
+        )
+        assert "data/synthetic" not in source_text, (
+            "src/api/models.py references data/synthetic path"
+        )
+
+    def test_api_layer_no_synthetic_imports(self) -> None:
+        """No file in src/api/ should import from data/synthetic at module level."""
+        api_dir = Path(__file__).resolve().parent.parent.parent / "src" / "api"
+        violations: list[str] = []
+        for py_file in api_dir.glob("*.py"):
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom) and node.module:
+                    if "synthetic" in node.module:
+                        violations.append(f"{py_file.name}: imports {node.module}")
+        assert not violations, (
+            f"API layer imports synthetic modules: {violations}"
+        )
