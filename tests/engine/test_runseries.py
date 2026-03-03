@@ -298,3 +298,115 @@ class TestBatchRunnerAnnualEmission:
         legacy_metrics = {r.metric_type for r in legacy}
         assert "total_output" in legacy_metrics
         assert "employment" in legacy_metrics
+
+
+# ---------------------------------------------------------------------------
+# Sprint 17 Task 4: RunSeries delta computation tests
+# ---------------------------------------------------------------------------
+
+
+class TestRunSeriesValidationError:
+    """RunSeriesValidationError has required fields."""
+
+    def test_error_fields(self) -> None:
+        from src.engine.runseries_delta import RunSeriesValidationError
+        err = RunSeriesValidationError(
+            reason_code="RS_BASELINE_NO_SERIES",
+            message="Baseline has no annual series",
+        )
+        assert err.reason_code == "RS_BASELINE_NO_SERIES"
+        assert "no annual series" in str(err).lower()
+
+    def test_no_secret_leak(self) -> None:
+        from src.engine.runseries_delta import RunSeriesValidationError
+        err = RunSeriesValidationError(
+            reason_code="RS_YEAR_MISMATCH",
+            message="Years do not overlap",
+        )
+        assert "password" not in str(err).lower()
+
+
+class TestDeltaSeriesComputation:
+    """Deterministic delta = scenario - baseline per year per sector."""
+
+    def test_delta_values(self) -> None:
+        from src.engine.runseries_delta import compute_delta_series
+        scenario_annual = {
+            2026: {"total_output": {"F": 150.0, "C": 250.0}},
+            2027: {"total_output": {"F": 200.0, "C": 300.0}},
+        }
+        baseline_annual = {
+            2026: {"total_output": {"F": 100.0, "C": 200.0}},
+            2027: {"total_output": {"F": 120.0, "C": 220.0}},
+        }
+        delta = compute_delta_series(scenario_annual, baseline_annual)
+        assert delta[2026]["total_output"]["F"] == pytest.approx(50.0)
+        assert delta[2027]["total_output"]["C"] == pytest.approx(80.0)
+
+    def test_delta_partial_year_overlap(self) -> None:
+        """When only some years overlap, only overlapping years appear in result."""
+        from src.engine.runseries_delta import compute_delta_series
+        scenario = {
+            2026: {"total_output": {"F": 100.0}},
+            2027: {"total_output": {"F": 200.0}},
+        }
+        baseline = {
+            2027: {"total_output": {"F": 150.0}},
+            2028: {"total_output": {"F": 300.0}},
+        }
+        delta = compute_delta_series(scenario, baseline)
+        assert list(delta.keys()) == [2027]
+        assert delta[2027]["total_output"]["F"] == pytest.approx(50.0)
+
+    def test_delta_empty_overlap_raises(self) -> None:
+        from src.engine.runseries_delta import (
+            RunSeriesValidationError,
+            compute_delta_series,
+        )
+        with pytest.raises(RunSeriesValidationError) as exc_info:
+            compute_delta_series(
+                {2026: {"total_output": {"F": 1.0}}},
+                {2030: {"total_output": {"F": 1.0}}},
+            )
+        assert exc_info.value.reason_code == "RS_YEAR_MISMATCH"
+
+    def test_delta_metric_mismatch_raises(self) -> None:
+        from src.engine.runseries_delta import (
+            RunSeriesValidationError,
+            compute_delta_series,
+        )
+        with pytest.raises(RunSeriesValidationError) as exc_info:
+            compute_delta_series(
+                {2026: {"total_output": {"F": 1.0}}},
+                {2026: {"employment": {"F": 1.0}}},
+            )
+        assert exc_info.value.reason_code == "RS_BASELINE_METRIC_MISMATCH"
+
+    def test_baseline_no_series_raises(self) -> None:
+        from src.engine.runseries_delta import (
+            RunSeriesValidationError,
+            validate_baseline_has_series,
+        )
+        with pytest.raises(RunSeriesValidationError) as exc_info:
+            validate_baseline_has_series([])
+        assert exc_info.value.reason_code == "RS_BASELINE_NO_SERIES"
+
+    def test_baseline_with_series_passes(self) -> None:
+        from src.engine.runseries_delta import validate_baseline_has_series
+        # Should not raise
+        validate_baseline_has_series(["some_row"])
+
+    def test_delta_multi_metric(self) -> None:
+        """Delta works across multiple metric types in same year."""
+        from src.engine.runseries_delta import compute_delta_series
+        scenario = {2026: {
+            "total_output": {"F": 100.0},
+            "direct_effect": {"F": 60.0},
+        }}
+        baseline = {2026: {
+            "total_output": {"F": 80.0},
+            "direct_effect": {"F": 50.0},
+        }}
+        delta = compute_delta_series(scenario, baseline)
+        assert delta[2026]["total_output"]["F"] == pytest.approx(20.0)
+        assert delta[2026]["direct_effect"]["F"] == pytest.approx(10.0)
