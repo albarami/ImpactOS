@@ -20,19 +20,23 @@ async def _register_model(
     *,
     sector_codes: list[str] | None = None,
     n: int = 3,
+    extra_payload: dict | None = None,
 ) -> str:
     """Register a model via the existing global endpoint."""
     codes = sector_codes or [f"S{i}" for i in range(n)]
     actual_n = len(codes)
     Z = np.random.default_rng(42).random((actual_n, actual_n)) * 0.1
     x = np.random.default_rng(42).random(actual_n) * 10.0 + 1.0
-    resp = await client.post("/v1/engine/models", json={
+    payload = {
         "Z": Z.tolist(),
         "x": x.tolist(),
         "sector_codes": codes,
         "base_year": 2023,
         "source": "test-model",
-    })
+    }
+    if extra_payload:
+        payload.update(extra_payload)
+    resp = await client.post("/v1/engine/models", json=payload)
     assert resp.status_code == 201
     return resp.json()["model_version_id"]
 
@@ -90,6 +94,31 @@ class TestGetModelVersion:
             f"/v1/workspaces/{workspace_id}/models/versions/{uuid7()}",
         )
         assert resp.status_code == 404
+
+    @pytest.mark.anyio
+    async def test_get_existing_includes_extended_fields_additively(
+        self, client: AsyncClient, workspace_id: str,
+    ) -> None:
+        mv_id = await _register_model(
+            client,
+            sector_codes=["S1", "S2"],
+            extra_payload={
+                "final_demand_F": [[100.0, 50.0, 30.0, 20.0], [60.0, 40.0, 20.0, 10.0]],
+                "imports_vector": [10.0, 15.0],
+                "compensation_of_employees": [20.0, 30.0],
+                "gross_operating_surplus": [15.0, 25.0],
+                "taxes_less_subsidies": [3.0, 4.0],
+                "household_consumption_shares": [0.4, 0.6],
+                "deflator_series": {"2023": 1.0, "2024": 1.02},
+            },
+        )
+        resp = await client.get(
+            f"/v1/workspaces/{workspace_id}/models/versions/{mv_id}",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["imports_vector"] == [10.0, 15.0]
+        assert data["deflator_series"] == {"2023": 1.0, "2024": 1.02}
 
 
 class TestGetCoefficients:
@@ -275,3 +304,22 @@ class TestNoSyntheticInRuntime:
         assert not violations, (
             f"API layer imports synthetic modules: {violations}"
         )
+
+
+class TestModelRegistrationExtendedValidation:
+    @pytest.mark.anyio
+    async def test_register_rejects_invalid_extended_vector_lengths(
+        self, client: AsyncClient,
+    ) -> None:
+        resp = await client.post("/v1/engine/models", json={
+            "Z": [[10.0, 1.0], [2.0, 12.0]],
+            "x": [100.0, 200.0],
+            "sector_codes": ["S1", "S2"],
+            "base_year": 2023,
+            "source": "extended-shape-test",
+            "imports_vector": [10.0],  # wrong length
+        })
+        assert resp.status_code == 422
+        detail = resp.json().get("detail")
+        assert isinstance(detail, dict)
+        assert detail.get("reason_code") == "MODEL_IMPORTS_VECTOR_DIMENSION_MISMATCH"

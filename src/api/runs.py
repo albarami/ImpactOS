@@ -20,13 +20,12 @@ DB repos persist model metadata, run snapshots, result sets, batches.
 """
 
 import asyncio
-import hashlib
 import logging
 from uuid import UUID
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.api.auth_deps import (
     AuthPrincipal,
@@ -41,13 +40,17 @@ from src.api.dependencies import (
     get_result_set_repo,
     get_run_snapshot_repo,
 )
+from src.data.io_loader import (
+    ModelArtifactValidationError,
+    validate_extended_model_artifacts,
+)
 from src.engine.batch import (
     BatchRequest,
     BatchRunner,
     ScenarioInput,
     SingleRunResult,
 )
-from src.engine.model_store import LoadedModel, ModelStore
+from src.engine.model_store import LoadedModel, ModelStore, compute_model_checksum
 from src.engine.satellites import SatelliteCoefficients
 from src.models.common import new_uuid7
 from src.models.model_version import ModelVersion
@@ -90,6 +93,16 @@ class RegisterModelRequest(BaseModel):
     sector_codes: list[str]
     base_year: int
     source: str
+    final_demand_f: list[list[float]] | None = Field(
+        default=None,
+        alias="final_demand_F",
+    )
+    imports_vector: list[float] | None = None
+    compensation_of_employees: list[float] | None = None
+    gross_operating_surplus: list[float] | None = None
+    taxes_less_subsidies: list[float] | None = None
+    household_consumption_shares: list[float] | None = None
+    deflator_series: dict[str, float] | None = None
 
 
 class RegisterModelResponse(BaseModel):
@@ -203,11 +216,17 @@ async def _ensure_model_loaded(
         z_matrix = np.array(md_row.z_matrix_json, dtype=np.float64)
         x_vector = np.array(md_row.x_vector_json, dtype=np.float64)
 
-        # Amendment 1: Checksum verification
-        hasher = hashlib.sha256()
-        hasher.update(z_matrix.tobytes())
-        hasher.update(x_vector.tobytes())
-        recomputed = f"sha256:{hasher.hexdigest()}"
+        # Amendment 1: checksum verification includes optional model artifacts.
+        artifact_payload = {
+            "final_demand_F": md_row.final_demand_f_json,
+            "imports_vector": md_row.imports_vector_json,
+            "compensation_of_employees": md_row.compensation_of_employees_json,
+            "gross_operating_surplus": md_row.gross_operating_surplus_json,
+            "taxes_less_subsidies": md_row.taxes_less_subsidies_json,
+            "household_consumption_shares": md_row.household_consumption_shares_json,
+            "deflator_series": md_row.deflator_series_json,
+        }
+        recomputed = compute_model_checksum(z_matrix, x_vector, artifact_payload)
         if recomputed != mv_row.checksum:
             _logger.error(
                 "Checksum mismatch for model %s: stored=%s recomputed=%s",
@@ -297,6 +316,32 @@ def _deflators_to_dict(deflators: dict[str, float] | None) -> dict[int, float] |
     if deflators is None:
         return None
     return {int(year): val for year, val in deflators.items()}
+
+
+def _serialize_extended_artifacts(validated: dict[str, object]) -> dict[str, object]:
+    """Convert validated artifact payload to JSON-serializable values."""
+    out: dict[str, object] = {}
+    for key, value in validated.items():
+        if isinstance(value, np.ndarray):
+            out[key] = value.tolist()
+        elif key == "deflator_series" and isinstance(value, dict):
+            out[key] = {str(k): float(v) for k, v in value.items()}
+        else:
+            out[key] = value
+    return out
+
+
+def _register_model_error_detail(exc: Exception) -> dict[str, str]:
+    """Convert validation exceptions to stable API detail payload."""
+    if isinstance(exc, ModelArtifactValidationError):
+        return {
+            "reason_code": exc.reason_code,
+            "message": exc.message,
+        }
+    return {
+        "reason_code": "MODEL_VALIDATION_ERROR",
+        "message": str(exc),
+    }
 
 
 def _single_run_to_response(sr: SingleRunResult) -> RunResponse:
@@ -395,15 +440,30 @@ async def register_model(
 ) -> RegisterModelResponse:
     """Register an I-O model (Z, x, sector codes). Admin only."""
     try:
+        validated_artifacts = validate_extended_model_artifacts(
+            n=len(body.x),
+            final_demand_F=body.final_demand_f,
+            imports_vector=body.imports_vector,
+            compensation_of_employees=body.compensation_of_employees,
+            gross_operating_surplus=body.gross_operating_surplus,
+            taxes_less_subsidies=body.taxes_less_subsidies,
+            household_consumption_shares=body.household_consumption_shares,
+            deflator_series=body.deflator_series,
+        )
+        serialized_artifacts = _serialize_extended_artifacts(validated_artifacts)
         mv = _model_store.register(
             Z=np.array(body.Z),
             x=np.array(body.x),
             sector_codes=body.sector_codes,
             base_year=body.base_year,
             source=body.source,
+            artifact_payload=serialized_artifacts,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (ModelArtifactValidationError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=_register_model_error_detail(exc),
+        ) from exc
 
     await mv_repo.create(
         model_version_id=mv.model_version_id,
@@ -417,6 +477,13 @@ async def register_model(
         z_matrix_json=[row.tolist() for row in np.array(body.Z)],
         x_vector_json=list(body.x),
         sector_codes=body.sector_codes,
+        final_demand_f_json=serialized_artifacts.get("final_demand_F"),
+        imports_vector_json=serialized_artifacts.get("imports_vector"),
+        compensation_of_employees_json=serialized_artifacts.get("compensation_of_employees"),
+        gross_operating_surplus_json=serialized_artifacts.get("gross_operating_surplus"),
+        taxes_less_subsidies_json=serialized_artifacts.get("taxes_less_subsidies"),
+        household_consumption_shares_json=serialized_artifacts.get("household_consumption_shares"),
+        deflator_series_json=serialized_artifacts.get("deflator_series"),
     )
 
     return RegisterModelResponse(

@@ -8,12 +8,52 @@ This is deterministic — no LLM calls, pure functions.
 """
 
 import hashlib
+import json
 from uuid import UUID
 
 import numpy as np
 from scipy import linalg as scipy_linalg
 
 from src.models.model_version import ModelVersion
+
+
+def compute_model_checksum(
+    Z: np.ndarray,
+    x: np.ndarray,
+    artifact_payload: dict[str, object] | None = None,
+) -> str:
+    """Compute deterministic checksum for base model matrices and optional artifacts.
+
+    Legacy compatibility: if no non-null artifact fields are provided, checksum
+    remains based on Z and x only.
+    """
+    hasher = hashlib.sha256()
+    hasher.update(np.asarray(Z, dtype=np.float64).tobytes())
+    hasher.update(np.asarray(x, dtype=np.float64).tobytes())
+
+    if artifact_payload:
+        normalized = {
+            k: v for k, v in artifact_payload.items()
+            if v is not None
+        }
+        if normalized:
+            def _default(value: object) -> object:
+                if isinstance(value, np.ndarray):
+                    return value.tolist()
+                if isinstance(value, np.integer | np.floating):
+                    return value.item()
+                return value
+
+            canonical = json.dumps(
+                normalized,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                default=_default,
+            )
+            hasher.update(canonical.encode("utf-8"))
+
+    return f"sha256:{hasher.hexdigest()}"
 
 
 class LoadedModel:
@@ -103,6 +143,7 @@ class ModelStore:
         sector_codes: list[str],
         base_year: int,
         source: str,
+        artifact_payload: dict[str, object] | None = None,
     ) -> ModelVersion:
         """Validate, store, and return an immutable ModelVersion.
 
@@ -154,17 +195,29 @@ class ModelStore:
             )
             raise ValueError(msg)
 
-        # Compute checksum over Z and x
-        hasher = hashlib.sha256()
-        hasher.update(Z.tobytes())
-        hasher.update(x.tobytes())
-        checksum = f"sha256:{hasher.hexdigest()}"
+        checksum = compute_model_checksum(Z, x, artifact_payload)
+
+        model_kwargs: dict[str, object] = {}
+        if artifact_payload:
+            key_map = {
+                "final_demand_F": "final_demand_f",
+                "imports_vector": "imports_vector",
+                "compensation_of_employees": "compensation_of_employees",
+                "gross_operating_surplus": "gross_operating_surplus",
+                "taxes_less_subsidies": "taxes_less_subsidies",
+                "household_consumption_shares": "household_consumption_shares",
+                "deflator_series": "deflator_series",
+            }
+            for source_key, target_key in key_map.items():
+                if artifact_payload.get(source_key) is not None:
+                    model_kwargs[target_key] = artifact_payload[source_key]
 
         mv = ModelVersion(
             base_year=base_year,
             source=source,
             sector_count=n,
             checksum=checksum,
+            **model_kwargs,
         )
 
         loaded = LoadedModel(

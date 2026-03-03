@@ -102,6 +102,13 @@ class ModelDataRow(Base):
     z_matrix_json = mapped_column(FlexJSON, nullable=False)
     x_vector_json = mapped_column(FlexJSON, nullable=False)
     sector_codes = mapped_column(FlexJSON, nullable=False)
+    final_demand_f_json = mapped_column(FlexJSON, nullable=True)
+    imports_vector_json = mapped_column(FlexJSON, nullable=True)
+    compensation_of_employees_json = mapped_column(FlexJSON, nullable=True)
+    gross_operating_surplus_json = mapped_column(FlexJSON, nullable=True)
+    taxes_less_subsidies_json = mapped_column(FlexJSON, nullable=True)
+    household_consumption_shares_json = mapped_column(FlexJSON, nullable=True)
+    deflator_series_json = mapped_column(FlexJSON, nullable=True)
     storage_format: Mapped[str] = mapped_column(String(50), default="json", nullable=False)
 
 

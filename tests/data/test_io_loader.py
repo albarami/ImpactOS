@@ -22,6 +22,7 @@ import pytest
 from src.data.io_loader import (
     IOModelData,
     SatelliteData,
+    compute_model_artifact_checksum,
     load_from_excel,
     load_from_json,
     load_satellites_from_json,
@@ -90,6 +91,31 @@ def _write_minimal_satellites_json(tmp_path: Path) -> Path:
     return path
 
 
+def _write_extended_model_json(tmp_path: Path, *, overrides: dict | None = None) -> Path:
+    """Write a valid 2-sector model JSON with optional Phase 2-E fields."""
+    data = {
+        "model_id": "test-extended-2sector",
+        "base_year": 2023,
+        "source": "unit-test-extended",
+        "sector_codes": ["S1", "S2"],
+        "sector_names": {"S1": "Sector 1", "S2": "Sector 2"},
+        "Z": [[150.0, 500.0], [200.0, 100.0]],
+        "x": [1000.0, 2000.0],
+        "final_demand_F": [[100.0, 50.0, 25.0, 10.0], [200.0, 80.0, 40.0, 20.0]],
+        "imports_vector": [50.0, 100.0],
+        "compensation_of_employees": [300.0, 600.0],
+        "gross_operating_surplus": [250.0, 500.0],
+        "taxes_less_subsidies": [20.0, 40.0],
+        "household_consumption_shares": [0.4, 0.6],
+        "deflator_series": {"2023": 1.0, "2024": 1.03},
+    }
+    if overrides:
+        data.update(overrides)
+    path = tmp_path / "test_model_extended.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
 # ===================================================================
 # 1. TestLoadFromJson
 # ===================================================================
@@ -142,6 +168,59 @@ class TestLoadFromJson:
         model = load_from_json(path)
         assert model.source == "unit-test"
         assert "model_id" in model.metadata
+
+
+class TestExtendedArtifacts:
+    def test_loads_valid_extended_fields(self, tmp_path: Path) -> None:
+        path = _write_extended_model_json(tmp_path)
+        model = load_from_json(path)
+        assert isinstance(model, IOModelData)
+        assert model.final_demand_F is not None
+        assert model.imports_vector is not None
+        assert model.compensation_of_employees is not None
+        assert model.gross_operating_surplus is not None
+        assert model.taxes_less_subsidies is not None
+        assert model.household_consumption_shares is not None
+        assert model.deflator_series is not None
+
+    def test_rejects_bad_final_demand_shape(self, tmp_path: Path) -> None:
+        path = _write_extended_model_json(
+            tmp_path,
+            overrides={"final_demand_F": [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]},
+        )
+        with pytest.raises(ValueError, match="MODEL_FINAL_DEMAND_DIMENSION_MISMATCH"):
+            load_from_json(path)
+
+    def test_rejects_bad_imports_vector_length(self, tmp_path: Path) -> None:
+        path = _write_extended_model_json(
+            tmp_path,
+            overrides={"imports_vector": [10.0]},
+        )
+        with pytest.raises(ValueError, match="MODEL_IMPORTS_VECTOR_DIMENSION_MISMATCH"):
+            load_from_json(path)
+
+    def test_rejects_household_shares_not_summing_to_one(self, tmp_path: Path) -> None:
+        path = _write_extended_model_json(
+            tmp_path,
+            overrides={"household_consumption_shares": [0.2, 0.2]},
+        )
+        with pytest.raises(ValueError, match="MODEL_HOUSEHOLD_SHARES_INVALID_SUM"):
+            load_from_json(path)
+
+    def test_rejects_non_positive_deflator(self, tmp_path: Path) -> None:
+        path = _write_extended_model_json(
+            tmp_path,
+            overrides={"deflator_series": {"2023": 1.0, "2024": 0.0}},
+        )
+        with pytest.raises(ValueError, match="MODEL_DEFLATOR_INVALID"):
+            load_from_json(path)
+
+    def test_artifact_checksum_is_stable(self, tmp_path: Path) -> None:
+        path = _write_extended_model_json(tmp_path)
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        checksum_a = compute_model_artifact_checksum(payload)
+        checksum_b = compute_model_artifact_checksum(dict(reversed(list(payload.items()))))
+        assert checksum_a == checksum_b
 
 
 # ===================================================================

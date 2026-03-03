@@ -11,6 +11,7 @@ D-1: Saudi Base IO Model Loading.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,6 +35,13 @@ class IOModelData:
     base_year: int
     source: str
     metadata: dict[str, object]
+    final_demand_F: np.ndarray | None = None
+    imports_vector: np.ndarray | None = None
+    compensation_of_employees: np.ndarray | None = None
+    gross_operating_surplus: np.ndarray | None = None
+    taxes_less_subsidies: np.ndarray | None = None
+    household_consumption_shares: np.ndarray | None = None
+    deflator_series: dict[int, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -85,6 +93,154 @@ class ExcelSheetConfig:
     denomination: str = "SAR_MILLIONS"
 
 
+class ModelArtifactValidationError(ValueError):
+    """Validation error for optional model artifacts with stable reason code."""
+
+    def __init__(self, reason_code: str, message: str) -> None:
+        super().__init__(f"{reason_code}: {message}")
+        self.reason_code = reason_code
+        self.message = message
+
+
+def _json_default(value: object) -> object:
+    """Normalize numpy/scalar values for canonical JSON hashing."""
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, np.integer | np.floating):
+        return value.item()
+    return value
+
+
+def compute_model_artifact_checksum(payload: dict[str, object]) -> str:
+    """Compute deterministic SHA256 checksum over canonicalized model artifacts."""
+    canonical = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=_json_default,
+    )
+    return f"sha256:{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}"
+
+
+def validate_extended_model_artifacts(
+    *,
+    n: int,
+    final_demand_F: list[list[float]] | None,
+    imports_vector: list[float] | None,
+    compensation_of_employees: list[float] | None,
+    gross_operating_surplus: list[float] | None,
+    taxes_less_subsidies: list[float] | None,
+    household_consumption_shares: list[float] | None,
+    deflator_series: dict[str, float] | dict[int, float] | None,
+) -> dict[str, object]:
+    """Validate/normalize optional Phase 2-E artifact fields against model dimension."""
+    out: dict[str, object] = {}
+
+    if final_demand_F is not None:
+        arr = np.asarray(final_demand_F, dtype=np.float64)
+        if arr.ndim != 2 or arr.shape[0] != n or arr.shape[1] <= 0:
+            raise ModelArtifactValidationError(
+                "MODEL_FINAL_DEMAND_DIMENSION_MISMATCH",
+                f"final_demand_F must have shape ({n}, k>0), got {arr.shape}.",
+            )
+        out["final_demand_F"] = arr
+
+    def _validate_vector(
+        raw: list[float] | None,
+        *,
+        key: str,
+        reason_code: str,
+    ) -> np.ndarray | None:
+        if raw is None:
+            return None
+        vec = np.asarray(raw, dtype=np.float64)
+        if vec.ndim != 1 or vec.shape[0] != n:
+            raise ModelArtifactValidationError(
+                reason_code,
+                f"{key} must be a vector of length {n}, got shape {vec.shape}.",
+            )
+        return vec
+
+    imports = _validate_vector(
+        imports_vector,
+        key="imports_vector",
+        reason_code="MODEL_IMPORTS_VECTOR_DIMENSION_MISMATCH",
+    )
+    if imports is not None:
+        out["imports_vector"] = imports
+
+    wages = _validate_vector(
+        compensation_of_employees,
+        key="compensation_of_employees",
+        reason_code="MODEL_COMPENSATION_VECTOR_DIMENSION_MISMATCH",
+    )
+    if wages is not None:
+        out["compensation_of_employees"] = wages
+
+    gos = _validate_vector(
+        gross_operating_surplus,
+        key="gross_operating_surplus",
+        reason_code="MODEL_GOS_VECTOR_DIMENSION_MISMATCH",
+    )
+    if gos is not None:
+        out["gross_operating_surplus"] = gos
+
+    taxes = _validate_vector(
+        taxes_less_subsidies,
+        key="taxes_less_subsidies",
+        reason_code="MODEL_TAX_VECTOR_DIMENSION_MISMATCH",
+    )
+    if taxes is not None:
+        out["taxes_less_subsidies"] = taxes
+
+    hh = _validate_vector(
+        household_consumption_shares,
+        key="household_consumption_shares",
+        reason_code="MODEL_HOUSEHOLD_SHARES_DIMENSION_MISMATCH",
+    )
+    if hh is not None:
+        total = float(np.sum(hh))
+        if not np.isclose(total, 1.0, atol=1e-6):
+            raise ModelArtifactValidationError(
+                "MODEL_HOUSEHOLD_SHARES_INVALID_SUM",
+                f"household_consumption_shares must sum to 1.0, got {total:.6f}.",
+            )
+        if np.any(hh < 0):
+            raise ModelArtifactValidationError(
+                "MODEL_HOUSEHOLD_SHARES_NEGATIVE",
+                "household_consumption_shares must be non-negative.",
+            )
+        out["household_consumption_shares"] = hh
+
+    if deflator_series is not None:
+        normalized_deflators: dict[int, float] = {}
+        for k, v in deflator_series.items():
+            try:
+                year = int(k)
+            except (TypeError, ValueError) as exc:
+                raise ModelArtifactValidationError(
+                    "MODEL_DEFLATOR_INVALID",
+                    f"deflator year key must be integer-like, got '{k}'.",
+                ) from exc
+            try:
+                value = float(v)
+            except (TypeError, ValueError) as exc:
+                raise ModelArtifactValidationError(
+                    "MODEL_DEFLATOR_INVALID",
+                    f"deflator value for year {year} must be numeric.",
+                ) from exc
+            if value <= 0:
+                raise ModelArtifactValidationError(
+                    "MODEL_DEFLATOR_INVALID",
+                    f"deflator value for year {year} must be > 0, got {value}.",
+                )
+            normalized_deflators[year] = value
+        out["deflator_series"] = normalized_deflators
+
+    return out
+
+
 # ---------------------------------------------------------------------------
 # JSON loaders
 # ---------------------------------------------------------------------------
@@ -134,6 +290,17 @@ def load_from_json(path: str | Path) -> IOModelData:
     base_year = data.get("base_year", 0)
     source = data.get("source", data.get("model_id", path.stem))
 
+    validated_artifacts = validate_extended_model_artifacts(
+        n=n,
+        final_demand_F=data.get("final_demand_F"),
+        imports_vector=data.get("imports_vector"),
+        compensation_of_employees=data.get("compensation_of_employees"),
+        gross_operating_surplus=data.get("gross_operating_surplus"),
+        taxes_less_subsidies=data.get("taxes_less_subsidies"),
+        household_consumption_shares=data.get("household_consumption_shares"),
+        deflator_series=data.get("deflator_series"),
+    )
+
     metadata = {
         k: v for k, v in data.items()
         if k not in {"Z", "z_matrix", "x", "x_vector", "sector_codes", "sector_names"}
@@ -147,6 +314,13 @@ def load_from_json(path: str | Path) -> IOModelData:
         base_year=base_year,
         source=source,
         metadata=metadata,
+        final_demand_F=validated_artifacts.get("final_demand_F"),
+        imports_vector=validated_artifacts.get("imports_vector"),
+        compensation_of_employees=validated_artifacts.get("compensation_of_employees"),
+        gross_operating_surplus=validated_artifacts.get("gross_operating_surplus"),
+        taxes_less_subsidies=validated_artifacts.get("taxes_less_subsidies"),
+        household_consumption_shares=validated_artifacts.get("household_consumption_shares"),
+        deflator_series=validated_artifacts.get("deflator_series"),
     )
 
 
