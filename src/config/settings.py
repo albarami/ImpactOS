@@ -181,6 +181,57 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT == Environment.PROD
 
 
+_DEV_ONLY_DEFAULTS = {
+    "SECRET_KEY": "dev-secret-change-in-production",
+    "OBJECT_STORAGE_PATH": "./uploads",
+}
+
+_PLACEHOLDER_DB_PATTERNS = ("changeme", "localhost")
+
+
+def validate_settings_for_env(settings: Settings) -> list[str]:
+    """Validate settings are appropriate for the target environment.
+
+    Returns a list of error strings. Empty list means valid.
+    Dev environment accepts all defaults. Staging/prod reject
+    dev-only defaults and missing required config.
+    """
+    if settings.ENVIRONMENT == Environment.DEV:
+        return []
+
+    errors: list[str] = []
+
+    if settings.SECRET_KEY == _DEV_ONLY_DEFAULTS["SECRET_KEY"]:
+        errors.append(
+            "SECRET_KEY uses dev default — set a real secret "
+            "for non-dev environments",
+        )
+
+    if settings.OBJECT_STORAGE_PATH.startswith("./"):
+        errors.append(
+            "OBJECT_STORAGE_PATH is a relative local path — "
+            "use an absolute or S3 path for non-dev",
+        )
+
+    db_url_lower = settings.DATABASE_URL.lower()
+    for pattern in _PLACEHOLDER_DB_PATTERNS:
+        if pattern in db_url_lower:
+            errors.append(
+                f"DATABASE_URL contains '{pattern}' — "
+                f"use real credentials for non-dev",
+            )
+            break
+
+    if not settings.JWT_ISSUER:
+        errors.append("JWT_ISSUER is required for non-dev environments")
+    if not settings.JWT_AUDIENCE:
+        errors.append("JWT_AUDIENCE is required for non-dev environments")
+    if not settings.JWKS_URL:
+        errors.append("JWKS_URL is required for non-dev environments")
+
+    return errors
+
+
 def get_settings() -> Settings:
     """Factory function for dependency injection via FastAPI Depends."""
     return Settings()

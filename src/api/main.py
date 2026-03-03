@@ -162,6 +162,63 @@ async def health_check() -> dict:
     }
 
 
+@app.get("/readiness")
+async def readiness_check() -> dict:
+    """Readiness probe — gates traffic until critical deps are up.
+
+    Returns 200 when all critical dependencies (database) are healthy.
+    Returns 503 when any critical dependency is unavailable.
+    Non-critical deps (Redis, object storage) are reported but don't
+    block readiness.
+    """
+    import asyncio
+
+    from starlette.responses import JSONResponse
+
+    checks: dict[str, bool] = {}
+
+    async def _check_database() -> bool:
+        try:
+            from src.db.session import async_session_factory
+
+            async with async_session_factory() as session:
+                await session.execute(text("SELECT 1"))
+            return True
+        except Exception:
+            return False
+
+    async def _check_redis() -> bool:
+        try:
+            import redis.asyncio as aioredis
+
+            r = aioredis.from_url(
+                settings.REDIS_URL, socket_connect_timeout=2,
+            )
+            await r.ping()
+            await r.aclose()
+            return True
+        except Exception:
+            return False
+
+    db_ok, redis_ok = await asyncio.gather(
+        _check_database(), _check_redis(),
+    )
+    checks["database"] = db_ok
+    checks["redis"] = redis_ok
+
+    ready = db_ok  # database is the critical gate
+
+    status_code = 200 if ready else 503
+    return JSONResponse(
+        content={
+            "ready": ready,
+            "checks": checks,
+            "environment": settings.ENVIRONMENT.value,
+        },
+        status_code=status_code,
+    )
+
+
 @app.get("/api/version")
 async def get_version() -> dict[str, str]:
     """Return application name, version, and environment."""
