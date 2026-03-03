@@ -473,3 +473,77 @@ class TestTypeIISolve:
         ]
         for r in results[1:]:
             np.testing.assert_array_equal(r.delta_x_type_ii_total, results[0].delta_x_type_ii_total)
+
+
+# ===================================================================
+# Phased Type II (Sprint 15 — Task 3)
+# ===================================================================
+
+
+class TestPhasedTypeII:
+    """solve_phased with optional Type II accumulation."""
+
+    def _register_golden(self, store: ModelStore):
+        mv = store.register(
+            Z=np.array(GOLDEN_Z), x=np.array(GOLDEN_X),
+            sector_codes=SECTOR_CODES_SMALL, base_year=2023, source="test-golden",
+        )
+        return store.get(mv.model_version_id)
+
+    def test_phased_type_ii_accumulates(self) -> None:
+        """Cumulative Type II and induced are computed; induced = type_ii - type_i."""
+        store = ModelStore()
+        loaded = self._register_golden(store)
+        solver = LeontiefSolver()
+
+        annual_shocks = {
+            2026: np.array([100.0, 0.0, 0.0]),
+            2027: np.array([0.0, 200.0, 0.0]),
+        }
+        phased = solver.solve_phased(
+            loaded_model=loaded,
+            annual_shocks=annual_shocks,
+            base_year=2023,
+            compensation_of_employees=np.array(GOLDEN_COMPENSATION),
+            household_consumption_shares=np.array(GOLDEN_HOUSEHOLD_SHARES),
+        )
+        # Type II cumulative must not be None
+        assert phased.cumulative_delta_x_type_ii is not None
+        assert phased.cumulative_delta_x_induced is not None
+
+        # Induced = type_ii - type_i (cumulative level)
+        np.testing.assert_allclose(
+            phased.cumulative_delta_x_induced,
+            phased.cumulative_delta_x_type_ii - phased.cumulative_delta_x,
+            atol=1e-10,
+        )
+
+        # Type II cumulative should be larger than Type I cumulative
+        assert np.sum(phased.cumulative_delta_x_type_ii) > np.sum(phased.cumulative_delta_x)
+
+        # Each annual result should have Type II fields
+        for year, result in phased.annual_results.items():
+            assert result.delta_x_type_ii_total is not None
+            assert result.delta_x_induced is not None
+
+    def test_phased_without_type_ii_returns_none(self) -> None:
+        """When Type II vectors not passed, cumulative Type II fields are None."""
+        store = ModelStore()
+        loaded = self._register_golden(store)
+        solver = LeontiefSolver()
+
+        annual_shocks = {
+            2026: np.array([100.0, 0.0, 0.0]),
+        }
+        phased = solver.solve_phased(
+            loaded_model=loaded,
+            annual_shocks=annual_shocks,
+            base_year=2023,
+        )
+        assert phased.cumulative_delta_x_type_ii is None
+        assert phased.cumulative_delta_x_induced is None
+
+        # Annual results should also have None Type II fields
+        for year, result in phased.annual_results.items():
+            assert result.delta_x_type_ii_total is None
+            assert result.delta_x_induced is None

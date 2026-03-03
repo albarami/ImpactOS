@@ -175,25 +175,40 @@ class LeontiefSolver:
         annual_shocks: dict[int, np.ndarray],
         base_year: int,
         deflators: dict[int, float] | None = None,
+        compensation_of_employees: np.ndarray | None = None,
+        household_consumption_shares: np.ndarray | None = None,
     ) -> PhasedResult:
         """Compute phased multi-year impacts (Section 7.4).
 
         Args:
             loaded_model: Model with cached B matrix.
-            annual_shocks: Year → nominal final-demand shock vector.
+            annual_shocks: Year -> nominal final-demand shock vector.
             base_year: Base year for the model (used with deflators).
-            deflators: Optional year → cumulative deflator. The real shock
+            deflators: Optional year -> cumulative deflator. The real shock
                 is nominal / deflator. If None, no deflation applied.
+            compensation_of_employees: Optional compensation per sector (n).
+                When provided with household_consumption_shares, enables
+                Type II (household-closed) accumulation.
+            household_consumption_shares: Optional household consumption
+                shares (n). Required together with compensation_of_employees.
 
         Returns:
             PhasedResult with annual, cumulative, and peak-year results.
+            Type II cumulative fields populated when both vectors provided.
         """
         if deflators is None:
             deflators = {}
 
+        use_type_ii = (
+            compensation_of_employees is not None
+            and household_consumption_shares is not None
+        )
+
         annual_results: dict[int, SolveResult] = {}
         n = loaded_model.n
         cumulative = np.zeros(n)
+        cumulative_type_ii = np.zeros(n) if use_type_ii else None
+        cumulative_induced = np.zeros(n) if use_type_ii else None
         peak_year = -1
         peak_total = -np.inf
         peak_delta_x = np.zeros(n)
@@ -205,9 +220,19 @@ class LeontiefSolver:
             deflator = deflators.get(year, 1.0)
             real_shock = nominal / deflator
 
-            result = self.solve(loaded_model=loaded_model, delta_d=real_shock)
-            annual_results[year] = result
+            if use_type_ii:
+                result = self.solve_type_ii(
+                    loaded_model=loaded_model,
+                    delta_d=real_shock,
+                    compensation_of_employees=compensation_of_employees,
+                    household_consumption_shares=household_consumption_shares,
+                )
+                cumulative_type_ii = cumulative_type_ii + result.delta_x_type_ii_total
+                cumulative_induced = cumulative_induced + result.delta_x_induced
+            else:
+                result = self.solve(loaded_model=loaded_model, delta_d=real_shock)
 
+            annual_results[year] = result
             cumulative = cumulative + result.delta_x_total
 
             year_total = float(np.sum(result.delta_x_total))
@@ -221,4 +246,6 @@ class LeontiefSolver:
             cumulative_delta_x=cumulative,
             peak_year=peak_year,
             peak_delta_x=peak_delta_x,
+            cumulative_delta_x_type_ii=cumulative_type_ii,
+            cumulative_delta_x_induced=cumulative_induced,
         )
