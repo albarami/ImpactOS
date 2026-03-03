@@ -408,3 +408,41 @@ class TestTypeIIBatchIntegration:
         rs_list = result.run_results[0].result_sets
         # 7 existing + 3 Type II = 10
         assert len(rs_list) == 10
+
+
+# ===================================================================
+# Type II error translation (Sprint 15 — Task 7)
+# ===================================================================
+
+
+class TestTypeIIErrorTranslation:
+    """Type II validation errors carry reason_code through the stack."""
+
+    def test_type_ii_validation_error_has_reason_code(self) -> None:
+        """TypeIIValidationError carries a machine-readable reason_code."""
+        exc = TypeIIValidationError("test message", reason_code="TYPE_II_MISSING_COMPENSATION")
+        assert exc.reason_code == "TYPE_II_MISSING_COMPENSATION"
+        assert str(exc) == "test message"
+
+    def test_type_ii_error_serialization_for_api(self) -> None:
+        """Error can be serialized to API-friendly payload."""
+        exc = TypeIIValidationError(
+            "compensation_of_employees is required",
+            reason_code="TYPE_II_MISSING_COMPENSATION",
+        )
+        payload = {"reason_code": exc.reason_code, "message": str(exc)}
+        assert payload == {
+            "reason_code": "TYPE_II_MISSING_COMPENSATION",
+            "message": "compensation_of_employees is required",
+        }
+
+    def test_no_secrets_in_type_ii_error(self) -> None:
+        """Error message must not contain API keys, tokens, or secrets."""
+        exc = TypeIIValidationError(
+            "compensation_of_employees is required for Type II computation.",
+            reason_code="TYPE_II_MISSING_COMPENSATION",
+        )
+        msg = str(exc)
+        assert "key" not in msg.lower() or "api" not in msg.lower()
+        assert "token" not in msg.lower()
+        assert "password" not in msg.lower()

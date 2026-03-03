@@ -51,6 +51,7 @@ from src.engine.batch import (
     ScenarioInput,
     SingleRunResult,
 )
+from src.engine.type_ii_validation import TypeIIValidationError
 from src.engine.model_store import LoadedModel, ModelStore, compute_model_checksum
 from src.engine.satellites import SatelliteCoefficients
 from src.models.common import new_uuid7
@@ -547,7 +548,16 @@ async def create_run(
         version_refs=_make_version_refs(),
     )
 
-    result = runner.run(request)
+    try:
+        result = runner.run(request)
+    except TypeIIValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+            },
+        ) from exc
     sr = result.run_results[0]
 
     # Persist to DB (with workspace scoping — Amendment 3)
@@ -639,6 +649,15 @@ async def create_batch_run(
 
         return BatchResponse(batch_id=str(batch_id), status="COMPLETED", results=responses)
 
+    except TypeIIValidationError as exc:
+        await batch_repo.update_status(batch_id, "FAILED")
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+            },
+        ) from exc
     except Exception:
         await batch_repo.update_status(batch_id, "FAILED")
         raise
