@@ -65,10 +65,11 @@ class BatchRequest:
 class BatchRunner:
     """Executes batch scenarios through the deterministic engine pipeline."""
 
-    def __init__(self, model_store: ModelStore) -> None:
+    def __init__(self, model_store: ModelStore, environment: str = "dev") -> None:
         self._store = model_store
         self._solver = LeontiefSolver()
         self._satellites = SatelliteAccounts()
+        self._environment = environment
 
     def run(self, request: BatchRequest) -> BatchResult:
         """Execute all scenarios in the batch request.
@@ -182,6 +183,55 @@ class BatchRunner:
             metric_type="domestic_output",
             values=self._vec_to_dict(sat_result.delta_domestic_output, sector_codes),
         ))
+
+        # Type II induced effects (when model has prerequisites)
+        if loaded.has_type_ii_prerequisites:
+            from src.engine.type_ii_validation import (
+                TypeIIValidationError,
+                validate_type_ii_prerequisites,
+            )
+            try:
+                validate_type_ii_prerequisites(
+                    n=loaded.n,
+                    x=loaded.x,
+                    compensation_of_employees=loaded.compensation_of_employees_array,
+                    household_consumption_shares=loaded.household_consumption_shares_array,
+                )
+                # Compute Type II phased solve
+                phased_type_ii = self._solver.solve_phased(
+                    loaded_model=loaded,
+                    annual_shocks=scaled_shocks,
+                    base_year=scenario.base_year,
+                    deflators=scenario.deflators,
+                    compensation_of_employees=loaded.compensation_of_employees_array,
+                    household_consumption_shares=loaded.household_consumption_shares_array,
+                )
+                # Type II total output
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="type_ii_total_output",
+                    values=self._vec_to_dict(phased_type_ii.cumulative_delta_x_type_ii, sector_codes),
+                ))
+                # Induced effect
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="induced_effect",
+                    values=self._vec_to_dict(phased_type_ii.cumulative_delta_x_induced, sector_codes),
+                ))
+                # Type II employment satellite
+                type_ii_jobs = coefficients.jobs_coeff * phased_type_ii.cumulative_delta_x_type_ii
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="type_ii_employment",
+                    values=self._vec_to_dict(type_ii_jobs, sector_codes),
+                ))
+            except TypeIIValidationError:
+                if self._environment in ("staging", "prod"):
+                    raise  # fail-closed in non-dev
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Type II validation failed in dev -- continuing with Type I only"
+                )
 
         # Build RunSnapshot
         snapshot = RunSnapshot(

@@ -40,6 +40,7 @@ from src.api.dependencies import (
     get_result_set_repo,
     get_run_snapshot_repo,
 )
+from src.config.settings import get_settings
 from src.data.io_loader import (
     ModelArtifactValidationError,
     validate_extended_model_artifacts,
@@ -537,7 +538,8 @@ async def create_run(
         deflators=_deflators_to_dict(body.deflators),
     )
 
-    runner = BatchRunner(model_store=_model_store)
+    settings = get_settings()
+    runner = BatchRunner(model_store=_model_store, environment=settings.ENVIRONMENT.value)
     request = BatchRequest(
         scenarios=[scenario],
         model_version_id=model_version_id,
@@ -608,7 +610,8 @@ async def create_batch_run(
             sensitivity_multipliers=sp.sensitivity_multipliers,
         ))
 
-    runner = BatchRunner(model_store=_model_store)
+    settings = get_settings()
+    runner = BatchRunner(model_store=_model_store, environment=settings.ENVIRONMENT.value)
     request = BatchRequest(
         scenarios=scenarios,
         model_version_id=model_version_id,
