@@ -96,3 +96,38 @@ curl -f http://localhost:8000/health
 - Deterministic checksum is stable for identical artifact payloads.
 - Malformed extended payloads fail closed with reason codes (HTTP `422`).
 - Migration `011_model_data_extended_fields` applied at target environment.
+
+## Issue #17: Non-Dev Fail-Closed Agent Enforcement
+
+| Agent Path | Dev Behavior | Staging/Prod Behavior | Fail Mode | Reason Code | Test Evidence |
+|---|---|---|---|---|---|
+| **Compile Split** | Deterministic OK | 503 fail-closed | ProviderUnavailableError | `SPLIT_NO_LLM_BACKING` | `test_compiler_real_only.py` |
+| **Compile Assumption** | Deterministic OK | 503 fail-closed | ProviderUnavailableError | `ASSUMPTION_NO_LLM_BACKING` | `test_compiler_real_only.py` |
+| **Depth Step** | Fallback + metadata | FAILED status | Plan error metadata | `DEPTH_STEP_NO_LLM_BACKING` | `test_orchestrator.py` |
+| **Compile Mapping** | Library fallback | 503 fail-closed (S13) | ProviderUnavailableError | `PROVIDER_UNAVAILABLE` | `test_compiler_real_only.py` |
+
+### Issue #17 Preflight Checks
+
+```bash
+# 1. Verify non-dev compile rejects deterministic split/assumption
+python -m pytest tests/compiler/test_compiler_real_only.py -v
+
+# 2. Verify non-dev depth fails closed
+python -m pytest tests/agents/depth/test_orchestrator.py::TestNonDevDepthFailsClosed -v
+
+# 3. Verify endpoint 503 translation
+python -m pytest tests/api/test_compiler_failclosed.py -v
+
+# 4. Full suite
+python -m pytest tests -q
+```
+
+### Go/No-Go Criteria (additive)
+
+| Criteria | Required | How to Verify |
+|---|---|---|
+| No deterministic fallback success in non-dev | Yes | `test_compiler_real_only.py`, `test_orchestrator.py` pass |
+| 503 with structured reason_code | Yes | `test_compiler_failclosed.py` passes |
+| Depth FAILED status (not COMPLETED) in non-dev | Yes | `TestNonDevDepthFailsClosed` passes |
+| Dev ergonomics preserved | Yes | `TestDevCompileKeepsFallback` passes |
+| No secrets in error payloads | Yes | Secret leakage tests pass |

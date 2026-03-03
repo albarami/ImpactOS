@@ -102,6 +102,7 @@ class DepthOrchestrator:
         plan_repo: DepthPlanRepository,
         artifact_repo: DepthArtifactRepository,
         prompt_pack_version: str = PROMPT_PACK_VERSION,
+        environment: str = "dev",
     ) -> DepthPlanStatus:
         """Execute the full 5-step depth engine pipeline.
 
@@ -121,6 +122,7 @@ class DepthOrchestrator:
         accumulated_context = dict(context)
         accumulated_context["workspace_id"] = str(workspace_id)
         has_suite_plan = False
+        fail_closed = False
 
         # Mark plan as RUNNING
         await plan_repo.update_status(
@@ -142,6 +144,21 @@ class DepthOrchestrator:
                     and llm_client.is_available_for(classification)
                 )
                 generation_mode = "LLM" if can_use_llm else "FALLBACK"
+
+                # I17-2: Fail closed in non-dev if step uses fallback
+                if generation_mode == "FALLBACK" and environment in ("staging", "prod"):
+                    reason = (
+                        f"DEPTH_STEP_NO_LLM_BACKING: {step.value} would use "
+                        f"deterministic fallback in {environment}"
+                    )
+                    logger.error(
+                        "Depth plan %s: step %s fail-closed in %s — %s",
+                        plan_id, step.value, environment, reason,
+                    )
+                    degraded_steps.append(step.value)
+                    step_errors[step.value] = reason
+                    fail_closed = True
+                    break
 
                 # Determine provider/model info
                 provider = "none"
@@ -230,7 +247,9 @@ class DepthOrchestrator:
                 step_errors[step.value] = str(exc)
 
         # Determine final status
-        if has_suite_plan:
+        if fail_closed:
+            final_status = DepthPlanStatus.FAILED
+        elif has_suite_plan:
             final_status = DepthPlanStatus.COMPLETED
         elif any(step.value not in step_errors for step in self.STEPS):
             final_status = DepthPlanStatus.PARTIAL

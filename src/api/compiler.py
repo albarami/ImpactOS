@@ -29,6 +29,7 @@ from starlette.responses import JSONResponse
 from uuid_extensions import uuid7
 
 from src.agents.assumption_agent import AssumptionDraftAgent
+from src.agents.llm_client import LLMClient, ProviderUnavailableError
 from src.agents.mapping_agent import MappingSuggestionAgent
 from src.agents.split_agent import SplitAgent
 from src.api.auth_deps import WorkspaceMember, require_workspace_member
@@ -40,14 +41,16 @@ from src.api.dependencies import (
     get_mapping_decision_repo,
     get_mapping_library_repo,
     get_override_pair_repo,
+    get_workspace_repo,
 )
 from src.compiler.ai_compiler import (
     AICompilationInput,
     AICompiler,
 )
 from src.compiler.mapping_state import VALID_MAPPING_TRANSITIONS, MappingState
+from src.config.settings import get_settings
 from src.db.tables import CompilationRow, MappingDecisionRow
-from src.models.common import new_uuid7
+from src.models.common import DataClassification, new_uuid7
 from src.models.document import BoQLineItem
 from src.models.mapping import MappingLibraryEntry
 from src.models.scenario import TimeHorizon
@@ -59,6 +62,7 @@ from src.repositories.documents import (
 )
 from src.repositories.libraries import MappingLibraryRepository
 from src.repositories.mapping_decisions import MappingDecisionRepository
+from src.repositories.workspace import WorkspaceRepository
 
 _logger = logging.getLogger(__name__)
 
@@ -121,6 +125,7 @@ class CompileRequest(BaseModel):
     end_year: int
     line_items: list[CompileLineItem] | None = None
     document_id: str | None = None
+    classification: DataClassification | None = None  # I17: dev override only
     phasing: dict[str, float] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -192,7 +197,8 @@ async def trigger_compilation(
     doc_repo: DocumentRepository = Depends(get_document_repo),
     job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
     li_repo: LineItemRepository = Depends(get_line_item_repo),
-) -> CompileResponse:
+    ws_repo: WorkspaceRepository = Depends(get_workspace_repo),
+) -> CompileResponse | JSONResponse:
     """Trigger AI-assisted compilation for a set of line items.
 
     Accepts EITHER inline line_items OR document_id (loads from DB).
@@ -242,10 +248,35 @@ async def trigger_compilation(
     if not library:
         library = _default_library
 
+    # I17: Wire environment, classification, and LLM client
+    settings = get_settings()
+    is_non_dev = settings.ENVIRONMENT.value in ("staging", "prod")
+
+    # Resolve classification from workspace (server-owned in non-dev)
+    ws_row = await ws_repo.get(workspace_id)
+    ws_classification = (
+        DataClassification(ws_row.classification) if ws_row else DataClassification.CONFIDENTIAL
+    )
+
+    if is_non_dev:
+        cls = ws_classification
+    else:
+        cls = body.classification if body.classification is not None else ws_classification
+
+    # Build LLM client from settings
+    llm_client = LLMClient(
+        anthropic_key=settings.ANTHROPIC_API_KEY,
+        openai_key=settings.OPENAI_API_KEY,
+        openrouter_key=settings.OPENROUTER_API_KEY,
+    )
+
     compiler = AICompiler(
         mapping_agent=MappingSuggestionAgent(library=library),
         split_agent=SplitAgent(defaults=[]),
         assumption_agent=AssumptionDraftAgent(),
+        llm_client=llm_client,
+        classification=cls,
+        environment=settings.ENVIRONMENT.value,
     )
 
     phasing = {int(k): v for k, v in body.phasing.items()}
@@ -261,7 +292,20 @@ async def trigger_compilation(
         phasing=phasing,
     )
 
-    result = await compiler.compile(inp)
+    try:
+        result = await compiler.compile(inp)
+    except ProviderUnavailableError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": {
+                    "reason_code": exc.reason_code,
+                    "agent_name": exc.agent_name,
+                    "environment": exc.environment,
+                    "message": str(exc),
+                },
+            },
+        )
 
     # Serialize result for DB storage
     result_json = {

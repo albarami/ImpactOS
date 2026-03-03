@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from src.agents.assumption_agent import AssumptionDraft, AssumptionDraftAgent, ResidualContext
+from src.agents.guards import require_llm_backing
 from src.agents.mapping_agent import MappingSuggestion, MappingSuggestionAgent
 from src.agents.split_agent import SplitAgent, SplitProposal
 from src.models.document import BoQLineItem
@@ -166,7 +167,23 @@ class AICompiler:
                             break
                     split_items.append((sector, item_text))
 
+        # I17-1: Split agent has no LLM backing — fail closed in non-dev
+        require_llm_backing(
+            agent_name="SplitAgent",
+            environment=self._environment,
+            has_llm=False,  # No LLM path exists for split
+            reason_code="SPLIT_NO_LLM_BACKING",
+        )
+
         split_proposals = self._split_agent.propose_batch(split_items)
+
+        # I17-1: Assumption agent has no LLM backing — fail closed in non-dev
+        require_llm_backing(
+            agent_name="AssumptionDraftAgent",
+            environment=self._environment,
+            has_llm=False,  # No LLM path exists for assumption
+            reason_code="ASSUMPTION_NO_LLM_BACKING",
+        )
 
         # Step 4: Assumption drafting for low-confidence / residual items
         assumption_drafts: list[AssumptionDraft] = []

@@ -264,3 +264,125 @@ class TestDepthOrchestrator:
         assert len(orchestrator.STEPS) == 5
         assert orchestrator.STEPS[0] == DepthStepName.KHAWATIR
         assert orchestrator.STEPS[4] == DepthStepName.SUITE_PLANNING
+
+
+class TestNonDevDepthFailsClosed:
+    """Non-dev governed depth fails closed when step uses fallback."""
+
+    @pytest.fixture
+    def orchestrator(self):
+        return DepthOrchestrator()
+
+    @pytest.fixture
+    def plan_repo(self, db_session):
+        return DepthPlanRepository(db_session)
+
+    @pytest.fixture
+    def artifact_repo(self, db_session):
+        return DepthArtifactRepository(db_session)
+
+    @pytest.fixture
+    async def plan_id(self, plan_repo, workspace_id):
+        pid = new_uuid7()
+        await plan_repo.create(plan_id=pid, workspace_id=workspace_id)
+        return pid
+
+    @pytest.fixture
+    def context(self):
+        return {
+            "workspace_description": "Saudi mega-project",
+            "sector_codes": ["SEC01", "SEC02"],
+            "existing_shocks": [],
+            "time_horizon": {"start_year": 2025, "end_year": 2035},
+        }
+
+    async def test_non_dev_no_llm_fails_closed(
+        self, orchestrator, plan_id, workspace_id, context,
+        plan_repo, artifact_repo,
+    ):
+        """Non-dev with no LLM -> FAILED status (not COMPLETED with fallback)."""
+        status = await orchestrator.run(
+            plan_id=plan_id,
+            workspace_id=workspace_id,
+            context=context,
+            classification=DataClassification.INTERNAL,
+            llm_client=None,
+            plan_repo=plan_repo,
+            artifact_repo=artifact_repo,
+            environment="staging",
+        )
+        assert status == DepthPlanStatus.FAILED
+
+    async def test_non_dev_failed_has_reason_code(
+        self, orchestrator, plan_id, workspace_id, context,
+        plan_repo, artifact_repo,
+    ):
+        """Non-dev failure includes DEPTH_STEP_NO_LLM_BACKING reason."""
+        await orchestrator.run(
+            plan_id=plan_id,
+            workspace_id=workspace_id,
+            context=context,
+            classification=DataClassification.INTERNAL,
+            llm_client=None,
+            plan_repo=plan_repo,
+            artifact_repo=artifact_repo,
+            environment="prod",
+        )
+        plan = await plan_repo.get(plan_id)
+        assert plan.status == "FAILED"
+        assert plan.error_message is not None
+        assert "DEPTH_STEP_NO_LLM_BACKING" in plan.error_message
+
+    async def test_non_dev_no_fallback_completed_status(
+        self, orchestrator, plan_id, workspace_id, context,
+        plan_repo, artifact_repo,
+    ):
+        """Non-dev must never have COMPLETED status with fallback steps."""
+        await orchestrator.run(
+            plan_id=plan_id,
+            workspace_id=workspace_id,
+            context=context,
+            classification=DataClassification.INTERNAL,
+            llm_client=None,
+            plan_repo=plan_repo,
+            artifact_repo=artifact_repo,
+            environment="staging",
+        )
+        plan = await plan_repo.get(plan_id)
+        assert plan.status != "COMPLETED"
+
+    async def test_dev_still_allows_fallback(
+        self, orchestrator, plan_id, workspace_id, context,
+        plan_repo, artifact_repo,
+    ):
+        """Dev: fallback allowed, COMPLETED status preserved."""
+        status = await orchestrator.run(
+            plan_id=plan_id,
+            workspace_id=workspace_id,
+            context=context,
+            classification=DataClassification.RESTRICTED,
+            llm_client=None,
+            plan_repo=plan_repo,
+            artifact_repo=artifact_repo,
+            environment="dev",
+        )
+        assert status == DepthPlanStatus.COMPLETED
+
+    async def test_step_errors_contain_no_secrets(
+        self, orchestrator, plan_id, workspace_id, context,
+        plan_repo, artifact_repo,
+    ):
+        """Error metadata must not contain API keys or tokens."""
+        await orchestrator.run(
+            plan_id=plan_id,
+            workspace_id=workspace_id,
+            context=context,
+            classification=DataClassification.INTERNAL,
+            llm_client=None,
+            plan_repo=plan_repo,
+            artifact_repo=artifact_repo,
+            environment="staging",
+        )
+        plan = await plan_repo.get(plan_id)
+        errors_str = str(plan.step_errors) + str(plan.error_message or "")
+        assert "sk-" not in errors_str

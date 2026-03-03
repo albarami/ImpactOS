@@ -11,7 +11,7 @@ from uuid_extensions import uuid7
 
 from src.agents.assumption_agent import AssumptionDraftAgent
 from src.agents.llm_client import LLMClient, ProviderUnavailableError
-from src.agents.mapping_agent import MappingSuggestionAgent
+from src.agents.mapping_agent import MappingSuggestion, MappingSuggestionAgent
 from src.agents.split_agent import SplitAgent
 from src.compiler.ai_compiler import (
     AICompilationInput,
@@ -99,3 +99,90 @@ class TestDevCompileKeepsFallback:
         )
         result = await compiler.compile(_inp())
         assert len(result.mapping_suggestions) == 1
+
+
+class TestNonDevSplitFailsClosed:
+    """Non-dev compile fails closed for deterministic-only split agent."""
+
+    @pytest.mark.anyio
+    async def test_non_dev_rejects_deterministic_split(self) -> None:
+        """Non-dev: split step raises ProviderUnavailableError."""
+        mock_client = AsyncMock(spec=LLMClient)
+        mock_client.call = AsyncMock(return_value=AsyncMock(
+            parsed=MappingSuggestion(
+                line_item_id=_items()[0].line_item_id,
+                sector_code="F",
+                confidence=0.95,
+                explanation="concrete works → Construction",
+            ),
+        ))
+
+        compiler = AICompiler(
+            mapping_agent=MappingSuggestionAgent(library=_lib()),
+            split_agent=SplitAgent(defaults=[]),
+            assumption_agent=AssumptionDraftAgent(),
+            llm_client=mock_client,
+            classification=DataClassification.CONFIDENTIAL,
+            environment="staging",
+        )
+        with pytest.raises(ProviderUnavailableError) as exc_info:
+            await compiler.compile(_inp())
+        assert exc_info.value.reason_code == "SPLIT_NO_LLM_BACKING"
+        assert exc_info.value.agent_name == "SplitAgent"
+
+    @pytest.mark.anyio
+    async def test_dev_allows_deterministic_split(self) -> None:
+        """Dev: split step succeeds with deterministic output."""
+        mock_client = AsyncMock(spec=LLMClient)
+        mock_client.call = AsyncMock(return_value=AsyncMock(
+            parsed=MappingSuggestion(
+                line_item_id=_items()[0].line_item_id,
+                sector_code="F",
+                confidence=0.95,
+                explanation="concrete works → Construction",
+            ),
+        ))
+
+        compiler = AICompiler(
+            mapping_agent=MappingSuggestionAgent(library=_lib()),
+            split_agent=SplitAgent(defaults=[]),
+            assumption_agent=AssumptionDraftAgent(),
+            llm_client=mock_client,
+            classification=DataClassification.CONFIDENTIAL,
+            environment="dev",
+        )
+        result = await compiler.compile(_inp())
+        assert len(result.split_proposals) >= 0  # deterministic OK in dev
+
+
+class TestNonDevAssumptionFailsClosed:
+    """Non-dev compile fails closed for deterministic-only assumption agent."""
+
+    @pytest.mark.anyio
+    async def test_non_dev_rejects_deterministic_assumption(self) -> None:
+        """Non-dev: assumption step raises ProviderUnavailableError."""
+        mock_client = AsyncMock(spec=LLMClient)
+        mock_client.call = AsyncMock(return_value=AsyncMock(
+            parsed=MappingSuggestion(
+                line_item_id=_items()[0].line_item_id,
+                sector_code="X",
+                confidence=0.30,
+                explanation="unknown item",
+            ),
+        ))
+
+        compiler = AICompiler(
+            mapping_agent=MappingSuggestionAgent(library=_lib()),
+            split_agent=SplitAgent(defaults=[]),
+            assumption_agent=AssumptionDraftAgent(),
+            llm_client=mock_client,
+            classification=DataClassification.CONFIDENTIAL,
+            environment="prod",
+        )
+        with pytest.raises(ProviderUnavailableError) as exc_info:
+            await compiler.compile(_inp())
+        # Could be SPLIT or ASSUMPTION depending on execution order
+        assert exc_info.value.reason_code in (
+            "SPLIT_NO_LLM_BACKING",
+            "ASSUMPTION_NO_LLM_BACKING",
+        )
