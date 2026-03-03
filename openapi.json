@@ -11543,6 +11543,16 @@
             ],
             "title": "Document Id"
           },
+          "classification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataClassification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "phasing": {
             "additionalProperties": {
               "type": "number"
