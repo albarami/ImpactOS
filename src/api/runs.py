@@ -54,6 +54,7 @@ from src.engine.batch import (
 from src.engine.model_store import LoadedModel, ModelStore, compute_model_checksum
 from src.engine.satellites import SatelliteCoefficients
 from src.engine.type_ii_validation import TypeIIValidationError
+from src.engine.value_measures_validation import ValueMeasuresValidationError
 from src.models.common import new_uuid7
 from src.models.model_version import ModelVersion
 from src.repositories.engine import (
@@ -141,10 +142,19 @@ class BatchRunRequest(BaseModel):
     satellite_coefficients: SatelliteCoeffsPayload
 
 
+# Confidence class derivation by metric_type (no DB schema change)
+_ESTIMATED_METRICS = frozenset({
+    "gdp_market_price", "gdp_real", "gdp_intensity",
+    "balance_of_trade", "non_oil_exports",
+    "government_non_oil_revenue", "government_revenue_spending_ratio",
+})
+
+
 class ResultSetResponse(BaseModel):
     result_id: str
     metric_type: str
     values: dict[str, float]
+    confidence_class: str = "COMPUTED"
 
 
 class SnapshotResponse(BaseModel):
@@ -367,6 +377,10 @@ def _single_run_to_response(sr: SingleRunResult) -> RunResponse:
                 result_id=str(rs.result_id),
                 metric_type=rs.metric_type,
                 values=rs.values,
+                confidence_class=(
+                    "ESTIMATED" if rs.metric_type in _ESTIMATED_METRICS
+                    else "COMPUTED"
+                ),
             )
             for rs in sr.result_sets
         ],
@@ -431,6 +445,10 @@ async def _load_run_response(
                 result_id=str(r.result_id),
                 metric_type=r.metric_type,
                 values=r.values,
+                confidence_class=(
+                    "ESTIMATED" if r.metric_type in _ESTIMATED_METRICS
+                    else "COMPUTED"
+                ),
             )
             for r in rs_rows
         ],
@@ -558,6 +576,16 @@ async def create_run(
                 "message": str(exc),
             },
         ) from exc
+    except ValueMeasuresValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+                "environment": exc.environment,
+                "measure": exc.measure,
+            },
+        ) from exc
     sr = result.run_results[0]
 
     # Persist to DB (with workspace scoping — Amendment 3)
@@ -656,6 +684,17 @@ async def create_batch_run(
             detail={
                 "reason_code": exc.reason_code,
                 "message": str(exc),
+            },
+        ) from exc
+    except ValueMeasuresValidationError as exc:
+        await batch_repo.update_status(batch_id, "FAILED")
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+                "environment": exc.environment,
+                "measure": exc.measure,
             },
         ) from exc
     except Exception:
