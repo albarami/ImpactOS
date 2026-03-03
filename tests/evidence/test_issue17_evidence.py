@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 _CHECKLIST = Path("docs/evidence/release-readiness-checklist.md")
 
 
