@@ -245,3 +245,58 @@ python -m pytest tests -q
 | Math identities hold (GDP basic/market/real, BoT) | Yes | `TestValueMeasuresMathematicalAccuracy` passes |
 | Existing metrics unchanged (backward compatible) | Yes | `test_existing_metrics_preserved_with_vm` passes |
 | No secrets in error payloads | Yes | Validation error tests pass |
+
+---
+
+## Sprint 17 — RunSeries Annual Storage + API (MVP-17)
+
+### RunSeries Storage Shape
+
+| series_kind | year | baseline_run_id | Meaning |
+|---|---|---|---|
+| NULL | NULL | NULL | Legacy cumulative row (Sprints 9-16) |
+| `annual` | YYYY | NULL | Per-year output from phased solve |
+| `peak` | YYYY | NULL | Peak-year output (highest total impact) |
+| `delta` | YYYY | `<uuid>` | Scenario minus baseline for given year |
+
+### Annual Series Metrics
+
+| metric_type | Annual? | Peak? | Delta? |
+|---|---|---|---|
+| `total_output` | Yes | Yes | Yes |
+| `direct_effect` | Yes | No | Yes |
+| `indirect_effect` | Yes | No | Yes |
+
+### Delta Validation Reason Codes
+
+| Condition | Reason Code | HTTP |
+|---|---|---|
+| Baseline run not found | `RS_BASELINE_NOT_FOUND` | 404 |
+| Baseline has no annual series | `RS_BASELINE_NO_SERIES` | 422 |
+| No overlapping years | `RS_YEAR_MISMATCH` | 422 |
+| No overlapping metrics | `RS_BASELINE_METRIC_MISMATCH` | 422 |
+
+### Schema Additions (ResultSetRow)
+
+- `year` (int, nullable) — partial index by series_kind
+- `series_kind` (varchar(20), nullable) — CHECK: annual|peak|delta|NULL
+- `baseline_run_id` (UUID, nullable) — required only for delta
+
+### Preflight Checks
+
+- [x] Annual sum == cumulative total (per sector, within 1e-10)
+- [x] Peak values == annual values for peak year
+- [x] Delta == scenario annual - baseline annual (per sector)
+- [x] Legacy rows unchanged (series_kind=NULL, year=NULL)
+- [x] Default API returns only legacy rows
+- [x] include_series=true returns all rows
+
+### Go / No-Go Criteria
+
+| Gate | Result |
+|---|---|
+| All Sprint 17 tests pass | Required |
+| Full suite regression-free | Required |
+| Annual sum == cumulative identity | Required |
+| Delta arithmetic identity | Required |
+| Backward compatibility preserved | Required |

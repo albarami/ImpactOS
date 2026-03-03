@@ -308,3 +308,211 @@ class TestValueMeasuresMathematicalAccuracy:
             - SMALL_IMPORT_RATIO * result.delta_x_total
         ))
         assert_allclose(vm_result.balance_of_trade, expected_bot, rtol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Sprint 17: RunSeries Annual Storage — Mathematical Accuracy
+# ---------------------------------------------------------------------------
+
+from src.engine.batch import BatchRequest, BatchRunner, ScenarioInput, SingleRunResult
+from src.engine.model_store import ModelStore
+
+
+def _run_batch_for_series() -> SingleRunResult:
+    """Run a 3-year multi-year scenario for annual series verification.
+
+    Uses the same 2-sector model and shocks as test_runseries._run_standard_batch().
+    """
+    store = ModelStore()
+    Z = np.array([[150.0, 500.0],
+                   [200.0, 100.0]])
+    x = np.array([1000.0, 2000.0])
+    mv = store.register(
+        Z=Z, x=x, sector_codes=["S1", "S2"],
+        base_year=2023, source="math-series-test",
+    )
+
+    coefficients = SatelliteCoefficients(
+        jobs_coeff=np.array([0.01, 0.005]),
+        import_ratio=np.array([0.30, 0.20]),
+        va_ratio=np.array([0.40, 0.55]),
+        version_id=uuid7(),
+    )
+
+    scenario = ScenarioInput(
+        scenario_spec_id=uuid7(),
+        scenario_spec_version=1,
+        name="math-series",
+        annual_shocks={
+            2024: np.array([100.0, 0.0]),
+            2025: np.array([200.0, 50.0]),
+            2026: np.array([50.0, 25.0]),
+        },
+        base_year=2023,
+    )
+
+    version_refs = {
+        "taxonomy_version_id": uuid7(),
+        "concordance_version_id": uuid7(),
+        "mapping_library_version_id": uuid7(),
+        "assumption_library_version_id": uuid7(),
+        "prompt_pack_version_id": uuid7(),
+    }
+
+    runner = BatchRunner(model_store=store)
+    request = BatchRequest(
+        scenarios=[scenario],
+        model_version_id=mv.model_version_id,
+        satellite_coefficients=coefficients,
+        version_refs=version_refs,
+    )
+    result = runner.run(request)
+    return result.run_results[0]
+
+
+def _run_batch_for_series_with_baseline(
+    baseline_result: SingleRunResult,
+    multiplier: float = 1.5,
+) -> SingleRunResult:
+    """Run a scenario with baseline for delta verification.
+
+    Extracts baseline annual data and runs with a multiplied shock.
+    """
+    baseline_annual_data: dict[int, dict[str, dict[str, float]]] = {}
+    for rs in baseline_result.result_sets:
+        if rs.series_kind == "annual" and rs.year is not None:
+            baseline_annual_data.setdefault(rs.year, {})[rs.metric_type] = dict(rs.values)
+
+    store = ModelStore()
+    Z = np.array([[150.0, 500.0],
+                   [200.0, 100.0]])
+    x = np.array([1000.0, 2000.0])
+    mv = store.register(
+        Z=Z, x=x, sector_codes=["S1", "S2"],
+        base_year=2023, source="math-delta-test",
+    )
+
+    coefficients = SatelliteCoefficients(
+        jobs_coeff=np.array([0.01, 0.005]),
+        import_ratio=np.array([0.30, 0.20]),
+        va_ratio=np.array([0.40, 0.55]),
+        version_id=uuid7(),
+    )
+
+    scenario = ScenarioInput(
+        scenario_spec_id=uuid7(),
+        scenario_spec_version=1,
+        name="math-delta",
+        annual_shocks={
+            2024: np.array([100.0 * multiplier, 0.0]),
+            2025: np.array([200.0 * multiplier, 50.0 * multiplier]),
+            2026: np.array([50.0 * multiplier, 25.0 * multiplier]),
+        },
+        base_year=2023,
+        baseline_run_id=baseline_result.snapshot.run_id,
+        baseline_annual_data=baseline_annual_data,
+    )
+
+    version_refs = {
+        "taxonomy_version_id": uuid7(),
+        "concordance_version_id": uuid7(),
+        "mapping_library_version_id": uuid7(),
+        "assumption_library_version_id": uuid7(),
+        "prompt_pack_version_id": uuid7(),
+    }
+
+    runner = BatchRunner(model_store=store)
+    request = BatchRequest(
+        scenarios=[scenario],
+        model_version_id=mv.model_version_id,
+        satellite_coefficients=coefficients,
+        version_refs=version_refs,
+    )
+    result = runner.run(request)
+    return result.run_results[0]
+
+
+@pytest.mark.integration
+class TestRunSeriesMathematicalAccuracy:
+    """Sprint 17: annual series arithmetic identities."""
+
+    def test_cumulative_equals_annual_sum(self) -> None:
+        """Legacy cumulative total_output == sum of annual total_output per sector."""
+        result = _run_batch_for_series()
+        cumulative = next(
+            r for r in result.result_sets
+            if r.metric_type == "total_output" and r.series_kind is None
+        )
+        annual = [
+            r for r in result.result_sets
+            if r.metric_type == "total_output" and r.series_kind == "annual"
+        ]
+        for sector in cumulative.values:
+            annual_sum = sum(r.values[sector] for r in annual)
+            assert abs(annual_sum - cumulative.values[sector]) < 1e-10
+
+    def test_peak_equals_max_annual(self) -> None:
+        """Peak total_output values == max-impact annual year values."""
+        result = _run_batch_for_series()
+        peak = next(r for r in result.result_sets if r.series_kind == "peak")
+        annual = next(
+            r for r in result.result_sets
+            if r.metric_type == "total_output"
+            and r.series_kind == "annual"
+            and r.year == peak.year
+        )
+        for sector in peak.values:
+            assert abs(peak.values[sector] - annual.values[sector]) < 1e-10
+
+    def test_delta_equals_scenario_minus_baseline(self) -> None:
+        """Delta == scenario annual - baseline annual per sector."""
+        baseline_result = _run_batch_for_series()
+        scenario_result = _run_batch_for_series_with_baseline(
+            baseline_result, multiplier=1.5,
+        )
+        for delta_row in (
+            r for r in scenario_result.result_sets if r.series_kind == "delta"
+        ):
+            scenario_annual = next(
+                r for r in scenario_result.result_sets
+                if r.metric_type == delta_row.metric_type
+                and r.series_kind == "annual"
+                and r.year == delta_row.year
+            )
+            baseline_annual = next(
+                r for r in baseline_result.result_sets
+                if r.metric_type == delta_row.metric_type
+                and r.series_kind == "annual"
+                and r.year == delta_row.year
+            )
+            for sector in delta_row.values:
+                expected = scenario_annual.values[sector] - baseline_annual.values[sector]
+                assert abs(delta_row.values[sector] - expected) < 1e-10
+
+    def test_direct_plus_indirect_equals_total_per_year(self) -> None:
+        """For each annual year: direct + indirect == total."""
+        result = _run_batch_for_series()
+        years = {r.year for r in result.result_sets if r.series_kind == "annual"}
+        for year in years:
+            total = next(
+                r for r in result.result_sets
+                if r.metric_type == "total_output"
+                and r.series_kind == "annual"
+                and r.year == year
+            )
+            direct = next(
+                r for r in result.result_sets
+                if r.metric_type == "direct_effect"
+                and r.series_kind == "annual"
+                and r.year == year
+            )
+            indirect = next(
+                r for r in result.result_sets
+                if r.metric_type == "indirect_effect"
+                and r.series_kind == "annual"
+                and r.year == year
+            )
+            for sector in total.values:
+                assert abs(
+                    direct.values[sector] + indirect.values[sector] - total.values[sector]
+                ) < 1e-10
