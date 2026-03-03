@@ -547,3 +547,80 @@ class TestPhasedTypeII:
         for year, result in phased.annual_results.items():
             assert result.delta_x_type_ii_total is None
             assert result.delta_x_induced is None
+
+
+# ===================================================================
+# LoadedModel Type II properties (Sprint 15 — Task 5)
+# ===================================================================
+
+
+class TestLoadedModelTypeIIProperties:
+    """LoadedModel exposes Type II prerequisite data as properties."""
+
+    def test_has_type_ii_prerequisites_true(self) -> None:
+        """Model registered with comp + shares has has_type_ii_prerequisites=True."""
+        store = ModelStore()
+        mv = store.register(
+            Z=np.array(GOLDEN_Z), x=np.array(GOLDEN_X),
+            sector_codes=SECTOR_CODES_SMALL, base_year=2023, source="test",
+            artifact_payload={
+                "compensation_of_employees": GOLDEN_COMPENSATION,
+                "household_consumption_shares": GOLDEN_HOUSEHOLD_SHARES,
+            },
+        )
+        loaded = store.get(mv.model_version_id)
+        assert loaded.has_type_ii_prerequisites is True
+
+    def test_has_type_ii_prerequisites_false(self) -> None:
+        """Model without artifacts has has_type_ii_prerequisites=False."""
+        store = ModelStore()
+        _, loaded = _register_2x2(store)
+        assert loaded.has_type_ii_prerequisites is False
+
+    def test_compensation_array_returns_numpy(self) -> None:
+        """compensation_of_employees_array returns float64 numpy array."""
+        store = ModelStore()
+        mv = store.register(
+            Z=np.array(GOLDEN_Z), x=np.array(GOLDEN_X),
+            sector_codes=SECTOR_CODES_SMALL, base_year=2023, source="test",
+            artifact_payload={
+                "compensation_of_employees": GOLDEN_COMPENSATION,
+                "household_consumption_shares": GOLDEN_HOUSEHOLD_SHARES,
+            },
+        )
+        loaded = store.get(mv.model_version_id)
+        arr = loaded.compensation_of_employees_array
+        assert arr is not None
+        assert isinstance(arr, np.ndarray)
+        assert arr.dtype == np.float64
+        np.testing.assert_array_almost_equal(arr, GOLDEN_COMPENSATION)
+
+    def test_household_shares_array_returns_numpy(self) -> None:
+        """household_consumption_shares_array returns float64 numpy array."""
+        store = ModelStore()
+        mv = store.register(
+            Z=np.array(GOLDEN_Z), x=np.array(GOLDEN_X),
+            sector_codes=SECTOR_CODES_SMALL, base_year=2023, source="test",
+            artifact_payload={
+                "compensation_of_employees": GOLDEN_COMPENSATION,
+                "household_consumption_shares": GOLDEN_HOUSEHOLD_SHARES,
+            },
+        )
+        loaded = store.get(mv.model_version_id)
+        arr = loaded.household_consumption_shares_array
+        assert arr is not None
+        assert isinstance(arr, np.ndarray)
+        assert arr.dtype == np.float64
+        np.testing.assert_array_almost_equal(arr, GOLDEN_HOUSEHOLD_SHARES)
+
+    def test_compensation_array_none_when_missing(self) -> None:
+        """compensation_of_employees_array returns None when not available."""
+        store = ModelStore()
+        _, loaded = _register_2x2(store)
+        assert loaded.compensation_of_employees_array is None
+
+    def test_household_shares_array_none_when_missing(self) -> None:
+        """household_consumption_shares_array returns None when not available."""
+        store = ModelStore()
+        _, loaded = _register_2x2(store)
+        assert loaded.household_consumption_shares_array is None

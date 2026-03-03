@@ -239,13 +239,26 @@ async def _ensure_model_loaded(
                 detail=f"Data integrity error for model {model_version_id}.",
             )
 
-        # Reconstruct ModelVersion and LoadedModel
+        # Rehydrate extended artifacts so LoadedModel has Type II prerequisites
+        artifact_kwargs: dict[str, object] = {}
+        for key in ("compensation_of_employees", "gross_operating_surplus",
+                    "taxes_less_subsidies", "household_consumption_shares",
+                    "imports_vector", "deflator_series"):
+            json_key = f"{key}_json"
+            val = getattr(md_row, json_key, None)
+            if val is not None:
+                artifact_kwargs[key] = val
+        fd_val = getattr(md_row, "final_demand_f_json", None)
+        if fd_val is not None:
+            artifact_kwargs["final_demand_F"] = fd_val
+
         mv = ModelVersion(
             model_version_id=mv_row.model_version_id,
             base_year=mv_row.base_year,
             source=mv_row.source,
             sector_count=mv_row.sector_count,
             checksum=mv_row.checksum,
+            **artifact_kwargs,
         )
         loaded = LoadedModel(
             model_version=mv,
