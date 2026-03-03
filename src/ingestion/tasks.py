@@ -93,7 +93,10 @@ async def run_extraction(
         await job_repo.update_status(job_id, "RUNNING")
 
     try:
-        provider = router.select_provider(classification, mime_type)
+        provider = router.select_provider(
+            classification, mime_type,
+            environment=settings.ENVIRONMENT,
+        )
         provider_name = provider.name
         logger.info(
             "Extraction job %s: using provider %s for %s [%s]",
@@ -112,10 +115,11 @@ async def run_extraction(
                 document_bytes, mime_type, doc_id, options,
             )
         except Exception as exc:
-            if provider.name == "azure-di":
+            is_non_dev = settings.ENVIRONMENT in ("staging", "prod")
+            if provider.name == "azure-di" and not is_non_dev:
                 logger.warning(
                     "Azure DI failed for job %s, falling back to "
-                    "local-pdf: %s", job_id, exc,
+                    "local-pdf (dev only): %s", job_id, exc,
                 )
                 from src.ingestion.providers.local_pdf import (
                     LocalPdfProvider,
