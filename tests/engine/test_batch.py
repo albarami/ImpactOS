@@ -4,21 +4,29 @@ Covers: multi-scenario execution, sensitivity variants, immutable ResultSets,
 RunSnapshot generation, 50+ scenario handling, Type II integration.
 """
 
+from __future__ import annotations
+
+from uuid import UUID
+
 import numpy as np
-import pytest
 from uuid_extensions import uuid7
 
-from src.engine.batch import BatchRunner, BatchRequest, ScenarioInput, BatchResult
+from src.engine.batch import BatchRequest, BatchResult, BatchRunner, ScenarioInput
 from src.engine.model_store import ModelStore
 from src.engine.satellites import SatelliteCoefficients
 from src.engine.type_ii_validation import TypeIIValidationError
+from src.models.model_version import ModelVersion
 from src.models.run import ResultSet, RunSnapshot
 from tests.integration.golden_scenarios.shared import (
-    GOLDEN_Z, GOLDEN_X, SECTOR_CODES_SMALL,
-    GOLDEN_COMPENSATION, GOLDEN_HOUSEHOLD_SHARES,
-    SMALL_JOBS_COEFF, SMALL_IMPORT_RATIO, SMALL_VA_RATIO,
+    GOLDEN_COMPENSATION,
+    GOLDEN_HOUSEHOLD_SHARES,
+    GOLDEN_X,
+    GOLDEN_Z,
+    SECTOR_CODES_SMALL,
+    SMALL_IMPORT_RATIO,
+    SMALL_JOBS_COEFF,
+    SMALL_VA_RATIO,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -258,8 +266,14 @@ class TestSensitivityVariants:
 
         result = runner.run(request)
         # The 0.5x result total output should be half the 1.0x result
-        rs_half = [rs for rs in result.run_results[0].result_sets if rs.metric_type == "total_output"][0]
-        rs_base = [rs for rs in result.run_results[1].result_sets if rs.metric_type == "total_output"][0]
+        rs_half = [
+            rs for rs in result.run_results[0].result_sets
+            if rs.metric_type == "total_output"
+        ][0]
+        rs_base = [
+            rs for rs in result.run_results[1].result_sets
+            if rs.metric_type == "total_output"
+        ][0]
         for sector in rs_half.values:
             np.testing.assert_almost_equal(
                 rs_half.values[sector],
@@ -308,7 +322,9 @@ class TestRunSnapshotCompleteness:
 class TestTypeIIBatchIntegration:
     """BatchRunner produces Type II metrics when model has prerequisites."""
 
-    def _make_golden_store_and_model(self):
+    def _make_golden_store_and_model(
+        self,
+    ) -> tuple[ModelStore, ModelVersion]:
         store = ModelStore()
         mv = store.register(
             Z=np.array(GOLDEN_Z), x=np.array(GOLDEN_X),
@@ -320,7 +336,7 @@ class TestTypeIIBatchIntegration:
         )
         return store, mv
 
-    def _golden_coefficients(self):
+    def _golden_coefficients(self) -> SatelliteCoefficients:
         return SatelliteCoefficients(
             jobs_coeff=np.array(SMALL_JOBS_COEFF),
             import_ratio=np.array(SMALL_IMPORT_RATIO),
@@ -328,7 +344,7 @@ class TestTypeIIBatchIntegration:
             version_id=uuid7(),
         )
 
-    def _make_refs(self):
+    def _make_refs(self) -> dict[str, UUID]:
         return {
             "taxonomy_version_id": uuid7(),
             "concordance_version_id": uuid7(),
@@ -337,7 +353,7 @@ class TestTypeIIBatchIntegration:
             "prompt_pack_version_id": uuid7(),
         }
 
-    def test_batch_produces_type_ii_metrics(self):
+    def test_batch_produces_type_ii_metrics(self) -> None:
         store, mv = self._make_golden_store_and_model()
         runner = BatchRunner(model_store=store, environment="dev")
         scenario = ScenarioInput(
@@ -357,7 +373,7 @@ class TestTypeIIBatchIntegration:
         assert "total_output" in metric_types  # backward compat
         assert "direct_effect" in metric_types
 
-    def test_batch_without_prerequisites_no_type_ii(self):
+    def test_batch_without_prerequisites_no_type_ii(self) -> None:
         store, mv = _make_store_and_model()  # uses existing 2-sector without artifacts
         runner = BatchRunner(model_store=store, environment="dev")
         scenario = _make_scenario("test", np.array([100.0, 0.0]))
@@ -371,7 +387,7 @@ class TestTypeIIBatchIntegration:
         assert "type_ii_total_output" not in metric_types
         assert "induced_effect" not in metric_types
 
-    def test_type_ii_induced_positive(self):
+    def test_type_ii_induced_positive(self) -> None:
         store, mv = self._make_golden_store_and_model()
         runner = BatchRunner(model_store=store, environment="dev")
         scenario = ScenarioInput(
@@ -391,7 +407,7 @@ class TestTypeIIBatchIntegration:
         # Induced effects should be positive (household spending creates output)
         assert all(v >= 0 for v in induced_rs.values.values())
 
-    def test_existing_metrics_unchanged_count(self):
+    def test_existing_metrics_unchanged_count(self) -> None:
         """Existing 7 Type I metrics still present when Type II is added."""
         store, mv = self._make_golden_store_and_model()
         runner = BatchRunner(model_store=store, environment="dev")

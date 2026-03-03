@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from src.engine.leontief import LeontiefSolver
-from src.engine.model_store import ModelStore
+from src.engine.model_store import LoadedModel, ModelStore
 from tests.integration.golden_scenarios.shared import (
     EXPECTED_B_STAR_SMALL,
     GOLDEN_COMPENSATION,
@@ -23,7 +23,7 @@ class TestTypeIIMathematicalAccuracy:
     """Verify Type II solver against hand-computed golden references."""
 
     @pytest.fixture()
-    def loaded_model(self):
+    def loaded_model(self) -> LoadedModel:
         store = ModelStore()
         mv = store.register(
             Z=np.array(GOLDEN_Z),
@@ -35,7 +35,7 @@ class TestTypeIIMathematicalAccuracy:
         return store.get(mv.model_version_id)
 
     @pytest.fixture()
-    def solver(self):
+    def solver(self) -> LeontiefSolver:
         return LeontiefSolver()
 
     def test_augmented_leontief_inverse_matches_golden(self, loaded_model, solver) -> None:

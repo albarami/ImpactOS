@@ -6,11 +6,9 @@ deflation, deterministic reproducibility.
 
 import numpy as np
 import pytest
-from uuid_extensions import uuid7
 
-from src.engine.model_store import ModelStore
 from src.engine.leontief import LeontiefSolver
-
+from src.engine.model_store import LoadedModel, ModelStore
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -329,7 +327,7 @@ class TestReproducibility:
 # ===================================================================
 
 
-from src.engine.leontief import SolveResult, PhasedResult
+from src.engine.leontief import PhasedResult, SolveResult
 
 
 class TestTypeIIFieldDefaults:
@@ -388,16 +386,19 @@ class TestTypeIIFieldDefaults:
 
 
 from tests.integration.golden_scenarios.shared import (
-    GOLDEN_Z, GOLDEN_X, SECTOR_CODES_SMALL,
-    GOLDEN_COMPENSATION, GOLDEN_HOUSEHOLD_SHARES,
     EXPECTED_B_STAR_SMALL,
+    GOLDEN_COMPENSATION,
+    GOLDEN_HOUSEHOLD_SHARES,
+    GOLDEN_X,
+    GOLDEN_Z,
+    SECTOR_CODES_SMALL,
 )
 
 
 class TestTypeIISolve:
     """Type II household-closure solve tests."""
 
-    def _register_golden(self, store: ModelStore):
+    def _register_golden(self, store: ModelStore) -> LoadedModel:
         mv = store.register(
             Z=np.array(GOLDEN_Z), x=np.array(GOLDEN_X),
             sector_codes=SECTOR_CODES_SMALL, base_year=2023, source="test-golden",
@@ -483,7 +484,7 @@ class TestTypeIISolve:
 class TestPhasedTypeII:
     """solve_phased with optional Type II accumulation."""
 
-    def _register_golden(self, store: ModelStore):
+    def _register_golden(self, store: ModelStore) -> LoadedModel:
         mv = store.register(
             Z=np.array(GOLDEN_Z), x=np.array(GOLDEN_X),
             sector_codes=SECTOR_CODES_SMALL, base_year=2023, source="test-golden",

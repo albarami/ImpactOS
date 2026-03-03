@@ -18,7 +18,6 @@ from src.engine.type_ii_validation import (
     validate_type_ii_prerequisites,
 )
 
-
 # ---------------------------------------------------------------------------
 # Valid inputs
 # ---------------------------------------------------------------------------
@@ -161,4 +160,6 @@ class TestTypeIIValidation:
         except TypeIIValidationError as exc:
             msg_lower = str(exc).lower()
             for pattern in sensitive_patterns:
-                assert pattern not in msg_lower, f"Error message contains sensitive pattern: {pattern}"
+                assert pattern not in msg_lower, (
+                    f"Error message contains sensitive pattern: {pattern}"
+                )

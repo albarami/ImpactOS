@@ -7,7 +7,7 @@ all version refs for reproducibility.
 Pure deterministic — no LLM calls, no side effects.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from uuid import UUID
 
 import numpy as np
@@ -207,16 +207,22 @@ class BatchRunner:
                     household_consumption_shares=loaded.household_consumption_shares_array,
                 )
                 # Type II total output
+                type_ii_vals = self._vec_to_dict(
+                    phased_type_ii.cumulative_delta_x_type_ii, sector_codes,
+                )
                 result_sets.append(ResultSet(
                     run_id=run_id,
                     metric_type="type_ii_total_output",
-                    values=self._vec_to_dict(phased_type_ii.cumulative_delta_x_type_ii, sector_codes),
+                    values=type_ii_vals,
                 ))
                 # Induced effect
+                induced_vals = self._vec_to_dict(
+                    phased_type_ii.cumulative_delta_x_induced, sector_codes,
+                )
                 result_sets.append(ResultSet(
                     run_id=run_id,
                     metric_type="induced_effect",
-                    values=self._vec_to_dict(phased_type_ii.cumulative_delta_x_induced, sector_codes),
+                    values=induced_vals,
                 ))
                 # Type II employment satellite
                 type_ii_jobs = coefficients.jobs_coeff * phased_type_ii.cumulative_delta_x_type_ii

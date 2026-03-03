@@ -206,7 +206,7 @@ LABELED_BOQ = [
     {"text": "reinforced concrete foundation", "ground_truth_isic": "F", "value": 5_000_000},
     {"text": "structural steel erection works", "ground_truth_isic": "F", "value": 4_000_000},
     {"text": "site preparation and grading", "ground_truth_isic": "F", "value": 3_500_000},
-    {"text": "electrical infrastructure installation", "ground_truth_isic": "F", "value": 3_000_000},
+    {"text": "electrical infrastructure install", "ground_truth_isic": "F", "value": 3_000_000},
     {"text": "plumbing and drainage systems", "ground_truth_isic": "F", "value": 2_500_000},
     {"text": "prefabricated steel components", "ground_truth_isic": "C", "value": 4_000_000},
     {"text": "industrial equipment procurement", "ground_truth_isic": "C", "value": 3_500_000},

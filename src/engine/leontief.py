@@ -6,7 +6,7 @@ multi-year phasing with deflation. No LLM calls, no side effects.
 Given the same inputs, ALWAYS produces the same outputs.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 from scipy import linalg as scipy_linalg
@@ -67,7 +67,10 @@ class LeontiefSolver:
         n = loaded_model.n
 
         if delta_d.shape != (n,):
-            msg = f"dimension mismatch: delta_d has {delta_d.shape[0]} elements, model has {n} sectors."
+            msg = (
+                f"dimension mismatch: delta_d has {delta_d.shape[0]} "
+                f"elements, model has {n} sectors."
+            )
             raise ValueError(msg)
 
         B = loaded_model.B
@@ -128,8 +131,8 @@ class LeontiefSolver:
             )
         if hh_shares.shape != (n,):
             raise ValueError(
-                f"dimension mismatch: household_consumption_shares has {hh_shares.shape[0]} elements, "
-                f"model has {n} sectors."
+                f"dimension mismatch: household_consumption_shares "
+                f"has {hh_shares.shape[0]} elements, model has {n} sectors."
             )
 
         # Type I solve
