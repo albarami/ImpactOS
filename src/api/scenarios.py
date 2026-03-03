@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
     get_document_repo,
     get_extraction_job_repo,
@@ -375,6 +376,7 @@ def _derive_status(row) -> str:
 @router.get("/{workspace_id}/scenarios", response_model=ScenarioListResponse)
 async def list_scenarios(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     limit: int = 20,
     cursor: str | None = None,
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
@@ -432,6 +434,7 @@ async def list_scenarios(
 async def get_scenario_detail(
     workspace_id: UUID,
     scenario_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> ScenarioDetailResponse:
     """B-10: Get full scenario detail (latest version, workspace-scoped)."""
@@ -466,6 +469,7 @@ async def get_scenario_detail(
 async def create_scenario(
     workspace_id: UUID,
     body: CreateScenarioRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> CreateScenarioResponse:
     """Create a new scenario (version 1)."""
@@ -499,6 +503,7 @@ async def compile_scenario(
     workspace_id: UUID,
     scenario_id: UUID,
     body: CompileRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
     doc_repo: DocumentRepository = Depends(get_document_repo),
     job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
@@ -612,6 +617,7 @@ async def bulk_mapping_decisions(
     workspace_id: UUID,
     scenario_id: UUID,
     body: MappingDecisionsBulkRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> MappingDecisionsBulkResponse:
     """Submit bulk mapping decisions — creates new version."""
@@ -628,6 +634,7 @@ async def bulk_mapping_decisions(
 async def get_versions(
     workspace_id: UUID,
     scenario_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> VersionsResponse:
     """Get all versions of a scenario."""
@@ -648,6 +655,7 @@ async def lock_scenario(
     workspace_id: UUID,
     scenario_id: UUID,
     body: LockRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> LockResponse:
     """Lock mappings for governed run — creates new version with is_locked=True."""
@@ -705,6 +713,7 @@ async def run_from_scenario(
     workspace_id: UUID,
     scenario_id: UUID,
     body: RunFromScenarioRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
     mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
     md_repo: ModelDataRepository = Depends(get_model_data_repo),

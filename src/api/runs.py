@@ -28,6 +28,12 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from src.api.auth_deps import (
+    AuthPrincipal,
+    WorkspaceMember,
+    get_current_principal,
+    require_workspace_member,
+)
 from src.api.dependencies import (
     get_batch_repo,
     get_model_data_repo,
@@ -383,6 +389,7 @@ async def _load_run_response(
 @models_router.post("/models", status_code=201, response_model=RegisterModelResponse)
 async def register_model(
     body: RegisterModelRequest,
+    principal: "AuthPrincipal" = Depends(get_current_principal),
     mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
     md_repo: ModelDataRepository = Depends(get_model_data_repo),
 ) -> RegisterModelResponse:
@@ -428,6 +435,7 @@ async def register_model(
 async def create_run(
     workspace_id: UUID,
     body: RunRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
     mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
@@ -470,6 +478,7 @@ async def create_run(
 async def get_run_results(
     workspace_id: UUID,
     run_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
 ) -> RunResponse:
@@ -484,6 +493,7 @@ async def get_run_results(
 async def create_batch_run(
     workspace_id: UUID,
     body: BatchRunRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
     batch_repo: BatchRepository = Depends(get_batch_repo),
@@ -555,6 +565,7 @@ async def create_batch_run(
 async def get_batch_status(
     workspace_id: UUID,
     batch_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
     batch_repo: BatchRepository = Depends(get_batch_repo),

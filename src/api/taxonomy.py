@@ -11,8 +11,10 @@ import logging
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +110,7 @@ class SectorListResponse(BaseModel):
 @router.get("/sectors", response_model=SectorListResponse)
 async def list_sectors(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     level: str | None = Query(default=None, description="Filter by level: section or division"),
 ) -> SectorListResponse:
     """List all taxonomy sectors, optionally filtered by level."""
@@ -123,6 +126,7 @@ async def list_sectors(
 @router.get("/sectors/search", response_model=SectorListResponse)
 async def search_sectors(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     q: str = Query(min_length=1, description="Search query"),
 ) -> SectorListResponse:
     """Search sectors by code or English name (case-insensitive)."""
@@ -142,6 +146,7 @@ async def search_sectors(
 async def get_sector(
     workspace_id: UUID,
     sector_code: str,
+    member: WorkspaceMember = Depends(require_workspace_member),
 ) -> SectorItem:
     """Get a single sector by its code."""
     entry = _TAXONOMY_BY_CODE.get(sector_code)
