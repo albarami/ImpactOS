@@ -243,19 +243,23 @@ class TestModelCacheFallback:
         assert resp2.status_code == 200
         results_fallback = resp2.json()["result_sets"]
 
-        # Same metric types
-        cached_types = sorted(r["metric_type"] for r in results_cached)
-        fallback_types = sorted(r["metric_type"] for r in results_fallback)
-        assert cached_types == fallback_types
+        # Same number of result sets
+        assert len(results_cached) == len(results_fallback)
 
-        # Same values (by metric_type)
-        for c_rs in results_cached:
-            match = [f for f in results_fallback if f["metric_type"] == c_rs["metric_type"]]
-            assert len(match) == 1
-            for key, val in c_rs["values"].items():
-                assert abs(match[0]["values"][key] - val) < 1e-6, (
-                    f"Value mismatch for {c_rs['metric_type']}.{key}: "
-                    f"{val} vs {match[0]['values'][key]}"
+        # Build comparable tuples: (metric_type, sorted values) for each result
+        def _to_tuple(r: dict) -> tuple:
+            vals = tuple(sorted(r["values"].items()))
+            return (r["metric_type"], vals)
+
+        cached_tuples = sorted(_to_tuple(r) for r in results_cached)
+        fallback_tuples = sorted(_to_tuple(r) for r in results_fallback)
+
+        for ct, ft in zip(cached_tuples, fallback_tuples):
+            assert ct[0] == ft[0], f"Metric type mismatch: {ct[0]} vs {ft[0]}"
+            for (ck, cv), (fk, fv) in zip(ct[1], ft[1]):
+                assert ck == fk
+                assert abs(cv - fv) < 1e-6, (
+                    f"Value mismatch for {ct[0]}.{ck}: {cv} vs {fv}"
                 )
 
     @pytest.mark.anyio

@@ -161,6 +161,40 @@ class BatchRunner:
             values=self._vec_to_dict(cumulative_indirect, sector_codes),
         ))
 
+        # Sprint 17: Emit annual series rows
+        for year in sorted(phased.annual_results):
+            year_result = phased.annual_results[year]
+            result_sets.append(ResultSet(
+                run_id=run_id,
+                metric_type="total_output",
+                values=self._vec_to_dict(year_result.delta_x_total, sector_codes),
+                year=year,
+                series_kind="annual",
+            ))
+            result_sets.append(ResultSet(
+                run_id=run_id,
+                metric_type="direct_effect",
+                values=self._vec_to_dict(year_result.delta_x_direct, sector_codes),
+                year=year,
+                series_kind="annual",
+            ))
+            result_sets.append(ResultSet(
+                run_id=run_id,
+                metric_type="indirect_effect",
+                values=self._vec_to_dict(year_result.delta_x_indirect, sector_codes),
+                year=year,
+                series_kind="annual",
+            ))
+
+        # Sprint 17: Peak-year row
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="total_output",
+            values=self._vec_to_dict(phased.peak_delta_x, sector_codes),
+            year=phased.peak_year,
+            series_kind="peak",
+        ))
+
         # Satellite results
         result_sets.append(ResultSet(
             run_id=run_id,
