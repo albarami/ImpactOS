@@ -51,9 +51,9 @@ from src.engine.batch import (
     ScenarioInput,
     SingleRunResult,
 )
-from src.engine.type_ii_validation import TypeIIValidationError
 from src.engine.model_store import LoadedModel, ModelStore, compute_model_checksum
 from src.engine.satellites import SatelliteCoefficients
+from src.engine.type_ii_validation import TypeIIValidationError
 from src.models.common import new_uuid7
 from src.models.model_version import ModelVersion
 from src.repositories.engine import (
