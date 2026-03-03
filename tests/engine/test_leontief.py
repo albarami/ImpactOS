@@ -322,3 +322,61 @@ class TestReproducibility:
         p1 = solver.solve_phased(loaded_model=loaded, annual_shocks=annual_shocks, base_year=2023)
         p2 = solver.solve_phased(loaded_model=loaded, annual_shocks=annual_shocks, base_year=2023)
         np.testing.assert_array_equal(p1.cumulative_delta_x, p2.cumulative_delta_x)
+
+
+# ===================================================================
+# Type II field extensions (Sprint 15 — Task 1)
+# ===================================================================
+
+
+from src.engine.leontief import SolveResult, PhasedResult
+
+
+class TestTypeIIFieldDefaults:
+    """SolveResult and PhasedResult optional Type II fields default to None."""
+
+    def test_solve_result_type_ii_defaults_none(self) -> None:
+        """New Type II fields default to None when not provided."""
+        result = SolveResult(
+            delta_x_total=np.array([1.0, 2.0]),
+            delta_x_direct=np.array([1.0, 0.0]),
+            delta_x_indirect=np.array([0.0, 2.0]),
+        )
+        assert result.delta_x_type_ii_total is None
+        assert result.delta_x_induced is None
+
+    def test_solve_result_accepts_type_ii_values(self) -> None:
+        """SolveResult can be constructed with Type II values."""
+        t2_total = np.array([1.5, 2.5])
+        induced = np.array([0.5, 0.5])
+        result = SolveResult(
+            delta_x_total=np.array([1.0, 2.0]),
+            delta_x_direct=np.array([1.0, 0.0]),
+            delta_x_indirect=np.array([0.0, 2.0]),
+            delta_x_type_ii_total=t2_total,
+            delta_x_induced=induced,
+        )
+        np.testing.assert_array_equal(result.delta_x_type_ii_total, t2_total)
+        np.testing.assert_array_equal(result.delta_x_induced, induced)
+
+    def test_existing_solve_returns_none_for_type_ii(self) -> None:
+        """Backward compat: existing solve() returns None for Type II fields."""
+        store = ModelStore()
+        _, loaded = _register_2x2(store)
+        solver = LeontiefSolver()
+
+        delta_d = np.array([100.0, 50.0])
+        result = solver.solve(loaded_model=loaded, delta_d=delta_d)
+        assert result.delta_x_type_ii_total is None
+        assert result.delta_x_induced is None
+
+    def test_phased_result_type_ii_defaults_none(self) -> None:
+        """PhasedResult Type II cumulative fields default to None."""
+        phased = PhasedResult(
+            annual_results={},
+            cumulative_delta_x=np.zeros(2),
+            peak_year=2026,
+            peak_delta_x=np.zeros(2),
+        )
+        assert phased.cumulative_delta_x_type_ii is None
+        assert phased.cumulative_delta_x_induced is None

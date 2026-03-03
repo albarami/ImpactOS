@@ -20,6 +20,8 @@ class SolveResult:
     delta_x_total: np.ndarray
     delta_x_direct: np.ndarray
     delta_x_indirect: np.ndarray
+    delta_x_type_ii_total: np.ndarray | None = None
+    delta_x_induced: np.ndarray | None = None
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,8 @@ class PhasedResult:
     cumulative_delta_x: np.ndarray
     peak_year: int
     peak_delta_x: np.ndarray
+    cumulative_delta_x_type_ii: np.ndarray | None = None
+    cumulative_delta_x_induced: np.ndarray | None = None
 
 
 class LeontiefSolver:
