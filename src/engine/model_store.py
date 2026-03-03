@@ -133,6 +133,56 @@ class LoadedModel:
         return np.asarray(data, dtype=np.float64)
 
     @property
+    def gross_operating_surplus_array(self) -> np.ndarray | None:
+        """Gross operating surplus as numpy array, or None if not available."""
+        data = self._model_version.gross_operating_surplus
+        if data is None:
+            return None
+        return np.asarray(data, dtype=np.float64)
+
+    @property
+    def taxes_less_subsidies_array(self) -> np.ndarray | None:
+        """Net taxes less subsidies as numpy array, or None if not available."""
+        data = self._model_version.taxes_less_subsidies
+        if data is None:
+            return None
+        return np.asarray(data, dtype=np.float64)
+
+    @property
+    def final_demand_f_array(self) -> np.ndarray | None:
+        """Final demand matrix F as numpy array (n, k), or None if not available."""
+        data = self._model_version.final_demand_f
+        if data is None:
+            return None
+        return np.asarray(data, dtype=np.float64)
+
+    @property
+    def imports_vector_array(self) -> np.ndarray | None:
+        """Imports vector as numpy array, or None if not available."""
+        data = self._model_version.imports_vector
+        if data is None:
+            return None
+        return np.asarray(data, dtype=np.float64)
+
+    def deflator_for_year(self, year: int) -> float | None:
+        """Return deflator for a specific year, or None if not available."""
+        series = self._model_version.deflator_series
+        if series is None:
+            return None
+        return series.get(year)
+
+    @property
+    def has_value_measures_prerequisites(self) -> bool:
+        """Whether this model has minimum artifacts for value measures."""
+        mv = self._model_version
+        return (
+            mv.gross_operating_surplus is not None
+            and mv.taxes_less_subsidies is not None
+            and mv.final_demand_f is not None
+            and mv.imports_vector is not None
+        )
+
+    @property
     def B(self) -> np.ndarray:
         """Leontief inverse: B = (I - A)^{-1}.
 
