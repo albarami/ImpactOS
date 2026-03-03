@@ -119,10 +119,12 @@ def generate_benchmark_json(path: Path) -> None:
     shock = np.array(SHOCK_VECTOR, dtype=np.float64)
     result = solver.solve(loaded_model=loaded, delta_d=shock)
 
-    # Compute expected employment: jobs_coeff_i * (delta_x_total_i / x_i)
+    # Scalar expected outputs — parity gate compares sums, not per-sector vectors
+    total_output = float(np.sum(result.delta_x_total))
+
+    # Employment: sum(delta_x_total * jobs_coeff) — matches parity_gate._compute_actual_outputs
     jobs = np.array(JOBS_COEFF, dtype=np.float64)
-    x_arr = np.array(X, dtype=np.float64)
-    employment = (jobs * (result.delta_x_total / x_arr)).tolist()
+    employment = float(np.sum(result.delta_x_total * jobs))
 
     benchmark = {
         "benchmark_id": "sg_3sector_golden_v1",
@@ -138,8 +140,8 @@ def generate_benchmark_json(path: Path) -> None:
             "jobs_coeff": JOBS_COEFF,
         },
         "expected_outputs": {
-            "total_output": result.delta_x_total.tolist(),
-            "employment": employment,
+            "total_output": round(total_output, 10),
+            "employment": round(employment, 10),
         },
         "tolerance": 0.001,
     }
