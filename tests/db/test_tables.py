@@ -180,6 +180,47 @@ class TestModelVersionRow:
         assert result.x_vector_json == [100.0, 200.0]
         assert result.sector_codes == ["SEC01", "SEC02"]
 
+    async def test_model_data_extended_phase2e_fields(self, session: AsyncSession):
+        """ModelDataRow stores optional Phase 2-E prerequisite fields additively."""
+        mv_id = new_uuid7()
+        mv = ModelVersionRow(
+            model_version_id=mv_id,
+            base_year=2023,
+            source="test-extended",
+            sector_count=2,
+            checksum="sha256:" + "d" * 64,
+            provenance_class="curated_real",
+            created_at=utc_now(),
+        )
+        session.add(mv)
+        await session.flush()
+
+        md = ModelDataRow(
+            model_version_id=mv_id,
+            z_matrix_json=[[10.0, 1.0], [2.0, 20.0]],
+            x_vector_json=[100.0, 200.0],
+            sector_codes=["S1", "S2"],
+            final_demand_f_json=[[50.0, 30.0, 10.0, 5.0], [25.0, 20.0, 15.0, 10.0]],
+            imports_vector_json=[10.0, 20.0],
+            compensation_of_employees_json=[30.0, 50.0],
+            gross_operating_surplus_json=[20.0, 40.0],
+            taxes_less_subsidies_json=[5.0, 6.0],
+            household_consumption_shares_json=[0.45, 0.55],
+            deflator_series_json={"2023": 1.0, "2024": 1.03},
+        )
+        session.add(md)
+        await session.flush()
+
+        result = await session.get(ModelDataRow, mv_id)
+        assert result is not None
+        assert result.final_demand_f_json is not None
+        assert result.imports_vector_json == [10.0, 20.0]
+        assert result.compensation_of_employees_json == [30.0, 50.0]
+        assert result.gross_operating_surplus_json == [20.0, 40.0]
+        assert result.taxes_less_subsidies_json == [5.0, 6.0]
+        assert result.household_consumption_shares_json == [0.45, 0.55]
+        assert result.deflator_series_json == {"2023": 1.0, "2024": 1.03}
+
 
 # ---------------------------------------------------------------------------
 # ScenarioSpecRow (VERSIONED — surrogate PK)

@@ -46,14 +46,34 @@ class ModelDataRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(self, *, model_version_id: UUID, z_matrix_json: list,
-                     x_vector_json: list, sector_codes: list,
-                     storage_format: str = "json") -> ModelDataRow:
+    async def create(
+        self,
+        *,
+        model_version_id: UUID,
+        z_matrix_json: list,
+        x_vector_json: list,
+        sector_codes: list,
+        final_demand_f_json: list | None = None,
+        imports_vector_json: list | None = None,
+        compensation_of_employees_json: list | None = None,
+        gross_operating_surplus_json: list | None = None,
+        taxes_less_subsidies_json: list | None = None,
+        household_consumption_shares_json: list | None = None,
+        deflator_series_json: dict[str, float] | None = None,
+        storage_format: str = "json",
+    ) -> ModelDataRow:
         row = ModelDataRow(
             model_version_id=model_version_id,
             z_matrix_json=z_matrix_json,
             x_vector_json=x_vector_json,
             sector_codes=sector_codes,
+            final_demand_f_json=final_demand_f_json,
+            imports_vector_json=imports_vector_json,
+            compensation_of_employees_json=compensation_of_employees_json,
+            gross_operating_surplus_json=gross_operating_surplus_json,
+            taxes_less_subsidies_json=taxes_less_subsidies_json,
+            household_consumption_shares_json=household_consumption_shares_json,
+            deflator_series_json=deflator_series_json,
             storage_format=storage_format,
         )
         self._session.add(row)

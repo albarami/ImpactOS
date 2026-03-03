@@ -15,7 +15,7 @@ from uuid import UUID
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
@@ -23,7 +23,7 @@ from src.api.dependencies import (
     get_model_data_repo,
     get_model_version_repo,
 )
-from src.db.tables import ModelVersionRow
+from src.db.tables import ModelDataRow, ModelVersionRow
 from src.repositories.engine import ModelDataRepository, ModelVersionRepository
 from src.repositories.workforce import EmploymentCoefficientsRepository
 
@@ -48,6 +48,16 @@ class ModelVersionResponse(BaseModel):
     checksum: str
     created_at: str
     status: str = "AVAILABLE"
+    final_demand_f: list[list[float]] | None = Field(
+        default=None,
+        alias="final_demand_F",
+    )
+    imports_vector: list[float] | None = None
+    compensation_of_employees: list[float] | None = None
+    gross_operating_surplus: list[float] | None = None
+    taxes_less_subsidies: list[float] | None = None
+    household_consumption_shares: list[float] | None = None
+    deflator_series: dict[str, float] | None = None
 
 
 class ModelVersionListResponse(BaseModel):
@@ -68,7 +78,16 @@ class CoefficientsResponse(BaseModel):
     sector_coefficients: list[SectorCoefficient]
 
 
-def _row_to_response(row: ModelVersionRow) -> ModelVersionResponse:
+def _row_to_response(
+    row: ModelVersionRow,
+    model_data: ModelDataRow | None = None,
+) -> ModelVersionResponse:
+    deflator_series = None
+    if model_data is not None and model_data.deflator_series_json is not None:
+        deflator_series = {
+            str(k): float(v) for k, v in model_data.deflator_series_json.items()
+        }
+
     return ModelVersionResponse(
         model_version_id=str(row.model_version_id),
         base_year=row.base_year,
@@ -76,6 +95,31 @@ def _row_to_response(row: ModelVersionRow) -> ModelVersionResponse:
         sector_count=row.sector_count,
         checksum=row.checksum,
         created_at=row.created_at.isoformat(),
+        final_demand_f=(
+            model_data.final_demand_f_json
+            if model_data is not None else None
+        ),
+        imports_vector=(
+            model_data.imports_vector_json
+            if model_data is not None else None
+        ),
+        compensation_of_employees=(
+            model_data.compensation_of_employees_json
+            if model_data is not None else None
+        ),
+        gross_operating_surplus=(
+            model_data.gross_operating_surplus_json
+            if model_data is not None else None
+        ),
+        taxes_less_subsidies=(
+            model_data.taxes_less_subsidies_json
+            if model_data is not None else None
+        ),
+        household_consumption_shares=(
+            model_data.household_consumption_shares_json
+            if model_data is not None else None
+        ),
+        deflator_series=deflator_series,
     )
 
 
@@ -103,11 +147,13 @@ async def get_model_version(
     model_version_id: UUID,
     member: WorkspaceMember = Depends(require_workspace_member),
     repo: ModelVersionRepository = Depends(get_model_version_repo),
+    md_repo: ModelDataRepository = Depends(get_model_data_repo),
 ) -> ModelVersionResponse:
     row = await repo.get(model_version_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Model version not found")
-    return _row_to_response(row)
+    model_data = await md_repo.get(model_version_id)
+    return _row_to_response(row, model_data)
 
 
 # ---------------------------------------------------------------------------

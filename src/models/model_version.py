@@ -23,6 +23,16 @@ class ModelVersion(ImpactOSBase, frozen=True):
         pattern=r"^sha256:[a-f0-9]{64}$",
         description="SHA-256 hash of the serialised model data.",
     )
+    final_demand_f: list[list[float]] | None = Field(
+        default=None,
+        alias="final_demand_F",
+    )
+    imports_vector: list[float] | None = None
+    compensation_of_employees: list[float] | None = None
+    gross_operating_surplus: list[float] | None = None
+    taxes_less_subsidies: list[float] | None = None
+    household_consumption_shares: list[float] | None = None
+    deflator_series: dict[int, float] | None = None
     created_at: UTCTimestamp = Field(default_factory=utc_now)
 
 
