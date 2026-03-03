@@ -258,3 +258,122 @@ class TestBatchRunEndpoint:
     async def test_batch_nonexistent_returns_404(self, client: AsyncClient) -> None:
         response = await client.get(f"/v1/workspaces/{WS_ID}/engine/batch/{uuid7()}")
         assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: Value Measures API tests
+# ---------------------------------------------------------------------------
+
+
+def _register_model_with_vm_payload() -> dict:
+    """Model payload with all value-measures artifacts."""
+    return {
+        "Z": [[100.0, 50.0, 30.0], [80.0, 200.0, 60.0], [40.0, 100.0, 150.0]],
+        "x": [1000.0, 2000.0, 1500.0],
+        "sector_codes": ["F", "C", "G"],
+        "base_year": 2024,
+        "source": "test-vm-api",
+        "gross_operating_surplus": [200.0, 500.0, 300.0],
+        "taxes_less_subsidies": [50.0, 80.0, 45.0],
+        "final_demand_F": [[150, 60, 200, 90], [400, 120, 300, 180], [300, 80, 100, 120]],
+        "imports_vector": [300.0, 500.0, 225.0],
+        "deflator_series": {"2024": 1.0, "2025": 1.03},
+    }
+
+
+def _satellite_payload_3() -> dict:
+    return {
+        "jobs_coeff": [0.008, 0.004, 0.006],
+        "import_ratio": [0.30, 0.25, 0.15],
+        "va_ratio": [0.35, 0.45, 0.55],
+    }
+
+
+class TestValueMeasuresEndpoint:
+    """API returns value-measures metrics when prerequisites are present."""
+
+    @pytest.mark.anyio
+    async def test_run_returns_value_measures_metrics(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        # Register model with VM artifacts
+        reg_resp = await client.post(
+            "/v1/engine/models", json=_register_model_with_vm_payload(),
+        )
+        assert reg_resp.status_code == 201
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2025": [100.0, 50.0, 25.0]},
+                "base_year": 2024,
+                "satellite_coefficients": _satellite_payload_3(),
+                "deflators": {"2025": "1.03"},
+            },
+        )
+        assert run_resp.status_code == 200
+        data = run_resp.json()
+        metric_types = {rs["metric_type"] for rs in data["result_sets"]}
+        assert "gdp_basic_price" in metric_types
+        assert "gdp_market_price" in metric_types
+        assert "balance_of_trade" in metric_types
+
+    @pytest.mark.anyio
+    async def test_run_without_vm_returns_base_metrics_only(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        # Register model WITHOUT VM artifacts
+        reg_resp = await client.post(
+            "/v1/engine/models", json=_register_model_payload(),
+        )
+        assert reg_resp.status_code == 201
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2025": [100.0, 50.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        assert run_resp.status_code == 200
+        data = run_resp.json()
+        metric_types = {rs["metric_type"] for rs in data["result_sets"]}
+        assert "gdp_basic_price" not in metric_types
+        # But base metrics still present
+        assert "total_output" in metric_types
+
+    @pytest.mark.anyio
+    async def test_confidence_class_in_response(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """Value-measures metrics include confidence_class in response."""
+        reg_resp = await client.post(
+            "/v1/engine/models", json=_register_model_with_vm_payload(),
+        )
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2025": [100.0, 50.0, 25.0]},
+                "base_year": 2024,
+                "satellite_coefficients": _satellite_payload_3(),
+                "deflators": {"2025": "1.03"},
+            },
+        )
+        data = run_resp.json()
+        for rs in data["result_sets"]:
+            assert "confidence_class" in rs
+            if rs["metric_type"] in ("gdp_market_price", "balance_of_trade"):
+                assert rs["confidence_class"] == "ESTIMATED"
+            elif rs["metric_type"] in ("total_output", "employment"):
+                assert rs["confidence_class"] == "COMPUTED"

@@ -190,3 +190,58 @@ python -m pytest tests -q
 | Existing Type I outputs unchanged | Yes | All existing engine tests pass |
 | Deterministic reproducibility | Yes | `test_leontief.py::TestTypeIISolve::test_type_ii_deterministic_reproducibility` |
 | No secrets in error payloads | Yes | Secret leakage tests pass |
+
+---
+
+## Sprint 16: Value Measures Satellite (MVP-16)
+
+| Measure | Formula | Dev Behavior | Staging/Prod Behavior | Fail Mode | Test Evidence |
+|---|---|---|---|---|---|
+| **gdp_basic_price** | Σ(va_ratio · Δx) | Computed | Computed | — | `test_value_measures.py` |
+| **gdp_market_price** | GDP_basic + Σ(tax_ratio · Δx) | Computed | Computed | VM prerequisite | `test_value_measures.py` |
+| **gdp_real** | GDP_market / deflator(base_year) | Computed | Computed | VM_MISSING_DEFLATOR | `test_value_measures.py` |
+| **gdp_intensity** | GDP_market / Σ(Δx) | Computed | Computed | — | `test_value_measures.py` |
+| **balance_of_trade** | Σ(export_ratio · Δx) - Σ(import_ratio · Δx) | Computed | Computed | VM_MISSING_FINAL_DEMAND | `test_value_measures.py` |
+| **non_oil_exports** | exports filtered to non-oil sectors | Computed | Computed | — | `test_value_measures.py` |
+| **government_non_oil_revenue** | Σ(tax_ratio · Δx) for non-oil | Computed | Computed | VM_MISSING_TAXES | `test_value_measures.py` |
+| **government_revenue_spending_ratio** | gov_revenue / gov_spending_effect | Computed | Computed | — | `test_value_measures.py` |
+
+### Prerequisite Validation Matrix
+
+| Prerequisite | Validation | Reason Code | Non-dev | Dev |
+|---|---|---|---|---|
+| gross_operating_surplus | present + dim=n + non-negative + finite | `VM_MISSING_GOS` / `VM_INVALID_GOS` | 422 fail-closed | skip VM, log warning |
+| taxes_less_subsidies | present + dim=n + finite | `VM_MISSING_TAXES` / `VM_INVALID_TAXES` | 422 fail-closed | skip VM |
+| final_demand_F | present + shape=(n,k≥4) + finite | `VM_MISSING_FINAL_DEMAND` / `VM_INVALID_FINAL_DEMAND` | 422 fail-closed | skip VM |
+| imports_vector | present + dim=n + non-negative + finite | `VM_MISSING_IMPORTS` / `VM_INVALID_IMPORTS` | 422 fail-closed | skip VM |
+| deflator_series | present + base_year key + value>0 | `VM_MISSING_DEFLATOR` / `VM_INVALID_DEFLATOR` | 422 fail-closed | skip VM |
+
+### Sprint 16 Preflight Checks
+
+```bash
+# 1. Value measures core
+python -m pytest tests/engine/test_value_measures.py -v
+
+# 2. Batch integration
+python -m pytest tests/engine/test_batch.py::TestBatchValueMeasures -v
+
+# 3. API integration
+python -m pytest tests/engine/test_api_runs.py::TestValueMeasuresEndpoint -v
+
+# 4. Math parity
+python -m pytest tests/integration/test_mathematical_accuracy.py::TestValueMeasuresMathematicalAccuracy -v
+
+# 5. Full suite
+python -m pytest tests -q
+```
+
+### Go/No-Go Criteria (additive)
+
+| Criteria | Required | How to Verify |
+|---|---|---|
+| All 8 value measures computed deterministically | Yes | `test_value_measures.py` passes |
+| Fail-closed in non-dev for missing prerequisites | Yes | `TestBatchValueMeasures` passes |
+| API returns value measures with confidence_class | Yes | `TestValueMeasuresEndpoint` passes |
+| Math identities hold (GDP basic/market/real, BoT) | Yes | `TestValueMeasuresMathematicalAccuracy` passes |
+| Existing metrics unchanged (backward compatible) | Yes | `test_existing_metrics_preserved_with_vm` passes |
+| No secrets in error payloads | Yes | Validation error tests pass |

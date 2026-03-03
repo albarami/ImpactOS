@@ -10247,6 +10247,11 @@
             },
             "type": "object",
             "title": "Values"
+          },
+          "confidence_class": {
+            "type": "string",
+            "title": "Confidence Class",
+            "default": "COMPUTED"
           }
         },
         "type": "object",

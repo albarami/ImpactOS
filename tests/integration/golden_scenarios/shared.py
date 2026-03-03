@@ -74,6 +74,42 @@ SMALL_IMPORT_RATIO = np.array([0.30, 0.25, 0.15])     # import leakage
 SMALL_VA_RATIO = np.array([0.35, 0.45, 0.55])         # value added share
 
 # ---------------------------------------------------------------------------
+# Value-measures artifacts for the 3-sector toy model (Sprint 16)
+# ---------------------------------------------------------------------------
+
+# Gross operating surplus per sector
+SMALL_GOS = np.array([200.0, 500.0, 300.0], dtype=np.float64)
+
+# Net taxes less subsidies per sector
+SMALL_TAXES_LESS_SUBSIDIES = np.array([50.0, 80.0, 45.0], dtype=np.float64)
+
+# Final demand matrix F (n=3 sectors × k=4 categories)
+# Columns: 0=Household, 1=Government, 2=Investment, 3=Exports
+SMALL_FINAL_DEMAND_F = np.array([
+    [150.0, 60.0,  200.0, 90.0],   # F: Construction
+    [400.0, 120.0, 300.0, 180.0],  # C: Manufacturing
+    [300.0, 80.0,  100.0, 120.0],  # G: Wholesale/Retail
+], dtype=np.float64)
+
+# Deflator series (year → price index, base_year=2024 → 1.0)
+SMALL_DEFLATOR_SERIES = {2024: 1.0, 2025: 1.03, 2026: 1.06}
+
+# Imports vector (total imports per sector — used for BoT computation)
+SMALL_IMPORTS_VECTOR = np.array([300.0, 500.0, 225.0], dtype=np.float64)
+
+# Oil sector codes (for non-oil filtering)
+# In the 3-sector model, none are oil. For testing, we designate none.
+SMALL_OIL_SECTOR_CODES: frozenset[str] = frozenset()
+
+# Pre-computed value-measures golden values for hand-verification
+# tax_ratio[i] = taxes_less_subsidies[i] / x[i]
+_TAX_RATIO_SMALL = SMALL_TAXES_LESS_SUBSIDIES / GOLDEN_X
+# export_ratio[i] = F[i, 3] / x[i]
+_EXPORT_RATIO_SMALL = SMALL_FINAL_DEMAND_F[:, 3] / GOLDEN_X
+# gov_spending_ratio[i] = F[i, 1] / x[i]
+_GOV_SPENDING_RATIO_SMALL = SMALL_FINAL_DEMAND_F[:, 1] / GOLDEN_X
+
+# ---------------------------------------------------------------------------
 # Type II golden values for household-closed model
 # ---------------------------------------------------------------------------
 
