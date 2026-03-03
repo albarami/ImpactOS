@@ -60,6 +60,7 @@ async def run_depth_plan(
         llm_client=llm_client,
         plan_repo=plan_repo,
         artifact_repo=artifact_repo,
+        environment=settings.ENVIRONMENT.value,
     )
 
     return status.value
