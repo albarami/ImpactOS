@@ -106,3 +106,188 @@ class TestLoadedModelValueMeasuresProperties:
         assert loaded.final_demand_f_array is None
         assert loaded.imports_vector_array is None
         assert loaded.deflator_for_year(2024) is None
+
+
+# ---------------------------------------------------------------------------
+# Task 3: Validation tests
+# ---------------------------------------------------------------------------
+
+from src.engine.value_measures_validation import (
+    ValueMeasuresValidationError,
+    validate_value_measures_prerequisites,
+)
+
+
+class TestValueMeasuresValidationError:
+    """Structured error with reason_code, environment, measure."""
+
+    def test_error_fields(self) -> None:
+        err = ValueMeasuresValidationError(
+            "missing GOS",
+            reason_code="VM_MISSING_GOS",
+            environment="staging",
+            measure="gdp_market_price",
+        )
+        assert err.reason_code == "VM_MISSING_GOS"
+        assert err.environment == "staging"
+        assert err.measure == "gdp_market_price"
+        assert str(err) == "missing GOS"
+
+    def test_no_secrets_in_message(self) -> None:
+        err = ValueMeasuresValidationError(
+            "GOS is missing for value measures in staging",
+            reason_code="VM_MISSING_GOS",
+            environment="staging",
+            measure="gdp_basic_price",
+        )
+        msg = str(err).lower()
+        assert "key" not in msg or "api" not in msg
+        assert "sk-" not in msg
+        assert "token" not in msg
+
+
+class TestValidateValueMeasuresPrerequisites:
+    """Prerequisite validation for value measures."""
+
+    def test_valid_prerequisites_pass(self) -> None:
+        result = validate_value_measures_prerequisites(
+            n=3,
+            x=GOLDEN_X,
+            gross_operating_surplus=SMALL_GOS,
+            taxes_less_subsidies=SMALL_TAXES_LESS_SUBSIDIES,
+            final_demand_f=SMALL_FINAL_DEMAND_F,
+            imports_vector=SMALL_IMPORTS_VECTOR,
+            deflator_series=SMALL_DEFLATOR_SERIES,
+            base_year=2024,
+        )
+        assert result.is_valid
+
+    def test_missing_gos_raises(self) -> None:
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            validate_value_measures_prerequisites(
+                n=3, x=GOLDEN_X,
+                gross_operating_surplus=None,
+                taxes_less_subsidies=SMALL_TAXES_LESS_SUBSIDIES,
+                final_demand_f=SMALL_FINAL_DEMAND_F,
+                imports_vector=SMALL_IMPORTS_VECTOR,
+                deflator_series=SMALL_DEFLATOR_SERIES,
+                base_year=2024,
+            )
+        assert exc_info.value.reason_code == "VM_MISSING_GOS"
+
+    def test_missing_taxes_raises(self) -> None:
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            validate_value_measures_prerequisites(
+                n=3, x=GOLDEN_X,
+                gross_operating_surplus=SMALL_GOS,
+                taxes_less_subsidies=None,
+                final_demand_f=SMALL_FINAL_DEMAND_F,
+                imports_vector=SMALL_IMPORTS_VECTOR,
+                deflator_series=SMALL_DEFLATOR_SERIES,
+                base_year=2024,
+            )
+        assert exc_info.value.reason_code == "VM_MISSING_TAXES"
+
+    def test_missing_final_demand_raises(self) -> None:
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            validate_value_measures_prerequisites(
+                n=3, x=GOLDEN_X,
+                gross_operating_surplus=SMALL_GOS,
+                taxes_less_subsidies=SMALL_TAXES_LESS_SUBSIDIES,
+                final_demand_f=None,
+                imports_vector=SMALL_IMPORTS_VECTOR,
+                deflator_series=SMALL_DEFLATOR_SERIES,
+                base_year=2024,
+            )
+        assert exc_info.value.reason_code == "VM_MISSING_FINAL_DEMAND"
+
+    def test_missing_imports_vector_raises(self) -> None:
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            validate_value_measures_prerequisites(
+                n=3, x=GOLDEN_X,
+                gross_operating_surplus=SMALL_GOS,
+                taxes_less_subsidies=SMALL_TAXES_LESS_SUBSIDIES,
+                final_demand_f=SMALL_FINAL_DEMAND_F,
+                imports_vector=None,
+                deflator_series=SMALL_DEFLATOR_SERIES,
+                base_year=2024,
+            )
+        assert exc_info.value.reason_code == "VM_MISSING_IMPORTS"
+
+    def test_wrong_dimension_gos_raises(self) -> None:
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            validate_value_measures_prerequisites(
+                n=3, x=GOLDEN_X,
+                gross_operating_surplus=np.array([1.0, 2.0]),  # wrong dim
+                taxes_less_subsidies=SMALL_TAXES_LESS_SUBSIDIES,
+                final_demand_f=SMALL_FINAL_DEMAND_F,
+                imports_vector=SMALL_IMPORTS_VECTOR,
+                deflator_series=SMALL_DEFLATOR_SERIES,
+                base_year=2024,
+            )
+        assert exc_info.value.reason_code == "VM_DIMENSION_MISMATCH"
+
+    def test_negative_gos_raises(self) -> None:
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            validate_value_measures_prerequisites(
+                n=3, x=GOLDEN_X,
+                gross_operating_surplus=np.array([-1.0, 2.0, 3.0]),
+                taxes_less_subsidies=SMALL_TAXES_LESS_SUBSIDIES,
+                final_demand_f=SMALL_FINAL_DEMAND_F,
+                imports_vector=SMALL_IMPORTS_VECTOR,
+                deflator_series=SMALL_DEFLATOR_SERIES,
+                base_year=2024,
+            )
+        assert exc_info.value.reason_code == "VM_INVALID_GOS"
+
+    def test_missing_deflator_raises(self) -> None:
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            validate_value_measures_prerequisites(
+                n=3, x=GOLDEN_X,
+                gross_operating_surplus=SMALL_GOS,
+                taxes_less_subsidies=SMALL_TAXES_LESS_SUBSIDIES,
+                final_demand_f=SMALL_FINAL_DEMAND_F,
+                imports_vector=SMALL_IMPORTS_VECTOR,
+                deflator_series=None,
+                base_year=2024,
+            )
+        assert exc_info.value.reason_code == "VM_MISSING_DEFLATOR"
+
+    def test_deflator_missing_base_year_raises(self) -> None:
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            validate_value_measures_prerequisites(
+                n=3, x=GOLDEN_X,
+                gross_operating_surplus=SMALL_GOS,
+                taxes_less_subsidies=SMALL_TAXES_LESS_SUBSIDIES,
+                final_demand_f=SMALL_FINAL_DEMAND_F,
+                imports_vector=SMALL_IMPORTS_VECTOR,
+                deflator_series={2025: 1.03},  # no 2024
+                base_year=2024,
+            )
+        assert exc_info.value.reason_code == "VM_INVALID_DEFLATOR"
+
+    def test_deflator_non_positive_raises(self) -> None:
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            validate_value_measures_prerequisites(
+                n=3, x=GOLDEN_X,
+                gross_operating_surplus=SMALL_GOS,
+                taxes_less_subsidies=SMALL_TAXES_LESS_SUBSIDIES,
+                final_demand_f=SMALL_FINAL_DEMAND_F,
+                imports_vector=SMALL_IMPORTS_VECTOR,
+                deflator_series={2024: 0.0},
+                base_year=2024,
+            )
+        assert exc_info.value.reason_code == "VM_INVALID_DEFLATOR"
+
+    def test_final_demand_too_few_columns_raises(self) -> None:
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            validate_value_measures_prerequisites(
+                n=3, x=GOLDEN_X,
+                gross_operating_surplus=SMALL_GOS,
+                taxes_less_subsidies=SMALL_TAXES_LESS_SUBSIDIES,
+                final_demand_f=np.array([[1, 2], [3, 4], [5, 6]]),  # only 2 cols
+                imports_vector=SMALL_IMPORTS_VECTOR,
+                deflator_series=SMALL_DEFLATOR_SERIES,
+                base_year=2024,
+            )
+        assert exc_info.value.reason_code == "VM_INVALID_FINAL_DEMAND"
