@@ -52,8 +52,8 @@ from src.engine.batch import (
     SingleRunResult,
 )
 from src.engine.model_store import LoadedModel, ModelStore, compute_model_checksum
-from src.engine.satellites import SatelliteCoefficients
 from src.engine.runseries_delta import RunSeriesValidationError
+from src.engine.satellites import SatelliteCoefficients
 from src.engine.type_ii_validation import TypeIIValidationError
 from src.engine.value_measures_validation import ValueMeasuresValidationError
 from src.models.common import new_uuid7

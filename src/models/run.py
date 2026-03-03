@@ -72,11 +72,11 @@ class ResultSet(ImpactOSBase, frozen=True):
 
     @model_validator(mode="after")
     def _validate_series_fields(self) -> "ResultSet":
-        _VALID_SERIES_KINDS = {"annual", "peak", "delta"}
+        valid_series_kinds = {"annual", "peak", "delta"}
 
-        if self.series_kind is not None and self.series_kind not in _VALID_SERIES_KINDS:
+        if self.series_kind is not None and self.series_kind not in valid_series_kinds:
             raise ValueError(
-                f"series_kind must be one of {_VALID_SERIES_KINDS}, got {self.series_kind!r}"
+                f"series_kind must be one of {valid_series_kinds}, got {self.series_kind!r}"
             )
 
         if self.series_kind is not None and self.year is None:

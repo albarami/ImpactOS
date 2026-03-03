@@ -16,7 +16,6 @@ from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import LoadedModel, ModelStore
 from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
 from src.engine.value_measures import ValueMeasuresComputer
-from src.engine.runseries_delta import RunSeriesValidationError
 from src.engine.value_measures_validation import ValueMeasuresValidationError
 from src.models.common import new_uuid7
 from src.models.run import ResultSet, RunSnapshot
