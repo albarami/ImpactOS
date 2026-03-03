@@ -102,7 +102,7 @@
           "engine"
         ],
         "summary": "Register Model",
-        "description": "Register an I-O model (Z, x, sector codes).",
+        "description": "Register an I-O model (Z, x, sector codes). Admin only.",
         "operationId": "register_model_v1_engine_models_post",
         "requestBody": {
           "content": {

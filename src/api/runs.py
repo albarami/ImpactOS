@@ -31,7 +31,7 @@ from pydantic import BaseModel
 from src.api.auth_deps import (
     AuthPrincipal,
     WorkspaceMember,
-    get_current_principal,
+    require_global_role,
     require_workspace_member,
 )
 from src.api.dependencies import (
@@ -389,11 +389,11 @@ async def _load_run_response(
 @models_router.post("/models", status_code=201, response_model=RegisterModelResponse)
 async def register_model(
     body: RegisterModelRequest,
-    principal: "AuthPrincipal" = Depends(get_current_principal),
+    principal: AuthPrincipal = Depends(require_global_role("admin")),
     mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
     md_repo: ModelDataRepository = Depends(get_model_data_repo),
 ) -> RegisterModelResponse:
-    """Register an I-O model (Z, x, sector codes)."""
+    """Register an I-O model (Z, x, sector codes). Admin only."""
     try:
         mv = _model_store.register(
             Z=np.array(body.Z),

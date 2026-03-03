@@ -25,8 +25,8 @@ from src.db.session import Base, get_async_session
 
 _DEFAULT_PRINCIPAL = AuthPrincipal(
     user_id=UUID("00000000-0000-7000-8000-000000000001"),
-    username="analyst",
-    role="analyst",
+    username="test-admin",
+    role="admin",
 )
 
 

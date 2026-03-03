@@ -149,6 +149,20 @@ class Settings(BaseSettings):
         description="Comma-separated CORS allowed origins.",
     )
 
+    # --- External IdP (staging/prod) ---
+    JWT_ISSUER: str = Field(
+        default="",
+        description="Expected JWT issuer claim (iss). Required in non-dev.",
+    )
+    JWT_AUDIENCE: str = Field(
+        default="",
+        description="Expected JWT audience claim (aud). Required in non-dev.",
+    )
+    JWKS_URL: str = Field(
+        default="",
+        description="JWKS endpoint URL for RS256 key retrieval. Required in non-dev.",
+    )
+
     # --- Logging ---
     LOG_LEVEL: LogLevel = Field(
         default=LogLevel.INFO,
