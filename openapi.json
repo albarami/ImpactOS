@@ -4267,7 +4267,7 @@
           "engine"
         ],
         "summary": "Get Run Results",
-        "description": "Get results for a completed run (workspace-scoped \u2014 Amendment 3).",
+        "description": "Get results for a completed run (workspace-scoped \u2014 Amendment 3).\n\nSprint 17: include_series=true returns annual/peak/delta rows.",
         "operationId": "get_run_results_v1_workspaces__workspace_id__engine_runs__run_id__get",
         "parameters": [
           {
@@ -4288,6 +4288,16 @@
               "type": "string",
               "format": "uuid",
               "title": "Run Id"
+            }
+          },
+          {
+            "name": "include_series",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Series"
             }
           }
         ],
@@ -4375,7 +4385,7 @@
           "engine"
         ],
         "summary": "Get Batch Status",
-        "description": "Get batch run status and results (workspace-scoped \u2014 Amendment 3).",
+        "description": "Get batch run status and results (workspace-scoped \u2014 Amendment 3).\n\nSprint 17: include_series=true returns annual/peak/delta rows.",
         "operationId": "get_batch_status_v1_workspaces__workspace_id__engine_batch__batch_id__get",
         "parameters": [
           {
@@ -4396,6 +4406,16 @@
               "type": "string",
               "format": "uuid",
               "title": "Batch Id"
+            }
+          },
+          {
+            "name": "include_series",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Series"
             }
           }
         ],
@@ -10252,6 +10272,39 @@
             "type": "string",
             "title": "Confidence Class",
             "default": "COMPUTED"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          },
+          "series_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series Kind"
+          },
+          "baseline_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Run Id"
           }
         },
         "type": "object",
@@ -10398,6 +10451,17 @@
               }
             ],
             "title": "Deflators"
+          },
+          "baseline_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Run Id"
           }
         },
         "type": "object",
@@ -10710,6 +10774,17 @@
               }
             ],
             "title": "Sensitivity Multipliers"
+          },
+          "baseline_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Run Id"
           }
         },
         "type": "object",

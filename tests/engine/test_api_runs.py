@@ -377,3 +377,268 @@ class TestValueMeasuresEndpoint:
                 assert rs["confidence_class"] == "ESTIMATED"
             elif rs["metric_type"] in ("total_output", "employment"):
                 assert rs["confidence_class"] == "COMPUTED"
+
+
+# ===================================================================
+# Sprint 17: RunSeries API exposure
+# ===================================================================
+
+
+class TestRunSeriesAPI:
+    """Sprint 17 Task 6: RunSeries fields exposed via API."""
+
+    @pytest.mark.anyio
+    async def test_post_response_excludes_series_by_default(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """POST response (create_run) returns only legacy rows by default."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2026": [100.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        assert run_resp.status_code == 200
+        data = run_resp.json()
+        # All result_sets should have series_kind=None (absent or null)
+        for rs in data["result_sets"]:
+            assert rs.get("series_kind") is None, (
+                f"POST response should exclude series rows by default, "
+                f"but found series_kind={rs.get('series_kind')} for {rs['metric_type']}"
+            )
+
+    @pytest.mark.anyio
+    async def test_default_get_excludes_series_rows(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """Default GET returns only legacy (series_kind=None) rows."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2026": [100.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        run_id = run_resp.json()["run_id"]
+
+        get_resp = await client.get(
+            f"/v1/workspaces/{WS_ID}/engine/runs/{run_id}",
+        )
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        for rs in data["result_sets"]:
+            assert rs.get("series_kind") is None, (
+                f"Default GET should exclude series rows, "
+                f"but found series_kind={rs.get('series_kind')}"
+            )
+
+    @pytest.mark.anyio
+    async def test_include_series_returns_all_rows(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """GET with ?include_series=true returns annual + peak rows too."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2026": [100.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        run_id = run_resp.json()["run_id"]
+
+        get_resp = await client.get(
+            f"/v1/workspaces/{WS_ID}/engine/runs/{run_id}?include_series=true",
+        )
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        series_kinds = {rs.get("series_kind") for rs in data["result_sets"]}
+        assert "annual" in series_kinds, (
+            "include_series=true should return annual rows"
+        )
+        assert "peak" in series_kinds, (
+            "include_series=true should return peak rows"
+        )
+
+    @pytest.mark.anyio
+    async def test_series_fields_in_response(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """ResultSetResponse includes year and series_kind fields."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2026": [100.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        run_id = run_resp.json()["run_id"]
+
+        get_resp = await client.get(
+            f"/v1/workspaces/{WS_ID}/engine/runs/{run_id}?include_series=true",
+        )
+        data = get_resp.json()
+        annual_rows = [
+            rs for rs in data["result_sets"]
+            if rs.get("series_kind") == "annual"
+        ]
+        assert len(annual_rows) > 0
+        for rs in annual_rows:
+            assert rs["year"] is not None, "Annual rows must have year set"
+            assert rs["series_kind"] == "annual"
+
+    @pytest.mark.anyio
+    async def test_baseline_not_found_returns_error(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """Invalid baseline_run_id returns 404 with reason code."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2026": [100.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+                "baseline_run_id": str(uuid7()),
+            },
+        )
+        assert run_resp.status_code == 404
+        data = run_resp.json()
+        assert data["detail"]["reason_code"] == "RS_BASELINE_NOT_FOUND"
+
+    @pytest.mark.anyio
+    async def test_batch_get_default_excludes_series(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """GET batch status default excludes series rows."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        batch_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/batch",
+            json={
+                "model_version_id": mvid,
+                "scenarios": [
+                    {"name": "A", "annual_shocks": {"2026": [100.0, 0.0]}, "base_year": 2023},
+                ],
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        batch_id = batch_resp.json()["batch_id"]
+
+        get_resp = await client.get(
+            f"/v1/workspaces/{WS_ID}/engine/batch/{batch_id}",
+        )
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        for run in data["results"]:
+            for rs in run["result_sets"]:
+                assert rs.get("series_kind") is None
+
+    @pytest.mark.anyio
+    async def test_batch_get_include_series(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """GET batch status with include_series=true returns series rows."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        batch_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/batch",
+            json={
+                "model_version_id": mvid,
+                "scenarios": [
+                    {"name": "A", "annual_shocks": {"2026": [100.0, 0.0]}, "base_year": 2023},
+                ],
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        batch_id = batch_resp.json()["batch_id"]
+
+        get_resp = await client.get(
+            f"/v1/workspaces/{WS_ID}/engine/batch/{batch_id}?include_series=true",
+        )
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        all_series_kinds = set()
+        for run in data["results"]:
+            for rs in run["result_sets"]:
+                all_series_kinds.add(rs.get("series_kind"))
+        assert "annual" in all_series_kinds
+        assert "peak" in all_series_kinds
+
+    @pytest.mark.anyio
+    async def test_delta_confidence_class_estimated(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """Delta series rows should have confidence_class=ESTIMATED."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        # Create baseline run
+        baseline_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2026": [50.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        baseline_id = baseline_resp.json()["run_id"]
+
+        # Create scenario run with baseline
+        scenario_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2026": [100.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+                "baseline_run_id": baseline_id,
+            },
+        )
+        assert scenario_resp.status_code == 200
+        run_id = scenario_resp.json()["run_id"]
+
+        # GET with include_series to see delta rows
+        get_resp = await client.get(
+            f"/v1/workspaces/{WS_ID}/engine/runs/{run_id}?include_series=true",
+        )
+        data = get_resp.json()
+        delta_rows = [rs for rs in data["result_sets"] if rs.get("series_kind") == "delta"]
+        assert len(delta_rows) > 0, "Should have delta rows when baseline provided"
+        for rs in delta_rows:
+            assert rs["confidence_class"] == "ESTIMATED"
+            assert rs["baseline_run_id"] == baseline_id

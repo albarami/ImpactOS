@@ -130,11 +130,16 @@ class ResultSetRepository:
     async def create(self, *, result_id: UUID, run_id: UUID,
                      metric_type: str, values: dict,
                      sector_breakdowns: dict | None = None,
-                     workspace_id: UUID | None = None) -> ResultSetRow:
+                     workspace_id: UUID | None = None,
+                     year: int | None = None,
+                     series_kind: str | None = None,
+                     baseline_run_id: UUID | None = None) -> ResultSetRow:
         row = ResultSetRow(
             result_id=result_id, run_id=run_id,
             metric_type=metric_type, values=values,
             sector_breakdowns=sector_breakdowns or {},
+            year=year, series_kind=series_kind,
+            baseline_run_id=baseline_run_id,
             workspace_id=workspace_id,
             created_at=utc_now(),
         )
@@ -146,6 +151,17 @@ class ResultSetRepository:
         result = await self._session.execute(
             select(ResultSetRow).where(ResultSetRow.run_id == run_id)
         )
+        return list(result.scalars().all())
+
+    async def get_by_run_series(
+        self, run_id: UUID, *, series_kind: str | None,
+    ) -> list[ResultSetRow]:
+        stmt = select(ResultSetRow).where(ResultSetRow.run_id == run_id)
+        if series_kind is None:
+            stmt = stmt.where(ResultSetRow.series_kind.is_(None))
+        else:
+            stmt = stmt.where(ResultSetRow.series_kind == series_kind)
+        result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
 

@@ -28,7 +28,7 @@ class TestRegisterToRun:
         client: AsyncClient,
         seeded_run: dict,
     ) -> None:
-        """Model + single run → 7 result sets."""
+        """Model + single run → 7 cumulative result sets (series rows filtered by default)."""
         result_sets = seeded_run["result_sets"]
         metric_types = {rs["metric_type"] for rs in result_sets}
         assert len(result_sets) == 7
@@ -51,7 +51,7 @@ class TestRegisterToRun:
         client: AsyncClient,
         seeded_run: dict,
     ) -> None:
-        """GET runs/{run_id} → returns results."""
+        """GET runs/{run_id} → returns legacy results (series rows filtered by default)."""
         ws_id = seeded_run["ws_id"]
         run_id = seeded_run["run_id"]
 

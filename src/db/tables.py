@@ -131,7 +131,13 @@ class RunSnapshotRow(Base):
 
 
 class ResultSetRow(Base):
-    """Immutable engine output — metric values and sector breakdowns."""
+    """Immutable engine output — metric values and sector breakdowns.
+
+    Sprint 17: Partial unique indexes (uq_resultset_legacy, uq_resultset_annual,
+    uq_resultset_peak, uq_resultset_delta) are Postgres-only and managed by
+    Alembic migration 012. They use WHERE clauses unsupported by SQLite.
+    See alembic/env.py include_object for autogenerate exclusion.
+    """
 
     __tablename__ = "result_sets"
 
@@ -140,6 +146,10 @@ class ResultSetRow(Base):
     metric_type: Mapped[str] = mapped_column(String(100), nullable=False)
     values = mapped_column(FlexJSON, nullable=False)
     sector_breakdowns = mapped_column(FlexJSON, nullable=False)
+    # Sprint 17: RunSeries columns
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    series_kind: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    baseline_run_id: Mapped[UUID | None] = mapped_column(nullable=True)
     workspace_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)  # S0-1 Amendment 3
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

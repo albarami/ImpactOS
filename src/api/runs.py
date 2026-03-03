@@ -24,7 +24,7 @@ import logging
 from uuid import UUID
 
 import numpy as np
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from src.api.auth_deps import (
@@ -52,6 +52,7 @@ from src.engine.batch import (
     SingleRunResult,
 )
 from src.engine.model_store import LoadedModel, ModelStore, compute_model_checksum
+from src.engine.runseries_delta import RunSeriesValidationError
 from src.engine.satellites import SatelliteCoefficients
 from src.engine.type_ii_validation import TypeIIValidationError
 from src.engine.value_measures_validation import ValueMeasuresValidationError
@@ -126,6 +127,7 @@ class RunRequest(BaseModel):
     base_year: int
     satellite_coefficients: SatelliteCoeffsPayload
     deflators: dict[str, float] | None = None
+    baseline_run_id: str | None = None  # Sprint 17
 
 
 class ScenarioPayload(BaseModel):
@@ -134,6 +136,7 @@ class ScenarioPayload(BaseModel):
     base_year: int
     deflators: dict[str, float] | None = None
     sensitivity_multipliers: list[float] | None = None
+    baseline_run_id: str | None = None  # Sprint 17
 
 
 class BatchRunRequest(BaseModel):
@@ -155,6 +158,10 @@ class ResultSetResponse(BaseModel):
     metric_type: str
     values: dict[str, float]
     confidence_class: str = "COMPUTED"
+    # Sprint 17: RunSeries fields
+    year: int | None = None
+    series_kind: str | None = None
+    baseline_run_id: str | None = None
 
 
 class SnapshotResponse(BaseModel):
@@ -369,7 +376,10 @@ def _register_model_error_detail(exc: Exception) -> dict[str, str]:
     }
 
 
-def _single_run_to_response(sr: SingleRunResult) -> RunResponse:
+def _single_run_to_response(sr: SingleRunResult, *, include_series: bool = False) -> RunResponse:
+    rows = sr.result_sets
+    if not include_series:
+        rows = [r for r in rows if r.series_kind is None]
     return RunResponse(
         run_id=str(sr.snapshot.run_id),
         result_sets=[
@@ -378,11 +388,16 @@ def _single_run_to_response(sr: SingleRunResult) -> RunResponse:
                 metric_type=rs.metric_type,
                 values=rs.values,
                 confidence_class=(
-                    "ESTIMATED" if rs.metric_type in _ESTIMATED_METRICS
-                    else "COMPUTED"
+                    "ESTIMATED" if (
+                        rs.metric_type in _ESTIMATED_METRICS
+                        or rs.series_kind == "delta"
+                    ) else "COMPUTED"
                 ),
+                year=rs.year,
+                series_kind=rs.series_kind,
+                baseline_run_id=str(rs.baseline_run_id) if rs.baseline_run_id else None,
             )
-            for rs in sr.result_sets
+            for rs in rows
         ],
         snapshot=SnapshotResponse(
             run_id=str(sr.snapshot.run_id),
@@ -416,6 +431,9 @@ async def _persist_run_result(
             metric_type=rs.metric_type,
             values=rs.values,
             workspace_id=workspace_id,
+            year=rs.year,
+            series_kind=rs.series_kind,
+            baseline_run_id=rs.baseline_run_id,
         )
 
 
@@ -424,11 +442,13 @@ async def _load_run_response(
     snap_repo: RunSnapshotRepository,
     rs_repo: ResultSetRepository,
     workspace_id: UUID | None = None,
+    include_series: bool = False,
 ) -> RunResponse | None:
     """Load a RunResponse from DB.
 
     Amendment 3: If workspace_id is provided, verifies the snapshot belongs
     to that workspace (returns None if mismatched).
+    Sprint 17: include_series=False filters out series rows for backward compat.
     """
     snap_row = await snap_repo.get(run_id)
     if snap_row is None:
@@ -438,6 +458,8 @@ async def _load_run_response(
         if snap_row.workspace_id is not None and snap_row.workspace_id != workspace_id:
             return None
     rs_rows = await rs_repo.get_by_run(run_id)
+    if not include_series:
+        rs_rows = [r for r in rs_rows if r.series_kind is None]
     return RunResponse(
         run_id=str(snap_row.run_id),
         result_sets=[
@@ -446,8 +468,15 @@ async def _load_run_response(
                 metric_type=r.metric_type,
                 values=r.values,
                 confidence_class=(
-                    "ESTIMATED" if r.metric_type in _ESTIMATED_METRICS
-                    else "COMPUTED"
+                    "ESTIMATED" if (
+                        r.metric_type in _ESTIMATED_METRICS
+                        or getattr(r, "series_kind", None) == "delta"
+                    ) else "COMPUTED"
+                ),
+                year=getattr(r, "year", None),
+                series_kind=getattr(r, "series_kind", None),
+                baseline_run_id=(
+                    str(r.baseline_run_id) if getattr(r, "baseline_run_id", None) else None
                 ),
             )
             for r in rs_rows
@@ -548,6 +577,44 @@ async def create_run(
 
     coeffs = _make_satellite_coefficients(body.satellite_coefficients)
 
+    # Sprint 17: baseline handling
+    baseline_run_id: UUID | None = None
+    baseline_annual_data: dict[int, dict[str, dict[str, float]]] | None = None
+    if body.baseline_run_id is not None:
+        baseline_run_id = UUID(body.baseline_run_id)
+        baseline_annual_rows = await rs_repo.get_by_run_series(
+            baseline_run_id, series_kind="annual",
+        )
+        if not baseline_annual_rows:
+            # Check if the baseline run exists at all
+            baseline_snap = await snap_repo.get(baseline_run_id)
+            if baseline_snap is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail={
+                        "reason_code": "RS_BASELINE_NOT_FOUND",
+                        "message": f"Baseline run {baseline_run_id} not found.",
+                    },
+                )
+            # Run exists but has no annual series
+            from src.engine.runseries_delta import validate_baseline_has_series
+            try:
+                validate_baseline_has_series(baseline_annual_rows)
+            except RunSeriesValidationError as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "reason_code": exc.reason_code,
+                        "message": str(exc),
+                    },
+                ) from exc
+        else:
+            baseline_annual_data = {}
+            for row in baseline_annual_rows:
+                yr = row.year
+                mt = row.metric_type
+                baseline_annual_data.setdefault(yr, {})[mt] = dict(row.values)
+
     scenario = ScenarioInput(
         scenario_spec_id=new_uuid7(),
         scenario_spec_version=1,
@@ -555,6 +622,8 @@ async def create_run(
         annual_shocks=_annual_shocks_to_numpy(body.annual_shocks),
         base_year=body.base_year,
         deflators=_deflators_to_dict(body.deflators),
+        baseline_run_id=baseline_run_id,
+        baseline_annual_data=baseline_annual_data,
     )
 
     settings = get_settings()
@@ -586,6 +655,14 @@ async def create_run(
                 "measure": exc.measure,
             },
         ) from exc
+    except RunSeriesValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+            },
+        ) from exc
     sr = result.run_results[0]
 
     # Persist to DB (with workspace scoping — Amendment 3)
@@ -598,12 +675,20 @@ async def create_run(
 async def get_run_results(
     workspace_id: UUID,
     run_id: UUID,
+    include_series: bool = Query(default=False),
     member: WorkspaceMember = Depends(require_workspace_member),
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
 ) -> RunResponse:
-    """Get results for a completed run (workspace-scoped — Amendment 3)."""
-    resp = await _load_run_response(run_id, snap_repo, rs_repo, workspace_id=workspace_id)
+    """Get results for a completed run (workspace-scoped — Amendment 3).
+
+    Sprint 17: include_series=true returns annual/peak/delta rows.
+    """
+    resp = await _load_run_response(
+        run_id, snap_repo, rs_repo,
+        workspace_id=workspace_id,
+        include_series=include_series,
+    )
     if resp is None:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found.")
     return resp
@@ -638,6 +723,42 @@ async def create_batch_run(
     coeffs = _make_satellite_coefficients(body.satellite_coefficients)
     scenarios: list[ScenarioInput] = []
     for sp in body.scenarios:
+        # Sprint 17: baseline handling per scenario
+        sp_baseline_run_id: UUID | None = None
+        sp_baseline_annual_data: dict[int, dict[str, dict[str, float]]] | None = None
+        if sp.baseline_run_id is not None:
+            sp_baseline_run_id = UUID(sp.baseline_run_id)
+            sp_baseline_rows = await rs_repo.get_by_run_series(
+                sp_baseline_run_id, series_kind="annual",
+            )
+            if not sp_baseline_rows:
+                sp_baseline_snap = await snap_repo.get(sp_baseline_run_id)
+                if sp_baseline_snap is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail={
+                            "reason_code": "RS_BASELINE_NOT_FOUND",
+                            "message": f"Baseline run {sp_baseline_run_id} not found.",
+                        },
+                    )
+                from src.engine.runseries_delta import validate_baseline_has_series
+                try:
+                    validate_baseline_has_series(sp_baseline_rows)
+                except RunSeriesValidationError as exc:
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "reason_code": exc.reason_code,
+                            "message": str(exc),
+                        },
+                    ) from exc
+            else:
+                sp_baseline_annual_data = {}
+                for row in sp_baseline_rows:
+                    yr = row.year
+                    mt = row.metric_type
+                    sp_baseline_annual_data.setdefault(yr, {})[mt] = dict(row.values)
+
         scenarios.append(ScenarioInput(
             scenario_spec_id=new_uuid7(),
             scenario_spec_version=1,
@@ -646,6 +767,8 @@ async def create_batch_run(
             base_year=sp.base_year,
             deflators=_deflators_to_dict(sp.deflators),
             sensitivity_multipliers=sp.sensitivity_multipliers,
+            baseline_run_id=sp_baseline_run_id,
+            baseline_annual_data=sp_baseline_annual_data,
         ))
 
     settings = get_settings()
@@ -697,6 +820,15 @@ async def create_batch_run(
                 "measure": exc.measure,
             },
         ) from exc
+    except RunSeriesValidationError as exc:
+        await batch_repo.update_status(batch_id, "FAILED")
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+            },
+        ) from exc
     except Exception:
         await batch_repo.update_status(batch_id, "FAILED")
         raise
@@ -706,12 +838,16 @@ async def create_batch_run(
 async def get_batch_status(
     workspace_id: UUID,
     batch_id: UUID,
+    include_series: bool = Query(default=False),
     member: WorkspaceMember = Depends(require_workspace_member),
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
     batch_repo: BatchRepository = Depends(get_batch_repo),
 ) -> BatchResponse:
-    """Get batch run status and results (workspace-scoped — Amendment 3)."""
+    """Get batch run status and results (workspace-scoped — Amendment 3).
+
+    Sprint 17: include_series=true returns annual/peak/delta rows.
+    """
     batch_row = await batch_repo.get(batch_id)
     if batch_row is None:
         raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found.")
@@ -722,7 +858,9 @@ async def get_batch_status(
     responses: list[RunResponse] = []
     for rid_str in batch_row.run_ids:
         resp = await _load_run_response(
-            UUID(rid_str), snap_repo, rs_repo, workspace_id=workspace_id,
+            UUID(rid_str), snap_repo, rs_repo,
+            workspace_id=workspace_id,
+            include_series=include_series,
         )
         if resp is not None:
             responses.append(resp)

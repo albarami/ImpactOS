@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from src.models.common import ExportMode, ImpactOSBase, UTCTimestamp, UUIDv7, new_uuid7, utc_now
 
@@ -64,4 +64,31 @@ class ResultSet(ImpactOSBase, frozen=True):
         default_factory=dict,
         description="Nested breakdowns: outer key = breakdown type, inner = sector → value.",
     )
+    # Sprint 17: annual time-series storage fields
+    year: int | None = None
+    series_kind: str | None = None
+    baseline_run_id: UUID | None = None
     created_at: UTCTimestamp = Field(default_factory=utc_now)
+
+    @model_validator(mode="after")
+    def _validate_series_fields(self) -> "ResultSet":
+        valid_series_kinds = {"annual", "peak", "delta"}
+
+        if self.series_kind is not None and self.series_kind not in valid_series_kinds:
+            raise ValueError(
+                f"series_kind must be one of {valid_series_kinds}, got {self.series_kind!r}"
+            )
+
+        if self.series_kind is not None and self.year is None:
+            raise ValueError("year is required when series_kind is set")
+
+        if self.series_kind is None and self.year is not None:
+            raise ValueError("year must be None when series_kind is None (legacy row)")
+
+        if self.series_kind == "delta" and self.baseline_run_id is None:
+            raise ValueError("baseline_run_id is required when series_kind='delta'")
+
+        if self.series_kind != "delta" and self.baseline_run_id is not None:
+            raise ValueError("baseline_run_id must be None unless series_kind='delta'")
+
+        return self
