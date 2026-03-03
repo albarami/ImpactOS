@@ -21,7 +21,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
-from src.api.auth_deps import WorkspaceMember, require_workspace_member
+from src.api.auth_deps import (
+    WorkspaceMember,
+    require_role,
+    require_workspace_member,
+)
 from src.api.dependencies import (
     get_document_repo,
     get_extraction_job_repo,
@@ -655,7 +659,7 @@ async def lock_scenario(
     workspace_id: UUID,
     scenario_id: UUID,
     body: LockRequest,
-    member: WorkspaceMember = Depends(require_workspace_member),
+    member: WorkspaceMember = Depends(require_role("manager", "admin")),
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> LockResponse:
     """Lock mappings for governed run — creates new version with is_locked=True."""
@@ -713,7 +717,7 @@ async def run_from_scenario(
     workspace_id: UUID,
     scenario_id: UUID,
     body: RunFromScenarioRequest,
-    member: WorkspaceMember = Depends(require_workspace_member),
+    member: WorkspaceMember = Depends(require_role("manager", "admin")),
     repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
     mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
     md_repo: ModelDataRepository = Depends(get_model_data_repo),

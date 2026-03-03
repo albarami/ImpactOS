@@ -16,7 +16,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from src.api.auth_deps import WorkspaceMember, require_workspace_member
+from src.api.auth_deps import (
+    WorkspaceMember,
+    require_role,
+    require_workspace_member,
+)
 from src.api.dependencies import (
     get_assumption_repo,
     get_claim_repo,
@@ -289,7 +293,7 @@ async def extract_claims(
 async def nff_check(
     workspace_id: UUID,
     body: NFFCheckRequest,
-    member: WorkspaceMember = Depends(require_workspace_member),
+    member: WorkspaceMember = Depends(require_role("manager", "admin")),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> NFFCheckResponse:
     """NFF gate: validate claims are supported or resolved."""
