@@ -1,18 +1,32 @@
 """Tests for batch runner (MVP-3 Section 7.6).
 
 Covers: multi-scenario execution, sensitivity variants, immutable ResultSets,
-RunSnapshot generation, 50+ scenario handling.
+RunSnapshot generation, 50+ scenario handling, Type II integration.
 """
 
+from __future__ import annotations
+
+from uuid import UUID
+
 import numpy as np
-import pytest
 from uuid_extensions import uuid7
 
-from src.engine.batch import BatchRunner, BatchRequest, ScenarioInput, BatchResult
+from src.engine.batch import BatchRequest, BatchResult, BatchRunner, ScenarioInput
 from src.engine.model_store import ModelStore
 from src.engine.satellites import SatelliteCoefficients
+from src.engine.type_ii_validation import TypeIIValidationError
+from src.models.model_version import ModelVersion
 from src.models.run import ResultSet, RunSnapshot
-
+from tests.integration.golden_scenarios.shared import (
+    GOLDEN_COMPENSATION,
+    GOLDEN_HOUSEHOLD_SHARES,
+    GOLDEN_X,
+    GOLDEN_Z,
+    SECTOR_CODES_SMALL,
+    SMALL_IMPORT_RATIO,
+    SMALL_JOBS_COEFF,
+    SMALL_VA_RATIO,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -252,8 +266,14 @@ class TestSensitivityVariants:
 
         result = runner.run(request)
         # The 0.5x result total output should be half the 1.0x result
-        rs_half = [rs for rs in result.run_results[0].result_sets if rs.metric_type == "total_output"][0]
-        rs_base = [rs for rs in result.run_results[1].result_sets if rs.metric_type == "total_output"][0]
+        rs_half = [
+            rs for rs in result.run_results[0].result_sets
+            if rs.metric_type == "total_output"
+        ][0]
+        rs_base = [
+            rs for rs in result.run_results[1].result_sets
+            if rs.metric_type == "total_output"
+        ][0]
         for sector in rs_half.values:
             np.testing.assert_almost_equal(
                 rs_half.values[sector],
@@ -292,3 +312,153 @@ class TestRunSnapshotCompleteness:
         assert snap.mapping_library_version_id == refs["mapping_library_version_id"]
         assert snap.assumption_library_version_id == refs["assumption_library_version_id"]
         assert snap.prompt_pack_version_id == refs["prompt_pack_version_id"]
+
+
+# ===================================================================
+# Type II batch integration (Sprint 15 — Task 6)
+# ===================================================================
+
+
+class TestTypeIIBatchIntegration:
+    """BatchRunner produces Type II metrics when model has prerequisites."""
+
+    def _make_golden_store_and_model(
+        self,
+    ) -> tuple[ModelStore, ModelVersion]:
+        store = ModelStore()
+        mv = store.register(
+            Z=np.array(GOLDEN_Z), x=np.array(GOLDEN_X),
+            sector_codes=SECTOR_CODES_SMALL, base_year=2023, source="test",
+            artifact_payload={
+                "compensation_of_employees": GOLDEN_COMPENSATION,
+                "household_consumption_shares": GOLDEN_HOUSEHOLD_SHARES,
+            },
+        )
+        return store, mv
+
+    def _golden_coefficients(self) -> SatelliteCoefficients:
+        return SatelliteCoefficients(
+            jobs_coeff=np.array(SMALL_JOBS_COEFF),
+            import_ratio=np.array(SMALL_IMPORT_RATIO),
+            va_ratio=np.array(SMALL_VA_RATIO),
+            version_id=uuid7(),
+        )
+
+    def _make_refs(self) -> dict[str, UUID]:
+        return {
+            "taxonomy_version_id": uuid7(),
+            "concordance_version_id": uuid7(),
+            "mapping_library_version_id": uuid7(),
+            "assumption_library_version_id": uuid7(),
+            "prompt_pack_version_id": uuid7(),
+        }
+
+    def test_batch_produces_type_ii_metrics(self) -> None:
+        store, mv = self._make_golden_store_and_model()
+        runner = BatchRunner(model_store=store, environment="dev")
+        scenario = ScenarioInput(
+            scenario_spec_id=uuid7(), scenario_spec_version=1, name="test",
+            annual_shocks={2024: np.array([100.0, 0.0, 0.0])}, base_year=2023,
+        )
+        request = BatchRequest(
+            scenarios=[scenario], model_version_id=mv.model_version_id,
+            satellite_coefficients=self._golden_coefficients(),
+            version_refs=self._make_refs(),
+        )
+        result = runner.run(request)
+        metric_types = {rs.metric_type for rs in result.run_results[0].result_sets}
+        assert "type_ii_total_output" in metric_types
+        assert "induced_effect" in metric_types
+        assert "type_ii_employment" in metric_types
+        assert "total_output" in metric_types  # backward compat
+        assert "direct_effect" in metric_types
+
+    def test_batch_without_prerequisites_no_type_ii(self) -> None:
+        store, mv = _make_store_and_model()  # uses existing 2-sector without artifacts
+        runner = BatchRunner(model_store=store, environment="dev")
+        scenario = _make_scenario("test", np.array([100.0, 0.0]))
+        request = BatchRequest(
+            scenarios=[scenario], model_version_id=mv.model_version_id,
+            satellite_coefficients=_make_coefficients(),
+            version_refs=self._make_refs(),
+        )
+        result = runner.run(request)
+        metric_types = {rs.metric_type for rs in result.run_results[0].result_sets}
+        assert "type_ii_total_output" not in metric_types
+        assert "induced_effect" not in metric_types
+
+    def test_type_ii_induced_positive(self) -> None:
+        store, mv = self._make_golden_store_and_model()
+        runner = BatchRunner(model_store=store, environment="dev")
+        scenario = ScenarioInput(
+            scenario_spec_id=uuid7(), scenario_spec_version=1, name="test",
+            annual_shocks={2024: np.array([100.0, 0.0, 0.0])}, base_year=2023,
+        )
+        request = BatchRequest(
+            scenarios=[scenario], model_version_id=mv.model_version_id,
+            satellite_coefficients=self._golden_coefficients(),
+            version_refs=self._make_refs(),
+        )
+        result = runner.run(request)
+        induced_rs = next(
+            rs for rs in result.run_results[0].result_sets
+            if rs.metric_type == "induced_effect"
+        )
+        # Induced effects should be positive (household spending creates output)
+        assert all(v >= 0 for v in induced_rs.values.values())
+
+    def test_existing_metrics_unchanged_count(self) -> None:
+        """Existing 7 Type I metrics still present when Type II is added."""
+        store, mv = self._make_golden_store_and_model()
+        runner = BatchRunner(model_store=store, environment="dev")
+        scenario = ScenarioInput(
+            scenario_spec_id=uuid7(), scenario_spec_version=1, name="test",
+            annual_shocks={2024: np.array([100.0, 0.0, 0.0])}, base_year=2023,
+        )
+        request = BatchRequest(
+            scenarios=[scenario], model_version_id=mv.model_version_id,
+            satellite_coefficients=self._golden_coefficients(),
+            version_refs=self._make_refs(),
+        )
+        result = runner.run(request)
+        rs_list = result.run_results[0].result_sets
+        # 7 existing + 3 Type II = 10
+        assert len(rs_list) == 10
+
+
+# ===================================================================
+# Type II error translation (Sprint 15 — Task 7)
+# ===================================================================
+
+
+class TestTypeIIErrorTranslation:
+    """Type II validation errors carry reason_code through the stack."""
+
+    def test_type_ii_validation_error_has_reason_code(self) -> None:
+        """TypeIIValidationError carries a machine-readable reason_code."""
+        exc = TypeIIValidationError("test message", reason_code="TYPE_II_MISSING_COMPENSATION")
+        assert exc.reason_code == "TYPE_II_MISSING_COMPENSATION"
+        assert str(exc) == "test message"
+
+    def test_type_ii_error_serialization_for_api(self) -> None:
+        """Error can be serialized to API-friendly payload."""
+        exc = TypeIIValidationError(
+            "compensation_of_employees is required",
+            reason_code="TYPE_II_MISSING_COMPENSATION",
+        )
+        payload = {"reason_code": exc.reason_code, "message": str(exc)}
+        assert payload == {
+            "reason_code": "TYPE_II_MISSING_COMPENSATION",
+            "message": "compensation_of_employees is required",
+        }
+
+    def test_no_secrets_in_type_ii_error(self) -> None:
+        """Error message must not contain API keys, tokens, or secrets."""
+        exc = TypeIIValidationError(
+            "compensation_of_employees is required for Type II computation.",
+            reason_code="TYPE_II_MISSING_COMPENSATION",
+        )
+        msg = str(exc)
+        assert "key" not in msg.lower() or "api" not in msg.lower()
+        assert "token" not in msg.lower()
+        assert "password" not in msg.lower()

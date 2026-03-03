@@ -6,9 +6,10 @@ multi-year phasing with deflation. No LLM calls, no side effects.
 Given the same inputs, ALWAYS produces the same outputs.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
+from scipy import linalg as scipy_linalg
 
 from src.engine.model_store import LoadedModel
 
@@ -20,6 +21,8 @@ class SolveResult:
     delta_x_total: np.ndarray
     delta_x_direct: np.ndarray
     delta_x_indirect: np.ndarray
+    delta_x_type_ii_total: np.ndarray | None = None
+    delta_x_induced: np.ndarray | None = None
 
 
 @dataclass(frozen=True)
@@ -30,6 +33,8 @@ class PhasedResult:
     cumulative_delta_x: np.ndarray
     peak_year: int
     peak_delta_x: np.ndarray
+    cumulative_delta_x_type_ii: np.ndarray | None = None
+    cumulative_delta_x_induced: np.ndarray | None = None
 
 
 class LeontiefSolver:
@@ -62,7 +67,10 @@ class LeontiefSolver:
         n = loaded_model.n
 
         if delta_d.shape != (n,):
-            msg = f"dimension mismatch: delta_d has {delta_d.shape[0]} elements, model has {n} sectors."
+            msg = (
+                f"dimension mismatch: delta_d has {delta_d.shape[0]} "
+                f"elements, model has {n} sectors."
+            )
             raise ValueError(msg)
 
         B = loaded_model.B
@@ -80,6 +88,89 @@ class LeontiefSolver:
             delta_x_indirect=delta_x_indirect,
         )
 
+    def solve_type_ii(
+        self,
+        *,
+        loaded_model: LoadedModel,
+        delta_d: np.ndarray,
+        compensation_of_employees: np.ndarray,
+        household_consumption_shares: np.ndarray,
+    ) -> SolveResult:
+        """Compute Type II effects with household closure.
+
+        Constructs augmented (n+1)x(n+1) matrix internally.
+        Returns n-vectors only -- household pseudo-sector stays internal.
+        induced = type_ii_total - type_i_total
+
+        Args:
+            loaded_model: Model with cached A and B matrices.
+            delta_d: Final demand shock vector (n).
+            compensation_of_employees: Compensation per sector (n).
+            household_consumption_shares: Household consumption shares (n).
+
+        Returns:
+            SolveResult with Type I fields plus Type II total and induced.
+
+        Raises:
+            ValueError: If any input dimension doesn't match model.
+        """
+        delta_d = np.asarray(delta_d, dtype=np.float64)
+        comp = np.asarray(compensation_of_employees, dtype=np.float64)
+        hh_shares = np.asarray(household_consumption_shares, dtype=np.float64)
+        n = loaded_model.n
+
+        if delta_d.shape != (n,):
+            raise ValueError(
+                f"dimension mismatch: delta_d has {delta_d.shape[0]} elements, "
+                f"model has {n} sectors."
+            )
+        if comp.shape != (n,):
+            raise ValueError(
+                f"dimension mismatch: compensation_of_employees has {comp.shape[0]} elements, "
+                f"model has {n} sectors."
+            )
+        if hh_shares.shape != (n,):
+            raise ValueError(
+                f"dimension mismatch: household_consumption_shares "
+                f"has {hh_shares.shape[0]} elements, model has {n} sectors."
+            )
+
+        # Type I solve
+        type_i = self.solve(loaded_model=loaded_model, delta_d=delta_d)
+
+        # Wage coefficients: w_i = comp_i / x_i
+        w = comp / loaded_model.x
+
+        # Augmented (n+1)x(n+1) matrix A*
+        A = loaded_model.A
+        A_star = np.zeros((n + 1, n + 1))
+        A_star[:n, :n] = A
+        A_star[n, :n] = w           # household income row
+        A_star[:n, n] = hh_shares   # household consumption column
+
+        # B* = (I - A*)^{-1}
+        I_star = np.eye(n + 1)
+        B_star = scipy_linalg.solve(I_star - A_star, I_star)
+
+        # Augmented demand: [delta_d, 0]
+        delta_d_aug = np.zeros(n + 1)
+        delta_d_aug[:n] = delta_d
+
+        # Type II total: trim to n sectors
+        delta_x_star = B_star @ delta_d_aug
+        type_ii_total = delta_x_star[:n]
+
+        # Induced = Type II - Type I
+        induced = type_ii_total - type_i.delta_x_total
+
+        return SolveResult(
+            delta_x_total=type_i.delta_x_total,
+            delta_x_direct=type_i.delta_x_direct,
+            delta_x_indirect=type_i.delta_x_indirect,
+            delta_x_type_ii_total=type_ii_total,
+            delta_x_induced=induced,
+        )
+
     def solve_phased(
         self,
         *,
@@ -87,25 +178,40 @@ class LeontiefSolver:
         annual_shocks: dict[int, np.ndarray],
         base_year: int,
         deflators: dict[int, float] | None = None,
+        compensation_of_employees: np.ndarray | None = None,
+        household_consumption_shares: np.ndarray | None = None,
     ) -> PhasedResult:
         """Compute phased multi-year impacts (Section 7.4).
 
         Args:
             loaded_model: Model with cached B matrix.
-            annual_shocks: Year → nominal final-demand shock vector.
+            annual_shocks: Year -> nominal final-demand shock vector.
             base_year: Base year for the model (used with deflators).
-            deflators: Optional year → cumulative deflator. The real shock
+            deflators: Optional year -> cumulative deflator. The real shock
                 is nominal / deflator. If None, no deflation applied.
+            compensation_of_employees: Optional compensation per sector (n).
+                When provided with household_consumption_shares, enables
+                Type II (household-closed) accumulation.
+            household_consumption_shares: Optional household consumption
+                shares (n). Required together with compensation_of_employees.
 
         Returns:
             PhasedResult with annual, cumulative, and peak-year results.
+            Type II cumulative fields populated when both vectors provided.
         """
         if deflators is None:
             deflators = {}
 
+        use_type_ii = (
+            compensation_of_employees is not None
+            and household_consumption_shares is not None
+        )
+
         annual_results: dict[int, SolveResult] = {}
         n = loaded_model.n
         cumulative = np.zeros(n)
+        cumulative_type_ii = np.zeros(n) if use_type_ii else None
+        cumulative_induced = np.zeros(n) if use_type_ii else None
         peak_year = -1
         peak_total = -np.inf
         peak_delta_x = np.zeros(n)
@@ -117,9 +223,19 @@ class LeontiefSolver:
             deflator = deflators.get(year, 1.0)
             real_shock = nominal / deflator
 
-            result = self.solve(loaded_model=loaded_model, delta_d=real_shock)
-            annual_results[year] = result
+            if use_type_ii:
+                result = self.solve_type_ii(
+                    loaded_model=loaded_model,
+                    delta_d=real_shock,
+                    compensation_of_employees=compensation_of_employees,
+                    household_consumption_shares=household_consumption_shares,
+                )
+                cumulative_type_ii = cumulative_type_ii + result.delta_x_type_ii_total
+                cumulative_induced = cumulative_induced + result.delta_x_induced
+            else:
+                result = self.solve(loaded_model=loaded_model, delta_d=real_shock)
 
+            annual_results[year] = result
             cumulative = cumulative + result.delta_x_total
 
             year_total = float(np.sum(result.delta_x_total))
@@ -133,4 +249,6 @@ class LeontiefSolver:
             cumulative_delta_x=cumulative,
             peak_year=peak_year,
             peak_delta_x=peak_delta_x,
+            cumulative_delta_x_type_ii=cumulative_type_ii,
+            cumulative_delta_x_induced=cumulative_induced,
         )

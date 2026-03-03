@@ -108,6 +108,31 @@ class LoadedModel:
         return self._A
 
     @property
+    def has_type_ii_prerequisites(self) -> bool:
+        """Whether this model has compensation and household share data for Type II."""
+        mv = self._model_version
+        return (
+            mv.compensation_of_employees is not None
+            and mv.household_consumption_shares is not None
+        )
+
+    @property
+    def compensation_of_employees_array(self) -> np.ndarray | None:
+        """Compensation of employees as numpy array, or None if not available."""
+        data = self._model_version.compensation_of_employees
+        if data is None:
+            return None
+        return np.asarray(data, dtype=np.float64)
+
+    @property
+    def household_consumption_shares_array(self) -> np.ndarray | None:
+        """Household consumption shares as numpy array, or None if not available."""
+        data = self._model_version.household_consumption_shares
+        if data is None:
+            return None
+        return np.asarray(data, dtype=np.float64)
+
+    @property
     def B(self) -> np.ndarray:
         """Leontief inverse: B = (I - A)^{-1}.
 

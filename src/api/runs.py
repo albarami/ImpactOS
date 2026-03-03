@@ -40,6 +40,7 @@ from src.api.dependencies import (
     get_result_set_repo,
     get_run_snapshot_repo,
 )
+from src.config.settings import get_settings
 from src.data.io_loader import (
     ModelArtifactValidationError,
     validate_extended_model_artifacts,
@@ -52,6 +53,7 @@ from src.engine.batch import (
 )
 from src.engine.model_store import LoadedModel, ModelStore, compute_model_checksum
 from src.engine.satellites import SatelliteCoefficients
+from src.engine.type_ii_validation import TypeIIValidationError
 from src.models.common import new_uuid7
 from src.models.model_version import ModelVersion
 from src.repositories.engine import (
@@ -239,13 +241,26 @@ async def _ensure_model_loaded(
                 detail=f"Data integrity error for model {model_version_id}.",
             )
 
-        # Reconstruct ModelVersion and LoadedModel
+        # Rehydrate extended artifacts so LoadedModel has Type II prerequisites
+        artifact_kwargs: dict[str, object] = {}
+        for key in ("compensation_of_employees", "gross_operating_surplus",
+                    "taxes_less_subsidies", "household_consumption_shares",
+                    "imports_vector", "deflator_series"):
+            json_key = f"{key}_json"
+            val = getattr(md_row, json_key, None)
+            if val is not None:
+                artifact_kwargs[key] = val
+        fd_val = getattr(md_row, "final_demand_f_json", None)
+        if fd_val is not None:
+            artifact_kwargs["final_demand_F"] = fd_val
+
         mv = ModelVersion(
             model_version_id=mv_row.model_version_id,
             base_year=mv_row.base_year,
             source=mv_row.source,
             sector_count=mv_row.sector_count,
             checksum=mv_row.checksum,
+            **artifact_kwargs,
         )
         loaded = LoadedModel(
             model_version=mv,
@@ -524,7 +539,8 @@ async def create_run(
         deflators=_deflators_to_dict(body.deflators),
     )
 
-    runner = BatchRunner(model_store=_model_store)
+    settings = get_settings()
+    runner = BatchRunner(model_store=_model_store, environment=settings.ENVIRONMENT.value)
     request = BatchRequest(
         scenarios=[scenario],
         model_version_id=model_version_id,
@@ -532,7 +548,16 @@ async def create_run(
         version_refs=_make_version_refs(),
     )
 
-    result = runner.run(request)
+    try:
+        result = runner.run(request)
+    except TypeIIValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+            },
+        ) from exc
     sr = result.run_results[0]
 
     # Persist to DB (with workspace scoping — Amendment 3)
@@ -595,7 +620,8 @@ async def create_batch_run(
             sensitivity_multipliers=sp.sensitivity_multipliers,
         ))
 
-    runner = BatchRunner(model_store=_model_store)
+    settings = get_settings()
+    runner = BatchRunner(model_store=_model_store, environment=settings.ENVIRONMENT.value)
     request = BatchRequest(
         scenarios=scenarios,
         model_version_id=model_version_id,
@@ -623,6 +649,15 @@ async def create_batch_run(
 
         return BatchResponse(batch_id=str(batch_id), status="COMPLETED", results=responses)
 
+    except TypeIIValidationError as exc:
+        await batch_repo.update_status(batch_id, "FAILED")
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+            },
+        ) from exc
     except Exception:
         await batch_repo.update_status(batch_id, "FAILED")
         raise

@@ -9,6 +9,10 @@ Conventions:
 - The 20-sector model uses load_real_saudi_io() and is the standard for golden scenarios.
 """
 
+from __future__ import annotations
+
+from uuid import UUID
+
 import numpy as np
 from uuid_extensions import uuid7
 
@@ -68,6 +72,22 @@ EXPECTED_B_SMALL = np.linalg.inv(_I_MINUS_A)
 SMALL_JOBS_COEFF = np.array([0.008, 0.004, 0.006])   # jobs per unit output
 SMALL_IMPORT_RATIO = np.array([0.30, 0.25, 0.15])     # import leakage
 SMALL_VA_RATIO = np.array([0.35, 0.45, 0.55])         # value added share
+
+# ---------------------------------------------------------------------------
+# Type II golden values for household-closed model
+# ---------------------------------------------------------------------------
+
+GOLDEN_COMPENSATION = [350.0, 900.0, 825.0]  # compensation of employees per sector
+GOLDEN_HOUSEHOLD_SHARES = [0.30, 0.45, 0.20]  # household consumption shares (sum=0.95)
+
+# Pre-computed Type II Leontief inverse B* = (I - A*)^{-1}
+_w_golden = np.array(GOLDEN_COMPENSATION) / np.array(GOLDEN_X)
+_h_golden = np.array(GOLDEN_HOUSEHOLD_SHARES)
+_A_star = np.zeros((4, 4))
+_A_star[:3, :3] = _A_SMALL
+_A_star[3, :3] = _w_golden
+_A_star[:3, 3] = _h_golden
+EXPECTED_B_STAR_SMALL = np.linalg.inv(np.eye(4) - _A_star)
 
 # ---------------------------------------------------------------------------
 # ISIC 20-sector codes (A through T)
@@ -190,7 +210,7 @@ LABELED_BOQ = [
     {"text": "reinforced concrete foundation", "ground_truth_isic": "F", "value": 5_000_000},
     {"text": "structural steel erection works", "ground_truth_isic": "F", "value": 4_000_000},
     {"text": "site preparation and grading", "ground_truth_isic": "F", "value": 3_500_000},
-    {"text": "electrical infrastructure installation", "ground_truth_isic": "F", "value": 3_000_000},
+    {"text": "electrical infrastructure install", "ground_truth_isic": "F", "value": 3_000_000},
     {"text": "plumbing and drainage systems", "ground_truth_isic": "F", "value": 2_500_000},
     {"text": "prefabricated steel components", "ground_truth_isic": "C", "value": 4_000_000},
     {"text": "industrial equipment procurement", "ground_truth_isic": "C", "value": 3_500_000},
@@ -227,8 +247,8 @@ LABELED_BOQ = [
 def make_line_item(
     raw_text: str,
     total_value: float,
-    doc_id=None,
-    job_id=None,
+    doc_id: UUID | None = None,
+    job_id: UUID | None = None,
 ) -> BoQLineItem:
     """Create a BoQLineItem with minimal required fields."""
     return BoQLineItem(
@@ -242,11 +262,11 @@ def make_line_item(
 
 
 def make_decision(
-    line_item_id,
+    line_item_id: UUID,
     suggested: str,
     final: str,
     confidence: float,
-    decided_by=None,
+    decided_by: str | None = None,
 ) -> MappingDecision:
     """Create a MappingDecision for testing."""
     return MappingDecision(

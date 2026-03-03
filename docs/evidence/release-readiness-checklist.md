@@ -131,3 +131,62 @@ python -m pytest tests -q
 | Depth FAILED status (not COMPLETED) in non-dev | Yes | `TestNonDevDepthFailsClosed` passes |
 | Dev ergonomics preserved | Yes | `TestDevCompileKeepsFallback` passes |
 | No secrets in error payloads | Yes | Secret leakage tests pass |
+
+## Sprint 15: Type II Induced Effects Parity (MVP-15)
+
+### Deterministic Engine: Type II Household Closure
+
+| Metric | Meaning | Confidence | Source |
+|---|---|---|---|
+| `total_output` | Type I total (direct + indirect) | MEASURED | `leontief.py:solve()` |
+| `direct_effect` | Direct effect | MEASURED | `leontief.py:solve()` |
+| `indirect_effect` | Indirect effect | MEASURED | `leontief.py:solve()` |
+| `type_ii_total_output` | Type II total (direct + indirect + induced) | ESTIMATED | `leontief.py:solve_type_ii()` |
+| `induced_effect` | Induced = Type II - Type I | ESTIMATED | `leontief.py:solve_type_ii()` |
+| `type_ii_employment` | Employment from Type II total | ESTIMATED | `batch.py` |
+
+### Type II Prerequisite Validation Matrix
+
+| Input | Check | Reason Code |
+|---|---|---|
+| compensation_of_employees is None | Missing | `TYPE_II_MISSING_COMPENSATION` |
+| household_consumption_shares is None | Missing | `TYPE_II_MISSING_HOUSEHOLD_SHARES` |
+| Vector length != n | Dimension | `TYPE_II_DIMENSION_MISMATCH` |
+| Negative values | Non-negativity | `TYPE_II_NEGATIVE_VALUES` |
+| Share sum <= 0 or > 1+tol | Sum constraint | `TYPE_II_INVALID_SHARE_SUM` |
+| comp / x produces inf/nan | Finite check | `TYPE_II_NONFINITE_WAGE_COEFFICIENTS` |
+
+### Sprint 15 Preflight Checks
+
+```bash
+# 1. Type II solver tests
+python -m pytest tests/engine/test_leontief.py -v -k "type_ii"
+
+# 2. Validation tests
+python -m pytest tests/engine/test_type_ii_validation.py -v
+
+# 3. Batch integration with Type II
+python -m pytest tests/engine/test_batch.py -v -k "type_ii"
+
+# 4. Mathematical accuracy
+python -m pytest tests/integration/test_type_ii_mathematical_accuracy.py -v
+
+# 5. Full engine suite
+python -m pytest tests/engine/ -q
+
+# 6. Full suite
+python -m pytest tests -q
+```
+
+### Go/No-Go Criteria (additive)
+
+| Criteria | Required | How to Verify |
+|---|---|---|
+| Type II induced = Type II total - Type I total (within 1e-10) | Yes | `test_leontief.py::TestTypeIISolve` |
+| Golden B* matches hand computation | Yes | `test_type_ii_mathematical_accuracy.py` |
+| Non-dev fail-closed for invalid prerequisites | Yes | `test_batch.py::TestTypeIIBatchIntegration` |
+| Dev fallback to Type I only (no error) | Yes | `test_batch.py::TestTypeIIBatchIntegration` |
+| API boundary returns 422 with reason_code | Yes | `test_batch.py::TestTypeIIErrorTranslation` |
+| Existing Type I outputs unchanged | Yes | All existing engine tests pass |
+| Deterministic reproducibility | Yes | `test_leontief.py::TestTypeIISolve::test_type_ii_deterministic_reproducibility` |
+| No secrets in error payloads | Yes | Secret leakage tests pass |
