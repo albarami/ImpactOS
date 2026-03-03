@@ -1,13 +1,13 @@
 """Add RunSeries columns to result_sets.
 
 Revision ID: 012_runseries_columns
-Revises: fa33e2cd9dda
+Revises: 011
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = "012_runseries_columns"
-down_revision = "fa33e2cd9dda"
+down_revision = "011"
 branch_labels = None
 depends_on = None
 

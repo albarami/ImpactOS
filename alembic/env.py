@@ -30,6 +30,23 @@ target_metadata = Base.metadata
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
+# Sprint 17: Partial unique indexes are Postgres-only and managed purely by
+# migration 012. They are not declared on the ORM model (they break SQLite).
+# Exclude them from autogenerate so `alembic check` doesn't flag drift.
+_MIGRATION_MANAGED_INDEXES = frozenset({
+    "uq_resultset_legacy",
+    "uq_resultset_annual",
+    "uq_resultset_peak",
+    "uq_resultset_delta",
+})
+
+
+def _include_object(obj, name, type_, reflected, compare_to):  # noqa: ANN001
+    """Filter objects for autogenerate comparison."""
+    if type_ == "index" and name in _MIGRATION_MANAGED_INDEXES:
+        return False
+    return True
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode — emit SQL to stdout."""
@@ -39,13 +56,18 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=_include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        include_object=_include_object,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

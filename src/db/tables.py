@@ -131,7 +131,13 @@ class RunSnapshotRow(Base):
 
 
 class ResultSetRow(Base):
-    """Immutable engine output — metric values and sector breakdowns."""
+    """Immutable engine output — metric values and sector breakdowns.
+
+    Sprint 17: Partial unique indexes (uq_resultset_legacy, uq_resultset_annual,
+    uq_resultset_peak, uq_resultset_delta) are Postgres-only and managed by
+    Alembic migration 012. They use WHERE clauses unsupported by SQLite.
+    See alembic/env.py include_object for autogenerate exclusion.
+    """
 
     __tablename__ = "result_sets"
 
