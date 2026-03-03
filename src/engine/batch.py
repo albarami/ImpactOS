@@ -15,6 +15,8 @@ import numpy as np
 from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import LoadedModel, ModelStore
 from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
+from src.engine.value_measures import ValueMeasuresComputer
+from src.engine.value_measures_validation import ValueMeasuresValidationError
 from src.models.common import new_uuid7
 from src.models.run import ResultSet, RunSnapshot
 
@@ -183,6 +185,104 @@ class BatchRunner:
             metric_type="domestic_output",
             values=self._vec_to_dict(sat_result.delta_domestic_output, sector_codes),
         ))
+
+        # Value measures (fail-closed in non-dev: always attempt validation)
+        _attempt_vm = (
+            loaded.has_value_measures_prerequisites
+            or self._environment in ("staging", "prod")
+        )
+        if _attempt_vm:
+            try:
+                vm_computer = ValueMeasuresComputer()
+                vm_result = vm_computer.compute(
+                    delta_x=phased.cumulative_delta_x,
+                    sat_result=sat_result,
+                    loaded_model=loaded,
+                    base_year=scenario.base_year,
+                )
+
+                # GDP at basic price (per-sector + aggregate)
+                gdp_basic_vals = self._vec_to_dict(
+                    vm_result.gdp_basic_by_sector, sector_codes,
+                )
+                gdp_basic_vals["_total"] = vm_result.gdp_basic_price
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="gdp_basic_price",
+                    values=gdp_basic_vals,
+                ))
+
+                # GDP at market price
+                gdp_market_by_sector = (
+                    vm_result.gdp_basic_by_sector
+                    + vm_result.tax_effect_by_sector
+                )
+                gdp_market_vals = self._vec_to_dict(
+                    gdp_market_by_sector, sector_codes,
+                )
+                gdp_market_vals["_total"] = vm_result.gdp_market_price
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="gdp_market_price",
+                    values=gdp_market_vals,
+                ))
+
+                # GDP real (scalar only)
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="gdp_real",
+                    values={"_total": vm_result.gdp_real},
+                ))
+
+                # GDP intensity (scalar only)
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="gdp_intensity",
+                    values={"_total": vm_result.gdp_intensity},
+                ))
+
+                # Balance of trade (per-sector + aggregate)
+                bot_by_sector = (
+                    vm_result.export_effect_by_sector
+                    - sat_result.delta_imports
+                )
+                bot_vals = self._vec_to_dict(bot_by_sector, sector_codes)
+                bot_vals["_total"] = vm_result.balance_of_trade
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="balance_of_trade",
+                    values=bot_vals,
+                ))
+
+                # Non-oil exports (scalar)
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="non_oil_exports",
+                    values={"_total": vm_result.non_oil_exports},
+                ))
+
+                # Government non-oil revenue (scalar)
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="government_non_oil_revenue",
+                    values={"_total": vm_result.government_non_oil_revenue},
+                ))
+
+                # Government revenue/spending ratio (scalar)
+                result_sets.append(ResultSet(
+                    run_id=run_id,
+                    metric_type="government_revenue_spending_ratio",
+                    values={"_total": vm_result.government_revenue_spending_ratio},
+                ))
+
+            except ValueMeasuresValidationError:
+                if self._environment in ("staging", "prod"):
+                    raise  # fail-closed in non-dev
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Value measures validation failed in dev — "
+                    "continuing without value measures"
+                )
 
         # Type II induced effects (when model has prerequisites)
         if loaded.has_type_ii_prerequisites:

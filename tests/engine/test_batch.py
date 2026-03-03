@@ -462,3 +462,183 @@ class TestTypeIIErrorTranslation:
         assert "key" not in msg.lower() or "api" not in msg.lower()
         assert "token" not in msg.lower()
         assert "password" not in msg.lower()
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: Batch value-measures integration
+# ---------------------------------------------------------------------------
+
+import pytest
+
+from src.engine.value_measures_validation import ValueMeasuresValidationError
+from tests.integration.golden_scenarios.shared import (
+    SMALL_DEFLATOR_SERIES,
+    SMALL_FINAL_DEMAND_F,
+    SMALL_GOS,
+    SMALL_IMPORTS_VECTOR,
+    SMALL_TAXES_LESS_SUBSIDIES,
+)
+
+# Value-measures metric types
+VM_METRICS = {
+    "gdp_basic_price", "gdp_market_price", "gdp_real", "gdp_intensity",
+    "balance_of_trade", "non_oil_exports",
+    "government_non_oil_revenue", "government_revenue_spending_ratio",
+}
+
+
+class TestBatchValueMeasures:
+    """Batch runner emits value-measures metrics when prerequisites present."""
+
+    def _make_golden_store_and_model(self) -> tuple[ModelStore, ModelVersion]:
+        store = ModelStore()
+        mv = store.register(
+            Z=GOLDEN_Z, x=GOLDEN_X, sector_codes=SECTOR_CODES_SMALL,
+            base_year=2024, source="test-vm-batch",
+            artifact_payload={
+                "gross_operating_surplus": SMALL_GOS.tolist(),
+                "taxes_less_subsidies": SMALL_TAXES_LESS_SUBSIDIES.tolist(),
+                "final_demand_F": SMALL_FINAL_DEMAND_F.tolist(),
+                "imports_vector": SMALL_IMPORTS_VECTOR.tolist(),
+                "deflator_series": SMALL_DEFLATOR_SERIES,
+                "compensation_of_employees": GOLDEN_COMPENSATION,
+                "household_consumption_shares": GOLDEN_HOUSEHOLD_SHARES,
+            },
+        )
+        return store, mv
+
+    def _golden_coefficients(self) -> SatelliteCoefficients:
+        return SatelliteCoefficients(
+            jobs_coeff=SMALL_JOBS_COEFF,
+            import_ratio=SMALL_IMPORT_RATIO,
+            va_ratio=SMALL_VA_RATIO,
+            version_id=uuid7(),
+        )
+
+    def _make_refs(self) -> dict[str, UUID]:
+        return {
+            "taxonomy_version_id": uuid7(),
+            "concordance_version_id": uuid7(),
+            "mapping_library_version_id": uuid7(),
+            "assumption_library_version_id": uuid7(),
+            "prompt_pack_version_id": uuid7(),
+        }
+
+    def test_batch_includes_value_measures_metrics(self) -> None:
+        store, mv = self._make_golden_store_and_model()
+        runner = BatchRunner(model_store=store, environment="dev")
+        request = BatchRequest(
+            scenarios=[ScenarioInput(
+                scenario_spec_id=uuid7(), scenario_spec_version=1,
+                name="vm-test",
+                annual_shocks={2025: np.array([100.0, 50.0, 25.0])},
+                base_year=2024,
+                deflators={2025: 1.03},
+            )],
+            model_version_id=mv.model_version_id,
+            satellite_coefficients=self._golden_coefficients(),
+            version_refs=self._make_refs(),
+        )
+        result = runner.run(request)
+        metric_types = {rs.metric_type for rs in result.run_results[0].result_sets}
+        for vm_metric in VM_METRICS:
+            assert vm_metric in metric_types, f"Missing metric: {vm_metric}"
+
+    def test_batch_without_vm_prerequisites_skips_in_dev(self) -> None:
+        """Dev: missing value-measures prerequisites → skip VM metrics, no error."""
+        store = ModelStore()
+        mv = store.register(
+            Z=GOLDEN_Z, x=GOLDEN_X, sector_codes=SECTOR_CODES_SMALL,
+            base_year=2024, source="test-no-vm",
+        )
+        coeffs = self._golden_coefficients()
+        runner = BatchRunner(model_store=store, environment="dev")
+        request = BatchRequest(
+            scenarios=[ScenarioInput(
+                scenario_spec_id=uuid7(), scenario_spec_version=1,
+                name="no-vm-test",
+                annual_shocks={2025: np.array([100.0, 50.0, 25.0])},
+                base_year=2024,
+            )],
+            model_version_id=mv.model_version_id,
+            satellite_coefficients=coeffs,
+            version_refs=self._make_refs(),
+        )
+        result = runner.run(request)
+        metric_types = {rs.metric_type for rs in result.run_results[0].result_sets}
+        # Should NOT have value-measures metrics
+        assert not VM_METRICS.intersection(metric_types)
+
+    def test_batch_without_vm_prerequisites_fails_in_nondev(self) -> None:
+        """Non-dev: missing value-measures prerequisites → fail closed."""
+        store = ModelStore()
+        mv = store.register(
+            Z=GOLDEN_Z, x=GOLDEN_X, sector_codes=SECTOR_CODES_SMALL,
+            base_year=2024, source="test-no-vm",
+        )
+        coeffs = self._golden_coefficients()
+        runner = BatchRunner(model_store=store, environment="staging")
+        request = BatchRequest(
+            scenarios=[ScenarioInput(
+                scenario_spec_id=uuid7(), scenario_spec_version=1,
+                name="nondev-vm-test",
+                annual_shocks={2025: np.array([100.0, 50.0, 25.0])},
+                base_year=2024,
+            )],
+            model_version_id=mv.model_version_id,
+            satellite_coefficients=coeffs,
+            version_refs=self._make_refs(),
+        )
+        with pytest.raises(ValueMeasuresValidationError) as exc_info:
+            runner.run(request)
+        assert "VM_MISSING" in exc_info.value.reason_code
+
+    def test_existing_metrics_preserved_with_vm(self) -> None:
+        """Value measures are additive — existing 7 metrics still present."""
+        store, mv = self._make_golden_store_and_model()
+        runner = BatchRunner(model_store=store, environment="dev")
+        request = BatchRequest(
+            scenarios=[ScenarioInput(
+                scenario_spec_id=uuid7(), scenario_spec_version=1,
+                name="parity-test",
+                annual_shocks={2025: np.array([100.0, 50.0, 25.0])},
+                base_year=2024,
+                deflators={2025: 1.03},
+            )],
+            model_version_id=mv.model_version_id,
+            satellite_coefficients=self._golden_coefficients(),
+            version_refs=self._make_refs(),
+        )
+        result = runner.run(request)
+        metric_types = {rs.metric_type for rs in result.run_results[0].result_sets}
+        for existing in ("total_output", "direct_effect", "indirect_effect",
+                         "employment", "imports", "value_added", "domestic_output"):
+            assert existing in metric_types, f"Missing existing metric: {existing}"
+
+    def test_gdp_basic_values_sum_to_scalar(self) -> None:
+        """GDP basic price ResultSet has _total key with correct aggregate."""
+        store, mv = self._make_golden_store_and_model()
+        runner = BatchRunner(model_store=store, environment="dev")
+        request = BatchRequest(
+            scenarios=[ScenarioInput(
+                scenario_spec_id=uuid7(), scenario_spec_version=1,
+                name="aggregate-test",
+                annual_shocks={2025: np.array([100.0, 50.0, 25.0])},
+                base_year=2024,
+                deflators={2025: 1.03},
+            )],
+            model_version_id=mv.model_version_id,
+            satellite_coefficients=self._golden_coefficients(),
+            version_refs=self._make_refs(),
+        )
+        result = runner.run(request)
+        gdp_rs = [
+            rs for rs in result.run_results[0].result_sets
+            if rs.metric_type == "gdp_basic_price"
+        ][0]
+        assert "_total" in gdp_rs.values
+        # _total should equal sum of sector values
+        sector_sum = sum(
+            v for k, v in gdp_rs.values.items() if k != "_total"
+        )
+        assert abs(gdp_rs.values["_total"] - sector_sum) < 1e-10
