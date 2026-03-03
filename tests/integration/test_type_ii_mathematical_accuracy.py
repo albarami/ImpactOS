@@ -38,7 +38,11 @@ class TestTypeIIMathematicalAccuracy:
     def solver(self) -> LeontiefSolver:
         return LeontiefSolver()
 
-    def test_augmented_leontief_inverse_matches_golden(self, loaded_model, solver) -> None:
+    def test_augmented_leontief_inverse_matches_golden(
+        self,
+        loaded_model: LoadedModel,
+        solver: LeontiefSolver,
+    ) -> None:
         """B* = (I - A*)^{-1} matches pre-computed reference."""
         delta_d = np.array([100.0, 0.0, 0.0])
         result = solver.solve_type_ii(
@@ -50,9 +54,15 @@ class TestTypeIIMathematicalAccuracy:
         # Expected: B* @ [100, 0, 0, 0], trimmed to first 3 elements
         augmented_d = np.array([100.0, 0.0, 0.0, 0.0])
         expected = EXPECTED_B_STAR_SMALL @ augmented_d
-        np.testing.assert_allclose(result.delta_x_type_ii_total, expected[:3], atol=1e-8)
+        np.testing.assert_allclose(
+            result.delta_x_type_ii_total, expected[:3], atol=1e-8,
+        )
 
-    def test_parity_identity_induced_equals_difference(self, loaded_model, solver) -> None:
+    def test_parity_identity_induced_equals_difference(
+        self,
+        loaded_model: LoadedModel,
+        solver: LeontiefSolver,
+    ) -> None:
         """Induced = Type II total - Type I total (core parity identity)."""
         for shock in [
             np.array([100.0, 0.0, 0.0]),
@@ -64,7 +74,9 @@ class TestTypeIIMathematicalAccuracy:
                 loaded_model=loaded_model,
                 delta_d=shock,
                 compensation_of_employees=np.array(GOLDEN_COMPENSATION),
-                household_consumption_shares=np.array(GOLDEN_HOUSEHOLD_SHARES),
+                household_consumption_shares=np.array(
+                    GOLDEN_HOUSEHOLD_SHARES,
+                ),
             )
             np.testing.assert_allclose(
                 result.delta_x_induced,
@@ -73,7 +85,11 @@ class TestTypeIIMathematicalAccuracy:
                 err_msg=f"Parity failed for shock={shock}",
             )
 
-    def test_type_ii_strictly_larger_than_type_i(self, loaded_model, solver) -> None:
+    def test_type_ii_strictly_larger_than_type_i(
+        self,
+        loaded_model: LoadedModel,
+        solver: LeontiefSolver,
+    ) -> None:
         """Type II total output >= Type I total output element-wise."""
         delta_d = np.array([100.0, 50.0, 25.0])
         result = solver.solve_type_ii(
@@ -82,11 +98,19 @@ class TestTypeIIMathematicalAccuracy:
             compensation_of_employees=np.array(GOLDEN_COMPENSATION),
             household_consumption_shares=np.array(GOLDEN_HOUSEHOLD_SHARES),
         )
-        assert np.all(result.delta_x_type_ii_total >= result.delta_x_total - 1e-10)
+        assert np.all(
+            result.delta_x_type_ii_total >= result.delta_x_total - 1e-10,
+        )
         # Sum should be strictly larger for non-trivial shocks
-        assert np.sum(result.delta_x_type_ii_total) > np.sum(result.delta_x_total)
+        assert np.sum(result.delta_x_type_ii_total) > np.sum(
+            result.delta_x_total,
+        )
 
-    def test_deterministic_across_multiple_runs(self, loaded_model, solver) -> None:
+    def test_deterministic_across_multiple_runs(
+        self,
+        loaded_model: LoadedModel,
+        solver: LeontiefSolver,
+    ) -> None:
         """Same inputs must produce byte-identical outputs."""
         delta_d = np.array([100.0, 50.0, 25.0])
         results = [
@@ -94,15 +118,26 @@ class TestTypeIIMathematicalAccuracy:
                 loaded_model=loaded_model,
                 delta_d=delta_d,
                 compensation_of_employees=np.array(GOLDEN_COMPENSATION),
-                household_consumption_shares=np.array(GOLDEN_HOUSEHOLD_SHARES),
+                household_consumption_shares=np.array(
+                    GOLDEN_HOUSEHOLD_SHARES,
+                ),
             )
             for _ in range(10)
         ]
         for r in results[1:]:
-            np.testing.assert_array_equal(r.delta_x_type_ii_total, results[0].delta_x_type_ii_total)
-            np.testing.assert_array_equal(r.delta_x_induced, results[0].delta_x_induced)
+            np.testing.assert_array_equal(
+                r.delta_x_type_ii_total,
+                results[0].delta_x_type_ii_total,
+            )
+            np.testing.assert_array_equal(
+                r.delta_x_induced, results[0].delta_x_induced,
+            )
 
-    def test_zero_shock_produces_zero_output(self, loaded_model, solver) -> None:
+    def test_zero_shock_produces_zero_output(
+        self,
+        loaded_model: LoadedModel,
+        solver: LeontiefSolver,
+    ) -> None:
         """Zero demand shock produces zero Type II output."""
         delta_d = np.zeros(3)
         result = solver.solve_type_ii(
@@ -111,10 +146,18 @@ class TestTypeIIMathematicalAccuracy:
             compensation_of_employees=np.array(GOLDEN_COMPENSATION),
             household_consumption_shares=np.array(GOLDEN_HOUSEHOLD_SHARES),
         )
-        np.testing.assert_allclose(result.delta_x_type_ii_total, np.zeros(3), atol=1e-15)
-        np.testing.assert_allclose(result.delta_x_induced, np.zeros(3), atol=1e-15)
+        np.testing.assert_allclose(
+            result.delta_x_type_ii_total, np.zeros(3), atol=1e-15,
+        )
+        np.testing.assert_allclose(
+            result.delta_x_induced, np.zeros(3), atol=1e-15,
+        )
 
-    def test_linearity_of_type_ii_solver(self, loaded_model, solver) -> None:
+    def test_linearity_of_type_ii_solver(
+        self,
+        loaded_model: LoadedModel,
+        solver: LeontiefSolver,
+    ) -> None:
         """Type II must be linear: f(a*d1 + b*d2) = a*f(d1) + b*f(d2)."""
         d1 = np.array([100.0, 0.0, 0.0])
         d2 = np.array([0.0, 200.0, 0.0])
@@ -138,11 +181,19 @@ class TestTypeIIMathematicalAccuracy:
             household_consumption_shares=shares,
         )
 
-        expected = a * r1.delta_x_type_ii_total + b * r2.delta_x_type_ii_total
-        np.testing.assert_allclose(r_combined.delta_x_type_ii_total, expected, atol=1e-8)
+        expected = (
+            a * r1.delta_x_type_ii_total + b * r2.delta_x_type_ii_total
+        )
+        np.testing.assert_allclose(
+            r_combined.delta_x_type_ii_total, expected, atol=1e-8,
+        )
 
-    def test_phased_type_ii_cumulative_matches_manual_sum(self, loaded_model, solver) -> None:
-        """Phased solve cumulative Type II matches manual sum of per-year results."""
+    def test_phased_type_ii_cumulative_matches_manual_sum(
+        self,
+        loaded_model: LoadedModel,
+        solver: LeontiefSolver,
+    ) -> None:
+        """Phased solve cumulative Type II matches manual sum."""
         shocks = {
             2024: np.array([100.0, 0.0, 0.0]),
             2025: np.array([50.0, 25.0, 0.0]),
@@ -170,5 +221,7 @@ class TestTypeIIMathematicalAccuracy:
             manual_cumulative += r.delta_x_type_ii_total
 
         np.testing.assert_allclose(
-            phased.cumulative_delta_x_type_ii, manual_cumulative, atol=1e-10
+            phased.cumulative_delta_x_type_ii,
+            manual_cumulative,
+            atol=1e-10,
         )

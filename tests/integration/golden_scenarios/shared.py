@@ -9,6 +9,10 @@ Conventions:
 - The 20-sector model uses load_real_saudi_io() and is the standard for golden scenarios.
 """
 
+from __future__ import annotations
+
+from uuid import UUID
+
 import numpy as np
 from uuid_extensions import uuid7
 
@@ -243,8 +247,8 @@ LABELED_BOQ = [
 def make_line_item(
     raw_text: str,
     total_value: float,
-    doc_id=None,
-    job_id=None,
+    doc_id: UUID | None = None,
+    job_id: UUID | None = None,
 ) -> BoQLineItem:
     """Create a BoQLineItem with minimal required fields."""
     return BoQLineItem(
@@ -258,11 +262,11 @@ def make_line_item(
 
 
 def make_decision(
-    line_item_id,
+    line_item_id: UUID,
     suggested: str,
     final: str,
     confidence: float,
-    decided_by=None,
+    decided_by: str | None = None,
 ) -> MappingDecision:
     """Create a MappingDecision for testing."""
     return MappingDecision(
