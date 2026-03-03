@@ -37,6 +37,19 @@ _logger = logging.getLogger(__name__)
 class ProviderUnavailableError(Exception):
     """Raised when the required LLM provider is unavailable or all retries exhausted."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason_code: str = "PROVIDER_UNAVAILABLE",
+        agent_name: str = "",
+        environment: str = "",
+    ) -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+        self.agent_name = agent_name
+        self.environment = environment
+
 
 # ---------------------------------------------------------------------------
 # Provider enum
