@@ -97,11 +97,10 @@ _MEDIUM_THRESHOLD = 0.60
 class AICompiler:
     """Enhanced compilation pipeline with AI-assisted agents.
 
-    When ``llm_client`` is provided the compiler may attempt an LLM-enhanced
-    path for mapping suggestions.  If the LLM call raises (provider
-    unavailable, timeout, validation error) the compiler silently falls back
-    to the deterministic library/rule path.  The caller never sees partial or
-    invalid output.
+    When ``llm_client`` is provided the compiler attempts LLM-enhanced
+    mapping. In non-dev (staging/prod), LLM failure propagates as error
+    (no silent library fallback for governed paths). In dev, library
+    fallback is allowed for local workflow ergonomics.
     """
 
     def __init__(
@@ -112,12 +111,14 @@ class AICompiler:
         assumption_agent: AssumptionDraftAgent,
         llm_client: LLMClient | None = None,
         classification: DataClassification | None = None,
+        environment: str = "dev",
     ) -> None:
         self._mapping_agent = mapping_agent
         self._split_agent = split_agent
         self._assumption_agent = assumption_agent
         self._llm_client = llm_client
         self._classification = classification
+        self._environment = environment
 
     async def compile(self, inp: AICompilationInput) -> AICompilationResult:
         """Run the full AI-assisted compilation pipeline.
@@ -251,8 +252,16 @@ class AICompiler:
                     )
                 suggestions.append(suggestion)
             except (ProviderUnavailableError, ValueError, Exception) as exc:
+                is_non_dev = self._environment in ("staging", "prod")
+                if is_non_dev:
+                    _logger.error(
+                        "LLM mapping failed in %s for item %s: %s",
+                        self._environment, item.line_item_id, exc,
+                    )
+                    raise
                 _logger.warning(
-                    "LLM mapping failed for item %s, falling back to library: %s",
+                    "LLM mapping failed for item %s, "
+                    "falling back to library (dev): %s",
                     item.line_item_id, exc,
                 )
                 fallback = self._mapping_agent.suggest_one(

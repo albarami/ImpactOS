@@ -27,11 +27,27 @@ from src.api.scenarios import router as scenarios_router
 from src.api.taxonomy import router as taxonomy_router
 from src.api.workforce import router as workforce_router
 from src.api.workspaces import router as workspaces_router
-from src.config.settings import get_settings
+from src.config.settings import Settings, get_settings, validate_settings_for_env
 
 APP_VERSION = "0.1.0"
 
 settings = get_settings()
+
+
+def _check_startup_config(s: Settings) -> None:
+    """Validate settings at startup. Exits in non-dev if invalid."""
+    errors = validate_settings_for_env(s)
+    if errors:
+        import sys
+
+        for err in errors:
+            logging.getLogger(__name__).critical(
+                "Startup config error: %s", err,
+            )
+        sys.exit(1)
+
+
+_check_startup_config(settings)
 
 _LOG_NAME_TO_LEVEL: dict[str, int] = {
     "DEBUG": logging.DEBUG,
