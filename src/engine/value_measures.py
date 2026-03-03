@@ -21,8 +21,6 @@ import numpy as np
 from src.engine.model_store import LoadedModel
 from src.engine.satellites import SatelliteResult
 from src.engine.value_measures_validation import (
-    FD_COL_EXPORTS,
-    FD_COL_GOVERNMENT,
     validate_value_measures_prerequisites,
 )
 
