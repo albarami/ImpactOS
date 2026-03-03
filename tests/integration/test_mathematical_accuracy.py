@@ -162,3 +162,149 @@ class TestMathematicalAccuracy:
             rtol=0,
             atol=1e-10,
         )
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: Value Measures Mathematical Accuracy
+# ---------------------------------------------------------------------------
+
+from src.engine.value_measures import ValueMeasuresComputer
+
+from tests.integration.golden_scenarios.shared import (
+    SMALL_DEFLATOR_SERIES,
+    SMALL_FINAL_DEMAND_F,
+    SMALL_GOS,
+    SMALL_IMPORTS_VECTOR,
+    SMALL_OIL_SECTOR_CODES,
+    SMALL_TAXES_LESS_SUBSIDIES,
+)
+
+
+@pytest.fixture
+def loaded_3sector_with_vm():
+    """3-sector model with value-measures artifacts."""
+    store = ModelStore()
+    mv = store.register(
+        Z=GOLDEN_Z, x=GOLDEN_X, sector_codes=SECTOR_CODES_SMALL,
+        base_year=GOLDEN_BASE_YEAR, source="math-vm-test",
+        artifact_payload={
+            "gross_operating_surplus": SMALL_GOS.tolist(),
+            "taxes_less_subsidies": SMALL_TAXES_LESS_SUBSIDIES.tolist(),
+            "final_demand_F": SMALL_FINAL_DEMAND_F.tolist(),
+            "imports_vector": SMALL_IMPORTS_VECTOR.tolist(),
+            "deflator_series": SMALL_DEFLATOR_SERIES,
+        },
+    )
+    return store.get(mv.model_version_id)
+
+
+@pytest.mark.integration
+class TestValueMeasuresMathematicalAccuracy:
+    """Algebraic verification of value-measures on 3-sector toy model."""
+
+    def test_gdp_basic_equals_sum_delta_va(
+        self,
+        loaded_3sector_with_vm: object,
+    ) -> None:
+        """GDP basic = Σ(va_ratio · Δx) = Σ(delta_va)."""
+        loaded = loaded_3sector_with_vm
+        solver = LeontiefSolver()
+        delta_d = np.array([100.0, 50.0, 25.0])
+        result = solver.solve(loaded_model=loaded, delta_d=delta_d)
+        coeffs = SatelliteCoefficients(
+            jobs_coeff=SMALL_JOBS_COEFF, import_ratio=SMALL_IMPORT_RATIO,
+            va_ratio=SMALL_VA_RATIO, version_id=uuid7(),
+        )
+        sat = SatelliteAccounts()
+        sat_result = sat.compute(delta_x=result.delta_x_total, coefficients=coeffs)
+
+        vm = ValueMeasuresComputer()
+        vm_result = vm.compute(
+            delta_x=result.delta_x_total, sat_result=sat_result,
+            loaded_model=loaded, base_year=GOLDEN_BASE_YEAR,
+            oil_sector_codes=SMALL_OIL_SECTOR_CODES,
+        )
+        expected_gdp_basic = float(np.sum(SMALL_VA_RATIO * result.delta_x_total))
+        assert_allclose(vm_result.gdp_basic_price, expected_gdp_basic, rtol=1e-10)
+
+    def test_gdp_market_basic_tax_identity(
+        self,
+        loaded_3sector_with_vm: object,
+    ) -> None:
+        """GDP market = GDP basic + Σ(tax_ratio · Δx)."""
+        loaded = loaded_3sector_with_vm
+        solver = LeontiefSolver()
+        delta_d = np.array([100.0, 50.0, 25.0])
+        result = solver.solve(loaded_model=loaded, delta_d=delta_d)
+        coeffs = SatelliteCoefficients(
+            jobs_coeff=SMALL_JOBS_COEFF, import_ratio=SMALL_IMPORT_RATIO,
+            va_ratio=SMALL_VA_RATIO, version_id=uuid7(),
+        )
+        sat = SatelliteAccounts()
+        sat_result = sat.compute(delta_x=result.delta_x_total, coefficients=coeffs)
+
+        vm = ValueMeasuresComputer()
+        vm_result = vm.compute(
+            delta_x=result.delta_x_total, sat_result=sat_result,
+            loaded_model=loaded, base_year=GOLDEN_BASE_YEAR,
+            oil_sector_codes=SMALL_OIL_SECTOR_CODES,
+        )
+        tax_ratio = SMALL_TAXES_LESS_SUBSIDIES / GOLDEN_X
+        tax_effect = float(np.sum(tax_ratio * result.delta_x_total))
+        assert_allclose(
+            vm_result.gdp_market_price,
+            vm_result.gdp_basic_price + tax_effect,
+            rtol=1e-10,
+        )
+
+    def test_gdp_real_deflator_identity(
+        self,
+        loaded_3sector_with_vm: object,
+    ) -> None:
+        """GDP real = GDP market / deflator(base_year). At base_year, real == market."""
+        loaded = loaded_3sector_with_vm
+        solver = LeontiefSolver()
+        result = solver.solve(loaded_model=loaded, delta_d=np.array([100.0, 50.0, 25.0]))
+        coeffs = SatelliteCoefficients(
+            jobs_coeff=SMALL_JOBS_COEFF, import_ratio=SMALL_IMPORT_RATIO,
+            va_ratio=SMALL_VA_RATIO, version_id=uuid7(),
+        )
+        sat = SatelliteAccounts()
+        sat_result = sat.compute(delta_x=result.delta_x_total, coefficients=coeffs)
+
+        vm = ValueMeasuresComputer()
+        vm_result = vm.compute(
+            delta_x=result.delta_x_total, sat_result=sat_result,
+            loaded_model=loaded, base_year=GOLDEN_BASE_YEAR,
+            oil_sector_codes=SMALL_OIL_SECTOR_CODES,
+        )
+        # deflator(2024) = 1.0, so real == market
+        assert_allclose(vm_result.gdp_real, vm_result.gdp_market_price, rtol=1e-10)
+
+    def test_bot_equals_exports_minus_imports(
+        self,
+        loaded_3sector_with_vm: object,
+    ) -> None:
+        """BoT = Σ(export_ratio · Δx) - Σ(import_ratio · Δx)."""
+        loaded = loaded_3sector_with_vm
+        solver = LeontiefSolver()
+        result = solver.solve(loaded_model=loaded, delta_d=np.array([100.0, 50.0, 25.0]))
+        coeffs = SatelliteCoefficients(
+            jobs_coeff=SMALL_JOBS_COEFF, import_ratio=SMALL_IMPORT_RATIO,
+            va_ratio=SMALL_VA_RATIO, version_id=uuid7(),
+        )
+        sat = SatelliteAccounts()
+        sat_result = sat.compute(delta_x=result.delta_x_total, coefficients=coeffs)
+
+        vm = ValueMeasuresComputer()
+        vm_result = vm.compute(
+            delta_x=result.delta_x_total, sat_result=sat_result,
+            loaded_model=loaded, base_year=GOLDEN_BASE_YEAR,
+            oil_sector_codes=SMALL_OIL_SECTOR_CODES,
+        )
+        export_ratio = SMALL_FINAL_DEMAND_F[:, 3] / GOLDEN_X
+        expected_bot = float(np.sum(
+            export_ratio * result.delta_x_total
+            - SMALL_IMPORT_RATIO * result.delta_x_total
+        ))
+        assert_allclose(vm_result.balance_of_trade, expected_bot, rtol=1e-10)
