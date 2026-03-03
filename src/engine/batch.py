@@ -16,6 +16,7 @@ from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import LoadedModel, ModelStore
 from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
 from src.engine.value_measures import ValueMeasuresComputer
+from src.engine.runseries_delta import RunSeriesValidationError
 from src.engine.value_measures_validation import ValueMeasuresValidationError
 from src.models.common import new_uuid7
 from src.models.run import ResultSet, RunSnapshot
@@ -32,6 +33,9 @@ class ScenarioInput:
     base_year: int
     deflators: dict[int, float] | None = None
     sensitivity_multipliers: list[float] | None = None
+    # Sprint 17: delta series fields
+    baseline_run_id: UUID | None = None
+    baseline_annual_data: dict[int, dict[str, dict[str, float]]] | None = None
 
 
 @dataclass(frozen=True)
@@ -194,6 +198,27 @@ class BatchRunner:
             year=phased.peak_year,
             series_kind="peak",
         ))
+
+        # Sprint 17: Delta series (when baseline provided)
+        if scenario.baseline_run_id is not None and scenario.baseline_annual_data is not None:
+            from src.engine.runseries_delta import compute_delta_series
+            # Extract scenario annual data from just-emitted annual rows
+            scenario_annual_data: dict[int, dict[str, dict[str, float]]] = {}
+            for rs in result_sets:
+                if rs.series_kind == "annual" and rs.year is not None:
+                    scenario_annual_data.setdefault(rs.year, {})[rs.metric_type] = dict(rs.values)
+
+            delta_data = compute_delta_series(scenario_annual_data, scenario.baseline_annual_data)
+            for year, metrics in sorted(delta_data.items()):
+                for metric_type, values in sorted(metrics.items()):
+                    result_sets.append(ResultSet(
+                        run_id=run_id,
+                        metric_type=metric_type,
+                        values=values,
+                        year=year,
+                        series_kind="delta",
+                        baseline_run_id=scenario.baseline_run_id,
+                    ))
 
         # Satellite results
         result_sets.append(ResultSet(

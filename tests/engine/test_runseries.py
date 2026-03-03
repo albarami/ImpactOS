@@ -410,3 +410,117 @@ class TestDeltaSeriesComputation:
         delta = compute_delta_series(scenario, baseline)
         assert delta[2026]["total_output"]["F"] == pytest.approx(20.0)
         assert delta[2026]["direct_effect"]["F"] == pytest.approx(10.0)
+
+
+# ---------------------------------------------------------------------------
+# Sprint 17 Task 5: Batch runner delta series emission tests
+# ---------------------------------------------------------------------------
+
+
+def _run_batch_with_baseline(
+    baseline_result: SingleRunResult,
+    shock_multiplier: float = 1.0,
+) -> SingleRunResult:
+    """Run a scenario with baseline_run_id, extracting baseline annual data.
+
+    Uses the same 2-sector model as _run_standard_batch() but passes
+    baseline_run_id and baseline_annual_data extracted from baseline_result.
+    """
+    # Extract baseline annual data from baseline_result into the dict shape
+    baseline_annual_data: dict[int, dict[str, dict[str, float]]] = {}
+    for rs in baseline_result.result_sets:
+        if rs.series_kind == "annual" and rs.year is not None:
+            baseline_annual_data.setdefault(rs.year, {})[rs.metric_type] = dict(rs.values)
+
+    store = ModelStore()
+    Z = np.array([[150.0, 500.0],
+                   [200.0, 100.0]])
+    x = np.array([1000.0, 2000.0])
+    mv = store.register(
+        Z=Z, x=x, sector_codes=["S1", "S2"],
+        base_year=2023, source="test-delta",
+    )
+
+    coefficients = SatelliteCoefficients(
+        jobs_coeff=np.array([0.01, 0.005]),
+        import_ratio=np.array([0.30, 0.20]),
+        va_ratio=np.array([0.40, 0.55]),
+        version_id=uuid7(),
+    )
+
+    scenario = ScenarioInput(
+        scenario_spec_id=uuid7(),
+        scenario_spec_version=1,
+        name="delta-scenario",
+        annual_shocks={
+            2024: np.array([100.0 * shock_multiplier, 0.0]),
+            2025: np.array([200.0 * shock_multiplier, 50.0 * shock_multiplier]),
+            2026: np.array([50.0 * shock_multiplier, 25.0 * shock_multiplier]),
+        },
+        base_year=2023,
+        baseline_run_id=baseline_result.snapshot.run_id,
+        baseline_annual_data=baseline_annual_data,
+    )
+
+    version_refs = {
+        "taxonomy_version_id": uuid7(),
+        "concordance_version_id": uuid7(),
+        "mapping_library_version_id": uuid7(),
+        "assumption_library_version_id": uuid7(),
+        "prompt_pack_version_id": uuid7(),
+    }
+
+    runner = BatchRunner(model_store=store)
+    request = BatchRequest(
+        scenarios=[scenario],
+        model_version_id=mv.model_version_id,
+        satellite_coefficients=coefficients,
+        version_refs=version_refs,
+    )
+    result = runner.run(request)
+    return result.run_results[0]
+
+
+class TestBatchRunnerDeltaSeries:
+    """Batch runner emits delta ResultSet rows when baseline provided."""
+
+    def test_delta_rows_emitted(self) -> None:
+        """When baseline_run_id provided, delta rows appear."""
+        baseline_result = _run_standard_batch()
+        scenario_result = _run_batch_with_baseline(baseline_result)
+        delta_rows = [r for r in scenario_result.result_sets if r.series_kind == "delta"]
+        assert len(delta_rows) > 0
+        assert all(r.baseline_run_id is not None for r in delta_rows)
+
+    def test_delta_values_correct(self) -> None:
+        """Delta values = scenario annual - baseline annual per sector."""
+        baseline_result = _run_standard_batch()
+        scenario_result = _run_batch_with_baseline(baseline_result, shock_multiplier=2.0)
+        for delta_row in (r for r in scenario_result.result_sets if r.series_kind == "delta"):
+            year = delta_row.year
+            metric = delta_row.metric_type
+            scenario_annual = next(
+                r for r in scenario_result.result_sets
+                if r.metric_type == metric and r.series_kind == "annual" and r.year == year
+            )
+            baseline_annual = next(
+                r for r in baseline_result.result_sets
+                if r.metric_type == metric and r.series_kind == "annual" and r.year == year
+            )
+            for sector, dval in delta_row.values.items():
+                expected = scenario_annual.values[sector] - baseline_annual.values[sector]
+                assert abs(dval - expected) < 1e-10
+
+    def test_no_delta_without_baseline(self) -> None:
+        """Without baseline_run_id, no delta rows emitted."""
+        result = _run_standard_batch()
+        delta_rows = [r for r in result.result_sets if r.series_kind == "delta"]
+        assert len(delta_rows) == 0
+
+    def test_delta_row_count(self) -> None:
+        """3 years overlap x 3 metrics = 9 delta rows."""
+        baseline_result = _run_standard_batch()
+        scenario_result = _run_batch_with_baseline(baseline_result)
+        delta_rows = [r for r in scenario_result.result_sets if r.series_kind == "delta"]
+        # 3 years * 3 metrics (total_output, direct_effect, indirect_effect)
+        assert len(delta_rows) == 9
