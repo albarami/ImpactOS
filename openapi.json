@@ -5731,6 +5731,26 @@
         }
       }
     },
+    "/readiness": {
+      "get": {
+        "summary": "Readiness Check",
+        "description": "Readiness probe \u2014 gates traffic until critical deps are up.\n\nReturns 200 when all critical dependencies (database) are healthy.\nReturns 503 when any critical dependency is unavailable.\nNon-critical deps (Redis, object storage) are reported but don't\nblock readiness.",
+        "operationId": "readiness_check_readiness_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Readiness Check Readiness Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/version": {
       "get": {
         "summary": "Get Version",
@@ -9455,6 +9475,107 @@
             "type": "string",
             "title": "Status",
             "default": "AVAILABLE"
+          },
+          "final_demand_F": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Demand F"
+          },
+          "imports_vector": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imports Vector"
+          },
+          "compensation_of_employees": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compensation Of Employees"
+          },
+          "gross_operating_surplus": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gross Operating Surplus"
+          },
+          "taxes_less_subsidies": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taxes Less Subsidies"
+          },
+          "household_consumption_shares": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Household Consumption Shares"
+          },
+          "deflator_series": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deflator Series"
           }
         },
         "type": "object",
@@ -9974,6 +10095,107 @@
           "source": {
             "type": "string",
             "title": "Source"
+          },
+          "final_demand_F": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Demand F"
+          },
+          "imports_vector": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imports Vector"
+          },
+          "compensation_of_employees": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compensation Of Employees"
+          },
+          "gross_operating_surplus": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gross Operating Surplus"
+          },
+          "taxes_less_subsidies": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taxes Less Subsidies"
+          },
+          "household_consumption_shares": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Household Consumption Shares"
+          },
+          "deflator_series": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deflator Series"
           }
         },
         "type": "object",

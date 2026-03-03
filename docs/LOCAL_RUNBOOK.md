@@ -191,6 +191,33 @@ make validate-model   # Validates data/synthetic/saudi_io_synthetic_v1.json
 make build-model      # Rebuild synthetic model from assumptions
 ```
 
+## MVP-14 Saudi Data Foundation Loading
+
+Register a model with extended Phase 2-E prerequisite fields (additive):
+
+```bash
+curl -X POST http://localhost:8000/v1/engine/models \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{
+    "Z": [[10,1],[2,12]],
+    "x": [100,200],
+    "sector_codes": ["S1","S2"],
+    "base_year": 2023,
+    "source": "saudi-curated-test",
+    "final_demand_F": [[100,50,30,20],[60,40,20,10]],
+    "imports_vector": [10,15],
+    "compensation_of_employees": [20,30],
+    "gross_operating_surplus": [15,25],
+    "taxes_less_subsidies": [3,4],
+    "household_consumption_shares": [0.4,0.6],
+    "deflator_series": {"2023": 1.0, "2024": 1.02}
+  }'
+```
+
+If artifact shapes are invalid, registration fails with HTTP `422` and a stable
+`reason_code` (for example `MODEL_IMPORTS_VECTOR_DIMENSION_MISMATCH`).
+
 ## Troubleshooting
 
 **Port conflicts:** If ports 5432, 6379, 8000, or 9000 are in use, stop existing services or change ports in `docker-compose.yml`.
