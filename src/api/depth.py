@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from src.agents.depth.tasks import dispatch_depth_plan, run_depth_plan
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import get_depth_artifact_repo, get_depth_plan_repo
 from src.config.settings import get_settings
 from src.models.common import DisclosureTier, new_uuid7
@@ -96,6 +97,7 @@ class SuitePlanResponse(BaseModel):
 async def trigger_depth_plan(
     workspace_id: UUID,
     body: TriggerDepthPlanRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     plan_repo: DepthPlanRepository = Depends(get_depth_plan_repo),
     artifact_repo: DepthArtifactRepository = Depends(get_depth_artifact_repo),
 ) -> TriggerDepthPlanResponse:
@@ -157,6 +159,7 @@ async def trigger_depth_plan(
 async def get_depth_plan_status(
     workspace_id: UUID,
     plan_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     max_disclosure_tier: str | None = Query(
         default=None,
         description=(
@@ -215,6 +218,7 @@ async def get_depth_artifact(
     workspace_id: UUID,
     plan_id: UUID,
     step: str,
+    member: WorkspaceMember = Depends(require_workspace_member),
     max_disclosure_tier: str | None = Query(
         default=None,
         description="Maximum disclosure tier to return.",
@@ -282,6 +286,7 @@ async def get_depth_artifact(
 async def get_depth_suite(
     workspace_id: UUID,
     plan_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     plan_repo: DepthPlanRepository = Depends(get_depth_plan_repo),
     artifact_repo: DepthArtifactRepository = Depends(get_depth_artifact_repo),
 ) -> SuitePlanResponse:

@@ -17,6 +17,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
     get_document_repo,
     get_document_storage,
@@ -125,6 +126,7 @@ class DocumentDetailResponse(BaseModel):
 @router.get("/{workspace_id}/documents", response_model=DocumentListResponse)
 async def list_documents(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     limit: int = 20,
     cursor: str | None = None,
     doc_repo: DocumentRepository = Depends(get_document_repo),
@@ -179,6 +181,7 @@ async def list_documents(
 async def get_document_detail(
     workspace_id: UUID,
     doc_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     doc_repo: DocumentRepository = Depends(get_document_repo),
     job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
     line_item_repo: LineItemRepository = Depends(get_line_item_repo),
@@ -214,6 +217,7 @@ async def get_document_detail(
 @router.post("/{workspace_id}/documents", status_code=201, response_model=UploadResponse)
 async def upload_document(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     doc_repo: DocumentRepository = Depends(get_document_repo),
     storage: DocumentStorageService = Depends(get_document_storage),
     file: UploadFile = File(...),
@@ -273,6 +277,7 @@ async def extract_document(
     workspace_id: UUID,
     doc_id: UUID,
     body: ExtractRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     doc_repo: DocumentRepository = Depends(get_document_repo),
     job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
     line_item_repo: LineItemRepository = Depends(get_line_item_repo),
@@ -370,6 +375,7 @@ async def extract_document(
 async def get_job_status(
     workspace_id: UUID,
     job_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     job_repo: ExtractionJobRepository = Depends(get_extraction_job_repo),
 ) -> JobStatusResponse:
     """Poll job status (Section 6.2.5). Workspace-scoped."""
@@ -392,6 +398,7 @@ async def get_job_status(
 async def get_line_items(
     workspace_id: UUID,
     doc_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     doc_repo: DocumentRepository = Depends(get_document_repo),
     line_item_repo: LineItemRepository = Depends(get_line_item_repo),
 ) -> LineItemsResponse:

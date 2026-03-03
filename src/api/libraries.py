@@ -32,6 +32,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
     get_assumption_library_repo,
     get_mapping_library_repo,
@@ -208,6 +209,7 @@ class LibraryStatsResponse(BaseModel):
 async def create_mapping_entry(
     workspace_id: UUID,
     body: CreateMappingEntryRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: MappingLibraryRepository = Depends(get_mapping_library_repo),
 ) -> MappingEntryResponse:
     entry_id = new_uuid7()
@@ -236,6 +238,7 @@ async def create_mapping_entry(
 )
 async def list_mapping_entries(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     sector_code: str | None = Query(None),
     repo: MappingLibraryRepository = Depends(get_mapping_library_repo),
 ) -> list[MappingEntryResponse]:
@@ -252,6 +255,7 @@ async def list_mapping_entries(
 async def get_mapping_entry(
     workspace_id: UUID,
     entry_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: MappingLibraryRepository = Depends(get_mapping_library_repo),
 ) -> MappingEntryResponse:
     row = await repo.get_entry(entry_id)
@@ -268,6 +272,7 @@ async def patch_mapping_entry_status(
     workspace_id: UUID,
     entry_id: UUID,
     body: PatchStatusRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: MappingLibraryRepository = Depends(get_mapping_library_repo),
 ) -> MappingEntryResponse:
     """Amendment 7: steward-gated status promotion."""
@@ -289,6 +294,7 @@ async def patch_mapping_entry_status(
 )
 async def publish_mapping_version(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: MappingLibraryRepository = Depends(get_mapping_library_repo),
 ) -> MappingVersionResponse:
     """Publish a snapshot. Only PUBLISHED entries (Amendment 7).
@@ -320,6 +326,7 @@ async def publish_mapping_version(
 )
 async def list_mapping_versions(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: MappingLibraryRepository = Depends(get_mapping_library_repo),
 ) -> list[MappingVersionResponse]:
     rows = await repo.get_versions_by_workspace(workspace_id)
@@ -332,6 +339,7 @@ async def list_mapping_versions(
 )
 async def get_latest_mapping_version(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: MappingLibraryRepository = Depends(get_mapping_library_repo),
 ) -> MappingVersionResponse:
     row = await repo.get_latest_version(workspace_id)
@@ -353,6 +361,7 @@ async def get_latest_mapping_version(
 async def create_assumption_entry(
     workspace_id: UUID,
     body: CreateAssumptionEntryRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: AssumptionLibraryRepository = Depends(get_assumption_library_repo),
 ) -> AssumptionEntryResponse:
     entry_id = new_uuid7()
@@ -387,6 +396,7 @@ async def create_assumption_entry(
 )
 async def list_assumption_entries(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     assumption_type: str | None = Query(None),
     sector_code: str | None = Query(None),
     repo: AssumptionLibraryRepository = Depends(get_assumption_library_repo),
@@ -406,6 +416,7 @@ async def list_assumption_entries(
 async def get_assumption_entry(
     workspace_id: UUID,
     entry_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: AssumptionLibraryRepository = Depends(get_assumption_library_repo),
 ) -> AssumptionEntryResponse:
     row = await repo.get_entry(entry_id)
@@ -422,6 +433,7 @@ async def patch_assumption_entry_status(
     workspace_id: UUID,
     entry_id: UUID,
     body: PatchStatusRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: AssumptionLibraryRepository = Depends(get_assumption_library_repo),
 ) -> AssumptionEntryResponse:
     """Amendment 7: steward-gated status promotion."""
@@ -443,6 +455,7 @@ async def patch_assumption_entry_status(
 )
 async def publish_assumption_version(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: AssumptionLibraryRepository = Depends(get_assumption_library_repo),
 ) -> AssumptionVersionResponse:
     """Publish snapshot. Only PUBLISHED entries (Amendment 7)."""
@@ -469,6 +482,7 @@ async def publish_assumption_version(
 )
 async def list_assumption_versions(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: AssumptionLibraryRepository = Depends(get_assumption_library_repo),
 ) -> list[AssumptionVersionResponse]:
     rows = await repo.get_versions_by_workspace(workspace_id)
@@ -481,6 +495,7 @@ async def list_assumption_versions(
 )
 async def get_latest_assumption_version(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: AssumptionLibraryRepository = Depends(get_assumption_library_repo),
 ) -> AssumptionVersionResponse:
     row = await repo.get_latest_version(workspace_id)
@@ -502,6 +517,7 @@ async def get_latest_assumption_version(
 async def create_pattern(
     workspace_id: UUID,
     body: CreatePatternRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioPatternRepository = Depends(get_scenario_pattern_repo),
 ) -> PatternResponse:
     pattern_id = new_uuid7()
@@ -532,6 +548,7 @@ async def create_pattern(
 )
 async def list_patterns(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioPatternRepository = Depends(get_scenario_pattern_repo),
 ) -> list[PatternResponse]:
     rows = await repo.get_by_workspace(workspace_id)
@@ -545,6 +562,7 @@ async def list_patterns(
 async def get_pattern(
     workspace_id: UUID,
     pattern_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioPatternRepository = Depends(get_scenario_pattern_repo),
 ) -> PatternResponse:
     row = await repo.get(pattern_id)
@@ -560,6 +578,7 @@ async def get_pattern(
 async def increment_pattern_usage(
     workspace_id: UUID,
     pattern_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ScenarioPatternRepository = Depends(get_scenario_pattern_repo),
 ) -> PatternResponse:
     row = await repo.get(pattern_id)
@@ -584,6 +603,7 @@ async def increment_pattern_usage(
 )
 async def get_library_stats(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     mapping_repo: MappingLibraryRepository = Depends(
         get_mapping_library_repo,
     ),

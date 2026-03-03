@@ -77,12 +77,13 @@ def _check_dev_mode() -> None:
         raise HTTPException(status_code=404)
 
 
-def _create_token(user_id: str, username: str) -> str:
+def _create_token(user_id: str, username: str, role: str = "viewer") -> str:
     """Create a JWT token for the given user."""
     settings = get_settings()
     payload = {
         "sub": user_id,
         "username": username,
+        "role": role,
         "exp": datetime.now(UTC) + timedelta(hours=24),
         "iat": datetime.now(UTC),
     }
@@ -113,7 +114,7 @@ async def login(body: LoginRequest) -> AuthResponse:
     user = _DEV_USERS.get(body.username)
     if user is None:
         raise HTTPException(status_code=401, detail="Unknown user")
-    token = _create_token(str(user["user_id"]), str(user["username"]))
+    token = _create_token(str(user["user_id"]), str(user["username"]), str(user["role"]))
     return AuthResponse(
         token=token,
         user_id=str(user["user_id"]),

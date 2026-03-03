@@ -24,6 +24,7 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
     get_employment_coefficients_repo,
     get_feasibility_result_repo,
@@ -160,6 +161,7 @@ class WorkforceResultResponse(BaseModel):
 async def create_employment_coefficients(
     workspace_id: UUID,
     body: CreateEmploymentCoefficientsRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: EmploymentCoefficientsRepository = Depends(get_employment_coefficients_repo),
 ) -> EmploymentCoefficientsResponse:
     """Create employment coefficients (or new version of existing)."""
@@ -201,6 +203,7 @@ async def create_employment_coefficients(
 )
 async def list_employment_coefficients(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: EmploymentCoefficientsRepository = Depends(get_employment_coefficients_repo),
 ) -> list[EmploymentCoefficientsResponse]:
     """List all employment coefficients for a workspace."""
@@ -227,6 +230,7 @@ async def list_employment_coefficients(
 async def get_employment_coefficients(
     workspace_id: UUID,
     employment_coefficients_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     version: int | None = Query(default=None),
     repo: EmploymentCoefficientsRepository = Depends(get_employment_coefficients_repo),
 ) -> EmploymentCoefficientsResponse:
@@ -267,6 +271,7 @@ async def get_employment_coefficients(
 async def create_occupation_bridge(
     workspace_id: UUID,
     body: CreateOccupationBridgeRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: SectorOccupationBridgeRepository = Depends(get_sector_occupation_bridge_repo),
 ) -> OccupationBridgeResponse:
     """Create sector-occupation bridge (or new version)."""
@@ -304,6 +309,7 @@ async def create_occupation_bridge(
 )
 async def list_occupation_bridges(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: SectorOccupationBridgeRepository = Depends(get_sector_occupation_bridge_repo),
 ) -> list[OccupationBridgeResponse]:
     """List all occupation bridges for a workspace."""
@@ -328,6 +334,7 @@ async def list_occupation_bridges(
 async def get_occupation_bridge(
     workspace_id: UUID,
     bridge_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     version: int | None = Query(default=None),
     repo: SectorOccupationBridgeRepository = Depends(get_sector_occupation_bridge_repo),
 ) -> OccupationBridgeResponse:
@@ -366,6 +373,7 @@ async def get_occupation_bridge(
 async def create_saudization_rules(
     workspace_id: UUID,
     body: CreateSaudizationRulesRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: SaudizationRulesRepository = Depends(get_saudization_rules_repo),
 ) -> SaudizationRulesResponse:
     """Create saudization rules (or new version)."""
@@ -401,6 +409,7 @@ async def create_saudization_rules(
 )
 async def list_saudization_rules(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: SaudizationRulesRepository = Depends(get_saudization_rules_repo),
 ) -> list[SaudizationRulesResponse]:
     """List all saudization rules for a workspace."""
@@ -425,6 +434,7 @@ async def list_saudization_rules(
 async def get_saudization_rules(
     workspace_id: UUID,
     rules_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     version: int | None = Query(default=None),
     repo: SaudizationRulesRepository = Depends(get_saudization_rules_repo),
 ) -> SaudizationRulesResponse:
@@ -463,6 +473,7 @@ async def compute_workforce(
     workspace_id: UUID,
     run_id: UUID,
     body: ComputeWorkforceRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     ec_repo: EmploymentCoefficientsRepository = Depends(get_employment_coefficients_repo),
     bridge_repo: SectorOccupationBridgeRepository = Depends(get_sector_occupation_bridge_repo),
     rules_repo: SaudizationRulesRepository = Depends(get_saudization_rules_repo),
@@ -717,6 +728,7 @@ async def compute_workforce(
 async def get_workforce_results(
     workspace_id: UUID,
     run_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     result_repo: WorkforceResultRepository = Depends(get_workforce_result_repo),
 ) -> list[WorkforceResultResponse]:
     """Get all workforce results for a run."""

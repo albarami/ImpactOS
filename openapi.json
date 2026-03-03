@@ -144,6 +144,7 @@
           "workspaces"
         ],
         "summary": "List Workspaces",
+        "description": "List workspaces the authenticated user is a member of.",
         "operationId": "list_workspaces_v1_workspaces_get",
         "responses": {
           "200": {
@@ -163,6 +164,7 @@
           "workspaces"
         ],
         "summary": "Create Workspace",
+        "description": "Create workspace. created_by is set from authenticated principal.",
         "operationId": "create_workspace_v1_workspaces_post",
         "requestBody": {
           "content": {
@@ -204,6 +206,7 @@
           "workspaces"
         ],
         "summary": "Get Workspace",
+        "description": "Get workspace detail \u2014 requires workspace membership.",
         "operationId": "get_workspace_v1_workspaces__workspace_id__get",
         "parameters": [
           {
@@ -245,6 +248,7 @@
           "workspaces"
         ],
         "summary": "Update Workspace",
+        "description": "Update workspace \u2014 requires manager or admin role.",
         "operationId": "update_workspace_v1_workspaces__workspace_id__put",
         "parameters": [
           {
@@ -7745,18 +7749,12 @@
             "maxLength": 2000,
             "title": "Description",
             "default": ""
-          },
-          "created_by": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Created By"
           }
         },
         "type": "object",
         "required": [
           "client_name",
-          "engagement_code",
-          "created_by"
+          "engagement_code"
         ],
         "title": "CreateWorkspaceRequest"
       },

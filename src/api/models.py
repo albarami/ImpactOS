@@ -17,6 +17,7 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
     get_employment_coefficients_repo,
     get_model_data_repo,
@@ -86,6 +87,7 @@ def _row_to_response(row: ModelVersionRow) -> ModelVersionResponse:
 @router.get("/versions", response_model=ModelVersionListResponse)
 async def list_model_versions(
     workspace_id: UUID,  # noqa: ARG001
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ModelVersionRepository = Depends(get_model_version_repo),
 ) -> ModelVersionListResponse:
     rows = await repo.list_all()
@@ -99,6 +101,7 @@ async def list_model_versions(
 async def get_model_version(
     workspace_id: UUID,  # noqa: ARG001
     model_version_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ModelVersionRepository = Depends(get_model_version_repo),
 ) -> ModelVersionResponse:
     row = await repo.get(model_version_id)
@@ -140,6 +143,7 @@ def _default_import_ratios(n: int) -> np.ndarray:
 async def get_coefficients(
     workspace_id: UUID,  # noqa: ARG001
     model_version_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
     md_repo: ModelDataRepository = Depends(get_model_data_repo),
     ec_repo: EmploymentCoefficientsRepository = Depends(get_employment_coefficients_repo),

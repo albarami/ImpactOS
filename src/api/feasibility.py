@@ -26,6 +26,7 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
     get_constraint_set_repo,
     get_feasibility_result_repo,
@@ -118,6 +119,7 @@ class FeasibilityResultResponse(BaseModel):
 async def create_constraint_set(
     workspace_id: UUID,
     body: CreateConstraintSetRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     cs_repo: ConstraintSetRepository = Depends(get_constraint_set_repo),
 ) -> ConstraintSetResponse:
     """Create a new constraint set (or new version of existing set)."""
@@ -158,6 +160,7 @@ async def create_constraint_set(
 )
 async def list_constraint_sets(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     cs_repo: ConstraintSetRepository = Depends(get_constraint_set_repo),
 ) -> list[ConstraintSetResponse]:
     """List all constraint sets for a workspace."""
@@ -183,6 +186,7 @@ async def list_constraint_sets(
 async def get_constraint_set(
     workspace_id: UUID,
     constraint_set_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     version: int | None = Query(default=None, description="Specific version (default=latest)"),
     cs_repo: ConstraintSetRepository = Depends(get_constraint_set_repo),
 ) -> ConstraintSetResponse:
@@ -216,6 +220,7 @@ async def get_constraint_set(
 async def solve_feasibility(
     workspace_id: UUID,
     body: SolveRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     cs_repo: ConstraintSetRepository = Depends(get_constraint_set_repo),
     result_repo: FeasibilityResultRepository = Depends(get_feasibility_result_repo),
     run_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
@@ -454,6 +459,7 @@ async def solve_feasibility(
 async def get_feasibility_results(
     workspace_id: UUID,
     run_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     result_repo: FeasibilityResultRepository = Depends(get_feasibility_result_repo),
 ) -> list[FeasibilityResultResponse]:
     """Get all feasibility results for a run."""

@@ -51,6 +51,22 @@ class WorkspaceRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class WorkspaceMembershipRow(Base):
+    """Workspace membership — links user_id (from JWT) to workspace with role."""
+
+    __tablename__ = "workspace_memberships"
+
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id"), primary_key=True,
+    )
+    user_id: Mapped[UUID] = mapped_column(primary_key=True, index=True)
+    role: Mapped[str] = mapped_column(String(50), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
+    created_by: Mapped[UUID] = mapped_column(nullable=False)
+
+
 # ---------------------------------------------------------------------------
 # Engine — IMMUTABLE
 # ---------------------------------------------------------------------------

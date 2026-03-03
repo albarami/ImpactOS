@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from uuid_extensions import uuid7
 
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import get_metric_event_repo
 from src.observability.dashboard import DashboardService, DashboardSummary
 from src.observability.health import HealthChecker
@@ -107,6 +108,7 @@ class ReadinessResponse(BaseModel):
 async def record_metric(
     workspace_id: UUID,
     body: RecordMetricRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: MetricEventRepository = Depends(get_metric_event_repo),
 ) -> RecordMetricResponse:
     """Record a metric event."""
@@ -136,6 +138,7 @@ async def record_metric(
 async def get_engagement_metrics(
     workspace_id: UUID,
     engagement_id: str,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: MetricEventRepository = Depends(get_metric_event_repo),
 ) -> EngagementMetricsResponse:
     """Get all metric events for an engagement."""
@@ -156,14 +159,21 @@ async def get_engagement_metrics(
 
 
 @router.get("/{workspace_id}/metrics/dashboard", response_model=DashboardResponse)
-async def get_dashboard(workspace_id: UUID) -> DashboardResponse:
+async def get_dashboard(
+    workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
+) -> DashboardResponse:
     """Get dashboard summary with empty data (default)."""
     summary = _dashboard_svc.compute_summary(engagements=[], library={})
     return _summary_to_response(summary)
 
 
 @router.post("/{workspace_id}/metrics/dashboard", response_model=DashboardResponse)
-async def post_dashboard(workspace_id: UUID, body: DashboardRequest) -> DashboardResponse:
+async def post_dashboard(
+    workspace_id: UUID,
+    body: DashboardRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
+) -> DashboardResponse:
     """Get dashboard summary with provided data."""
     summary = _dashboard_svc.compute_summary(
         engagements=body.engagements,
@@ -173,7 +183,11 @@ async def post_dashboard(workspace_id: UUID, body: DashboardRequest) -> Dashboar
 
 
 @router.post("/{workspace_id}/metrics/readiness", response_model=ReadinessResponse)
-async def check_readiness(workspace_id: UUID, body: ReadinessRequest) -> ReadinessResponse:
+async def check_readiness(
+    workspace_id: UUID,
+    body: ReadinessRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
+) -> ReadinessResponse:
     """Run pilot readiness check against provided dependencies."""
     deps = {
         "database": body.database,

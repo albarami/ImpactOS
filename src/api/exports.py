@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
     get_claim_repo,
     get_data_quality_repo,
@@ -154,6 +155,7 @@ async def _check_model_provenance(
 async def create_export(
     workspace_id: UUID,
     body: CreateExportRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ExportRepository = Depends(get_export_repo),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
     quality_repo: DataQualityRepository = Depends(get_data_quality_repo),
@@ -227,6 +229,7 @@ async def create_export(
 async def get_export_status(
     workspace_id: UUID,
     export_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ExportRepository = Depends(get_export_repo),
 ) -> ExportStatusResponse:
     """Get export status and metadata (workspace-scoped via run linkage)."""
@@ -248,6 +251,7 @@ async def download_export_artifact(
     workspace_id: UUID,
     export_id: UUID,
     format: str,
+    member: WorkspaceMember = Depends(require_workspace_member),
     repo: ExportRepository = Depends(get_export_repo),
     artifact_store: ExportArtifactStorage = Depends(get_export_artifact_storage),
 ) -> Response:
@@ -296,6 +300,7 @@ async def download_export_artifact(
 async def variance_bridge(
     workspace_id: UUID,
     body: VarianceBridgeRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
 ) -> VarianceBridgeResponse:
     """Compare two runs and decompose changes into drivers."""
     result = _bridge.compare(run_a=body.run_a, run_b=body.run_b)

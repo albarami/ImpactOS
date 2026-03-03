@@ -31,6 +31,7 @@ from uuid_extensions import uuid7
 from src.agents.assumption_agent import AssumptionDraftAgent
 from src.agents.mapping_agent import MappingSuggestionAgent
 from src.agents.split_agent import SplitAgent
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
     get_compilation_repo,
     get_document_repo,
@@ -185,6 +186,7 @@ class BulkDecisionResponse(BaseModel):
 async def trigger_compilation(
     workspace_id: UUID,
     body: CompileRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
     mapping_repo: MappingLibraryRepository = Depends(get_mapping_library_repo),
     doc_repo: DocumentRepository = Depends(get_document_repo),
@@ -391,6 +393,7 @@ async def _load_items_from_document(
 async def get_status(
     workspace_id: UUID,
     compilation_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
 ) -> StatusResponse:
     """Get compilation suggestion status."""
@@ -417,6 +420,7 @@ async def bulk_decisions(
     workspace_id: UUID,
     compilation_id: UUID,
     body: BulkDecisionRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
     override_repo: OverridePairRepository = Depends(get_override_pair_repo),
     mapping_repo: MappingLibraryRepository = Depends(
@@ -579,6 +583,7 @@ class CompilationDetailResponse(BaseModel):
 async def get_compilation_detail(
     workspace_id: UUID,
     compilation_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
     decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
 ) -> CompilationDetailResponse:
@@ -696,6 +701,7 @@ async def get_decision(
     workspace_id: UUID,
     compilation_id: UUID,
     line_item_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
     decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
 ) -> DecisionResponse:
@@ -718,6 +724,7 @@ async def put_decision(
     compilation_id: UUID,
     line_item_id: UUID,
     body: DecisionPutRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
     decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
 ) -> JSONResponse:
@@ -816,6 +823,7 @@ async def bulk_approve_decisions(
     workspace_id: UUID,
     compilation_id: UUID,
     body: BulkApproveRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
     decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
 ) -> BulkApproveResponse:
@@ -903,6 +911,7 @@ async def get_decision_audit_trail(
     workspace_id: UUID,
     compilation_id: UUID,
     line_item_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     comp_repo: CompilationRepository = Depends(get_compilation_repo),
     decision_repo: MappingDecisionRepository = Depends(get_mapping_decision_repo),
 ) -> AuditTrailResponse:

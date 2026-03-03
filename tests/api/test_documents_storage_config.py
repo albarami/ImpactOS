@@ -66,7 +66,9 @@ class TestDocumentStorageConfig:
         except ImportError:
             pytest.skip("get_document_storage not yet implemented")
 
-        from httpx import ASGITransport, AsyncClient as AC
+        from httpx import ASGITransport
+        from httpx import AsyncClient as AC
+
         from src.ingestion.storage import DocumentStorageService
 
         # Create a temp directory for test storage
@@ -79,8 +81,34 @@ class TestDocumentStorageConfig:
             async def _override_session():
                 yield db_session
 
+            from uuid import UUID
+
+            from src.api.auth_deps import (
+                AuthPrincipal,
+                WorkspaceMember,
+                get_current_principal,
+                require_workspace_member,
+            )
+
+            _p = AuthPrincipal(
+                user_id=UUID("00000000-0000-7000-8000-000000000001"),
+                username="analyst", role="analyst",
+            )
+
+            async def _override_principal():
+                return _p
+
+            async def _override_member(workspace_id: UUID = None):
+                return WorkspaceMember(
+                    principal=_p,
+                    workspace_id=workspace_id or UUID("00000000-0000-7000-8000-000000000010"),
+                    role="admin",
+                )
+
             app.dependency_overrides[get_document_storage] = _override_storage
             app.dependency_overrides[get_async_session] = _override_session
+            app.dependency_overrides[get_current_principal] = _override_principal
+            app.dependency_overrides[require_workspace_member] = _override_member
 
             try:
                 async with AC(

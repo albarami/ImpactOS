@@ -24,6 +24,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import get_data_quality_repo
 from src.engine.data_quality import (
     compute_input_quality,
@@ -128,6 +129,7 @@ async def compute_quality(
     workspace_id: UUID,
     run_id: UUID,
     body: ComputeQualityRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     force_recompute: bool = Query(
         default=False,
         description="Amendment 6: Delete existing summary and recompute",
@@ -235,6 +237,7 @@ async def compute_quality(
 async def get_run_quality(
     workspace_id: UUID,
     run_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     dq_repo: DataQualityRepository = Depends(get_data_quality_repo),
 ) -> QualitySummaryResponse:
     """Get the quality summary for a specific run."""
@@ -271,6 +274,7 @@ async def get_run_quality(
 )
 async def get_freshness_overview(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     dq_repo: DataQualityRepository = Depends(get_data_quality_repo),
 ) -> FreshnessOverviewResponse:
     """Get freshness overview for all runs in a workspace."""
@@ -300,6 +304,7 @@ async def get_freshness_overview(
 )
 async def get_quality_overview(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     dq_repo: DataQualityRepository = Depends(get_data_quality_repo),
 ) -> QualityOverviewResponse:
     """Get quality overview for all runs in a workspace."""

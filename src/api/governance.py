@@ -16,6 +16,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
     get_assumption_repo,
     get_claim_repo,
@@ -245,6 +246,7 @@ def _row_to_claim(row: object) -> Claim:
 async def extract_claims(
     workspace_id: UUID,
     body: ExtractClaimsRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> ExtractClaimsResponse:
     """Extract atomic claims from draft narrative text."""
@@ -287,6 +289,7 @@ async def extract_claims(
 async def nff_check(
     workspace_id: UUID,
     body: NFFCheckRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> NFFCheckResponse:
     """NFF gate: validate claims are supported or resolved."""
@@ -323,6 +326,7 @@ async def nff_check(
 async def create_assumption(
     workspace_id: UUID,
     body: CreateAssumptionRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
 ) -> CreateAssumptionResponse:
     """Create a new assumption (draft status)."""
@@ -357,6 +361,7 @@ async def approve_assumption(
     workspace_id: UUID,
     assumption_id: UUID,
     body: ApproveAssumptionRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
 ) -> ApproveAssumptionResponse:
     """Approve an assumption — requires sensitivity range."""
@@ -398,6 +403,7 @@ async def approve_assumption(
 async def get_governance_status(
     workspace_id: UUID,
     run_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
     assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
 ) -> GovernanceStatusResponse:
@@ -436,6 +442,7 @@ async def get_governance_status(
 async def get_blocking_reasons(
     workspace_id: UUID,
     run_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> BlockingReasonsResponse:
     """Get blocking reasons for a run."""
@@ -468,6 +475,7 @@ async def get_blocking_reasons(
 @router.get("/{workspace_id}/governance/claims", response_model=ClaimListResponse)
 async def list_claims(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
     run_id: UUID | None = Query(default=None, description="Filter claims by run_id"),
 ) -> ClaimListResponse:
@@ -503,6 +511,7 @@ async def list_claims(
 async def get_claim_detail(
     workspace_id: UUID,
     claim_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> ClaimDetailResponse:
     """Get a single claim by ID (workspace-scoped via run linkage)."""
@@ -532,6 +541,7 @@ async def update_claim_status(
     workspace_id: UUID,
     claim_id: UUID,
     body: UpdateClaimRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> UpdateClaimResponse:
     """Update a claim's status with state-machine transition validation.
@@ -580,6 +590,7 @@ async def update_claim_status(
 @router.get("/{workspace_id}/governance/evidence", response_model=EvidenceListResponse)
 async def list_evidence(
     workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     run_id: UUID | None = Query(default=None, description="Filter evidence by run_id"),
     evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
     run_snapshot_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
@@ -624,6 +635,7 @@ async def list_evidence(
 async def get_evidence_detail(
     workspace_id: UUID,
     snippet_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
     evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
 ) -> EvidenceDetailResponse:
     """B-7: Get evidence snippet detail (workspace-scoped via document)."""
@@ -650,6 +662,7 @@ async def link_evidence_to_claim(
     workspace_id: UUID,
     claim_id: UUID,
     body: LinkEvidenceRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
     evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
     claim_repo: ClaimRepository = Depends(get_claim_repo),
 ) -> LinkEvidenceResponse:
