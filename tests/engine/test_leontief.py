@@ -380,3 +380,96 @@ class TestTypeIIFieldDefaults:
         )
         assert phased.cumulative_delta_x_type_ii is None
         assert phased.cumulative_delta_x_induced is None
+
+
+# ===================================================================
+# Type II solve (Sprint 15 — Task 2)
+# ===================================================================
+
+
+from tests.integration.golden_scenarios.shared import (
+    GOLDEN_Z, GOLDEN_X, SECTOR_CODES_SMALL,
+    GOLDEN_COMPENSATION, GOLDEN_HOUSEHOLD_SHARES,
+    EXPECTED_B_STAR_SMALL,
+)
+
+
+class TestTypeIISolve:
+    """Type II household-closure solve tests."""
+
+    def _register_golden(self, store: ModelStore):
+        mv = store.register(
+            Z=np.array(GOLDEN_Z), x=np.array(GOLDEN_X),
+            sector_codes=SECTOR_CODES_SMALL, base_year=2023, source="test-golden",
+        )
+        return store.get(mv.model_version_id)
+
+    def test_type_ii_total_larger_than_type_i(self) -> None:
+        store = ModelStore()
+        loaded = self._register_golden(store)
+        solver = LeontiefSolver()
+        delta_d = np.array([100.0, 0.0, 0.0])
+        result = solver.solve_type_ii(
+            loaded_model=loaded, delta_d=delta_d,
+            compensation_of_employees=np.array(GOLDEN_COMPENSATION),
+            household_consumption_shares=np.array(GOLDEN_HOUSEHOLD_SHARES),
+        )
+        assert np.sum(result.delta_x_type_ii_total) > np.sum(result.delta_x_total)
+
+    def test_induced_equals_difference(self) -> None:
+        store = ModelStore()
+        loaded = self._register_golden(store)
+        solver = LeontiefSolver()
+        delta_d = np.array([100.0, 0.0, 0.0])
+        result = solver.solve_type_ii(
+            loaded_model=loaded, delta_d=delta_d,
+            compensation_of_employees=np.array(GOLDEN_COMPENSATION),
+            household_consumption_shares=np.array(GOLDEN_HOUSEHOLD_SHARES),
+        )
+        np.testing.assert_allclose(
+            result.delta_x_induced,
+            result.delta_x_type_ii_total - result.delta_x_total,
+            atol=1e-10,
+        )
+
+    def test_type_ii_matches_golden_reference(self) -> None:
+        store = ModelStore()
+        loaded = self._register_golden(store)
+        solver = LeontiefSolver()
+        delta_d = np.array([100.0, 0.0, 0.0])
+        result = solver.solve_type_ii(
+            loaded_model=loaded, delta_d=delta_d,
+            compensation_of_employees=np.array(GOLDEN_COMPENSATION),
+            household_consumption_shares=np.array(GOLDEN_HOUSEHOLD_SHARES),
+        )
+        augmented_d = np.array([100.0, 0.0, 0.0, 0.0])
+        expected_full = EXPECTED_B_STAR_SMALL @ augmented_d
+        np.testing.assert_allclose(result.delta_x_type_ii_total, expected_full[:3], atol=1e-8)
+
+    def test_type_ii_dimension_mismatch_raises(self) -> None:
+        store = ModelStore()
+        loaded = self._register_golden(store)
+        solver = LeontiefSolver()
+        delta_d = np.array([100.0, 0.0, 0.0])
+        with pytest.raises(ValueError, match="dimension"):
+            solver.solve_type_ii(
+                loaded_model=loaded, delta_d=delta_d,
+                compensation_of_employees=np.array([1.0, 2.0]),
+                household_consumption_shares=np.array(GOLDEN_HOUSEHOLD_SHARES),
+            )
+
+    def test_type_ii_deterministic_reproducibility(self) -> None:
+        store = ModelStore()
+        loaded = self._register_golden(store)
+        solver = LeontiefSolver()
+        delta_d = np.array([100.0, 50.0, 25.0])
+        results = [
+            solver.solve_type_ii(
+                loaded_model=loaded, delta_d=delta_d,
+                compensation_of_employees=np.array(GOLDEN_COMPENSATION),
+                household_consumption_shares=np.array(GOLDEN_HOUSEHOLD_SHARES),
+            )
+            for _ in range(5)
+        ]
+        for r in results[1:]:
+            np.testing.assert_array_equal(r.delta_x_type_ii_total, results[0].delta_x_type_ii_total)

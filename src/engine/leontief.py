@@ -9,6 +9,7 @@ Given the same inputs, ALWAYS produces the same outputs.
 from dataclasses import dataclass, field
 
 import numpy as np
+from scipy import linalg as scipy_linalg
 
 from src.engine.model_store import LoadedModel
 
@@ -82,6 +83,89 @@ class LeontiefSolver:
             delta_x_total=delta_x_total,
             delta_x_direct=delta_x_direct,
             delta_x_indirect=delta_x_indirect,
+        )
+
+    def solve_type_ii(
+        self,
+        *,
+        loaded_model: LoadedModel,
+        delta_d: np.ndarray,
+        compensation_of_employees: np.ndarray,
+        household_consumption_shares: np.ndarray,
+    ) -> SolveResult:
+        """Compute Type II effects with household closure.
+
+        Constructs augmented (n+1)x(n+1) matrix internally.
+        Returns n-vectors only -- household pseudo-sector stays internal.
+        induced = type_ii_total - type_i_total
+
+        Args:
+            loaded_model: Model with cached A and B matrices.
+            delta_d: Final demand shock vector (n).
+            compensation_of_employees: Compensation per sector (n).
+            household_consumption_shares: Household consumption shares (n).
+
+        Returns:
+            SolveResult with Type I fields plus Type II total and induced.
+
+        Raises:
+            ValueError: If any input dimension doesn't match model.
+        """
+        delta_d = np.asarray(delta_d, dtype=np.float64)
+        comp = np.asarray(compensation_of_employees, dtype=np.float64)
+        hh_shares = np.asarray(household_consumption_shares, dtype=np.float64)
+        n = loaded_model.n
+
+        if delta_d.shape != (n,):
+            raise ValueError(
+                f"dimension mismatch: delta_d has {delta_d.shape[0]} elements, "
+                f"model has {n} sectors."
+            )
+        if comp.shape != (n,):
+            raise ValueError(
+                f"dimension mismatch: compensation_of_employees has {comp.shape[0]} elements, "
+                f"model has {n} sectors."
+            )
+        if hh_shares.shape != (n,):
+            raise ValueError(
+                f"dimension mismatch: household_consumption_shares has {hh_shares.shape[0]} elements, "
+                f"model has {n} sectors."
+            )
+
+        # Type I solve
+        type_i = self.solve(loaded_model=loaded_model, delta_d=delta_d)
+
+        # Wage coefficients: w_i = comp_i / x_i
+        w = comp / loaded_model.x
+
+        # Augmented (n+1)x(n+1) matrix A*
+        A = loaded_model.A
+        A_star = np.zeros((n + 1, n + 1))
+        A_star[:n, :n] = A
+        A_star[n, :n] = w           # household income row
+        A_star[:n, n] = hh_shares   # household consumption column
+
+        # B* = (I - A*)^{-1}
+        I_star = np.eye(n + 1)
+        B_star = scipy_linalg.solve(I_star - A_star, I_star)
+
+        # Augmented demand: [delta_d, 0]
+        delta_d_aug = np.zeros(n + 1)
+        delta_d_aug[:n] = delta_d
+
+        # Type II total: trim to n sectors
+        delta_x_star = B_star @ delta_d_aug
+        type_ii_total = delta_x_star[:n]
+
+        # Induced = Type II - Type I
+        induced = type_ii_total - type_i.delta_x_total
+
+        return SolveResult(
+            delta_x_total=type_i.delta_x_total,
+            delta_x_direct=type_i.delta_x_direct,
+            delta_x_indirect=type_i.delta_x_indirect,
+            delta_x_type_ii_total=type_ii_total,
+            delta_x_induced=induced,
         )
 
     def solve_phased(
