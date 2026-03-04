@@ -32,18 +32,27 @@ config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 # Sprint 17: Partial unique indexes are Postgres-only and managed purely by
 # migration 012. They are not declared on the ORM model (they break SQLite).
+# Sprint 20: Composite index + unique constraint on path_analyses managed by
+# migration 015 (not on ORM, consistent with Sprint 17 pattern).
 # Exclude them from autogenerate so `alembic check` doesn't flag drift.
 _MIGRATION_MANAGED_INDEXES = frozenset({
     "uq_resultset_legacy",
     "uq_resultset_annual",
     "uq_resultset_peak",
     "uq_resultset_delta",
+    "ix_path_analyses_run_created",
+})
+
+_MIGRATION_MANAGED_CONSTRAINTS = frozenset({
+    "uq_path_analyses_run_config",
 })
 
 
 def _include_object(obj, name, type_, reflected, compare_to):  # noqa: ANN001
     """Filter objects for autogenerate comparison."""
     if type_ == "index" and name in _MIGRATION_MANAGED_INDEXES:
+        return False
+    if type_ == "unique_constraint" and name in _MIGRATION_MANAGED_CONSTRAINTS:
         return False
     return True
 

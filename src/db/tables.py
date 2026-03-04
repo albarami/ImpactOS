@@ -865,3 +865,35 @@ class RunQualitySummaryRow(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False,
     )
+
+
+# ---------------------------------------------------------------------------
+# Structural Path Analysis (SPA) — Sprint 20, IMMUTABLE
+# ---------------------------------------------------------------------------
+
+
+class PathAnalysisRow(Base):
+    """Immutable — persisted SPA + chokepoint analytics for a run."""
+
+    __tablename__ = "path_analyses"
+
+    analysis_id: Mapped[UUID] = mapped_column(primary_key=True)
+    run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("run_snapshots.run_id"), nullable=False,
+    )
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id"), nullable=False, index=True,
+    )
+    analysis_version: Mapped[str] = mapped_column(String(20), nullable=False)
+    config_json = mapped_column(FlexJSON, nullable=False)
+    config_hash: Mapped[str] = mapped_column(String(100), nullable=False)
+    max_depth: Mapped[int] = mapped_column(Integer, nullable=False)
+    top_k: Mapped[int] = mapped_column(Integer, nullable=False)
+    top_paths_json = mapped_column(FlexJSON, nullable=False)
+    chokepoints_json = mapped_column(FlexJSON, nullable=False)
+    depth_contributions_json = mapped_column(FlexJSON, nullable=False)
+    coverage_ratio: Mapped[float] = mapped_column(Float, nullable=False)
+    result_checksum: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
