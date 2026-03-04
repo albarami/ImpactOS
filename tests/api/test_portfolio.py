@@ -475,6 +475,7 @@ async def test_get_wrong_workspace_404(client, seeded_two_workspaces, db_session
 
     r2 = await client.get(f"/v1/workspaces/{OTHER_WS_ID}/portfolio/{pid}")
     assert r2.status_code == 404
+    assert r2.json()["detail"]["reason_code"] == "PORTFOLIO_NOT_FOUND"
 
 
 async def test_list_workspace_isolation(client, seeded_two_workspaces, db_session):

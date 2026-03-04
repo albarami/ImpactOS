@@ -15,6 +15,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.api.dependencies import (
@@ -22,6 +24,7 @@ from src.api.dependencies import (
     get_result_set_repo,
     get_run_snapshot_repo,
 )
+from src.db.session import get_async_session
 from src.db.tables import PortfolioOptimizationRow
 from src.engine.portfolio_optimizer import (
     CandidateRun,
@@ -149,6 +152,7 @@ async def create_portfolio(
     workspace_id: UUID,
     body: _RawConfig,
     member: WorkspaceMember = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_async_session),
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
     pf_repo: PortfolioRepository = Depends(get_portfolio_repo),
@@ -166,6 +170,24 @@ async def create_portfolio(
             detail={
                 "reason_code": "PORTFOLIO_NO_CANDIDATES",
                 "message": "No candidate run IDs provided.",
+            },
+        )
+
+    # --- 1b. Empty metric names ---
+    if not raw.objective_metric:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": "PORTFOLIO_INVALID_CONFIG",
+                "message": "objective_metric must not be empty.",
+            },
+        )
+    if not raw.cost_metric:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": "PORTFOLIO_INVALID_CONFIG",
+                "message": "cost_metric must not be empty.",
             },
         )
 
@@ -375,23 +397,37 @@ async def create_portfolio(
     portfolio_id = new_uuid7()
     rc = _result_checksum(result_json)
 
-    row = await pf_repo.create(
-        portfolio_id=portfolio_id,
-        workspace_id=workspace_id,
-        model_version_id=model_version_id,
-        optimization_version=OPTIMIZATION_VERSION,
-        config_json=config_json,
-        config_hash=ch,
-        objective_metric=raw.objective_metric,
-        cost_metric=raw.cost_metric,
-        budget=raw.budget,
-        min_selected=raw.min_selected,
-        max_selected=raw.max_selected,
-        candidate_run_ids_json=candidate_run_ids_json,
-        selected_run_ids_json=selected_run_ids_json,
-        result_json=result_json,
-        result_checksum=rc,
-    )
+    try:
+        row = await pf_repo.create(
+            portfolio_id=portfolio_id,
+            workspace_id=workspace_id,
+            model_version_id=model_version_id,
+            optimization_version=OPTIMIZATION_VERSION,
+            config_json=config_json,
+            config_hash=ch,
+            objective_metric=raw.objective_metric,
+            cost_metric=raw.cost_metric,
+            budget=raw.budget,
+            min_selected=raw.min_selected,
+            max_selected=raw.max_selected,
+            candidate_run_ids_json=candidate_run_ids_json,
+            selected_run_ids_json=selected_run_ids_json,
+            result_json=result_json,
+            result_checksum=rc,
+        )
+    except IntegrityError:
+        # Race condition: concurrent request inserted same config_hash.
+        # Rollback failed transaction, then SELECT the winning row.
+        await session.rollback()
+        existing = await pf_repo.get_by_config_for_workspace(workspace_id, ch)
+        if existing is not None:
+            resp_data = _row_to_response(existing)
+            return JSONResponse(
+                content=resp_data.model_dump(mode="json"),
+                status_code=200,
+            )
+        _logger.error("Race-safe retry SELECT returned None after IntegrityError")
+        raise
 
     return _row_to_response(row)
 
