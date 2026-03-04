@@ -86,6 +86,7 @@ class ModelVersionRow(Base):
         String(30), nullable=False, server_default="unknown",
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sg_provenance: Mapped[dict | None] = mapped_column(FlexJSON, nullable=True)
 
 
 class ModelDataRow(Base):

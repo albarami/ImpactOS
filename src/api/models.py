@@ -58,6 +58,7 @@ class ModelVersionResponse(BaseModel):
     taxes_less_subsidies: list[float] | None = None
     household_consumption_shares: list[float] | None = None
     deflator_series: dict[str, float] | None = None
+    sg_provenance: dict | None = None
 
 
 class ModelVersionListResponse(BaseModel):
@@ -120,6 +121,7 @@ def _row_to_response(
             if model_data is not None else None
         ),
         deflator_series=deflator_series,
+        sg_provenance=getattr(row, "sg_provenance", None),
     )
 
 
