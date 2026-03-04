@@ -47,7 +47,7 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
 
 6. Sprint 19: MVP-19 Client Portal (authz-safe collaboration flows) — done (1d6dae2)
 7. Sprint 20: MVP-20 Structural Path Analysis — done (e284aa8)
-8. Sprint 21: MVP-21 Portfolio Optimization — done (pending merge)
+8. Sprint 21: MVP-21 Portfolio Optimization — done (ee25cdf, tag sprint-21-complete)
 9. Sprint 22: MVP-22 Live Workshop Dashboard
 10. Sprint 23: MVP-23 Advanced Variance Bridges + explainability package
 
@@ -74,7 +74,7 @@ The system is only considered fully complete when all are true:
 
 ## 5) Immediate next action
 
-- Sprint 21 (MVP-21 Portfolio Optimization) complete. PR pending merge.
+- Sprint 21 (MVP-21 Portfolio Optimization) merged at ee25cdf, tag sprint-21-complete.
 - Execute Sprint 22 prompt for MVP-22 Live Workshop Dashboard.
 - Do not start MVP-23+ until MVP-22 acceptance criteria pass.
 
