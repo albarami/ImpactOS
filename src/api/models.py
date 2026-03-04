@@ -1,4 +1,4 @@
-"""B-14 + B-15: Model version list/detail + coefficient retrieval.
+"""B-14 + B-15 + SG Import: Model version list/detail + coefficient retrieval + SG workbook import.
 
 Workspace-scoped URLs for consistency. Model versions are global resources.
 
@@ -10,11 +10,14 @@ B-15 coefficients are model-linked:
 
 from __future__ import annotations
 
+import json
 import logging
+import tempfile
+from pathlib import Path
 from uuid import UUID
 
 import numpy as np
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 
 from src.api.auth_deps import WorkspaceMember, require_workspace_member
@@ -23,7 +26,12 @@ from src.api.dependencies import (
     get_model_data_repo,
     get_model_version_repo,
 )
+from src.config.settings import Environment, get_settings
+from src.data.io_loader import validate_extended_model_artifacts
+from src.data.sg_model_adapter import SGImportError, extract_io_model
 from src.db.tables import ModelDataRow, ModelVersionRow
+from src.engine.model_store import ModelStore
+from src.engine.parity_gate import run_parity_check
 from src.repositories.engine import ModelDataRepository, ModelVersionRepository
 from src.repositories.workforce import EmploymentCoefficientsRepository
 
@@ -259,3 +267,248 @@ async def get_coefficients(
         source=source,
         sector_coefficients=coefficients,
     )
+
+
+# ---------------------------------------------------------------------------
+# Sprint 18: SG Model Import with Parity Gate
+# ---------------------------------------------------------------------------
+
+
+class ImportSGResponse(BaseModel):
+    model_version_id: str
+    sector_count: int
+    checksum: str
+    provenance_class: str
+    parity_status: str  # "verified" | "bypassed"
+    sg_provenance: dict
+
+
+BENCHMARK_PATH = (
+    Path(__file__).parent.parent.parent / "tests" / "fixtures" / "sg_parity_benchmark_v1.json"
+)
+
+
+def _load_parity_benchmark() -> dict:
+    """Load golden parity benchmark. Returns empty dict if not found."""
+    if not BENCHMARK_PATH.exists():
+        return {}
+    with open(BENCHMARK_PATH) as f:
+        return json.load(f)
+
+
+def _is_dev_bypass_allowed() -> bool:
+    """Dev bypass only allowed in DEV environment."""
+    return get_settings().ENVIRONMENT == Environment.DEV
+
+
+@router.post("/import-sg", response_model=ImportSGResponse, status_code=200)
+async def import_sg_model(
+    workspace_id: UUID,
+    workbook: UploadFile = File(...),
+    dev_bypass: bool = Query(default=False),
+    member: WorkspaceMember = Depends(require_workspace_member),
+    mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
+    md_repo: ModelDataRepository = Depends(get_model_data_repo),
+) -> ImportSGResponse:
+    """Import IO model from SG workbook with parity gate verification.
+
+    Flow: extract -> validate -> register -> persist -> parity check -> respond.
+    Fail-closed: parity failure without dev bypass returns 422, no model persisted.
+    """
+    # 1. Save uploaded file to temp location
+    ext = Path(workbook.filename or "upload.xlsx").suffix.lower()
+    if ext not in (".xlsb", ".xlsx"):
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "SG_UNSUPPORTED_FORMAT",
+            "message": "Unsupported file format '"
+            + ext
+            + "'. Expected .xlsb or .xlsx.",
+        })
+
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+        file_content = await workbook.read()
+        tmp.write(file_content)
+        tmp_path = Path(tmp.name)
+
+    try:
+        # 2. Extract IO model
+        try:
+            io_model = extract_io_model(tmp_path)
+        except SGImportError as exc:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": exc.reason_code,
+                "message": exc.message,
+            })
+
+        # Update provenance with original filename
+        sg_prov = dict(io_model.metadata.get("sg_provenance", {}))
+        sg_prov["source_filename"] = workbook.filename or "unknown"
+
+        # 3. Validate extended artifacts
+        n = len(io_model.sector_codes)
+        try:
+            validated = validate_extended_model_artifacts(
+                n=n,
+                final_demand_F=(
+                    io_model.final_demand_F.tolist()
+                    if io_model.final_demand_F is not None else None
+                ),
+                imports_vector=(
+                    io_model.imports_vector.tolist()
+                    if io_model.imports_vector is not None else None
+                ),
+                compensation_of_employees=(
+                    io_model.compensation_of_employees.tolist()
+                    if io_model.compensation_of_employees is not None else None
+                ),
+                gross_operating_surplus=(
+                    io_model.gross_operating_surplus.tolist()
+                    if io_model.gross_operating_surplus is not None else None
+                ),
+                taxes_less_subsidies=(
+                    io_model.taxes_less_subsidies.tolist()
+                    if io_model.taxes_less_subsidies is not None else None
+                ),
+                household_consumption_shares=(
+                    io_model.household_consumption_shares.tolist()
+                    if io_model.household_consumption_shares is not None else None
+                ),
+                deflator_series=io_model.deflator_series,
+            )
+        except Exception as exc:
+            reason = getattr(exc, "reason_code", "MODEL_ARTIFACT_VALIDATION_FAILED")
+            raise HTTPException(status_code=422, detail={
+                "reason_code": reason,
+                "message": str(exc),
+            })
+
+        # 4. Register model (in-memory validation: spectral radius, dimensions, etc.)
+        store = ModelStore()
+        try:
+            mv = store.register(
+                Z=io_model.Z,
+                x=io_model.x,
+                sector_codes=io_model.sector_codes,
+                base_year=io_model.base_year,
+                source=io_model.source,
+                artifact_payload=validated if validated else None,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "MODEL_REGISTRATION_FAILED",
+                "message": str(exc),
+            })
+
+        loaded = store.get(mv.model_version_id)
+
+        # 5. Run parity gate
+        benchmark = _load_parity_benchmark()
+        if benchmark:
+            parity_result = run_parity_check(
+                model=loaded,
+                benchmark_scenario=benchmark,
+            )
+        else:
+            parity_result = None  # No benchmark available
+
+        # 6. Determine outcome
+        parity_passed = parity_result is None or parity_result.passed
+
+        if not parity_passed:
+            # Parity failed
+            if dev_bypass and _is_dev_bypass_allowed():
+                # Dev bypass: persist with curated_estimated
+                provenance_class = "curated_estimated"
+                parity_status = "bypassed"
+                sg_prov["parity_status"] = "bypassed"
+                sg_prov["dev_bypass"] = True
+                sg_prov["reason_code"] = parity_result.reason_code
+            else:
+                # Fail-closed: return 422, do NOT persist
+                metrics_detail = []
+                if parity_result and parity_result.metrics:
+                    metrics_detail = [
+                        {
+                            "metric": m.metric_name,
+                            "expected": m.expected,
+                            "actual": m.actual,
+                            "error_pct": round(m.relative_error * 100, 4),
+                            "passed": m.passed,
+                        }
+                        for m in parity_result.metrics
+                    ]
+                raise HTTPException(status_code=422, detail={
+                    "reason_code": parity_result.reason_code or "PARITY_TOLERANCE_BREACH",
+                    "message": "Parity check failed: " + str(parity_result.reason_code),
+                    "metrics": metrics_detail,
+                })
+        else:
+            # Parity passed (or no benchmark)
+            provenance_class = "curated_real"
+            parity_status = "verified"
+            sg_prov["parity_status"] = "verified"
+            sg_prov["dev_bypass"] = False
+            sg_prov["reason_code"] = None
+
+        # Add parity metadata
+        if parity_result:
+            sg_prov["parity_checked_at"] = parity_result.checked_at.isoformat()
+            sg_prov["benchmark_id"] = parity_result.benchmark_id
+            sg_prov["tolerance"] = parity_result.tolerance
+
+        # 7. Persist to DB
+        await mv_repo.create(
+            model_version_id=mv.model_version_id,
+            base_year=mv.base_year,
+            source=mv.source,
+            sector_count=mv.sector_count,
+            checksum=mv.checksum,
+            provenance_class=provenance_class,
+            sg_provenance=sg_prov,
+        )
+
+        # Persist model data
+        await md_repo.create(
+            model_version_id=mv.model_version_id,
+            z_matrix_json=io_model.Z.tolist(),
+            x_vector_json=io_model.x.tolist(),
+            sector_codes=io_model.sector_codes,
+            final_demand_f_json=(
+                io_model.final_demand_F.tolist() if io_model.final_demand_F is not None else None
+            ),
+            imports_vector_json=(
+                io_model.imports_vector.tolist() if io_model.imports_vector is not None else None
+            ),
+            compensation_of_employees_json=(
+                io_model.compensation_of_employees.tolist()
+                if io_model.compensation_of_employees is not None else None
+            ),
+            gross_operating_surplus_json=(
+                io_model.gross_operating_surplus.tolist()
+                if io_model.gross_operating_surplus is not None else None
+            ),
+            taxes_less_subsidies_json=(
+                io_model.taxes_less_subsidies.tolist()
+                if io_model.taxes_less_subsidies is not None else None
+            ),
+            household_consumption_shares_json=(
+                io_model.household_consumption_shares.tolist()
+                if io_model.household_consumption_shares is not None else None
+            ),
+            deflator_series_json=io_model.deflator_series,
+        )
+
+        return ImportSGResponse(
+            model_version_id=str(mv.model_version_id),
+            sector_count=mv.sector_count,
+            checksum=mv.checksum,
+            provenance_class=provenance_class,
+            parity_status=parity_status,
+            sg_provenance=sg_prov,
+        )
+    finally:
+        # Cleanup temp file
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
