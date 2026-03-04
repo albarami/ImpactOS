@@ -876,6 +876,9 @@ class PathAnalysisRow(Base):
     """Immutable — persisted SPA + chokepoint analytics for a run."""
 
     __tablename__ = "path_analyses"
+    __table_args__ = (
+        UniqueConstraint("run_id", "config_hash", name="uq_path_analyses_run_config"),
+    )
 
     analysis_id: Mapped[UUID] = mapped_column(primary_key=True)
     run_id: Mapped[UUID] = mapped_column(
