@@ -949,3 +949,44 @@ class PathAnalysisRow(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+
+
+# ---------------------------------------------------------------------------
+# Portfolio Optimization — Sprint 21, IMMUTABLE
+# ---------------------------------------------------------------------------
+
+
+class PortfolioOptimizationRow(Base):
+    """Immutable — persisted portfolio optimization result."""
+
+    __tablename__ = "portfolio_optimizations"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "config_hash",
+            name="uq_portfolio_optimizations_ws_config",
+        ),
+    )
+
+    portfolio_id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id"),
+        nullable=False,
+    )
+    model_version_id: Mapped[UUID] = mapped_column(nullable=False)
+    optimization_version: Mapped[str] = mapped_column(String(20), nullable=False)
+    config_json = mapped_column(FlexJSON, nullable=False)
+    config_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    objective_metric: Mapped[str] = mapped_column(String(50), nullable=False)
+    cost_metric: Mapped[str] = mapped_column(String(50), nullable=False)
+    budget: Mapped[float] = mapped_column(Float, nullable=False)
+    min_selected: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_selected: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    candidate_run_ids_json = mapped_column(FlexJSON, nullable=False)
+    selected_run_ids_json = mapped_column(FlexJSON, nullable=False)
+    result_json = mapped_column(FlexJSON, nullable=False)
+    result_checksum: Mapped[str] = mapped_column(String(71), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )

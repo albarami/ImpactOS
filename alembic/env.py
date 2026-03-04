@@ -41,10 +41,12 @@ _MIGRATION_MANAGED_INDEXES = frozenset({
     "uq_resultset_peak",
     "uq_resultset_delta",
     "ix_path_analyses_run_created",
+    "ix_portfolio_optimizations_ws_created",
 })
 
 _MIGRATION_MANAGED_CONSTRAINTS = frozenset({
     "uq_path_analyses_run_config",
+    "uq_portfolio_optimizations_ws_config",
 })
 
 
