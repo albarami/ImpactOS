@@ -43,11 +43,11 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
 4. Sprint 17: MVP-17 RunSeries annual storage + API — done (1b2ab3e)
 5. Sprint 18: MVP-18 SG import adapter + parity benchmark gate — done (a522d45)
 
-### Wave B: Premium boardroom layer — IN PROGRESS (2 of 5 done)
+### Wave B: Premium boardroom layer — IN PROGRESS (3 of 5 done)
 
 6. Sprint 19: MVP-19 Client Portal (authz-safe collaboration flows) — done (1d6dae2)
 7. Sprint 20: MVP-20 Structural Path Analysis — done (e284aa8)
-8. Sprint 21: MVP-21 Portfolio Optimization
+8. Sprint 21: MVP-21 Portfolio Optimization — done (pending merge)
 9. Sprint 22: MVP-22 Live Workshop Dashboard
 10. Sprint 23: MVP-23 Advanced Variance Bridges + explainability package
 
@@ -74,8 +74,9 @@ The system is only considered fully complete when all are true:
 
 ## 5) Immediate next action
 
-- Execute Sprint 21 prompt for MVP-21 Portfolio Optimization.
-- Do not start MVP-22+ until MVP-21 acceptance criteria pass.
+- Sprint 21 (MVP-21 Portfolio Optimization) complete. PR pending merge.
+- Execute Sprint 22 prompt for MVP-22 Live Workshop Dashboard.
+- Do not start MVP-23+ until MVP-22 acceptance criteria pass.
 
 ## 6) Minimum environment needed to see "live" behavior
 

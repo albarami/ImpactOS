@@ -4742,6 +4742,181 @@
         }
       }
     },
+    "/v1/workspaces/{workspace_id}/portfolio/optimize": {
+      "post": {
+        "tags": [
+          "portfolio"
+        ],
+        "summary": "Create Portfolio",
+        "description": "Create or retrieve a portfolio optimization.\n\nIdempotent: returns 200 with existing result if config_hash matches.",
+        "operationId": "create_portfolio_v1_workspaces__workspace_id__portfolio_optimize_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/src__api__portfolio___RawConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOptimizationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/portfolio/{portfolio_id}": {
+      "get": {
+        "tags": [
+          "portfolio"
+        ],
+        "summary": "Get Portfolio",
+        "description": "Get a single portfolio optimization by ID (workspace-scoped).",
+        "operationId": "get_portfolio_v1_workspaces__workspace_id__portfolio__portfolio_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Portfolio Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOptimizationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/portfolio": {
+      "get": {
+        "tags": [
+          "portfolio"
+        ],
+        "summary": "List Portfolios",
+        "description": "List portfolio optimizations for a workspace (paginated).",
+        "operationId": "list_portfolios_v1_workspaces__workspace_id__portfolio_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace_id}/engine/runs": {
       "post": {
         "tags": [
@@ -11135,6 +11310,187 @@
         ],
         "title": "PeakComparison"
       },
+      "PortfolioConfig": {
+        "properties": {
+          "objective_metric": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Objective Metric"
+          },
+          "cost_metric": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Cost Metric"
+          },
+          "candidate_run_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Candidate Run Ids"
+          },
+          "budget": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Budget"
+          },
+          "min_selected": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Min Selected",
+            "default": 1
+          },
+          "max_selected": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Selected"
+          },
+          "group_caps": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Caps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "objective_metric",
+          "cost_metric",
+          "candidate_run_ids",
+          "budget"
+        ],
+        "title": "PortfolioConfig",
+        "description": "Optimization configuration \u2014 what to optimize and under what constraints.\n\nSpecifies the objective metric to maximize, cost metric for budget\nconstraint, candidate run IDs, and optional selection/group caps."
+      },
+      "PortfolioListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PortfolioOptimizationResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "PortfolioListResponse",
+        "description": "Paginated list of portfolio optimizations."
+      },
+      "PortfolioOptimizationResponse": {
+        "properties": {
+          "portfolio_id": {
+            "type": "string",
+            "title": "Portfolio Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "model_version_id": {
+            "type": "string",
+            "title": "Model Version Id"
+          },
+          "config": {
+            "$ref": "#/components/schemas/PortfolioConfig"
+          },
+          "selected_run_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Selected Run Ids"
+          },
+          "total_objective": {
+            "type": "number",
+            "title": "Total Objective"
+          },
+          "total_cost": {
+            "type": "number",
+            "title": "Total Cost"
+          },
+          "solver_method": {
+            "type": "string",
+            "title": "Solver Method"
+          },
+          "candidates_evaluated": {
+            "type": "integer",
+            "title": "Candidates Evaluated"
+          },
+          "feasible_count": {
+            "type": "integer",
+            "title": "Feasible Count"
+          },
+          "optimization_version": {
+            "type": "string",
+            "title": "Optimization Version"
+          },
+          "result_checksum": {
+            "type": "string",
+            "title": "Result Checksum"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "UTC timezone-aware timestamp."
+          }
+        },
+        "type": "object",
+        "required": [
+          "portfolio_id",
+          "workspace_id",
+          "model_version_id",
+          "config",
+          "selected_run_ids",
+          "total_objective",
+          "total_cost",
+          "solver_method",
+          "candidates_evaluated",
+          "feasible_count",
+          "optimization_version",
+          "result_checksum",
+          "created_at"
+        ],
+        "title": "PortfolioOptimizationResponse",
+        "description": "Full response for a single portfolio optimization result."
+      },
       "QualityOverviewResponse": {
         "properties": {
           "workspace_id": {
@@ -12952,7 +13308,7 @@
             "title": "Run Id"
           },
           "config": {
-            "$ref": "#/components/schemas/_RawConfig"
+            "$ref": "#/components/schemas/src__api__path_analytics___RawConfig"
           }
         },
         "type": "object",
@@ -12961,23 +13317,6 @@
         ],
         "title": "_CreateRequest",
         "description": "Request body with relaxed config validation \u2014 bounds checked in endpoint."
-      },
-      "_RawConfig": {
-        "properties": {
-          "max_depth": {
-            "type": "integer",
-            "title": "Max Depth",
-            "default": 6
-          },
-          "top_k": {
-            "type": "integer",
-            "title": "Top K",
-            "default": 20
-          }
-        },
-        "type": "object",
-        "title": "_RawConfig",
-        "description": "Relaxed config that skips Pydantic bounds so the endpoint can validate."
       },
       "src__api__compiler__CompileRequest": {
         "properties": {
@@ -13054,6 +13393,82 @@
         ],
         "title": "CompileRequest",
         "description": "Compile request \u2014 provide EITHER line_items OR document_id, not both.\n\nS0-4 Amendment 3: workspace_id removed from body (use path parameter)."
+      },
+      "src__api__path_analytics___RawConfig": {
+        "properties": {
+          "max_depth": {
+            "type": "integer",
+            "title": "Max Depth",
+            "default": 6
+          },
+          "top_k": {
+            "type": "integer",
+            "title": "Top K",
+            "default": 20
+          }
+        },
+        "type": "object",
+        "title": "_RawConfig",
+        "description": "Relaxed config that skips Pydantic bounds so the endpoint can validate."
+      },
+      "src__api__portfolio___RawConfig": {
+        "properties": {
+          "objective_metric": {
+            "type": "string",
+            "title": "Objective Metric",
+            "default": ""
+          },
+          "cost_metric": {
+            "type": "string",
+            "title": "Cost Metric",
+            "default": ""
+          },
+          "candidate_run_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Candidate Run Ids"
+          },
+          "budget": {
+            "type": "number",
+            "title": "Budget",
+            "default": 0.0
+          },
+          "min_selected": {
+            "type": "integer",
+            "title": "Min Selected",
+            "default": 1
+          },
+          "max_selected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Selected"
+          },
+          "group_caps": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Caps"
+          }
+        },
+        "type": "object",
+        "title": "_RawConfig",
+        "description": "Relaxed config that skips Pydantic bounds so the endpoint can validate."
       },
       "src__api__scenarios__CompileRequest": {
         "properties": {
