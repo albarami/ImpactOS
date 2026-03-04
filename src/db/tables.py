@@ -18,10 +18,12 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -987,6 +989,58 @@ class PortfolioOptimizationRow(Base):
     result_json = mapped_column(FlexJSON, nullable=False)
     result_checksum: Mapped[str] = mapped_column(String(71), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Workshop Sessions — Sprint 22, MUTABLE (status transitions: draft → committed → archived)
+# ---------------------------------------------------------------------------
+
+
+class WorkshopSessionRow(Base):
+    """Mutable — workshop session with slider state and committed run reference."""
+
+    __tablename__ = "workshop_sessions"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "config_hash",
+            name="uq_workshop_sessions_ws_config",
+        ),
+        Index(
+            "ix_workshop_sessions_ws_updated",
+            "workspace_id",
+            text("updated_at DESC"),
+        ),
+    )
+
+    session_id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id"),
+        nullable=False,
+    )
+    baseline_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("run_snapshots.run_id"),
+        nullable=False,
+    )
+    base_shocks_json = mapped_column(FlexJSON, nullable=False)
+    slider_config_json = mapped_column(FlexJSON, nullable=False)
+    transformed_shocks_json = mapped_column(FlexJSON, nullable=False)
+    config_hash: Mapped[str] = mapped_column(String(100), nullable=False)
+    committed_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("run_snapshots.run_id"),
+        nullable=True,
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    preview_summary_json = mapped_column(FlexJSON, nullable=True)
+    created_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
     )
