@@ -23,8 +23,18 @@ def upgrade() -> None:
     op.create_table(
         "path_analyses",
         sa.Column("analysis_id", FlexUUID, primary_key=True),
-        sa.Column("run_id", FlexUUID, sa.ForeignKey("run_snapshots.run_id", name="fk_path_analyses_run_id"), nullable=False),
-        sa.Column("workspace_id", FlexUUID, sa.ForeignKey("workspaces.workspace_id", name="fk_path_analyses_workspace_id"), nullable=False),
+        sa.Column(
+            "run_id",
+            FlexUUID,
+            sa.ForeignKey("run_snapshots.run_id", name="fk_path_analyses_run_id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "workspace_id",
+            FlexUUID,
+            sa.ForeignKey("workspaces.workspace_id", name="fk_path_analyses_workspace_id"),
+            nullable=False,
+        ),
         sa.Column("analysis_version", sa.String(20), nullable=False),
         sa.Column("config_json", FlexJSON, nullable=False),
         sa.Column("config_hash", sa.String(100), nullable=False),
@@ -70,9 +80,7 @@ def downgrade() -> None:
     # Drop CHECK constraint (Postgres only)
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
-        op.execute(
-            "ALTER TABLE path_analyses DROP CONSTRAINT IF EXISTS ck_path_analyses_coverage"
-        )
+        op.execute("ALTER TABLE path_analyses DROP CONSTRAINT IF EXISTS ck_path_analyses_coverage")
 
     # Drop indexes
     op.drop_index("ix_path_analyses_run_created", table_name="path_analyses")

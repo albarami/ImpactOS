@@ -20,13 +20,18 @@ def _pg_reachable() -> bool:
     """Quick check if Postgres is reachable."""
     try:
         result = subprocess.run(
-            [sys.executable, "-c",
-             "import asyncio, asyncpg\n"
-             "async def _probe():\n"
-             f"    c = await asyncpg.connect('{_PG_DSN}', timeout=3)\n"
-             "    await c.close()\n"
-             "asyncio.run(_probe())\n"],
-            capture_output=True, text=True, timeout=10,
+            [
+                sys.executable,
+                "-c",
+                "import asyncio, asyncpg\n"
+                "async def _probe():\n"
+                f"    c = await asyncpg.connect('{_PG_DSN}', timeout=3)\n"
+                "    await c.close()\n"
+                "asyncio.run(_probe())\n",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         return result.returncode == 0
     except Exception:
@@ -50,7 +55,9 @@ def _alembic_env() -> dict[str, str]:
 def _run_alembic(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "-m", "alembic", *args],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
         env=_alembic_env(),
     )
 
@@ -63,7 +70,7 @@ def _table_exists(table: str) -> bool:
         f"    conn = await asyncpg.connect('{_PG_DSN}', timeout=3)\n"
         "    try:\n"
         f"        val = await conn.fetchval(\n"
-        f"            \"SELECT table_name FROM information_schema.tables \"\n"
+        f'            "SELECT table_name FROM information_schema.tables "\n'
         f"            \"WHERE table_name = '{table}'\"\n"
         f"        )\n"
         "        print('EXISTS' if val else 'MISSING')\n"
@@ -73,7 +80,9 @@ def _table_exists(table: str) -> bool:
     )
     r = subprocess.run(
         [sys.executable, "-c", check_script],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
     return "EXISTS" in r.stdout
 
@@ -86,7 +95,7 @@ def _get_columns(table: str) -> list[str]:
         f"    conn = await asyncpg.connect('{_PG_DSN}', timeout=3)\n"
         "    try:\n"
         f"        rows = await conn.fetch(\n"
-        f"            \"SELECT column_name FROM information_schema.columns \"\n"
+        f'            "SELECT column_name FROM information_schema.columns "\n'
         f"            \"WHERE table_name = '{table}' ORDER BY ordinal_position\"\n"
         f"        )\n"
         "        print(','.join(r['column_name'] for r in rows))\n"
@@ -96,7 +105,9 @@ def _get_columns(table: str) -> list[str]:
     )
     r = subprocess.run(
         [sys.executable, "-c", check_script],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
     if r.stdout.strip():
         return r.stdout.strip().split(",")
@@ -120,7 +131,9 @@ def _exec_sql(sql: str) -> str:
     )
     r = subprocess.run(
         [sys.executable, "-c", script],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
     return r.stdout.strip()
 
@@ -130,19 +143,25 @@ class TestMigration015Postgres:
         """Upgrade to head; verify path_analyses table exists with expected columns."""
         r = _run_alembic("upgrade", "head")
         assert r.returncode == 0, f"upgrade failed:\n{r.stderr}"
-        assert _table_exists("path_analyses"), (
-            "path_analyses table not found after upgrade"
-        )
+        assert _table_exists("path_analyses"), "path_analyses table not found after upgrade"
         cols = _get_columns("path_analyses")
         expected = {
-            "analysis_id", "run_id", "workspace_id", "analysis_version",
-            "config_json", "config_hash", "max_depth", "top_k",
-            "top_paths_json", "chokepoints_json", "depth_contributions_json",
-            "coverage_ratio", "result_checksum", "created_at",
+            "analysis_id",
+            "run_id",
+            "workspace_id",
+            "analysis_version",
+            "config_json",
+            "config_hash",
+            "max_depth",
+            "top_k",
+            "top_paths_json",
+            "chokepoints_json",
+            "depth_contributions_json",
+            "coverage_ratio",
+            "result_checksum",
+            "created_at",
         }
-        assert expected.issubset(set(cols)), (
-            f"Missing columns: {expected - set(cols)}"
-        )
+        assert expected.issubset(set(cols)), f"Missing columns: {expected - set(cols)}"
 
     def test_unique_constraint_enforced(self):
         """Duplicate (run_id, config_hash) raises IntegrityError."""
@@ -194,9 +213,11 @@ class TestMigration015Postgres:
             f"'hash123', 5, 10, '[]', '[]', '[]', 0.85, 'chk2', NOW())"
         )
         assert "ERROR" in result2, f"Expected unique violation, got: {result2}"
-        assert "UniqueViolation" in result2 or "IntegrityError" in result2 or "unique" in result2.lower(), (
-            f"Expected unique constraint error, got: {result2}"
-        )
+        assert (
+            "UniqueViolation" in result2
+            or "IntegrityError" in result2
+            or "unique" in result2.lower()
+        ), f"Expected unique constraint error, got: {result2}"
 
     def test_coverage_check_constraint(self):
         """coverage_ratio=1.5 raises on Postgres (CHECK constraint)."""

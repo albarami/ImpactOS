@@ -16,7 +16,6 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.linalg import norm as frobenius_norm
 
-
 # ---------------------------------------------------------------------------
 # Domain errors (Task 1)
 # ---------------------------------------------------------------------------

@@ -96,7 +96,7 @@ async def test_create_and_get_roundtrip(db_session):
     chokepoints = [{"sector": "S2", "betweenness": 0.9}]
     depth_contribs = {"1": 0.5, "2": 0.3, "3": 0.15, "4": 0.05}
 
-    row = await repo.create(
+    await repo.create(
         analysis_id=analysis_id,
         run_id=rs.run_id,
         workspace_id=ws.workspace_id,

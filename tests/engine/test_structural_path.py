@@ -9,9 +9,6 @@ import numpy as np
 import pytest
 
 from src.engine.structural_path import (
-    ChokePointScore,
-    DepthContrib,
-    PathContribution,
     SPAConfigError,
     SPADimensionError,
     SPAResult,
@@ -207,7 +204,7 @@ class TestTopKRanking:
             top_k=100,
         )
         paths = result.top_paths
-        for a, b in zip(paths, paths[1:]):
+        for a, b in zip(paths, paths[1:], strict=False):
             abs_a, abs_b = abs(a.contribution), abs(b.contribution)
             if abs_a == pytest.approx(abs_b, abs=1e-15):
                 if a.depth == b.depth:
