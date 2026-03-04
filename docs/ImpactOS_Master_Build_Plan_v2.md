@@ -1,13 +1,13 @@
 # ImpactOS Master Build Plan v2
 
-**Date:** 2026-02-27
+**Date:** 2026-03-04
 **Status:** Living document — updated as MVPs are completed and new requirements identified
 
 ---
 
 ## Phase 1 — MVP Foundation (COMPLETED)
 
-All Phase 1 MVPs are built, tested, and committed. 1898 tests passing.
+All Phase 1 MVPs are built, tested, and committed. Phase 2 and Phase 3 through MVP-20 complete. 4422 tests passing.
 
 | MVP | Component | Status | Tests |
 |-----|-----------|--------|-------|
@@ -112,9 +112,11 @@ All fields are optional (None by default). Existing functionality is unaffected.
 | MVP-11 | Workforce/Saudization Satellite | 1457 | e66f17d | - |
 | MVP-12 | Knowledge Flywheel | 1696 | 24e067e | - |
 | MVP-13 | Data Quality Automation | 1898 | 80570bd | 2026-02-27 |
-| MVP-14 | Saudi Data Foundation | - | - | Planned |
-| MVP-15 | Type II Induced Effects | - | - | Planned |
-| MVP-16 | Value Measures Satellite | - | - | Planned |
-| MVP-17 | RunSeries (Annual) | - | - | Planned |
-| MVP-18 | SG Model Import Adapter | - | - | Planned |
-| MVP-19-23 | Phase 3 Premium | - | - | Future |
+| MVP-14 | Phase 2 Integration + Gate | 1999 | 7a9db9f | 2026-02-28 |
+| MVP-15 | Type II Induced Effects | 3980 | 7e98ffc | 2026-03-01 |
+| MVP-16 | Value Measures Satellite | 4114 | 4374376 | 2026-03-02 |
+| MVP-17 | RunSeries Annual Storage + API | 4220 | 1b2ab3e | 2026-03-02 |
+| MVP-18 | SG Model Import Adapter | 4220 | a522d45 | 2026-03-03 |
+| MVP-19 | Client Portal Collaboration | 4347 | 1d6dae2 | 2026-03-03 |
+| MVP-20 | Structural Path Analysis + Chokepoints | 4422 | e284aa8 | 2026-03-04 |
+| MVP-21-23 | Phase 3 Remaining | - | - | Future |
