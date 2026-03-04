@@ -57,12 +57,14 @@ class WorkspaceMembershipRow(Base):
     __tablename__ = "workspace_memberships"
 
     workspace_id: Mapped[UUID] = mapped_column(
-        ForeignKey("workspaces.workspace_id"), primary_key=True,
+        ForeignKey("workspaces.workspace_id"),
+        primary_key=True,
     )
     user_id: Mapped[UUID] = mapped_column(primary_key=True, index=True)
     role: Mapped[str] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
     created_by: Mapped[UUID] = mapped_column(nullable=False)
 
@@ -83,7 +85,9 @@ class ModelVersionRow(Base):
     sector_count: Mapped[int] = mapped_column(Integer, nullable=False)
     checksum: Mapped[str] = mapped_column(String(100), nullable=False)
     provenance_class: Mapped[str] = mapped_column(
-        String(30), nullable=False, server_default="unknown",
+        String(30),
+        nullable=False,
+        server_default="unknown",
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     sg_provenance: Mapped[dict | None] = mapped_column(FlexJSON, nullable=True)
@@ -191,7 +195,10 @@ class ScenarioSpecRow(Base):
     shock_items = mapped_column(FlexJSON, nullable=False)
     assumption_ids = mapped_column(FlexJSON, nullable=False)
     is_locked: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false",
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
     )
     data_quality_summary = mapped_column(FlexJSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -302,7 +309,9 @@ class AssumptionRow(Base):
     justification: Mapped[str] = mapped_column(Text, nullable=False)
     evidence_refs = mapped_column(FlexJSON, nullable=False)
     workspace_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("workspaces.workspace_id"), nullable=True, index=True,
+        ForeignKey("workspaces.workspace_id"),
+        nullable=True,
+        index=True,
     )
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     approved_by: Mapped[UUID | None] = mapped_column(nullable=True)
@@ -541,13 +550,13 @@ class DepthArtifactRow(Base):
     """
 
     __tablename__ = "depth_artifacts"
-    __table_args__ = (
-        UniqueConstraint("plan_id", "step", name="uq_depth_artifact_plan_step"),
-    )
+    __table_args__ = (UniqueConstraint("plan_id", "step", name="uq_depth_artifact_plan_step"),)
 
     artifact_id: Mapped[UUID] = mapped_column(primary_key=True)
     plan_id: Mapped[UUID] = mapped_column(
-        ForeignKey("depth_plans.plan_id"), nullable=False, index=True,
+        ForeignKey("depth_plans.plan_id"),
+        nullable=False,
+        index=True,
     )
     step: Mapped[str] = mapped_column(String(50), nullable=False)
     payload = mapped_column(FlexJSON, nullable=False)
@@ -567,7 +576,8 @@ class EmploymentCoefficientsRow(Base):
     __tablename__ = "employment_coefficients"
     __table_args__ = (
         UniqueConstraint(
-            "employment_coefficients_id", "version",
+            "employment_coefficients_id",
+            "version",
             name="uq_employment_coefficients_version",
         ),
     )
@@ -587,9 +597,7 @@ class SectorOccupationBridgeRow(Base):
     """Append-only versioned sector-occupation bridge. Surrogate PK (row_id)."""
 
     __tablename__ = "sector_occupation_bridges"
-    __table_args__ = (
-        UniqueConstraint("bridge_id", "version", name="uq_bridge_version"),
-    )
+    __table_args__ = (UniqueConstraint("bridge_id", "version", name="uq_bridge_version"),)
 
     row_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     bridge_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -607,9 +615,7 @@ class SaudizationRulesRow(Base):
     """
 
     __tablename__ = "saudization_rules"
-    __table_args__ = (
-        UniqueConstraint("rules_id", "version", name="uq_rules_version"),
-    )
+    __table_args__ = (UniqueConstraint("rules_id", "version", name="uq_rules_version"),)
 
     row_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     rules_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -629,8 +635,10 @@ class WorkforceResultRow(Base):
     __tablename__ = "workforce_results"
     __table_args__ = (
         UniqueConstraint(
-            "run_id", "employment_coefficients_id",
-            "employment_coefficients_version", "delta_x_source",
+            "run_id",
+            "employment_coefficients_id",
+            "employment_coefficients_version",
+            "delta_x_source",
             name="uq_workforce_result_idempotent",
         ),
     )
@@ -667,7 +675,9 @@ class MappingLibraryEntryRow(Base):
     __tablename__ = "mapping_library_entries"
 
     row_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True,
+        Integer,
+        primary_key=True,
+        autoincrement=True,
     )
     entry_id: Mapped[UUID] = mapped_column(unique=True, nullable=False, index=True)
     workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -677,15 +687,19 @@ class MappingLibraryEntryRow(Base):
     usage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     source_engagement_id: Mapped[UUID | None] = mapped_column(nullable=True)
     last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     tags = mapped_column(FlexJSON, nullable=False)
     created_by: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="DRAFT",
+        String(20),
+        nullable=False,
+        default="DRAFT",
     )
 
 
@@ -699,16 +713,20 @@ class MappingLibraryVersionRow(Base):
     __tablename__ = "mapping_library_versions"
     __table_args__ = (
         UniqueConstraint(
-            "workspace_id", "version",
+            "workspace_id",
+            "version",
             name="uq_mapping_library_ws_version",
         ),
     )
 
     row_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True,
+        Integer,
+        primary_key=True,
+        autoincrement=True,
     )
     library_version_id: Mapped[UUID] = mapped_column(
-        nullable=False, index=True,
+        nullable=False,
+        index=True,
     )
     workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -716,7 +734,8 @@ class MappingLibraryVersionRow(Base):
     entry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     published_by: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
 
 
@@ -729,7 +748,9 @@ class AssumptionLibraryEntryRow(Base):
     __tablename__ = "assumption_library_entries"
 
     row_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True,
+        Integer,
+        primary_key=True,
+        autoincrement=True,
     )
     entry_id: Mapped[UUID] = mapped_column(unique=True, nullable=False, index=True)
     workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -744,16 +765,20 @@ class AssumptionLibraryEntryRow(Base):
     source_engagement_id: Mapped[UUID | None] = mapped_column(nullable=True)
     usage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     confidence: Mapped[str] = mapped_column(String(20), nullable=False)
     created_by: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
     evidence_refs = mapped_column(FlexJSON, nullable=False)
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="DRAFT",
+        String(20),
+        nullable=False,
+        default="DRAFT",
     )
 
 
@@ -766,16 +791,20 @@ class AssumptionLibraryVersionRow(Base):
     __tablename__ = "assumption_library_versions"
     __table_args__ = (
         UniqueConstraint(
-            "workspace_id", "version",
+            "workspace_id",
+            "version",
             name="uq_assumption_library_ws_version",
         ),
     )
 
     row_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True,
+        Integer,
+        primary_key=True,
+        autoincrement=True,
     )
     library_version_id: Mapped[UUID] = mapped_column(
-        nullable=False, index=True,
+        nullable=False,
+        index=True,
     )
     workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -783,7 +812,8 @@ class AssumptionLibraryVersionRow(Base):
     entry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     published_by: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
 
 
@@ -793,10 +823,14 @@ class ScenarioPatternRow(Base):
     __tablename__ = "scenario_patterns"
 
     row_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True,
+        Integer,
+        primary_key=True,
+        autoincrement=True,
     )
     pattern_id: Mapped[UUID] = mapped_column(
-        unique=True, nullable=False, index=True,
+        unique=True,
+        nullable=False,
+        index=True,
     )
     workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -811,7 +845,8 @@ class ScenarioPatternRow(Base):
     tags = mapped_column(FlexJSON, nullable=False)
     created_by: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
 
 
@@ -831,15 +866,17 @@ class RunQualitySummaryRow(Base):
     """
 
     __tablename__ = "run_quality_summaries"
-    __table_args__ = (
-        UniqueConstraint("run_id", name="uq_run_quality_summary_run_id"),
-    )
+    __table_args__ = (UniqueConstraint("run_id", name="uq_run_quality_summary_run_id"),)
 
     row_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True,
+        Integer,
+        primary_key=True,
+        autoincrement=True,
     )
     summary_id: Mapped[UUID] = mapped_column(
-        unique=True, nullable=False, index=True,
+        unique=True,
+        nullable=False,
+        index=True,
     )
     run_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     workspace_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -847,21 +884,68 @@ class RunQualitySummaryRow(Base):
     overall_run_grade: Mapped[str] = mapped_column(String(5), nullable=False)
     coverage_pct: Mapped[float] = mapped_column(Float, nullable=False)
     mapping_coverage_pct: Mapped[float | None] = mapped_column(
-        Float, nullable=True,
+        Float,
+        nullable=True,
     )  # Amendment 3
     publication_gate_pass: Mapped[bool] = mapped_column(
-        Boolean, nullable=False,
+        Boolean,
+        nullable=False,
     )
     publication_gate_mode: Mapped[str] = mapped_column(
-        String(30), nullable=False,
+        String(30),
+        nullable=False,
     )  # Amendment 7
     summary_version: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="1.0.0",
+        String(20),
+        nullable=False,
+        default="1.0.0",
     )  # Amendment 5
     summary_hash: Mapped[str] = mapped_column(
-        String(128), nullable=False, default="",
+        String(128),
+        nullable=False,
+        default="",
     )  # Amendment 5
     payload = mapped_column(FlexJSON, nullable=False)  # Full RunQualitySummary JSON
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Structural Path Analysis (SPA) — Sprint 20, IMMUTABLE
+# ---------------------------------------------------------------------------
+
+
+class PathAnalysisRow(Base):
+    """Immutable — persisted SPA + chokepoint analytics for a run."""
+
+    __tablename__ = "path_analyses"
+    __table_args__ = (
+        UniqueConstraint("run_id", "config_hash", name="uq_path_analyses_run_config"),
+    )
+
+    analysis_id: Mapped[UUID] = mapped_column(primary_key=True)
+    run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("run_snapshots.run_id"),
+        nullable=False,
+    )
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id"),
+        nullable=False,
+        index=True,
+    )
+    analysis_version: Mapped[str] = mapped_column(String(20), nullable=False)
+    config_json = mapped_column(FlexJSON, nullable=False)
+    config_hash: Mapped[str] = mapped_column(String(100), nullable=False)
+    max_depth: Mapped[int] = mapped_column(Integer, nullable=False)
+    top_k: Mapped[int] = mapped_column(Integer, nullable=False)
+    top_paths_json = mapped_column(FlexJSON, nullable=False)
+    chokepoints_json = mapped_column(FlexJSON, nullable=False)
+    depth_contributions_json = mapped_column(FlexJSON, nullable=False)
+    coverage_ratio: Mapped[float] = mapped_column(Float, nullable=False)
+    result_checksum: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
     )

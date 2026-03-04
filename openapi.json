@@ -4559,6 +4559,189 @@
         }
       }
     },
+    "/v1/workspaces/{workspace_id}/path-analytics": {
+      "post": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Create Path Analysis",
+        "description": "Compute structural path analysis for an existing run.\n\nIdempotent: returns 200 with existing analysis if config_hash matches.",
+        "operationId": "create_path_analysis_v1_workspaces__workspace_id__path_analytics_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_CreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathAnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "List Path Analyses",
+        "description": "List path analyses for a run (workspace-scoped, paginated).",
+        "operationId": "list_path_analyses_v1_workspaces__workspace_id__path_analytics_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathAnalysisListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/path-analytics/{analysis_id}": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Get Path Analysis",
+        "description": "Get a single path analysis by ID (workspace-scoped).",
+        "operationId": "get_path_analysis_v1_workspaces__workspace_id__path_analytics__analysis_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "analysis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Analysis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathAnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace_id}/engine/runs": {
       "post": {
         "tags": [
@@ -7282,6 +7465,50 @@
         ],
         "title": "BulkDecisionResponse"
       },
+      "ChokePointItem": {
+        "properties": {
+          "sector_code": {
+            "type": "string",
+            "title": "Sector Code"
+          },
+          "forward_linkage": {
+            "type": "number",
+            "title": "Forward Linkage"
+          },
+          "backward_linkage": {
+            "type": "number",
+            "title": "Backward Linkage"
+          },
+          "norm_forward": {
+            "type": "number",
+            "title": "Norm Forward"
+          },
+          "norm_backward": {
+            "type": "number",
+            "title": "Norm Backward"
+          },
+          "chokepoint_score": {
+            "type": "number",
+            "title": "Chokepoint Score"
+          },
+          "is_chokepoint": {
+            "type": "boolean",
+            "title": "Is Chokepoint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sector_code",
+          "forward_linkage",
+          "backward_linkage",
+          "norm_forward",
+          "norm_backward",
+          "chokepoint_score",
+          "is_chokepoint"
+        ],
+        "title": "ChokePointItem",
+        "description": "Chokepoint detection result for a single sector.\n\nA sector is a chokepoint when both its normalized forward and backward\nlinkages exceed 1.0, indicating it is a critical intermediary in the\ninter-industry flow structure."
+      },
       "ClaimDetailResponse": {
         "properties": {
           "claim_id": {
@@ -8947,6 +9174,25 @@
         ],
         "title": "DecisionResponse"
       },
+      "DepthContributionItem": {
+        "properties": {
+          "signed": {
+            "type": "number",
+            "title": "Signed"
+          },
+          "absolute": {
+            "type": "number",
+            "title": "Absolute"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signed",
+          "absolute"
+        ],
+        "title": "DepthContributionItem",
+        "description": "Aggregated contribution at a single depth level."
+      },
       "DepthPlanStatusResponse": {
         "properties": {
           "plan_id": {
@@ -10592,6 +10838,159 @@
           "status"
         ],
         "title": "PatchStatusRequest"
+      },
+      "PathAnalysisConfig": {
+        "properties": {
+          "max_depth": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 0.0,
+            "title": "Max Depth",
+            "default": 6
+          },
+          "top_k": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "default": 20
+          }
+        },
+        "type": "object",
+        "title": "PathAnalysisConfig",
+        "description": "Typed config for SPA computation. Validated bounds, stable OpenAPI."
+      },
+      "PathAnalysisListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PathAnalysisResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PathAnalysisListResponse",
+        "description": "Paginated list of path analysis results."
+      },
+      "PathAnalysisResponse": {
+        "properties": {
+          "analysis_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Analysis Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "analysis_version": {
+            "type": "string",
+            "title": "Analysis Version"
+          },
+          "config": {
+            "$ref": "#/components/schemas/PathAnalysisConfig"
+          },
+          "config_hash": {
+            "type": "string",
+            "title": "Config Hash"
+          },
+          "top_paths": {
+            "items": {
+              "$ref": "#/components/schemas/PathContributionItem"
+            },
+            "type": "array",
+            "title": "Top Paths"
+          },
+          "chokepoints": {
+            "items": {
+              "$ref": "#/components/schemas/ChokePointItem"
+            },
+            "type": "array",
+            "title": "Chokepoints"
+          },
+          "depth_contributions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DepthContributionItem"
+            },
+            "type": "object",
+            "title": "Depth Contributions"
+          },
+          "coverage_ratio": {
+            "type": "number",
+            "title": "Coverage Ratio"
+          },
+          "result_checksum": {
+            "type": "string",
+            "title": "Result Checksum"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "UTC timezone-aware timestamp."
+          }
+        },
+        "type": "object",
+        "required": [
+          "analysis_id",
+          "run_id",
+          "analysis_version",
+          "config",
+          "config_hash",
+          "top_paths",
+          "chokepoints",
+          "depth_contributions",
+          "coverage_ratio",
+          "result_checksum",
+          "created_at"
+        ],
+        "title": "PathAnalysisResponse",
+        "description": "Full path analysis result returned by the API."
+      },
+      "PathContributionItem": {
+        "properties": {
+          "source_sector_code": {
+            "type": "string",
+            "title": "Source Sector Code"
+          },
+          "target_sector_code": {
+            "type": "string",
+            "title": "Target Sector Code"
+          },
+          "depth": {
+            "type": "integer",
+            "title": "Depth"
+          },
+          "coefficient": {
+            "type": "number",
+            "title": "Coefficient"
+          },
+          "contribution": {
+            "type": "number",
+            "title": "Contribution"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_sector_code",
+          "target_sector_code",
+          "depth",
+          "coefficient",
+          "contribution"
+        ],
+        "title": "PathContributionItem",
+        "description": "A single structural path contribution.\n\nRepresents the contribution of a path at a given depth from a source\nsector (final demand target) to a target sector (affected sector)."
       },
       "PatternResponse": {
         "properties": {
@@ -12544,6 +12943,41 @@
           "updated_at"
         ],
         "title": "WorkspaceResponse"
+      },
+      "_CreateRequest": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "config": {
+            "$ref": "#/components/schemas/_RawConfig"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "_CreateRequest",
+        "description": "Request body with relaxed config validation \u2014 bounds checked in endpoint."
+      },
+      "_RawConfig": {
+        "properties": {
+          "max_depth": {
+            "type": "integer",
+            "title": "Max Depth",
+            "default": 6
+          },
+          "top_k": {
+            "type": "integer",
+            "title": "Top K",
+            "default": 20
+          }
+        },
+        "type": "object",
+        "title": "_RawConfig",
+        "description": "Relaxed config that skips Pydantic bounds so the endpoint can validate."
       },
       "src__api__compiler__CompileRequest": {
         "properties": {
