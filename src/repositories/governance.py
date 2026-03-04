@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.tables import (
@@ -89,6 +89,51 @@ class AssumptionRepository:
             )
         )
         return list(result.scalars().all())
+
+    async def get_for_workspace(
+        self, assumption_id: UUID, workspace_id: UUID,
+    ) -> AssumptionRow | None:
+        """Get assumption only if it belongs to the given workspace.
+
+        Returns None for wrong workspace or legacy NULL workspace_id rows.
+        """
+        result = await self._session.execute(
+            select(AssumptionRow).where(
+                AssumptionRow.assumption_id == assumption_id,
+                AssumptionRow.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_workspace(
+        self, workspace_id: UUID, *,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[AssumptionRow], int]:
+        """List assumptions scoped to workspace with optional status filter.
+
+        Returns (page_rows, total_count). Excludes NULL workspace_id rows.
+        Orders by created_at DESC, assumption_id DESC.
+        """
+        base = select(AssumptionRow).where(
+            AssumptionRow.workspace_id == workspace_id,
+        )
+        if status is not None:
+            base = base.where(AssumptionRow.status == status)
+
+        count_result = await self._session.execute(
+            select(func.count()).select_from(base.subquery())
+        )
+        total = count_result.scalar_one()
+
+        rows_result = await self._session.execute(
+            base.order_by(
+                AssumptionRow.created_at.desc(),
+                AssumptionRow.assumption_id.desc(),
+            ).limit(limit).offset(offset)
+        )
+        return list(rows_result.scalars().all()), total
 
 
 class ClaimRepository:
