@@ -5,15 +5,13 @@ footer, watermark tied to integrity signature.
 """
 
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-import pytest
 from openpyxl import load_workbook
 from pptx import Presentation
 from uuid_extensions import uuid7
 
-from src.export.watermark import WatermarkService, SANDBOX_WATERMARK
-
+from src.export.watermark import SANDBOX_WATERMARK, WatermarkService
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -96,7 +94,7 @@ class TestGovernedFooter:
     def test_excel_governed_footer(self) -> None:
         svc = WatermarkService()
         data = _make_excel_bytes()
-        ts = datetime(2026, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        ts = datetime(2026, 1, 15, 10, 30, 0, tzinfo=UTC)
         footered = svc.apply_governed_excel(data, run_id=RUN_ID, timestamp=ts)
         wb = load_workbook(io.BytesIO(footered))
         for name in wb.sheetnames:
@@ -110,7 +108,7 @@ class TestGovernedFooter:
     def test_pptx_governed_footer(self) -> None:
         svc = WatermarkService()
         data = _make_pptx_bytes()
-        ts = datetime(2026, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        ts = datetime(2026, 1, 15, 10, 30, 0, tzinfo=UTC)
         footered = svc.apply_governed_pptx(data, run_id=RUN_ID, timestamp=ts)
         prs = Presentation(io.BytesIO(footered))
         # Last slide (or footer text box) should contain run_id

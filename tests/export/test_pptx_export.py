@@ -6,12 +6,10 @@ data, tornado chart data, assumption summary, evidence appendix.
 
 import io
 
-import pytest
 from pptx import Presentation
 from uuid_extensions import uuid7
 
 from src.export.pptx_export import PptxExporter
-
 
 # ---------------------------------------------------------------------------
 # Helpers

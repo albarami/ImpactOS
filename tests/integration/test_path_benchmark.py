@@ -12,8 +12,6 @@ real-data coverage deferred until curated GASTAT data is committed.
 import numpy as np
 import pytest
 
-from .golden_scenarios.shared import ISIC_20_SECTIONS
-
 
 @pytest.mark.integration
 class TestBenchmarkValidatorIntegration:

@@ -4,17 +4,16 @@ Covers: time-motion metrics, scenarios per engagement, data prep time,
 mapping throughput (items/hour). Structured MetricEvent storage.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 import pytest
 from uuid_extensions import uuid7
 
 from src.observability.metrics import (
     MetricEvent,
-    MetricType,
     MetricsStore,
+    MetricType,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -25,7 +24,7 @@ ACTOR_ID = uuid7()
 
 
 def _utc(hour: int = 10, minute: int = 0) -> datetime:
-    return datetime(2026, 2, 27, hour, minute, tzinfo=timezone.utc)
+    return datetime(2026, 2, 27, hour, minute, tzinfo=UTC)
 
 
 # ===================================================================

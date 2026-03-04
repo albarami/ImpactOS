@@ -14,7 +14,6 @@ from src.models.common import AssumptionStatus, ClaimStatus, ExportMode
 from src.models.governance import Assumption, Claim
 from src.models.run import RunSnapshot
 
-
 DRAFT_WATERMARK = "DRAFT \u2014 FAILS NFF GOVERNANCE"
 
 # Claim states that count as resolved for governed mode

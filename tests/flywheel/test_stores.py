@@ -14,7 +14,6 @@ from src.flywheel.stores import (
 )
 from src.models.common import ImpactOSBase, new_uuid7
 
-
 # ---------------------------------------------------------------------------
 # Test fixtures: simple frozen Pydantic models
 # ---------------------------------------------------------------------------

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from uuid import UUID
-
 import pytest
 
 from src.compiler.learning import LearningLoop, OverridePair
@@ -16,7 +14,6 @@ from src.flywheel.models import DraftStatus, ReuseScopeLevel
 from src.flywheel.stores import InMemoryVersionedLibraryStore
 from src.models.common import new_uuid7
 from src.models.mapping import MappingLibraryEntry
-
 
 # ---------------------------------------------------------------------------
 # Helper factories

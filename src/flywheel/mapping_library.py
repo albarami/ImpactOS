@@ -16,13 +16,11 @@ from uuid import UUID
 
 from pydantic import Field
 
-from src.compiler.learning import LearningLoop, OverridePair
+from src.compiler.learning import LearningLoop
 from src.flywheel.base import VersionedLibraryManager
 from src.flywheel.models import DraftStatus, ReuseScopeLevel
-from src.flywheel.stores import VersionedLibraryStore
 from src.models.common import ImpactOSBase, UTCTimestamp, UUIDv7, new_uuid7, utc_now
 from src.models.mapping import MappingLibraryEntry
-
 
 # ---------------------------------------------------------------------------
 # Draft model (mutable, being assembled)
@@ -138,7 +136,7 @@ class MappingLibraryManager(
                     overrides, entries
                 )
                 # Track changes
-                for old_entry, new_entry in zip(entries, updated_entries):
+                for old_entry, new_entry in zip(entries, updated_entries, strict=False):
                     if old_entry.confidence != new_entry.confidence:
                         changed_entries.append({
                             "entry_id": str(new_entry.entry_id),

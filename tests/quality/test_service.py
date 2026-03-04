@@ -13,7 +13,6 @@ from uuid import uuid4
 
 import pytest
 
-from src.quality.config import QualityScoringConfig
 from src.quality.models import (
     QualityDimension,
     QualityGrade,
@@ -23,7 +22,6 @@ from src.quality.models import (
     SourceUpdateFrequency,
 )
 from src.quality.service import QualityAssessmentService
-
 
 # ===================================================================
 # Fixtures

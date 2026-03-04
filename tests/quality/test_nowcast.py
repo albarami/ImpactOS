@@ -15,7 +15,6 @@ import pytest
 from src.engine.model_store import ModelStore
 from src.quality.models import (
     NowcastStatus,
-    QualityDimension,
     QualitySeverity,
 )
 from src.quality.nowcast import (
@@ -23,7 +22,6 @@ from src.quality.nowcast import (
     NowcastResult,
     TargetTotalProvenance,
 )
-
 
 # -------------------------------------------------------------------
 # Fixtures

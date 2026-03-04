@@ -13,7 +13,6 @@ import pytest
 
 from .golden_scenarios.shared import ISIC_20_SECTIONS
 
-
 # Resolve paths relative to project root (cwd)
 CONCORDANCE_PATH = "data/curated/concordance_section_division.json"
 WEIGHTS_PATH = "data/curated/division_output_weights_sg_2018.json"

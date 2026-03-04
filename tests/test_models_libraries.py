@@ -7,12 +7,12 @@ ScenarioPattern, LibraryStats, OverrideAccuracyReport.
 All 8 amendments enforced.
 """
 
-import pytest
 from uuid import UUID
+
+import pytest
 from uuid_extensions import uuid7
 
 from src.models.common import ConstraintConfidence
-
 
 # ---------------------------------------------------------------------------
 # LibraryAssumptionType enum

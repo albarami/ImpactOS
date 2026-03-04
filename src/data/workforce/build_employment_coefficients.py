@@ -10,7 +10,7 @@ Denominator is ALWAYS gross output (x), NOT GDP / value-added.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -241,7 +241,7 @@ def save_employment_coefficients(
         "_provenance": {
             "builder": "build_employment_coefficients.py",
             "builder_version": "d4_v1",
-            "build_timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "build_timestamp": datetime.now(tz=UTC).isoformat(),
             "source_ids": list({c.source for c in coeff_set.coefficients}),
             "method": "ILO employment / KAPSARC IO gross output x-vector",
             "notes": "Denominator is gross output (x), NOT GDP/value-added",

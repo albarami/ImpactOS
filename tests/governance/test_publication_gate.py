@@ -5,13 +5,10 @@ unresolved, return blocking reasons, pass only when all claims are
 SUPPORTED/APPROVED_FOR_EXPORT or DELETED.
 """
 
-import pytest
-from uuid_extensions import uuid7
 
-from src.governance.publication_gate import BlockingReason, GateResult, PublicationGate
+from src.governance.publication_gate import PublicationGate
 from src.models.common import ClaimStatus, ClaimType
 from src.models.governance import Claim
-
 
 # ---------------------------------------------------------------------------
 # Helpers

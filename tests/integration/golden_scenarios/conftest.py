@@ -4,7 +4,6 @@ This file contains ONLY @pytest.fixture functions.
 All constants and helpers live in shared.py.
 """
 
-import numpy as np
 import pytest
 from uuid_extensions import uuid7
 

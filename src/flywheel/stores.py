@@ -55,7 +55,7 @@ class InMemoryVersionedLibraryStore(VersionedLibraryStore[TVersion]):
         self._active_id: UUID | None = None
 
     def save_version(self, version: TVersion) -> None:
-        vid: UUID = getattr(version, "version_id")
+        vid: UUID = version.version_id
         self._versions[vid] = version
 
     def get_version(self, version_id: UUID) -> TVersion | None:

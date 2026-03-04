@@ -2,24 +2,19 @@
 
 from __future__ import annotations
 
-from uuid import UUID
-
-import pytest
-
 from src.compiler.learning import LearningLoop, OverridePair
 from src.flywheel.assumption_library import (
     AssumptionDefault,
     AssumptionLibraryDraft,
     AssumptionLibraryManager,
     AssumptionLibraryVersion,
-    build_seed_defaults,
 )
 from src.flywheel.mapping_library import (
     MappingLibraryDraft,
     MappingLibraryManager,
     MappingLibraryVersion,
 )
-from src.flywheel.models import AssumptionValueType, DraftStatus
+from src.flywheel.models import AssumptionValueType
 from src.flywheel.publication import (
     FlywheelPublicationService,
     PublicationQualityGate,
@@ -28,9 +23,8 @@ from src.flywheel.publication import (
 from src.flywheel.scenario_patterns import ScenarioPatternLibrary
 from src.flywheel.stores import InMemoryVersionedLibraryStore
 from src.flywheel.workforce_refinement import WorkforceBridgeRefinement
-from src.models.common import AssumptionType, new_uuid7, utc_now
+from src.models.common import AssumptionType, new_uuid7
 from src.models.mapping import MappingLibraryEntry
-
 
 # ---------------------------------------------------------------------------
 # Helper factories

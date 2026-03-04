@@ -15,9 +15,7 @@ from src.quality.models import PlausibilityStatus
 from src.quality.plausibility import (
     PlausibilityChecker,
     PlausibilityResult,
-    SectorPlausibilityDetail,
 )
-
 
 # ===================================================================
 # Fixtures

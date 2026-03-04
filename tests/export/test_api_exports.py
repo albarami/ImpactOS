@@ -4,11 +4,11 @@ Covers: POST create export, GET export status, POST variance bridge.
 S0-4: Workspace-scoped routes.
 """
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
 from uuid_extensions import uuid7
-
-from uuid import UUID
 
 from src.db.tables import RunQualitySummaryRow, RunSnapshotRow
 from src.models.common import new_uuid7, utc_now

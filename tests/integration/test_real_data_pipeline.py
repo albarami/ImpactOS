@@ -35,7 +35,6 @@ from src.models.common import ExportMode
 from src.quality.models import RunQualityAssessment
 from src.quality.service import QualityAssessmentService
 
-
 # ---------------------------------------------------------------------------
 # Class 1: TestRealDataPipeline — end-to-end curated data verification
 # ---------------------------------------------------------------------------

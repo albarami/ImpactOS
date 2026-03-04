@@ -26,6 +26,17 @@ from uuid import uuid4
 import numpy as np
 import pytest
 
+from src.engine.workforce import (
+    WORKFORCE_SATELLITE_VERSION,
+    apply_occupation_bridge,
+    compute_confidence_summary,
+    compute_employment,
+    compute_nationality_split,
+    compute_saudization_gap,
+    compute_sensitivity,
+    compute_workforce_impact,
+    normalize_delta_x,
+)
 from src.models.common import ConstraintConfidence
 from src.models.workforce import (
     BridgeEntry,
@@ -37,18 +48,6 @@ from src.models.workforce import (
     SectorSaudizationTarget,
     TierAssignment,
     WorkforceConfidenceLevel,
-)
-
-from src.engine.workforce import (
-    WORKFORCE_SATELLITE_VERSION,
-    apply_occupation_bridge,
-    compute_confidence_summary,
-    compute_employment,
-    compute_nationality_split,
-    compute_saudization_gap,
-    compute_sensitivity,
-    compute_workforce_impact,
-    normalize_delta_x,
 )
 
 

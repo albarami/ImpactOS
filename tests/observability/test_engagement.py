@@ -4,7 +4,7 @@ Covers: engagement records, phase transitions, cycle time per phase,
 comparison against baseline targets (2x minimum, 3-5x target).
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 import pytest
 from uuid_extensions import uuid7
@@ -13,9 +13,7 @@ from src.observability.engagement import (
     EngagementPhase,
     EngagementRecord,
     EngagementTracker,
-    ImprovementAssessment,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -25,7 +23,7 @@ WORKSPACE_ID = uuid7()
 
 
 def _utc(day: int = 1, hour: int = 10) -> datetime:
-    return datetime(2026, 2, day, hour, 0, tzinfo=timezone.utc)
+    return datetime(2026, 2, day, hour, 0, tzinfo=UTC)
 
 
 # ===================================================================

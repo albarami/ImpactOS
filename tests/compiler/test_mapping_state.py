@@ -5,7 +5,6 @@ MANAGER_REVIEW → EXCLUDED → LOCKED.
 Every transition logs actor, timestamp, and rationale.
 """
 
-from uuid import UUID
 
 import pytest
 from uuid_extensions import uuid7
@@ -13,10 +12,7 @@ from uuid_extensions import uuid7
 from src.compiler.mapping_state import (
     MappingState,
     MappingStateMachine,
-    TransitionLog,
-    VALID_MAPPING_TRANSITIONS,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -300,3 +300,87 @@ python -m pytest tests -q
 | Annual sum == cumulative identity | Required |
 | Delta arithmetic identity | Required |
 | Backward compatibility preserved | Required |
+
+---
+
+## Sprint 18 — Phase 2-E: SG Model Import Adapter + Parity Benchmark Gate (MVP-18)
+
+### SG Model Adapter
+
+| Component | Purpose | Test Evidence |
+|---|---|---|
+| `sg_model_adapter.py` | Detect SG Excel layout, extract IO model data (Z, x, sector names, extended artifacts) | `test_sg_model_adapter.py` (12 tests) |
+| `parity_gate.py` | Fail-closed parity benchmark: compare engine output against golden baseline | `test_parity_gate.py` (11 tests) |
+| `import_sg.py` | POST `/v1/workspaces/{workspace_id}/models/import-sg` endpoint | `test_models_import_sg.py` (18 tests) |
+| Migration 013 | Additive `sg_provenance` JSONB column on `model_versions` | `test_013_sg_provenance_postgres.py` (4 tests, PG-skip) |
+
+### Parity Gate Validation Matrix
+
+| Condition | Result | Reason Code | Test Evidence |
+|---|---|---|---|
+| Engine output matches golden baseline within tolerance | `passed=True` | None | `test_identical_model_passes` |
+| Metric exceeds tolerance | `passed=False` | `PARITY_TOLERANCE_BREACH` | `test_perturbed_model_fails`, `test_tolerance_breach_metric_has_reason_code` |
+| Missing baseline scenario | `passed=False` | `PARITY_MISSING_BASELINE` | `test_missing_baseline_empty`, `test_missing_baseline_key_absent` |
+| Missing metric in engine output | `passed=False` | `PARITY_METRIC_MISSING` | `test_missing_metric_in_engine_output` |
+| Engine error (dimension mismatch) | `passed=False` | `PARITY_ENGINE_ERROR` | `test_engine_error_wrong_shock_dimension` |
+
+### Import Endpoint Behavior
+
+| Scenario | HTTP | Behavior | Test Evidence |
+|---|---|---|---|
+| Valid SG workbook + parity pass | 201 | Model registered with sg_provenance | `test_import_happy_path` |
+| Parity gate fails | 422 | Rollback, no model row persisted | `test_parity_failure_returns_422`, `test_parity_failure_rollback_no_model_row` |
+| Dev bypass flag in dev env | 201 | Parity skipped, model registered | `test_dev_bypass_in_dev_env` |
+| Dev bypass flag in prod env | 422 | Rejected | `test_dev_bypass_rejected_in_prod` |
+| Unsupported file format | 422 | Structured error | `test_unsupported_format_422` |
+| Model visibility after import | 200 | sg_provenance in GET response | `test_model_visible_after_import`, `test_sg_provenance_in_get_response` |
+
+### Sprint 18 Test Results
+
+| Category | Tests | Passed | Skipped | Failed |
+|---|---|---|---|---|
+| Unit: sg_model_adapter | 12 | 12 | 0 | 0 |
+| Unit: parity_gate | 11 | 11 | 0 | 0 |
+| Integration: import-sg endpoint | 18 | 18 | 0 | 0 |
+| Migration: 013 sg_provenance | 4 | 0 | 4 (PG) | 0 |
+| **Full suite** | **4220** | **4220** | **11** | **0** |
+
+### Sprint 18 Preflight Checks
+
+```bash
+# 1. SG model adapter tests
+python -m pytest tests/data/test_sg_model_adapter.py -v
+
+# 2. Parity gate tests
+python -m pytest tests/engine/test_parity_gate.py -v
+
+# 3. Import endpoint integration tests
+python -m pytest tests/api/test_models_import_sg.py -v
+
+# 4. Migration tests (requires Postgres)
+python -m pytest tests/migration/test_013_sg_provenance_postgres.py -v
+
+# 5. Full suite
+python -m pytest tests -q
+```
+
+### Verification Summary
+
+- **Lint**: Clean (no new lint categories; pre-existing S101/N806 patterns only)
+- **OpenAPI**: Refreshed with `/v1/workspaces/{workspace_id}/models/import-sg` endpoint
+- **Migration**: 013 additive `sg_provenance` JSONB column (nullable, no data loss on rollback)
+- **Backward compatibility**: All 4220 tests pass, 11 skipped (PG-only migrations)
+
+### Go/No-Go Criteria (additive)
+
+| Criteria | Required | How to Verify |
+|---|---|---|
+| SG layout detection for .xlsx workbooks | Yes | `test_sg_model_adapter.py` passes |
+| IO model extraction with extended artifacts | Yes | `test_extract_extended_artifacts_when_present` passes |
+| Deterministic workbook hash | Yes | `test_extract_workbook_hash_is_deterministic` passes |
+| Parity gate fail-closed on tolerance breach | Yes | `test_parity_gate.py` passes |
+| Import endpoint 201 on valid workbook + parity pass | Yes | `test_import_happy_path` passes |
+| Import endpoint 422 + rollback on parity failure | Yes | `test_parity_failure_*` passes |
+| Dev bypass only in dev environment | Yes | `test_dev_bypass_*` passes |
+| sg_provenance populated in model record | Yes | `test_sg_provenance_in_get_response` passes |
+| Existing tests unchanged | Yes | Full suite 4220 passed, 0 failed |

@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
-import pytest
-
 from src.compiler.learning import LearningLoop, OverridePair
 from src.data.workforce.nationality_classification import (
     ClassificationOverride,
@@ -20,7 +18,6 @@ from src.data.workforce.nationality_classification import (
 )
 from src.data.workforce.unit_registry import QualityConfidence
 from src.flywheel.assumption_library import (
-    AssumptionDefault,
     AssumptionLibraryDraft,
     AssumptionLibraryManager,
     AssumptionLibraryVersion,
@@ -28,7 +25,7 @@ from src.flywheel.assumption_library import (
 )
 from src.flywheel.calibration import CalibrationNote, CalibrationNoteStore
 from src.flywheel.engagement_memory import EngagementMemory, EngagementMemoryStore
-from src.flywheel.health import FlywheelHealth, FlywheelHealthService
+from src.flywheel.health import FlywheelHealthService
 from src.flywheel.mapping_library import (
     MappingLibraryDraft,
     MappingLibraryManager,
@@ -37,7 +34,6 @@ from src.flywheel.mapping_library import (
 from src.flywheel.models import PromotionStatus
 from src.flywheel.publication import (
     FlywheelPublicationService,
-    PublicationQualityGate,
     PublicationResult,
 )
 from src.flywheel.scenario_patterns import ScenarioPatternLibrary
@@ -46,7 +42,6 @@ from src.flywheel.workforce_refinement import WorkforceBridgeRefinement
 from src.models.common import AssumptionType, ConstraintConfidence, new_uuid7
 from src.models.mapping import MappingLibraryEntry
 from src.models.run import RunSnapshot
-
 
 # ---------------------------------------------------------------------------
 # Shared helper factories
@@ -380,7 +375,7 @@ class TestScenarioPatternAccumulation:
             {"F": 0.62, "C": 0.24, "H": 0.14},
         ]
 
-        for eng_id, spec_id, shares in zip(eng_ids, spec_ids, shares_list):
+        for eng_id, spec_id, shares in zip(eng_ids, spec_ids, shares_list, strict=False):
             pattern_library.record_engagement_pattern(
                 engagement_id=eng_id,
                 scenario_spec_id=spec_id,

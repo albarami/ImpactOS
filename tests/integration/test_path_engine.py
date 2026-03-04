@@ -27,7 +27,6 @@ from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import ModelStore
 from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
 from src.models.common import ConstraintConfidence, new_uuid7
-
 from tests.integration.golden_scenarios.shared import (
     GOLDEN_BASE_YEAR,
     GOLDEN_X,

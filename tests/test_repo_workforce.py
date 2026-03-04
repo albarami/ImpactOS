@@ -15,7 +15,6 @@ from src.repositories.workforce import (
     WorkforceResultRepository,
 )
 
-
 # ---------------------------------------------------------------------------
 # EmploymentCoefficientsRepository
 # ---------------------------------------------------------------------------

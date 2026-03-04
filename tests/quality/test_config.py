@@ -4,11 +4,8 @@ Covers: QualityScoringConfig default values, weight sum, grade thresholds,
 vintage thresholds, freshness ratios, and custom weight overrides.
 """
 
-import pytest
-from pydantic import ValidationError
 
 from src.quality.config import QualityScoringConfig
-
 
 # ===================================================================
 # QualityScoringConfig defaults

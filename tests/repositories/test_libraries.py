@@ -8,7 +8,6 @@ from uuid_extensions import uuid7
 
 from src.models.common import new_uuid7, utc_now
 
-
 # ---------------------------------------------------------------------------
 # MappingLibraryRepository
 # ---------------------------------------------------------------------------

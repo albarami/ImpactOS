@@ -5,14 +5,12 @@ library defaults fallback, assumption rationale, sum-to-one constraint.
 """
 
 import pytest
-from uuid_extensions import uuid7
 
 from src.agents.split_agent import (
     SplitAgent,
-    SplitProposal,
     SplitDefaults,
+    SplitProposal,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

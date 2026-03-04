@@ -254,9 +254,9 @@ class TestModelCacheFallback:
         cached_tuples = sorted(_to_tuple(r) for r in results_cached)
         fallback_tuples = sorted(_to_tuple(r) for r in results_fallback)
 
-        for ct, ft in zip(cached_tuples, fallback_tuples):
+        for ct, ft in zip(cached_tuples, fallback_tuples, strict=False):
             assert ct[0] == ft[0], f"Metric type mismatch: {ct[0]} vs {ft[0]}"
-            for (ck, cv), (fk, fv) in zip(ct[1], ft[1]):
+            for (ck, cv), (fk, fv) in zip(ct[1], ft[1], strict=False):
                 assert ck == fk
                 assert abs(cv - fv) < 1e-6, (
                     f"Value mismatch for {ct[0]}.{ck}: {cv} vs {fv}"

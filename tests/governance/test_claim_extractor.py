@@ -4,12 +4,10 @@ Covers: parsing draft narrative into atomic claims, classification by type,
 flagging claims that need evidence.
 """
 
-import pytest
 from uuid_extensions import uuid7
 
 from src.governance.claim_extractor import ClaimExtractor, ExtractionResult
 from src.models.common import ClaimStatus, ClaimType
-
 
 # ---------------------------------------------------------------------------
 # Helpers

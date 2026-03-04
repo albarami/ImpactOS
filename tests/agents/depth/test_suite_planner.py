@@ -1,7 +1,8 @@
 """Tests for Step 5: Suite Planner — Final Scenario Suite Assembly."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from src.agents.depth.suite_planner import SuitePlannerAgent, _build_suite_from_scored
 from src.models.common import DataClassification, DisclosureTier

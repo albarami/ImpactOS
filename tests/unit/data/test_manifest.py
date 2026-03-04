@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -25,7 +24,6 @@ from src.data.manifest import (
     load_manifest,
     verify_checksum,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

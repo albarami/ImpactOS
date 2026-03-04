@@ -284,8 +284,8 @@ class TestNoSyntheticInRuntime:
         ))).resolve()  # type: ignore[arg-type]
         source_text = source_path.read_text(encoding="utf-8")
         assert "synthetic" not in source_text.lower(), (
-            f"src/api/models.py contains 'synthetic' reference: "
-            f"runtime B-15 code must not use synthetic data"
+            "src/api/models.py contains 'synthetic' reference: "
+            "runtime B-15 code must not use synthetic data"
         )
         assert "data/synthetic" not in source_text, (
             "src/api/models.py references data/synthetic path"

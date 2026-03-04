@@ -8,10 +8,9 @@ import numpy as np
 import pytest
 from uuid_extensions import uuid7
 
-from src.engine.model_store import ModelStore
 from src.engine.leontief import LeontiefSolver
-from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients, SatelliteResult
-
+from src.engine.model_store import ModelStore
+from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
 
 # ---------------------------------------------------------------------------
 # Fixtures

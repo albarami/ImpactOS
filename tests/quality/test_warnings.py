@@ -10,9 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.quality.config import QualityScoringConfig
 from src.quality.models import (
-    DimensionAssessment,
     QualityDimension,
     QualitySeverity,
     QualityWarning,
@@ -21,7 +19,6 @@ from src.quality.models import (
 )
 from src.quality.scorer import QualityScorer
 from src.quality.warnings import WarningEngine
-
 
 # ===================================================================
 # Fixtures

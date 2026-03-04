@@ -23,7 +23,6 @@ from src.quality.models import (
 )
 from src.quality.scorer import QualityScorer
 
-
 # ===================================================================
 # Fixtures
 # ===================================================================

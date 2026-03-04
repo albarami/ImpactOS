@@ -14,7 +14,8 @@ Quality scorer expects uppercase "HIGH"/"MEDIUM"/"LOW".
 """
 
 import pytest
-from src.models.common import ConstraintConfidence, MappingConfidenceBand, ExportMode
+
+from src.models.common import ConstraintConfidence, ExportMode, MappingConfidenceBand
 
 
 @pytest.mark.integration
@@ -121,8 +122,9 @@ class TestConfidenceVocabulary:
 
     def test_quality_scorer_accepts_uppercase(self):
         """QualityAssessmentService.assess() accepts uppercase confidence strings."""
-        from src.quality.service import QualityAssessmentService
         from uuid_extensions import uuid7
+
+        from src.quality.service import QualityAssessmentService
 
         qas = QualityAssessmentService()
         # Should NOT raise when given uppercase confidence strings

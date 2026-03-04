@@ -5,14 +5,12 @@ attaching evidence_refs to claims, transitioning claims from
 NEEDS_EVIDENCE to SUPPORTED.
 """
 
-import pytest
 from uuid_extensions import uuid7
 
-from src.governance.evidence_linker import EvidenceLinker, LinkResult
-from src.models.common import ClaimStatus, ClaimType, DisclosureTier
-from src.models.governance import BoundingBox, Claim, EvidenceSnippet, ModelRef
+from src.governance.evidence_linker import EvidenceLinker
+from src.models.common import ClaimStatus, ClaimType
+from src.models.governance import BoundingBox, Claim, EvidenceSnippet
 from src.models.run import ResultSet
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -9,7 +9,6 @@ Deterministic — no LLM calls.
 
 from dataclasses import dataclass, field
 
-
 # ---------------------------------------------------------------------------
 # Thresholds for pilot readiness
 # ---------------------------------------------------------------------------

@@ -16,8 +16,8 @@ from src.ingestion.providers.base import ExtractionOptions, ExtractionProvider
 from src.models.common import utc_now
 from src.models.document import (
     DocumentGraph,
-    ExtractionMetadata,
     ExtractedTable,
+    ExtractionMetadata,
     PageBlock,
     TableCell,
     TextBlock,
@@ -232,8 +232,8 @@ class LocalPdfProvider(ExtractionProvider):
             return None
 
         try:
-            import tempfile
             import os
+            import tempfile
 
             fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
             try:

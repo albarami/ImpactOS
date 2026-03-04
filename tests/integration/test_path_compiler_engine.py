@@ -11,23 +11,19 @@ Uses SEED_LIBRARY and LABELED_BOQ from shared.py for the suggestion gate test.
 
 import numpy as np
 import pytest
-from numpy.testing import assert_allclose
 from uuid_extensions import uuid7
 
 from src.agents.mapping_agent import MappingSuggestionAgent
 from src.compiler.scenario_compiler import CompilationInput, ScenarioCompiler
 from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import ModelStore
-from src.models.document import BoQLineItem
 from src.models.mapping import DecisionType, MappingDecision
 from src.models.scenario import TimeHorizon
-
 from tests.integration.golden_scenarios.shared import (
     GOLDEN_BASE_YEAR,
     GOLDEN_X,
     GOLDEN_Z,
     LABELED_BOQ,
-    NUMERIC_RTOL,
     SECTOR_CODES_SMALL,
     SEED_LIBRARY,
     make_labeled_boq_items,
@@ -200,7 +196,7 @@ class TestCompilerAutoMapping:
         # We need to align suggestions with labeled BoQ by line_item_id
         item_id_to_truth = {
             item.line_item_id: label["ground_truth_isic"]
-            for item, label in zip(boq_items, LABELED_BOQ)
+            for item, label in zip(boq_items, LABELED_BOQ, strict=False)
         }
         correct = [
             s for s in covered

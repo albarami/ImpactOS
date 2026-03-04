@@ -14,7 +14,6 @@ from src.models.common import ClaimStatus
 from src.models.governance import Claim, EvidenceSnippet, ModelRef
 from src.models.run import ResultSet
 
-
 # ---------------------------------------------------------------------------
 # Keyword matching helpers
 # ---------------------------------------------------------------------------

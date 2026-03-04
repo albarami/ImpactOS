@@ -5,8 +5,8 @@ Tests cover: success (compiled), uncompiled (409), wrong workspace (404),
 governed+unlocked (409), governed+locked (200), and deterministic shape checks.
 """
 
-import pytest
 import numpy as np
+import pytest
 from uuid_extensions import uuid7
 
 from src.db.tables import (
@@ -15,7 +15,6 @@ from src.db.tables import (
     ScenarioSpecRow,
 )
 from src.models.common import utc_now
-
 
 WS_ID = uuid7()
 OTHER_WS_ID = uuid7()

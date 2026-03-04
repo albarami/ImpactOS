@@ -10,6 +10,7 @@ from uuid import UUID
 import pytest
 from uuid_extensions import uuid7
 
+from src.ingestion.storage import DocumentStorageService
 from src.models.common import DataClassification
 from src.models.document import (
     Document,
@@ -17,8 +18,6 @@ from src.models.document import (
     LanguageCode,
     SourceType,
 )
-from src.ingestion.storage import DocumentStorageService
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

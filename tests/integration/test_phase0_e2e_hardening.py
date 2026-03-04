@@ -63,7 +63,7 @@ def _make_csv_content() -> bytes:
     header = "description,quantity,unit,unit_price,total_value,currency_code"
     row1 = "Structural Steel Supply,100,ton,3500.0,350000.0,SAR"
     row2 = "Concrete Works,200,m3,1500.0,300000.0,SAR"
-    return f"{header}\n{row1}\n{row2}\n".encode("utf-8")
+    return f"{header}\n{row1}\n{row2}\n".encode()
 
 
 async def _seed_quality_summary(

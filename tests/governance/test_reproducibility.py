@@ -4,16 +4,12 @@ Covers: verify RunSnapshot can reproduce identical results via hash
 comparison within tolerance, detect if referenced versions have changed.
 """
 
-import pytest
 from uuid_extensions import uuid7
 
 from src.governance.reproducibility import (
     ReproducibilityChecker,
-    ReproducibilityResult,
-    VersionDrift,
 )
 from src.models.run import ResultSet, RunSnapshot
-
 
 # ---------------------------------------------------------------------------
 # Helpers

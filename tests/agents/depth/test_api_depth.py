@@ -13,7 +13,6 @@ import pytest
 from httpx import AsyncClient
 from uuid_extensions import uuid7
 
-
 WS_ID = str(uuid7())
 
 

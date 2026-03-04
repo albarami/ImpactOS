@@ -9,17 +9,17 @@ To update baselines after legitimate algorithm changes:
 """
 
 import json
+from datetime import UTC, datetime
+from pathlib import Path
+
 import numpy as np
 import pytest
-from datetime import datetime, timezone
 from numpy.testing import assert_allclose
-from pathlib import Path
 from uuid_extensions import uuid7
 
 from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import ModelStore
 from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
-
 from tests.integration.golden_scenarios.shared import (
     EMPLOYMENT_ATOL,
     GDP_RTOL,
@@ -99,7 +99,7 @@ class TestRegressionSuite:
         if update_golden:
             snapshot = {
                 "scenario": "industrial_zone",
-                "computed_at": datetime.now(timezone.utc).isoformat(),
+                "computed_at": datetime.now(UTC).isoformat(),
                 "model": "3-sector ISIC F/C/G",
                 "tolerances": {"rtol": NUMERIC_RTOL, "employment_atol": EMPLOYMENT_ATOL, "gdp_rtol": GDP_RTOL},
                 "delta_d": [300.0, 150.0, 50.0],

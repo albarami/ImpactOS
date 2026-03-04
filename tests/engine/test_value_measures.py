@@ -5,7 +5,6 @@ import pytest
 from uuid_extensions import uuid7
 
 from src.engine.model_store import LoadedModel, ModelStore
-
 from tests.integration.golden_scenarios.shared import (
     GOLDEN_X,
     GOLDEN_Z,
@@ -299,12 +298,11 @@ class TestValidateValueMeasuresPrerequisites:
 
 from src.engine.leontief import LeontiefSolver
 from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
-from src.engine.value_measures import ValueMeasuresComputer, ValueMeasuresResult
-
+from src.engine.value_measures import ValueMeasuresComputer
 from tests.integration.golden_scenarios.shared import (
     GOLDEN_BASE_YEAR,
-    SMALL_JOBS_COEFF,
     SMALL_IMPORT_RATIO,
+    SMALL_JOBS_COEFF,
     SMALL_OIL_SECTOR_CODES,
     SMALL_VA_RATIO,
 )

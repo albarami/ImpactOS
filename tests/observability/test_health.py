@@ -4,16 +4,11 @@ Covers: comprehensive system health — database, object storage, model
 versions, minimum library sizes for pilot readiness.
 """
 
-import pytest
-from uuid_extensions import uuid7
 
 from src.observability.health import (
     ComponentStatus,
     HealthChecker,
-    HealthReport,
-    PilotReadiness,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -13,10 +13,11 @@ Covers:
 - Disclosure tier defaults
 """
 
-import pytest
 from uuid import uuid4
 
-from src.models.common import DisclosureTier, new_uuid7
+import pytest
+
+from src.models.common import DisclosureTier
 from src.models.depth import (
     BiasEntry,
     BiasRegister,
@@ -33,10 +34,9 @@ from src.models.depth import (
     QualitativeRisk,
     ScenarioSuitePlan,
     ScoredCandidate,
-    SuiteRun,
     SuitePlanningOutput,
+    SuiteRun,
 )
-
 
 # ---------------------------------------------------------------------------
 # DepthStepName enum

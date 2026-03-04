@@ -6,7 +6,7 @@ Tests the S0-4 wiring fixes:
 3. Backward compatibility: inline line_items still works (Amendment 5)
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
@@ -29,7 +29,7 @@ WS_ID_OTHER_UUID = UUID(WS_ID_OTHER)
 async def _seed_document(db_session, workspace_id=WS_ID_UUID):  # noqa: ANN001
     """Create a document row in the test DB."""
     doc_id = uuid7()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row = DocumentRow(
         doc_id=doc_id,
         workspace_id=workspace_id,
@@ -57,7 +57,7 @@ async def _seed_extraction_job(  # noqa: ANN001
 ):
     """Create an extraction job row."""
     job_id = uuid7()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row = ExtractionJobRow(
         job_id=job_id,
         doc_id=doc_id,
@@ -83,7 +83,7 @@ async def _seed_line_items(  # noqa: ANN001
     """Create line item rows for a document/job."""
     if descriptions is None:
         descriptions = ["Structural Steel Supply", "Concrete Works", "Electrical Systems"]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     items = []
     for desc in descriptions:
         li_id = uuid7()

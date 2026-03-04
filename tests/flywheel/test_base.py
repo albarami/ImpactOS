@@ -9,8 +9,7 @@ import pytest
 from src.flywheel.base import VersionedLibraryManager
 from src.flywheel.models import DraftStatus
 from src.flywheel.stores import InMemoryVersionedLibraryStore
-from src.models.common import ImpactOSBase, new_uuid7, utc_now
-
+from src.models.common import ImpactOSBase, new_uuid7
 
 # ---------------------------------------------------------------------------
 # Test fixtures: concrete test types for the generic manager

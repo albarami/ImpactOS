@@ -11,9 +11,8 @@ import numpy as np
 import pytest
 from uuid_extensions import uuid7
 
-from src.quality.models import QualityGrade, QualitySeverity
+from src.quality.models import QualityGrade
 from src.quality.service import QualityAssessmentService
-
 from tests.integration.golden_scenarios.shared import (
     GOLDEN_BASE_YEAR,
     GOLDEN_X,
@@ -22,7 +21,6 @@ from tests.integration.golden_scenarios.shared import (
     SMALL_IMPORT_RATIO,
     SMALL_JOBS_COEFF,
     SMALL_VA_RATIO,
-    make_decision,
     make_line_item,
 )
 

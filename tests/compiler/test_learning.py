@@ -10,9 +10,7 @@ from uuid_extensions import uuid7
 from src.compiler.learning import (
     LearningLoop,
     OverridePair,
-    AccuracyMetrics,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

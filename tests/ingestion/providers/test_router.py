@@ -3,7 +3,6 @@
 Verifies classification-based routing logic.
 """
 
-import pytest
 
 from src.ingestion.providers.router import ExtractionRouter
 

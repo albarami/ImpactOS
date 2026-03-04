@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.tables import MetricEventRow, EngagementRow
+from src.db.tables import EngagementRow, MetricEventRow
 from src.models.common import utc_now
 
 

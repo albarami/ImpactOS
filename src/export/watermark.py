@@ -13,11 +13,9 @@ from datetime import datetime
 from uuid import UUID
 
 from openpyxl import load_workbook
-from openpyxl.worksheet.header_footer import HeaderFooterItem
 from pptx import Presentation
-from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
-
+from pptx.util import Inches, Pt
 
 SANDBOX_WATERMARK = "DRAFT \u2014 FAILS NFF GOVERNANCE"
 

@@ -6,20 +6,15 @@ EvidenceSnippet generation per extracted table.
 
 import csv
 import io
-from uuid import UUID
 
-import pytest
 from openpyxl import Workbook
 from uuid_extensions import uuid7
 
+from src.ingestion.extraction import ExtractionService
 from src.models.document import (
     DocumentGraph,
-    ExtractionMetadata,
-    ExtractedTable,
 )
 from src.models.governance import EvidenceSnippet
-from src.ingestion.extraction import ExtractionService
-
 
 # ---------------------------------------------------------------------------
 # Helpers: generate test file content

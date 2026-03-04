@@ -9,10 +9,10 @@ Tests:
 """
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
-from pathlib import Path
 from uuid_extensions import uuid7
 
 from src.data.workforce.nationality_classification import (
@@ -28,9 +28,7 @@ from src.data.workforce.unit_registry import QualityConfidence
 from src.engine.satellites import SatelliteResult
 from src.engine.workforce_satellite.satellite import WorkforceSatellite
 from src.models.common import ConstraintConfidence
-
 from tests.integration.golden_scenarios.shared import (
-    EMPLOYMENT_ATOL,
     NUMERIC_RTOL,
 )
 

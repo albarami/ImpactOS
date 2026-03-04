@@ -1,6 +1,5 @@
 """Tests for ScenarioPatternService (MVP-12)."""
 
-import pytest
 from uuid_extensions import uuid7
 
 from src.models.libraries import ScenarioPattern

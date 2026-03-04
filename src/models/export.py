@@ -5,7 +5,15 @@ from uuid import UUID
 
 from pydantic import Field
 
-from src.models.common import DisclosureTier, ExportMode, ImpactOSBase, UTCTimestamp, UUIDv7, new_uuid7, utc_now
+from src.models.common import (
+    DisclosureTier,
+    ExportMode,
+    ImpactOSBase,
+    UTCTimestamp,
+    UUIDv7,
+    new_uuid7,
+    utc_now,
+)
 
 
 class ExportStatus(StrEnum):

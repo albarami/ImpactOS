@@ -4,12 +4,10 @@ Covers: NFF gate check first, generate formats, apply watermarks,
 compute checksums, create Export record. Block governed exports failing NFF.
 """
 
-import pytest
 from uuid_extensions import uuid7
 
 from src.export.orchestrator import (
     ExportOrchestrator,
-    ExportRecord,
     ExportRequest,
     ExportStatus,
 )

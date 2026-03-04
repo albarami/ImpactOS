@@ -9,7 +9,10 @@ Amendment 7: Auto-captured entries start as DRAFT.
 
 from uuid import UUID
 
-from src.models.common import ConstraintConfidence, utc_now
+from src.libraries.assumption_library import AssumptionLibraryService
+from src.libraries.mapping_library import MappingLibraryService
+from src.libraries.scenario_patterns import ScenarioPatternService
+from src.models.common import ConstraintConfidence
 from src.models.libraries import (
     AssumptionLibraryEntry,
     EntryStatus,
@@ -17,10 +20,6 @@ from src.models.libraries import (
     MappingLibraryEntry,
     ScenarioPattern,
 )
-
-from src.libraries.assumption_library import AssumptionLibraryService
-from src.libraries.mapping_library import MappingLibraryService
-from src.libraries.scenario_patterns import ScenarioPatternService
 
 
 class LibraryLearningLoop:

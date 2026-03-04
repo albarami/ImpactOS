@@ -8,14 +8,12 @@ import csv
 import io
 from uuid import UUID
 
-import pytest
 from uuid_extensions import uuid7
 
-from src.models.document import BoQLineItem, DocumentGraph
-from src.models.governance import BoundingBox, EvidenceSnippet, TableCellRef
 from src.ingestion.boq_structuring import BoQStructuringPipeline
 from src.ingestion.extraction import ExtractionService
-
+from src.models.document import BoQLineItem, DocumentGraph
+from src.models.governance import EvidenceSnippet
 
 # ---------------------------------------------------------------------------
 # Helpers

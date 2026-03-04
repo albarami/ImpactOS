@@ -40,7 +40,6 @@ from src.flywheel.scenario_patterns import ScenarioPatternLibrary
 from src.flywheel.workforce_refinement import WorkforceBridgeRefinement
 from src.models.common import ImpactOSBase, UTCTimestamp, utc_now
 
-
 # ---------------------------------------------------------------------------
 # Quality Gate model (Task 13)
 # ---------------------------------------------------------------------------

@@ -14,7 +14,6 @@ import pytest
 from src.data.real_io_loader import DataMode
 from src.data.workforce.satellite_coeff_loader import load_satellite_coefficients
 
-
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------

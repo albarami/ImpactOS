@@ -5,11 +5,9 @@ executive summary, sector impacts, multipliers, import leakage,
 employment impacts, sensitivity, assumptions, evidence ledger.
 """
 
-import pytest
 from uuid_extensions import uuid7
 
-from src.export.decision_pack import DecisionPackBuilder, DecisionPack, SectorImpact
-
+from src.export.decision_pack import DecisionPack, DecisionPackBuilder, SectorImpact
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -6,7 +6,6 @@ Generous ceilings (3-5x expected). Skipped by default (requires -m benchmark).
 
 import logging
 import time
-
 from uuid import UUID
 
 import pytest
