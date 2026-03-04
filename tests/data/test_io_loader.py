@@ -594,9 +594,13 @@ class TestTaxonomyFile:
 
 
 class TestLoadFromExcel:
-    """Excel loader stub."""
+    """Excel loader delegates to SG adapter."""
 
-    def test_raises_not_implemented(self) -> None:
-        """Excel loader raises NotImplementedError."""
-        with pytest.raises(NotImplementedError, match="Excel loading"):
+    def test_xlsx_delegates_to_sg_adapter(self) -> None:
+        """Excel loader delegates to SG adapter (no longer raises NotImplementedError)."""
+        from src.data.sg_model_adapter import SGImportError
+
+        with pytest.raises(SGImportError) as exc_info:
             load_from_excel("dummy.xlsx")
+        assert exc_info.value.reason_code == "SG_FILE_UNREADABLE"
+
