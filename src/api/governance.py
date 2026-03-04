@@ -3,7 +3,10 @@
 POST /v1/workspaces/{workspace_id}/governance/claims/extract   — extract claims
 POST /v1/workspaces/{workspace_id}/governance/nff/check        — NFF gate check
 POST /v1/workspaces/{workspace_id}/governance/assumptions      — create assumption
+GET  /v1/workspaces/{workspace_id}/governance/assumptions       — list assumptions
+GET  /v1/workspaces/{workspace_id}/governance/assumptions/{id}  — assumption detail
 POST /v1/workspaces/{workspace_id}/governance/assumptions/{id}/approve — approve
+POST /v1/workspaces/{workspace_id}/governance/assumptions/{id}/reject  — reject
 GET  /v1/workspaces/{workspace_id}/governance/status/{run_id}  — governance status
 GET  /v1/workspaces/{workspace_id}/governance/blocking-reasons/{run_id}
 
@@ -221,6 +224,58 @@ class LinkEvidenceResponse(BaseModel):
     total_linked: int
 
 
+# --- S19-1: Assumption sign-off schemas ---
+
+
+class AssumptionListItem(BaseModel):
+    assumption_id: str
+    type: str
+    value: float
+    units: str
+    justification: str
+    status: str
+    range_min: float | None = None
+    range_max: float | None = None
+    approved_by: str | None = None
+    approved_at: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class AssumptionListResponse(BaseModel):
+    items: list[AssumptionListItem]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
+class AssumptionDetailResponse(BaseModel):
+    assumption_id: str
+    type: str
+    value: float
+    units: str
+    justification: str
+    status: str
+    range_min: float | None = None
+    range_max: float | None = None
+    evidence_refs: list[str]
+    approved_by: str | None = None
+    approved_at: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class RejectAssumptionRequest(BaseModel):
+    actor: str
+    reason: str | None = None
+
+
+class RejectAssumptionResponse(BaseModel):
+    assumption_id: str
+    status: str
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -238,6 +293,43 @@ def _row_to_claim(row: object) -> Claim:
         evidence_refs=[],
         created_at=row.created_at,
         updated_at=row.updated_at,
+    )
+
+
+def _row_to_assumption_item(row: object) -> AssumptionListItem:
+    """Convert AssumptionRow to list item response."""
+    return AssumptionListItem(
+        assumption_id=str(row.assumption_id),
+        type=row.type,
+        value=row.value,
+        units=row.units,
+        justification=row.justification,
+        status=row.status,
+        range_min=row.range_json.get("min") if row.range_json else None,
+        range_max=row.range_json.get("max") if row.range_json else None,
+        approved_by=str(row.approved_by) if row.approved_by else None,
+        approved_at=row.approved_at.isoformat() if row.approved_at else None,
+        created_at=row.created_at.isoformat(),
+        updated_at=row.updated_at.isoformat(),
+    )
+
+
+def _row_to_assumption_detail(row: object) -> AssumptionDetailResponse:
+    """Convert AssumptionRow to detail response."""
+    return AssumptionDetailResponse(
+        assumption_id=str(row.assumption_id),
+        type=row.type,
+        value=row.value,
+        units=row.units,
+        justification=row.justification,
+        status=row.status,
+        range_min=row.range_json.get("min") if row.range_json else None,
+        range_max=row.range_json.get("max") if row.range_json else None,
+        evidence_refs=[str(e) for e in (row.evidence_refs or [])],
+        approved_by=str(row.approved_by) if row.approved_by else None,
+        approved_at=row.approved_at.isoformat() if row.approved_at else None,
+        created_at=row.created_at.isoformat(),
+        updated_at=row.updated_at.isoformat(),
     )
 
 
@@ -349,12 +441,66 @@ async def create_assumption(
         justification=assumption.justification,
         evidence_refs=[str(er) for er in assumption.evidence_refs],
         status=assumption.status.value,
+        workspace_id=workspace_id,
     )
 
     return CreateAssumptionResponse(
         assumption_id=str(assumption.assumption_id),
         status=assumption.status.value,
     )
+
+
+@router.get(
+    "/{workspace_id}/governance/assumptions",
+    response_model=AssumptionListResponse,
+)
+async def list_assumptions(
+    workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
+    assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
+    status: str | None = Query(default=None),
+    limit: int = Query(default=50),
+    offset: int = Query(default=0),
+) -> AssumptionListResponse:
+    """List assumptions scoped to workspace with pagination."""
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "ASSUMPTION_INVALID_PAGINATION",
+            "message": f"limit must be 1-100, got {limit}.",
+        })
+    if offset < 0:
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "ASSUMPTION_INVALID_PAGINATION",
+            "message": f"offset must be >= 0, got {offset}.",
+        })
+    rows, total = await assumption_repo.list_by_workspace(
+        workspace_id, status=status, limit=limit, offset=offset,
+    )
+    items = [_row_to_assumption_item(r) for r in rows]
+    return AssumptionListResponse(
+        items=items, total=total, limit=limit, offset=offset,
+        has_more=total > offset + limit,
+    )
+
+
+@router.get(
+    "/{workspace_id}/governance/assumptions/{assumption_id}",
+    response_model=AssumptionDetailResponse,
+)
+async def get_assumption_detail(
+    workspace_id: UUID,
+    assumption_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
+    assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
+) -> AssumptionDetailResponse:
+    """Get assumption detail (workspace-scoped)."""
+    row = await assumption_repo.get_for_workspace(assumption_id, workspace_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail={
+            "reason_code": "ASSUMPTION_NOT_FOUND",
+            "message": f"Assumption {assumption_id} not found.",
+        })
+    return _row_to_assumption_detail(row)
 
 
 @router.post(
@@ -365,28 +511,30 @@ async def approve_assumption(
     workspace_id: UUID,
     assumption_id: UUID,
     body: ApproveAssumptionRequest,
-    member: WorkspaceMember = Depends(require_workspace_member),
+    member: WorkspaceMember = Depends(require_role("manager", "admin")),
     assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
 ) -> ApproveAssumptionResponse:
-    """Approve an assumption — requires sensitivity range."""
+    """Approve an assumption — manager/admin only, requires sensitivity range."""
     if body.range_min is None or body.range_max is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Approved assumptions must include range_min and range_max.",
-        )
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "ASSUMPTION_RANGE_REQUIRED",
+            "message": "Approved assumptions must include range_min and range_max.",
+        })
 
-    row = await assumption_repo.get(assumption_id)
+    row = await assumption_repo.get_for_workspace(assumption_id, workspace_id)
     if row is None:
-        raise HTTPException(status_code=404, detail=f"Assumption {assumption_id} not found.")
+        raise HTTPException(status_code=404, detail={
+            "reason_code": "ASSUMPTION_NOT_FOUND",
+            "message": f"Assumption {assumption_id} not found.",
+        })
 
     if row.status != "DRAFT":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Cannot approve: assumption {assumption_id}"
-                f" is not DRAFT (currently {row.status})."
+        raise HTTPException(status_code=409, detail={
+            "reason_code": "ASSUMPTION_NOT_DRAFT",
+            "message": (
+                f"Cannot approve: status is {row.status}, expected DRAFT."
             ),
-        )
+        })
 
     range_json = {"min": body.range_min, "max": body.range_max}
     updated = await assumption_repo.approve(
@@ -400,6 +548,36 @@ async def approve_assumption(
         status=updated.status,
         range_min=updated.range_json.get("min") if updated.range_json else None,
         range_max=updated.range_json.get("max") if updated.range_json else None,
+    )
+
+
+@router.post(
+    "/{workspace_id}/governance/assumptions/{assumption_id}/reject",
+    response_model=RejectAssumptionResponse,
+)
+async def reject_assumption(
+    workspace_id: UUID,
+    assumption_id: UUID,
+    body: RejectAssumptionRequest,
+    member: WorkspaceMember = Depends(require_role("manager", "admin")),
+    assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
+) -> RejectAssumptionResponse:
+    """Reject an assumption — manager/admin only."""
+    row = await assumption_repo.get_for_workspace(assumption_id, workspace_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail={
+            "reason_code": "ASSUMPTION_NOT_FOUND",
+            "message": f"Assumption {assumption_id} not found.",
+        })
+    if row.status != "DRAFT":
+        raise HTTPException(status_code=409, detail={
+            "reason_code": "ASSUMPTION_NOT_DRAFT",
+            "message": f"Cannot reject: status is {row.status}, expected DRAFT.",
+        })
+    updated = await assumption_repo.reject(assumption_id)
+    return RejectAssumptionResponse(
+        assumption_id=str(updated.assumption_id),
+        status=updated.status,
     )
 
 

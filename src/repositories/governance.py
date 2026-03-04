@@ -24,13 +24,14 @@ class AssumptionRepository:
                      units: str, justification: str,
                      evidence_refs: list | None = None,
                      range_json: dict | None = None,
-                     status: str = "DRAFT") -> AssumptionRow:
+                     status: str = "DRAFT",
+                     workspace_id: UUID | None = None) -> AssumptionRow:
         now = utc_now()
         row = AssumptionRow(
             assumption_id=assumption_id, type=type, value=value,
             range_json=range_json, units=units, justification=justification,
-            evidence_refs=evidence_refs or [], status=status,
-            created_at=now, updated_at=now,
+            evidence_refs=evidence_refs or [], workspace_id=workspace_id,
+            status=status, created_at=now, updated_at=now,
         )
         self._session.add(row)
         await self._session.flush()
