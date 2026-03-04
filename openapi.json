@@ -6495,6 +6495,363 @@
         }
       }
     },
+    "/v1/workspaces/{workspace_id}/workshop/sessions": {
+      "post": {
+        "tags": [
+          "workshop"
+        ],
+        "summary": "Create Workshop Session",
+        "description": "Create or retrieve a workshop session.\n\nIdempotent: returns 200 with existing session if config_hash matches.",
+        "operationId": "create_workshop_session_v1_workspaces__workspace_id__workshop_sessions_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkshopSessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "workshop"
+        ],
+        "summary": "List Workshop Sessions",
+        "description": "List workshop sessions for a workspace (paginated).",
+        "operationId": "list_workshop_sessions_v1_workspaces__workspace_id__workshop_sessions_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkshopListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/workshop/sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "workshop"
+        ],
+        "summary": "Get Workshop Session",
+        "description": "Get a single workshop session by ID (workspace-scoped).",
+        "operationId": "get_workshop_session_v1_workspaces__workspace_id__workshop_sessions__session_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkshopSessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/workshop/preview": {
+      "post": {
+        "tags": [
+          "workshop"
+        ],
+        "summary": "Preview Workshop",
+        "description": "Run an ephemeral engine preview -- results NOT persisted.\n\nSame engine path as POST /engine/runs but without storing RunSnapshot/ResultSet.",
+        "operationId": "preview_workshop_v1_workspaces__workspace_id__workshop_preview_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Preview Workshop V1 Workspaces  Workspace Id  Workshop Preview Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/workshop/sessions/{session_id}/commit": {
+      "post": {
+        "tags": [
+          "workshop"
+        ],
+        "summary": "Commit Workshop Session",
+        "description": "Commit a draft workshop session -- creates a real RunSnapshot.\n\nIf already committed returns 409.",
+        "operationId": "commit_workshop_session_v1_workspaces__workspace_id__workshop_sessions__session_id__commit_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkshopSessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/workshop/sessions/{session_id}/export": {
+      "post": {
+        "tags": [
+          "workshop"
+        ],
+        "summary": "Export Workshop Session",
+        "description": "Export gate -- returns committed_run_id for client to use with POST /exports.\n\nSession must be committed (status == 'committed').",
+        "operationId": "export_workshop_session_v1_workspaces__workspace_id__workshop_sessions__session_id__export_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkshopExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Export Workshop Session V1 Workspaces  Workspace Id  Workshop Sessions  Session Id  Export Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health Check",
@@ -7869,6 +8226,42 @@
         ],
         "title": "CoefficientsResponse"
       },
+      "CommitRequest": {
+        "properties": {
+          "model_version_id": {
+            "type": "string",
+            "title": "Model Version Id"
+          },
+          "base_year": {
+            "type": "integer",
+            "title": "Base Year"
+          },
+          "satellite_coefficients": {
+            "$ref": "#/components/schemas/SatelliteCoeffsPayload"
+          },
+          "deflators": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deflators"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version_id",
+          "base_year",
+          "satellite_coefficients"
+        ],
+        "title": "CommitRequest"
+      },
       "CompareRunsRequest": {
         "properties": {
           "run_id_a": {
@@ -8920,6 +9313,37 @@
           "name"
         ],
         "title": "CreateScenarioResponse"
+      },
+      "CreateSessionRequest": {
+        "properties": {
+          "baseline_run_id": {
+            "type": "string",
+            "title": "Baseline Run Id"
+          },
+          "base_shocks": {
+            "additionalProperties": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Base Shocks"
+          },
+          "sliders": {
+            "items": {
+              "$ref": "#/components/schemas/_SliderItemRaw"
+            },
+            "type": "array",
+            "title": "Sliders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "baseline_run_id",
+          "base_shocks"
+        ],
+        "title": "CreateSessionRequest"
       },
       "CreateWorkspaceRequest": {
         "properties": {
@@ -11491,6 +11915,51 @@
         "title": "PortfolioOptimizationResponse",
         "description": "Full response for a single portfolio optimization result."
       },
+      "PreviewRequest": {
+        "properties": {
+          "baseline_run_id": {
+            "type": "string",
+            "title": "Baseline Run Id"
+          },
+          "base_shocks": {
+            "additionalProperties": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Base Shocks"
+          },
+          "sliders": {
+            "items": {
+              "$ref": "#/components/schemas/_SliderItemRaw"
+            },
+            "type": "array",
+            "title": "Sliders"
+          },
+          "model_version_id": {
+            "type": "string",
+            "title": "Model Version Id"
+          },
+          "base_year": {
+            "type": "integer",
+            "title": "Base Year"
+          },
+          "satellite_coefficients": {
+            "$ref": "#/components/schemas/SatelliteCoeffsPayload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "baseline_run_id",
+          "base_shocks",
+          "model_version_id",
+          "base_year",
+          "satellite_coefficients"
+        ],
+        "title": "PreviewRequest"
+      },
       "QualityOverviewResponse": {
         "properties": {
           "workspace_id": {
@@ -12618,6 +13087,28 @@
         ],
         "title": "SectorListResponse"
       },
+      "SliderItem": {
+        "properties": {
+          "sector_code": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Sector Code"
+          },
+          "pct_delta": {
+            "type": "number",
+            "title": "Pct Delta",
+            "description": "Percent delta applied to baseline shock. E.g. 15.0 means +15%."
+          }
+        },
+        "type": "object",
+        "required": [
+          "sector_code",
+          "pct_delta"
+        ],
+        "title": "SliderItem",
+        "description": "Single sector slider adjustment."
+      },
       "SnapshotResponse": {
         "properties": {
           "run_id": {
@@ -13231,6 +13722,144 @@
         ],
         "title": "WorkforceResultResponse"
       },
+      "WorkshopExportRequest": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "export_formats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Export Formats"
+          },
+          "pack_data": {
+            "type": "object",
+            "title": "Pack Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "export_formats",
+          "pack_data"
+        ],
+        "title": "WorkshopExportRequest"
+      },
+      "WorkshopListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkshopSessionResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "WorkshopListResponse",
+        "description": "Paginated list of workshop sessions."
+      },
+      "WorkshopSessionResponse": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Session Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "baseline_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Baseline Run Id"
+          },
+          "slider_config": {
+            "items": {
+              "$ref": "#/components/schemas/SliderItem"
+            },
+            "type": "array",
+            "title": "Slider Config"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "committed_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Committed Run Id"
+          },
+          "config_hash": {
+            "type": "string",
+            "title": "Config Hash"
+          },
+          "preview_summary": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Summary"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "workspace_id",
+          "baseline_run_id",
+          "slider_config",
+          "status",
+          "config_hash",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WorkshopSessionResponse",
+        "description": "API response for a single workshop session."
+      },
       "WorkspaceListResponse": {
         "properties": {
           "items": {
@@ -13317,6 +13946,22 @@
         ],
         "title": "_CreateRequest",
         "description": "Request body with relaxed config validation \u2014 bounds checked in endpoint."
+      },
+      "_SliderItemRaw": {
+        "properties": {
+          "sector_code": {
+            "type": "string",
+            "title": "Sector Code",
+            "default": ""
+          },
+          "pct_delta": {
+            "type": "number",
+            "title": "Pct Delta",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "title": "_SliderItemRaw"
       },
       "src__api__compiler__CompileRequest": {
         "properties": {

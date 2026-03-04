@@ -120,4 +120,5 @@ All fields are optional (None by default). Existing functionality is unaffected.
 | MVP-19 | Client Portal Collaboration | 4347 | 1d6dae2 | 2026-03-03 |
 | MVP-20 | Structural Path Analysis + Chokepoints | 4422 | e284aa8 | 2026-03-04 |
 | MVP-21 | Portfolio Optimization | 4506 | ee25cdf | 2026-03-04 |
-| MVP-22-23 | Phase 3 Remaining | - | - | Future |
+| MVP-22 | Live Workshop Dashboard | 4556 | a9c0729 | 2026-03-04 |
+| MVP-23 | Phase 3 Remaining | - | - | Future |
