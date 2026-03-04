@@ -9,6 +9,8 @@ POST /v1/workspaces/{workspace_id}/governance/assumptions/{id}/approve — appro
 POST /v1/workspaces/{workspace_id}/governance/assumptions/{id}/reject  — reject
 GET  /v1/workspaces/{workspace_id}/governance/status/{run_id}  — governance status
 GET  /v1/workspaces/{workspace_id}/governance/blocking-reasons/{run_id}
+GET  /v1/workspaces/{workspace_id}/governance/evidence          — browse evidence
+       ?run_id=&claim_id=&source_id=&text_query=&limit=&offset=
 
 S0-4: Workspace-scoped routes.
 Deterministic — no LLM calls.
@@ -27,9 +29,11 @@ from src.api.auth_deps import (
 from src.api.dependencies import (
     get_assumption_repo,
     get_claim_repo,
+    get_document_repo,
     get_evidence_snippet_repo,
     get_run_snapshot_repo,
 )
+from src.repositories.documents import DocumentRepository
 from src.governance.claim_extractor import ClaimExtractor
 from src.governance.publication_gate import PublicationGate
 from src.models.common import (
@@ -194,6 +198,10 @@ class EvidenceListItem(BaseModel):
 class EvidenceListResponse(BaseModel):
     items: list[EvidenceListItem]
     total: int
+    total_matching: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
 
 
 class BBoxResponse(BaseModel):
@@ -774,14 +782,51 @@ async def list_evidence(
     workspace_id: UUID,
     member: WorkspaceMember = Depends(require_workspace_member),
     run_id: UUID | None = Query(default=None, description="Filter evidence by run_id"),
+    claim_id: UUID | None = Query(default=None, description="Filter by claim's evidence_refs"),
+    source_id: UUID | None = Query(default=None, description="Filter by source document"),
+    text_query: str | None = Query(default=None, description="Text search (ILIKE)"),
+    limit: int | None = Query(default=None, description="Page size (1-100)"),
+    offset: int | None = Query(default=None, description="Page offset"),
     evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
     run_snapshot_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
+    document_repo: DocumentRepository = Depends(get_document_repo),
 ) -> EvidenceListResponse:
-    """B-7: List evidence snippets scoped to a run within a workspace.
+    """List evidence snippets with optional filters and pagination.
 
-    Returns 404 if run_id does not exist or belongs to another workspace.
-    Returns only evidence snippets linked to claims in the specified run.
+    Backward-compatible: without limit, returns all matching rows.
+    With limit, returns paginated results with total_matching and has_more.
+    Filters (run_id, claim_id, source_id, text_query) are AND-combined.
     """
+    # --- Pagination validation ---
+    if limit is not None:
+        if limit < 1 or limit > 100:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "EVIDENCE_INVALID_PAGINATION",
+                "message": f"limit must be 1-100, got {limit}.",
+            })
+    if offset is not None:
+        if offset < 0:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "EVIDENCE_INVALID_PAGINATION",
+                "message": f"offset must be >= 0, got {offset}.",
+            })
+        if limit is None:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "EVIDENCE_INVALID_PAGINATION",
+                "message": "offset requires limit to be set.",
+            })
+
+    # --- Text query validation ---
+    if text_query is not None:
+        text_query = text_query.strip()
+        if len(text_query) < 2:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "EVIDENCE_TEXT_QUERY_TOO_SHORT",
+                "message": "text_query must be at least 2 characters after trimming.",
+            })
+
+    # --- run_id 404 check (preserve existing behavior) ---
     if run_id is not None:
         snapshot = await run_snapshot_repo.get(run_id)
         if snapshot is None:
@@ -792,9 +837,44 @@ async def list_evidence(
             raise HTTPException(
                 status_code=404, detail=f"Run {run_id} not found.",
             )
-        rows = await evidence_repo.list_by_run_for_workspace(run_id, workspace_id)
-    else:
-        rows = await evidence_repo.list_by_workspace(workspace_id)
+
+    # --- claim_id resolution ---
+    snippet_ids: list[UUID] | None = None
+    if claim_id is not None:
+        claim_row = await claim_repo.get_for_workspace(claim_id, workspace_id)
+        if claim_row is None:
+            raise HTTPException(
+                status_code=404, detail=f"Claim {claim_id} not found.",
+            )
+        refs = claim_row.evidence_refs or []
+        snippet_ids = [UUID(r) for r in refs]
+        # Short-circuit: empty refs means no matching snippets
+        if not snippet_ids:
+            return EvidenceListResponse(
+                items=[], total=0,
+                total_matching=0 if limit is not None else None,
+                limit=limit, offset=offset,
+                has_more=False if limit is not None else None,
+            )
+
+    # --- source_id 404 check ---
+    if source_id is not None:
+        doc_row = await document_repo.get(source_id)
+        if doc_row is None or doc_row.workspace_id != workspace_id:
+            raise HTTPException(
+                status_code=404, detail=f"Document {source_id} not found.",
+            )
+
+    # --- Browse ---
+    rows, total_count = await evidence_repo.browse(
+        workspace_id,
+        run_id=run_id,
+        snippet_ids=snippet_ids,
+        source_id=source_id,
+        text_query=text_query,
+        limit=limit,
+        offset=offset,
+    )
 
     items = [
         EvidenceListItem(
@@ -807,7 +887,17 @@ async def list_evidence(
         )
         for r in rows
     ]
-    return EvidenceListResponse(items=items, total=len(items))
+
+    return EvidenceListResponse(
+        items=items,
+        total=len(items) if total_count is None else total_count,
+        total_matching=total_count,
+        limit=limit,
+        offset=offset,
+        has_more=(
+            total_count > (offset or 0) + limit
+        ) if limit is not None and total_count is not None else None,
+    )
 
 
 @router.get(

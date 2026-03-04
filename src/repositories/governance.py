@@ -348,8 +348,8 @@ class EvidenceSnippetRepository:
     ) -> list[EvidenceSnippetRow]:
         """Get evidence snippets for a run's source documents.
 
-        Resolves run → source_checksums → workspace documents matching those
-        checksums → all evidence snippets for those documents.
+        Resolves run -> source_checksums -> workspace documents matching those
+        checksums -> all evidence snippets for those documents.
         """
         snapshot_result = await self._session.execute(
             select(RunSnapshotRow).where(
@@ -381,3 +381,76 @@ class EvidenceSnippetRepository:
             .order_by(EvidenceSnippetRow.created_at.asc())
         )
         return list(result.scalars().all())
+
+    async def browse(
+        self, workspace_id: UUID, *,
+        run_id: UUID | None = None,
+        snippet_ids: list[UUID] | None = None,
+        source_id: UUID | None = None,
+        text_query: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> tuple[list[EvidenceSnippetRow], int | None]:
+        """Paginated, filtered evidence browsing with workspace scoping.
+
+        Returns (rows, total_count). total_count is None when unpaginated.
+        snippet_ids is pre-resolved from claim's evidence_refs by the API layer.
+        """
+        base = (
+            select(EvidenceSnippetRow)
+            .join(DocumentRow, EvidenceSnippetRow.source_id == DocumentRow.doc_id)
+            .where(DocumentRow.workspace_id == workspace_id)
+        )
+
+        if snippet_ids is not None:
+            if not snippet_ids:
+                return [], 0
+            base = base.where(EvidenceSnippetRow.snippet_id.in_(snippet_ids))
+
+        if source_id is not None:
+            base = base.where(EvidenceSnippetRow.source_id == source_id)
+
+        if text_query is not None:
+            base = base.where(
+                EvidenceSnippetRow.extracted_text.ilike(f"%{text_query}%")
+            )
+
+        if run_id is not None:
+            snap_result = await self._session.execute(
+                select(RunSnapshotRow).where(
+                    RunSnapshotRow.run_id == run_id,
+                    RunSnapshotRow.workspace_id == workspace_id,
+                )
+            )
+            snapshot = snap_result.scalar_one_or_none()
+            if snapshot is None:
+                return [], 0
+            checksums = snapshot.source_checksums or []
+            if not checksums:
+                return [], 0
+            doc_result = await self._session.execute(
+                select(DocumentRow.doc_id).where(
+                    DocumentRow.workspace_id == workspace_id,
+                    DocumentRow.hash_sha256.in_(checksums),
+                )
+            )
+            doc_ids = list(doc_result.scalars().all())
+            if not doc_ids:
+                return [], 0
+            base = base.where(EvidenceSnippetRow.source_id.in_(doc_ids))
+
+        base = base.order_by(
+            EvidenceSnippetRow.created_at.asc(),
+            EvidenceSnippetRow.snippet_id.asc(),
+        )
+
+        total_count: int | None = None
+        if limit is not None:
+            count_result = await self._session.execute(
+                select(func.count()).select_from(base.subquery())
+            )
+            total_count = count_result.scalar_one()
+            base = base.limit(limit).offset(offset or 0)
+
+        result = await self._session.execute(base)
+        return list(result.scalars().all()), total_count
