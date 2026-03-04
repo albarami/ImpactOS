@@ -24,13 +24,13 @@ Based on merged work on `main`:
 | 18 | MVP-18 | SG Model Import Adapter | 4220 | a522d45 | sprint-18-complete | 2026-03-03 |
 | 19 | MVP-19 | Client Portal Collaboration | 4347 | 1d6dae2 | sprint-19-complete | 2026-03-03 |
 | 20 | MVP-20 | Structural Path Analysis + Chokepoints | 4422 | e284aa8 | sprint-20-complete | 2026-03-04 |
+| 21 | MVP-21 | Portfolio Optimization | 4506 | ee25cdf | sprint-21-complete | 2026-03-04 |
+| 22 | MVP-22 | Live Workshop Dashboard | 4556 | a9c0729 | sprint-22-complete | 2026-03-04 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
 From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
 
-- MVP-21: Portfolio Optimization
-- MVP-22: Live Workshop Dashboard
 - MVP-23: Advanced Variance Bridges
 
 ## 3) Program sequence (no ambiguity)
@@ -43,12 +43,12 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
 4. Sprint 17: MVP-17 RunSeries annual storage + API — done (1b2ab3e)
 5. Sprint 18: MVP-18 SG import adapter + parity benchmark gate — done (a522d45)
 
-### Wave B: Premium boardroom layer — IN PROGRESS (3 of 5 done)
+### Wave B: Premium boardroom layer — IN PROGRESS (4 of 5 done)
 
 6. Sprint 19: MVP-19 Client Portal (authz-safe collaboration flows) — done (1d6dae2)
 7. Sprint 20: MVP-20 Structural Path Analysis — done (e284aa8)
 8. Sprint 21: MVP-21 Portfolio Optimization — done (ee25cdf, tag sprint-21-complete)
-9. Sprint 22: MVP-22 Live Workshop Dashboard
+9. Sprint 22: MVP-22 Live Workshop Dashboard — done (a9c0729, tag sprint-22-complete)
 10. Sprint 23: MVP-23 Advanced Variance Bridges + explainability package
 
 ### Wave C: Full go-live proof
@@ -74,9 +74,9 @@ The system is only considered fully complete when all are true:
 
 ## 5) Immediate next action
 
-- Sprint 21 (MVP-21 Portfolio Optimization) merged at ee25cdf, tag sprint-21-complete.
-- Execute Sprint 22 prompt for MVP-22 Live Workshop Dashboard.
-- Do not start MVP-23+ until MVP-22 acceptance criteria pass.
+- Sprint 22 (MVP-22 Live Workshop Dashboard) complete at a9c0729, tag sprint-22-complete.
+- Execute Sprint 23 prompt for MVP-23 Advanced Variance Bridges + explainability package.
+- Do not start MVP-24+ until MVP-23 acceptance criteria pass.
 
 ## 6) Minimum environment needed to see "live" behavior
 

@@ -49,6 +49,7 @@ from src.repositories.workforce import (
     SectorOccupationBridgeRepository,
     WorkforceResultRepository,
 )
+from src.repositories.workshop import WorkshopSessionRepository
 from src.repositories.workspace import WorkspaceRepository
 
 # ---------------------------------------------------------------------------
@@ -355,3 +356,14 @@ async def get_workspace_repo(
     session: AsyncSession = Depends(get_async_session),
 ) -> WorkspaceRepository:
     return WorkspaceRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Workshop Sessions (Sprint 22)
+# ---------------------------------------------------------------------------
+
+
+async def get_workshop_session_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> WorkshopSessionRepository:
+    return WorkshopSessionRepository(session)

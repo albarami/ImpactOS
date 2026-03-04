@@ -28,6 +28,7 @@ from src.api.runs import router as engine_ws_router
 from src.api.scenarios import router as scenarios_router
 from src.api.taxonomy import router as taxonomy_router
 from src.api.workforce import router as workforce_router
+from src.api.workshop import router as workshop_router
 from src.api.workspaces import router as workspaces_router
 from src.config.settings import Settings, get_settings, validate_settings_for_env
 
@@ -121,6 +122,7 @@ app.include_router(engine_ws_router)
 app.include_router(scenarios_router)
 app.include_router(taxonomy_router)
 app.include_router(workforce_router)
+app.include_router(workshop_router)
 
 
 # --- Infrastructure Endpoints (global) ---

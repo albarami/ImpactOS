@@ -671,3 +671,88 @@ python -m pytest tests -q
 | config_hash includes optimization_version | Yes | Code review confirmed |
 | Migration 016 upgrade/downgrade clean | Yes | `test_016_portfolio_optimization_postgres.py` passes |
 | Existing tests unchanged | Yes | Full suite: 4,506 passed, 3 failed (pre-existing PG permission), 4 skipped |
+
+---
+
+## Sprint 22: Live Workshop Dashboard (MVP-22)
+
+Branch: `phase3-sprint22-live-workshop-dashboard`
+Commit: `a9c0729`
+
+### What Changed
+
+| Category | Description |
+|---|---|
+| Pydantic models | `src/models/workshop.py` — SliderItem, WorkshopSessionResponse, WorkshopListResponse |
+| Engine transform | `src/engine/workshop_transform.py` — deterministic slider transform, validation, config hash |
+| DB migration | `alembic/versions/017_workshop_sessions.py` — workshop_sessions table with FK, UNIQUE, CHECK, index |
+| ORM | `src/db/tables.py` — WorkshopSessionRow |
+| Repository | `src/repositories/workshop.py` — WorkshopSessionRepository (CRUD, workspace-scoped) |
+| DI | `src/api/dependencies.py` — get_workshop_session_repo factory |
+| API endpoints | `src/api/workshop.py` — 6 endpoints: create (201/200 idempotent), get, list, preview, commit, export |
+| Frontend hooks | `frontend/src/lib/api/hooks/useWorkshop.ts` — 6 TanStack Query hooks |
+| Frontend UI | `frontend/src/components/workshop/` — sector-sliders, preview-panel, session-controls |
+| Frontend page | `frontend/src/app/w/[workspaceId]/workshop/page.tsx` — workshop route with 500ms debounce |
+
+### Test Evidence
+
+| Area | Tests | Command |
+|---|---|---|
+| Transform engine | 22 pass | `pytest tests/engine/test_workshop_transform.py -q` |
+| Repository | 16 pass (8x2 backends) | `pytest tests/repositories/test_workshop.py -q` |
+| API endpoints | 28 pass (14x2 backends) | `pytest tests/api/test_workshop.py -q` |
+| Frontend | 275 pass (32 files) | `npx vitest run` |
+| Full backend suite | 4,556 pass | `pytest tests/ -q --ignore=tests/migration` |
+
+### Error Reason Codes
+
+| Code | Trigger | HTTP |
+|---|---|---|
+| WORKSHOP_NO_BASELINE | baseline_run_id not found | 422 |
+| WORKSHOP_UNKNOWN_SECTOR | slider references unknown sector_code | 422 |
+| WORKSHOP_DUPLICATE_SECTOR | duplicate sector_code in slider list | 422 |
+| WORKSHOP_INVALID_CONFIG | base_shocks shape/content invalid | 422 |
+| WORKSHOP_SESSION_NOT_FOUND | session_id not found in workspace | 404 |
+| WORKSHOP_NOT_COMMITTED | export attempted on draft session | 422 |
+| WORKSHOP_PREVIEW_FAILED | preview engine computation failed | 503 |
+| WORKSHOP_COMMIT_FAILED | commit engine computation failed | 500 |
+| WORKSHOP_ALREADY_COMMITTED | re-commit on committed session | 409 |
+
+### Preflight Checks
+
+```bash
+# Sprint 22 targeted tests
+python -m pytest tests/engine/test_workshop_transform.py tests/repositories/test_workshop.py tests/api/test_workshop.py -q
+
+# Lint (Sprint 22 files — core rules)
+python -m ruff check --select E,W,F src/api/workshop.py src/models/workshop.py src/engine/workshop_transform.py src/repositories/workshop.py
+
+# Alembic
+python -m alembic current   # -> 017_workshop_sessions (head)
+python -m alembic heads     # -> single head at 017
+python -m alembic check     # -> No new upgrade operations detected
+
+# Full test suite
+python -m pytest tests/ -q --ignore=tests/migration
+
+# Frontend tests
+cd frontend && npx vitest run
+```
+
+### Go/No-Go Criteria (additive)
+
+| Criteria | Required | How to Verify |
+|---|---|---|
+| Deterministic slider transform correct | Yes | `test_single_slider_modifies_correct_sector`, `test_negative_pct_delta` pass |
+| Config hash deterministic and order-independent | Yes | `test_deterministic`, `test_order_independent` pass |
+| Duplicate sector detected before unknown sector | Yes | `test_duplicate_before_unknown` passes |
+| base_shocks shape validated (length + non-empty) | Yes | `test_create_bad_base_shocks_length_422`, `test_create_empty_base_shocks_422` pass |
+| POST idempotent on (workspace_id, config_hash) | Yes | `test_create_idempotent_200` passes |
+| Race-safe idempotency with IntegrityError retry | Yes | Code review confirmed (same pattern as Sprint 21) |
+| Workspace isolation enforced | Yes | `test_get_wrong_workspace_404` passes |
+| Export gate blocks uncommitted sessions | Yes | `test_export_uncommitted_422` passes |
+| All 9 reason codes implemented and tested | Yes | Targeted tests pass with correct reason_codes |
+| Migration 017 upgrade clean, alembic check clean | Yes | Single head at 017, no drift detected |
+| OpenAPI spec includes 5 workshop paths | Yes | openapi.json regenerated with 103 routes |
+| Frontend 275 tests pass | Yes | `npx vitest run` — 32 files, 275 pass |
+| Existing tests unchanged | Yes | Full suite: 4,556 passed, 1 failed (pre-existing PG table ownership), 3 skipped |
