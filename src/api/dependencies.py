@@ -40,6 +40,7 @@ from src.repositories.libraries import (
 )
 from src.repositories.mapping_decisions import MappingDecisionRepository
 from src.repositories.metrics import EngagementRepository, MetricEventRepository
+from src.repositories.path_analytics import PathAnalysisRepository
 from src.repositories.scenarios import ScenarioVersionRepository
 from src.repositories.workforce import (
     EmploymentCoefficientsRepository,
@@ -320,6 +321,16 @@ def get_export_artifact_storage() -> "ExportArtifactStorage":
 
     settings = get_settings()
     return ExportArtifactStorage(storage_root=settings.OBJECT_STORAGE_PATH)
+
+
+# ---------------------------------------------------------------------------
+# Path Analytics (Sprint 20)
+# ---------------------------------------------------------------------------
+
+async def get_path_analysis_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> PathAnalysisRepository:
+    return PathAnalysisRepository(session)
 
 
 # ---------------------------------------------------------------------------
