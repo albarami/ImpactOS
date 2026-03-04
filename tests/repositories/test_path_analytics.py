@@ -140,7 +140,10 @@ async def test_get_for_workspace_hit(db_session):
     repo = PathAnalysisRepository(db_session)
 
     row = await _create_path_analysis(
-        db_session, repo, rs.run_id, ws.workspace_id,
+        db_session,
+        repo,
+        rs.run_id,
+        ws.workspace_id,
     )
 
     result = await repo.get_for_workspace(row.analysis_id, ws.workspace_id)
@@ -156,7 +159,10 @@ async def test_get_for_workspace_wrong_workspace(db_session):
     repo = PathAnalysisRepository(db_session)
 
     row = await _create_path_analysis(
-        db_session, repo, rs.run_id, ws_a.workspace_id,
+        db_session,
+        repo,
+        rs.run_id,
+        ws_a.workspace_id,
     )
 
     result = await repo.get_for_workspace(row.analysis_id, ws_b.workspace_id)
@@ -170,12 +176,17 @@ async def test_get_by_run_and_config_for_workspace_hit(db_session):
     repo = PathAnalysisRepository(db_session)
 
     row = await _create_path_analysis(
-        db_session, repo, rs.run_id, ws.workspace_id,
+        db_session,
+        repo,
+        rs.run_id,
+        ws.workspace_id,
         config_hash="sha256:unique_config",
     )
 
     result = await repo.get_by_run_and_config_for_workspace(
-        rs.run_id, "sha256:unique_config", ws.workspace_id,
+        rs.run_id,
+        "sha256:unique_config",
+        ws.workspace_id,
     )
     assert result is not None
     assert result.analysis_id == row.analysis_id
@@ -188,12 +199,17 @@ async def test_get_by_run_and_config_for_workspace_miss(db_session):
     repo = PathAnalysisRepository(db_session)
 
     await _create_path_analysis(
-        db_session, repo, rs.run_id, ws.workspace_id,
+        db_session,
+        repo,
+        rs.run_id,
+        ws.workspace_id,
         config_hash="sha256:actual_config",
     )
 
     result = await repo.get_by_run_and_config_for_workspace(
-        rs.run_id, "sha256:wrong_config", ws.workspace_id,
+        rs.run_id,
+        "sha256:wrong_config",
+        ws.workspace_id,
     )
     assert result is None
 
@@ -205,11 +221,17 @@ async def test_list_by_run_multiple_configs(db_session):
     repo = PathAnalysisRepository(db_session)
 
     row1 = await _create_path_analysis(
-        db_session, repo, rs.run_id, ws.workspace_id,
+        db_session,
+        repo,
+        rs.run_id,
+        ws.workspace_id,
         config_hash="sha256:config_a",
     )
     row2 = await _create_path_analysis(
-        db_session, repo, rs.run_id, ws.workspace_id,
+        db_session,
+        repo,
+        rs.run_id,
+        ws.workspace_id,
         config_hash="sha256:config_b",
     )
 
@@ -230,24 +252,36 @@ async def test_list_by_run_pagination(db_session):
     # Create 5 analyses with distinct config hashes
     for i in range(5):
         await _create_path_analysis(
-            db_session, repo, rs.run_id, ws.workspace_id,
+            db_session,
+            repo,
+            rs.run_id,
+            ws.workspace_id,
             config_hash=f"sha256:config_{i:03d}",
         )
 
     page1, total1 = await repo.list_by_run(
-        rs.run_id, ws.workspace_id, limit=2, offset=0,
+        rs.run_id,
+        ws.workspace_id,
+        limit=2,
+        offset=0,
     )
     assert total1 == 5
     assert len(page1) == 2
 
     page2, total2 = await repo.list_by_run(
-        rs.run_id, ws.workspace_id, limit=2, offset=2,
+        rs.run_id,
+        ws.workspace_id,
+        limit=2,
+        offset=2,
     )
     assert total2 == 5
     assert len(page2) == 2
 
     page3, total3 = await repo.list_by_run(
-        rs.run_id, ws.workspace_id, limit=2, offset=4,
+        rs.run_id,
+        ws.workspace_id,
+        limit=2,
+        offset=4,
     )
     assert total3 == 5
     assert len(page3) == 1
@@ -266,11 +300,17 @@ async def test_list_by_run_workspace_isolation(db_session):
     repo = PathAnalysisRepository(db_session)
 
     await _create_path_analysis(
-        db_session, repo, rs_a.run_id, ws_a.workspace_id,
+        db_session,
+        repo,
+        rs_a.run_id,
+        ws_a.workspace_id,
         config_hash="sha256:config_a",
     )
     await _create_path_analysis(
-        db_session, repo, rs_b.run_id, ws_b.workspace_id,
+        db_session,
+        repo,
+        rs_b.run_id,
+        ws_b.workspace_id,
         config_hash="sha256:config_b",
     )
 
@@ -284,7 +324,8 @@ async def test_list_by_run_workspace_isolation(db_session):
 
     # Cross-workspace: run A in workspace B returns nothing
     rows_cross, total_cross = await repo.list_by_run(
-        rs_a.run_id, ws_b.workspace_id,
+        rs_a.run_id,
+        ws_b.workspace_id,
     )
     assert total_cross == 0
     assert len(rows_cross) == 0
@@ -297,7 +338,10 @@ async def test_idempotency_same_config_hash(db_session):
     repo = PathAnalysisRepository(db_session)
 
     await _create_path_analysis(
-        db_session, repo, rs.run_id, ws.workspace_id,
+        db_session,
+        repo,
+        rs.run_id,
+        ws.workspace_id,
         config_hash="sha256:duplicate",
     )
 
