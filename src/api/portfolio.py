@@ -152,7 +152,7 @@ async def create_portfolio(
     workspace_id: UUID,
     body: _RawConfig,
     member: WorkspaceMember = Depends(require_workspace_member),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_async_session),  # for rollback on race condition
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
     pf_repo: PortfolioRepository = Depends(get_portfolio_repo),

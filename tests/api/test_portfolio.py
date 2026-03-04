@@ -458,6 +458,28 @@ async def test_post_candidate_limit_422(client, db_session):
     assert resp.json()["detail"]["reason_code"] == "PORTFOLIO_CANDIDATE_LIMIT_EXCEEDED"
 
 
+async def test_post_empty_objective_metric_422(client, seeded, db_session):
+    """Empty objective_metric -> 422 PORTFOLIO_INVALID_CONFIG."""
+    payload = _make_payload(seeded["run_ids"], objective_metric="")
+    resp = await client.post(
+        f"/v1/workspaces/{WS_ID}/portfolio/optimize",
+        json=payload,
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["reason_code"] == "PORTFOLIO_INVALID_CONFIG"
+
+
+async def test_post_empty_cost_metric_422(client, seeded, db_session):
+    """Empty cost_metric -> 422 PORTFOLIO_INVALID_CONFIG."""
+    payload = _make_payload(seeded["run_ids"], cost_metric="")
+    resp = await client.post(
+        f"/v1/workspaces/{WS_ID}/portfolio/optimize",
+        json=payload,
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["reason_code"] == "PORTFOLIO_INVALID_CONFIG"
+
+
 # ---------------------------------------------------------------------------
 # Workspace isolation
 # ---------------------------------------------------------------------------
