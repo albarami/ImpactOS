@@ -565,3 +565,109 @@ python -c "import json; json.load(open('openapi.json')); print('valid')"
 | Migration 015 upgrade/downgrade clean | Yes | `test_015_path_analyses_postgres.py` passes |
 | Pagination works correctly | Yes | `test_list_by_run_pagination` passes |
 | Existing tests unchanged | Yes | Full suite: 4,421 passed (baseline was 4,347 + 74 new test runs) |
+
+---
+
+## Sprint 21: Portfolio Optimization (MVP-21)
+
+### What Changed
+
+- **Portfolio Engine** (`src/engine/portfolio_optimizer.py`): Deterministic exact binary knapsack solver via enumeration (max 25 candidates). Maximizes total objective_value under budget, cardinality, and group-cap constraints. Deterministic tie-break by lexicographically smallest sorted run_id tuple (UUID string comparison).
+- **Persistence** (`alembic/versions/016_portfolio_optimizations.py`, `src/db/tables.py`): New `portfolio_optimizations` table with 16 columns, `(workspace_id, config_hash)` unique constraint for idempotency, composite index `(workspace_id, created_at DESC)`.
+- **Repository** (`src/repositories/portfolio.py`): Workspace-scoped CRUD + pagination + config-hash idempotency lookup (5 methods).
+- **API** (`src/api/portfolio.py`): Three additive workspace-scoped endpoints:
+  - `POST /v1/workspaces/{workspace_id}/portfolio/optimize` (201 new / 200 idempotent)
+  - `GET /v1/workspaces/{workspace_id}/portfolio/{portfolio_id}`
+  - `GET /v1/workspaces/{workspace_id}/portfolio`
+- **Pydantic models** (`src/models/portfolio.py`): 6 typed schemas inheriting ImpactOSBase.
+- **Race-safe idempotency**: IntegrityError catch + session rollback + retry SELECT on concurrent insert race.
+- **OpenAPI**: Refreshed with 3 new portfolio endpoint paths.
+- **Migration**: 016 additive `portfolio_optimizations` table (no existing table changes).
+- **Backward compatibility**: All pre-existing tests pass unchanged. Sprint 21 adds 87 new test runs.
+
+### Solver Contract
+
+| Property | Specification | Verification |
+|---|---|---|
+| Subset selection | 0/1 binary knapsack (exact enumeration) | `test_portfolio_optimizer.py` |
+| Objective | Maximize sum of objective_value | `test_selects_optimal_pair` |
+| Budget constraint | total cost <= budget | `test_selects_optimal_pair` |
+| Cardinality | min_selected <= count <= max_selected | `test_min_selected_enforced`, `test_max_selected_enforced` |
+| Group caps | per-group count <= cap | `test_group_caps_enforced` |
+| Tie-break | Lexicographically smallest sorted run_id tuple (str) | `test_tiebreak_lexicographic_run_id` |
+| Candidate limit | max 25, fail closed | `test_candidate_limit_exceeded` |
+| Solver method | "exact_binary_knapsack_v1" | `test_solver_method_reported` |
+
+### Error Taxonomy
+
+| Reason Code | HTTP | Trigger |
+|---|---|---|
+| `PORTFOLIO_NO_CANDIDATES` | 422 | Empty candidate list |
+| `PORTFOLIO_DUPLICATE_CANDIDATES` | 422 | Repeated run_id in candidates |
+| `PORTFOLIO_CANDIDATE_LIMIT_EXCEEDED` | 422 | More than 25 candidates |
+| `PORTFOLIO_INVALID_CONFIG` | 422 | budget <= 0, min_selected < 1, max_selected < 1, max < min, group_cap < 1, empty metrics |
+| `PORTFOLIO_RUN_NOT_FOUND` | 404 | Candidate run_id not in workspace |
+| `PORTFOLIO_MODEL_MISMATCH` | 422 | Candidates have different model_version_id |
+| `PORTFOLIO_METRIC_NOT_FOUND` | 422 | objective_metric or cost_metric missing for candidate |
+| `PORTFOLIO_INFEASIBLE` | 422 | No feasible subset under constraints |
+| `PORTFOLIO_NOT_FOUND` | 404 | Portfolio ID not in workspace |
+
+### Fail-Closed Validation Order (API Layer)
+
+1. Auth/workspace (existing gate)
+2. No candidates
+3. Empty metric names
+4. Duplicate candidates
+5. Run existence (workspace-scoped)
+6. Model compatibility (same model_version_id)
+7. Metric availability (both metrics for every candidate)
+8. Config sanity (budget, min/max selected, group caps)
+9. Candidate limit (> 25)
+
+### Test Evidence
+
+| Test File | Count | Coverage |
+|---|---|---|
+| `tests/engine/test_portfolio_optimizer.py` | 19 | Engine: happy paths, determinism, constraints, validation errors |
+| `tests/migration/test_016_portfolio_optimization_postgres.py` | 4 | Migration: upgrade, unique constraint, downgrade, re-upgrade |
+| `tests/repositories/test_portfolio.py` | 10 (x2 backends = 20) | Repo: CRUD, workspace scoping, idempotency, pagination |
+| `tests/api/test_portfolio.py` | 22 (x2 backends = 44) | API: happy paths, error precedence, workspace isolation, auth, response content |
+| **Total new** | **55 tests (87 runs)** | |
+
+### Preflight Checks
+
+```bash
+# Sprint 21 targeted tests
+python -m pytest tests/engine/test_portfolio_optimizer.py tests/repositories/test_portfolio.py tests/api/test_portfolio.py tests/migration/test_016_portfolio_optimization_postgres.py -q
+
+# Lint (Sprint 21 files)
+python -m ruff check --select I001,F401,F841,B905 src/engine/portfolio_optimizer.py src/models/portfolio.py src/repositories/portfolio.py src/api/portfolio.py
+
+# Format check
+python -m ruff format --check src/engine/portfolio_optimizer.py src/models/portfolio.py src/repositories/portfolio.py src/api/portfolio.py
+
+# Alembic (with PG)
+python -m alembic current   # -> 016_portfolio_optimizations (head)
+python -m alembic heads     # -> single head at 016
+
+# Full test suite
+python -m pytest tests -q
+```
+
+### Go/No-Go Criteria (additive)
+
+| Criteria | Required | How to Verify |
+|---|---|---|
+| Exact binary knapsack selects optimal subset | Yes | `test_selects_optimal_pair` passes |
+| Deterministic tie-break by lexicographic run_id | Yes | `test_tiebreak_lexicographic_run_id` passes |
+| min_selected enforced (empty set rejected) | Yes | `test_min_selected_enforced` passes |
+| max_selected enforced | Yes | `test_max_selected_enforced` passes |
+| Group caps enforced | Yes | `test_group_caps_enforced` passes |
+| All 10 reason codes implemented and tested | Yes | Error precedence tests pass with correct reason_codes |
+| POST idempotent on (workspace_id, config_hash) | Yes | `test_post_idempotent_200` passes |
+| Race-safe idempotency with IntegrityError retry | Yes | Code review confirmed |
+| Workspace isolation enforced | Yes | `test_get_wrong_workspace_404`, `test_list_workspace_isolation` pass |
+| Auth required on all endpoints | Yes | `test_unauthenticated_401`, `test_unauthenticated_get_401` pass |
+| config_hash includes optimization_version | Yes | Code review confirmed |
+| Migration 016 upgrade/downgrade clean | Yes | `test_016_portfolio_optimization_postgres.py` passes |
+| Existing tests unchanged | Yes | Full suite: 4,506 passed, 3 failed (pre-existing PG permission), 4 skipped |

@@ -22,6 +22,7 @@ from src.api.libraries import router as libraries_router
 from src.api.metrics import router as metrics_router
 from src.api.models import router as models_router
 from src.api.path_analytics import router as path_analytics_router
+from src.api.portfolio import router as portfolio_router
 from src.api.runs import models_router as engine_models_router
 from src.api.runs import router as engine_ws_router
 from src.api.scenarios import router as scenarios_router
@@ -43,7 +44,8 @@ def _check_startup_config(s: Settings) -> None:
 
         for err in errors:
             logging.getLogger(__name__).critical(
-                "Startup config error: %s", err,
+                "Startup config error: %s",
+                err,
             )
         sys.exit(1)
 
@@ -64,7 +66,8 @@ structlog.configure(
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
-        structlog.dev.ConsoleRenderer() if settings.ENVIRONMENT == "dev"
+        structlog.dev.ConsoleRenderer()
+        if settings.ENVIRONMENT == "dev"
         else structlog.processors.JSONRenderer(),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(
@@ -113,6 +116,7 @@ app.include_router(libraries_router)
 app.include_router(metrics_router)
 app.include_router(models_router)
 app.include_router(path_analytics_router)
+app.include_router(portfolio_router)
 app.include_router(engine_ws_router)
 app.include_router(scenarios_router)
 app.include_router(taxonomy_router)
@@ -136,6 +140,7 @@ async def health_check() -> dict:
     async def _check_database() -> bool:
         try:
             from src.db.session import async_session_factory
+
             async with async_session_factory() as session:
                 await session.execute(text("SELECT 1"))
             return True
@@ -145,6 +150,7 @@ async def health_check() -> dict:
     async def _check_redis() -> bool:
         try:
             import redis.asyncio as aioredis
+
             r = aioredis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
             await r.ping()
             await r.aclose()
@@ -155,6 +161,7 @@ async def health_check() -> dict:
     async def _check_object_storage() -> bool:
         try:
             from pathlib import Path
+
             storage_path = Path(settings.OBJECT_STORAGE_PATH)
             return storage_path.exists() and storage_path.is_dir()
         except Exception:
@@ -210,7 +217,8 @@ async def readiness_check() -> dict:
             import redis.asyncio as aioredis
 
             r = aioredis.from_url(
-                settings.REDIS_URL, socket_connect_timeout=2,
+                settings.REDIS_URL,
+                socket_connect_timeout=2,
             )
             await r.ping()
             await r.aclose()
@@ -219,7 +227,8 @@ async def readiness_check() -> dict:
             return False
 
     db_ok, redis_ok = await asyncio.gather(
-        _check_database(), _check_redis(),
+        _check_database(),
+        _check_redis(),
     )
     checks["database"] = db_ok
     checks["redis"] = redis_ok
