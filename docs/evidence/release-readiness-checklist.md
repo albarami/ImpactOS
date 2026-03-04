@@ -384,3 +384,96 @@ python -m pytest tests -q
 | Dev bypass only in dev environment | Yes | `test_dev_bypass_*` passes |
 | sg_provenance populated in model record | Yes | `test_sg_provenance_in_get_response` passes |
 | Existing tests unchanged | Yes | Full suite 4220 passed, 0 failed |
+
+---
+
+## Sprint 19 — Client Portal Collaboration Flows (MVP-19)
+
+### Migration Evidence
+- [ ] Migration 014: `assumptions.workspace_id` nullable FK + index
+- [ ] Alembic upgrade/downgrade/check clean (PG tested)
+
+### Assumption Sign-Off Auth Matrix
+| Action | Role Gate | Fail Mode | Reason Code |
+|--------|-----------|-----------|-------------|
+| List | workspace member | — | — |
+| Detail | workspace member | 404 | ASSUMPTION_NOT_FOUND |
+| Create | workspace member | — | — |
+| Approve | manager/admin | 403 / 422 / 409 / 404 | ASSUMPTION_RANGE_REQUIRED / ASSUMPTION_NOT_DRAFT / ASSUMPTION_NOT_FOUND |
+| Reject | manager/admin | 403 / 409 / 404 | ASSUMPTION_NOT_DRAFT / ASSUMPTION_NOT_FOUND |
+
+### Scenario Comparison Validation Matrix
+| Check | HTTP | Reason Code |
+|-------|------|-------------|
+| Run not found / wrong workspace | 404 | COMPARE_RUN_NOT_FOUND |
+| No results | 422 | COMPARE_NO_RESULTS |
+| Model mismatch | 422 | COMPARE_MODEL_MISMATCH |
+| Metric set mismatch | 422 | COMPARE_METRIC_SET_MISMATCH |
+| Annual unavailable | 422 | COMPARE_ANNUAL_UNAVAILABLE |
+| Annual year mismatch | 422 | COMPARE_ANNUAL_YEAR_MISMATCH |
+| Peak unavailable | 422 | COMPARE_PEAK_UNAVAILABLE |
+
+### Evidence Browsing Filter Matrix
+| Filter | Behavior | Fail Mode | Reason Code |
+|--------|----------|-----------|-------------|
+| limit | 1-100 pagination | 422 | EVIDENCE_INVALID_PAGINATION |
+| offset | >=0, requires limit | 422 | EVIDENCE_INVALID_PAGINATION |
+| claim_id | Resolve evidence_refs, short-circuit empty | 404 | Claim not found |
+| source_id | Filter by document | 404 | Document not found |
+| text_query | ILIKE after trim, min 2 chars | 422 | EVIDENCE_TEXT_QUERY_TOO_SHORT |
+| run_id | Existing 404 preserved | 404 | Run not found |
+
+### Test Counts
+- Baseline (Sprint 18): 4,220 passed
+- Sprint 19 new tests: ~120 new test runs
+- Sprint 19 total: 4,340 passed, 11 skipped, 0 failed
+
+### Sprint 19 Preflight Checks
+
+```bash
+# 1. Assumption sign-off tests
+python -m pytest tests/api/test_assumption_signoff.py -v
+
+# 2. Scenario comparison tests
+python -m pytest tests/api/test_scenario_comparison.py -v
+
+# 3. Evidence browse tests
+python -m pytest tests/api/test_evidence_browse.py -v
+
+# 4. Migration tests (requires Postgres)
+python -m pytest tests/migration/test_014_assumption_workspace_postgres.py -v
+
+# 5. Repository tests
+python -m pytest tests/repositories/test_assumption_workspace.py -v
+
+# 6. Full suite
+python -m pytest tests -q
+```
+
+### Verification Summary
+
+- **Lint**: Clean (no new lint categories; pre-existing B008/E501 patterns only)
+- **OpenAPI**: Refreshed with new endpoints:
+  - `GET /v1/workspaces/{workspace_id}/governance/assumptions` (list)
+  - `GET /v1/workspaces/{workspace_id}/governance/assumptions/{assumption_id}` (detail)
+  - `POST /v1/workspaces/{workspace_id}/governance/assumptions/{assumption_id}/approve`
+  - `POST /v1/workspaces/{workspace_id}/governance/assumptions/{assumption_id}/reject`
+  - `POST /v1/workspaces/{workspace_id}/scenarios/compare-runs`
+- **Migration**: 014 additive `workspace_id` nullable FK on `assumptions` (no data loss on rollback)
+- **Backward compatibility**: All 4,340 tests pass, 11 skipped (PG-only migrations)
+
+### Go/No-Go Criteria (additive)
+
+| Criteria | Required | How to Verify |
+|---|---|---|
+| Assumption list/detail/create for workspace members | Yes | `test_assumption_signoff.py` passes |
+| Approve/reject restricted to manager/admin roles | Yes | `test_assumption_signoff.py` role gate tests pass |
+| Approve requires range for ESTIMATED confidence | Yes | `test_approve_estimated_requires_range` passes |
+| Reject transitions draft → rejected | Yes | `test_reject_happy_path` passes |
+| Idempotent reject on already-rejected | Yes | `test_reject_already_rejected_is_idempotent` passes |
+| Scenario compare-runs validates model parity | Yes | `test_scenario_comparison.py` passes |
+| Compare-runs validates metric set parity | Yes | `test_metric_set_mismatch_422` passes |
+| Evidence browse with pagination + filters | Yes | `test_evidence_browse.py` passes |
+| Text query minimum length enforced | Yes | `test_text_query_too_short_422` passes |
+| Migration 014 upgrade/downgrade clean | Yes | `test_014_assumption_workspace_postgres.py` passes |
+| Existing tests unchanged | Yes | Full suite 4,340 passed, 0 failed |

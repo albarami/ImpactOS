@@ -33,7 +33,6 @@ from src.api.dependencies import (
     get_evidence_snippet_repo,
     get_run_snapshot_repo,
 )
-from src.repositories.documents import DocumentRepository
 from src.governance.claim_extractor import ClaimExtractor
 from src.governance.publication_gate import PublicationGate
 from src.models.common import (
@@ -43,6 +42,7 @@ from src.models.common import (
     DisclosureTier,
 )
 from src.models.governance import VALID_CLAIM_TRANSITIONS, Assumption, Claim
+from src.repositories.documents import DocumentRepository
 from src.repositories.engine import RunSnapshotRepository
 from src.repositories.governance import (
     AssumptionRepository,

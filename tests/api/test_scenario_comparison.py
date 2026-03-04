@@ -24,6 +24,7 @@ _DUMMY_IDS = {
 
 async def _seed_ws(session, ws_id=WS):
     from uuid import UUID
+
     from sqlalchemy import select
     result = await session.execute(
         select(WorkspaceRow).where(WorkspaceRow.workspace_id == UUID(ws_id))

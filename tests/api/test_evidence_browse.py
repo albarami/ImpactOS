@@ -3,11 +3,14 @@
 from uuid import UUID
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
 
 from src.db.tables import (
-    ClaimRow, DocumentRow, EvidenceSnippetRow, RunSnapshotRow, WorkspaceRow,
+    ClaimRow,
+    DocumentRow,
+    EvidenceSnippetRow,
+    RunSnapshotRow,
+    WorkspaceRow,
 )
 from src.models.common import utc_now
 
