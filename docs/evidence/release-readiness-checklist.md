@@ -390,8 +390,10 @@ python -m pytest tests -q
 ## Sprint 19 — Client Portal Collaboration Flows (MVP-19)
 
 ### Migration Evidence
-- [ ] Migration 014: `assumptions.workspace_id` nullable FK + index
-- [ ] Alembic upgrade/downgrade/check clean (PG tested)
+- [x] Migration 014: `assumptions.workspace_id` nullable FK + index
+- [x] Alembic upgrade/downgrade/check clean (PG tested)
+- [x] Post-merge `alembic current`: `014_assumption_workspace_id (head)`
+- [x] Post-merge `alembic check`: No new upgrade operations detected
 
 ### Assumption Sign-Off Auth Matrix
 | Action | Role Gate | Fail Mode | Reason Code |
@@ -425,8 +427,10 @@ python -m pytest tests -q
 
 ### Test Counts
 - Baseline (Sprint 18): 4,220 passed
-- Sprint 19 new tests: ~120 new test runs
-- Sprint 19 total: 4,340 passed, 11 skipped, 0 failed
+- Sprint 19 new tests: 63 (9 repo + 19 signoff + 15 comparison + 16 browse + 4 migration)
+- Sprint 19 worktree: 4,340 passed, 11 skipped, 0 failed
+- **Post-merge main verified: 4,347 passed, 4 skipped, 0 failed (4,351 collected)**
+- PR: #24 — merged commit `1d6dae2`, tag `sprint-19-complete`
 
 ### Sprint 19 Preflight Checks
 
@@ -460,7 +464,7 @@ python -m pytest tests -q
   - `POST /v1/workspaces/{workspace_id}/governance/assumptions/{assumption_id}/reject`
   - `POST /v1/workspaces/{workspace_id}/scenarios/compare-runs`
 - **Migration**: 014 additive `workspace_id` nullable FK on `assumptions` (no data loss on rollback)
-- **Backward compatibility**: All 4,340 tests pass, 11 skipped (PG-only migrations)
+- **Backward compatibility**: All 4,347 tests pass on main, 4 skipped (PG-only migrations now passing)
 
 ### Go/No-Go Criteria (additive)
 
@@ -476,4 +480,4 @@ python -m pytest tests -q
 | Evidence browse with pagination + filters | Yes | `test_evidence_browse.py` passes |
 | Text query minimum length enforced | Yes | `test_text_query_too_short_422` passes |
 | Migration 014 upgrade/downgrade clean | Yes | `test_014_assumption_workspace_postgres.py` passes |
-| Existing tests unchanged | Yes | Full suite 4,340 passed, 0 failed |
+| Existing tests unchanged | Yes | Full suite 4,347 passed, 0 failed (post-merge main) |
