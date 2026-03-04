@@ -3,8 +3,8 @@
 import pytest
 from uuid_extensions import uuid7
 
+from src.models.run import ResultSet, RunSnapshot
 from src.models.scenario import ScenarioSpec, TimeHorizon
-from src.models.run import RunSnapshot, ResultSet
 
 
 @pytest.mark.integration

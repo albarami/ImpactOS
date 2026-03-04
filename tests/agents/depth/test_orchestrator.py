@@ -8,8 +8,8 @@ Tests the full 5-step pipeline including:
 - Status semantics (COMPLETED vs PARTIAL)
 """
 
+
 import pytest
-from uuid import uuid4
 
 from src.agents.depth.orchestrator import DepthOrchestrator
 from src.models.common import DataClassification, new_uuid7

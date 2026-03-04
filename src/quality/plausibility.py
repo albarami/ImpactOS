@@ -15,7 +15,6 @@ import numpy as np
 
 from src.quality.models import PlausibilityStatus
 
-
 # ---------------------------------------------------------------------------
 # Result dataclasses
 # ---------------------------------------------------------------------------

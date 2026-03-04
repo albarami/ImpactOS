@@ -1,7 +1,8 @@
 """Tests for Step 4: Muhasaba — Self-Accounting Scoring."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from src.agents.depth.muhasaba import MuhasabaAgent, _score_all_candidates
 from src.models.common import DataClassification

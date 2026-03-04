@@ -4,14 +4,12 @@ Covers: Z/x storage, A computation, Leontief inverse B=(I-A)^-1,
 productivity validation (spectral radius, non-negativity), caching.
 """
 
-import hashlib
 
 import numpy as np
 import pytest
 from uuid_extensions import uuid7
 
 from src.engine.model_store import ModelStore
-
 
 # ---------------------------------------------------------------------------
 # Helpers: build well-known I-O data

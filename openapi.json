@@ -4207,6 +4207,70 @@
         }
       }
     },
+    "/v1/workspaces/{workspace_id}/models/import-sg": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Import Sg Model",
+        "description": "Import IO model from SG workbook with parity gate verification.\n\nFlow: extract -> validate -> register -> persist -> parity check -> respond.\nFail-closed: parity failure without dev bypass returns 422, no model persisted.",
+        "operationId": "import_sg_model_v1_workspaces__workspace_id__models_import_sg_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "dev_bypass",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Dev Bypass"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_sg_model_v1_workspaces__workspace_id__models_import_sg_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportSGResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace_id}/engine/runs": {
       "post": {
         "tags": [
@@ -6491,6 +6555,20 @@
         ],
         "title": "BoQLineItem",
         "description": "Normalized spend line item extracted from a BoQ document.\n\nEvery line item MUST link to at least one EvidenceSnippet via\nevidence_snippet_ids for audit-grade traceability."
+      },
+      "Body_import_sg_model_v1_workspaces__workspace_id__models_import_sg_post": {
+        "properties": {
+          "workbook": {
+            "type": "string",
+            "format": "binary",
+            "title": "Workbook"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workbook"
+        ],
+        "title": "Body_import_sg_model_v1_workspaces__workspace_id__models_import_sg_post"
       },
       "Body_upload_document_v1_workspaces__workspace_id__documents_post": {
         "properties": {
@@ -8954,6 +9032,44 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "ImportSGResponse": {
+        "properties": {
+          "model_version_id": {
+            "type": "string",
+            "title": "Model Version Id"
+          },
+          "sector_count": {
+            "type": "integer",
+            "title": "Sector Count"
+          },
+          "checksum": {
+            "type": "string",
+            "title": "Checksum"
+          },
+          "provenance_class": {
+            "type": "string",
+            "title": "Provenance Class"
+          },
+          "parity_status": {
+            "type": "string",
+            "title": "Parity Status"
+          },
+          "sg_provenance": {
+            "type": "object",
+            "title": "Sg Provenance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version_id",
+          "sector_count",
+          "checksum",
+          "provenance_class",
+          "parity_status",
+          "sg_provenance"
+        ],
+        "title": "ImportSGResponse"
+      },
       "JobStatusResponse": {
         "properties": {
           "job_id": {
@@ -9596,6 +9712,17 @@
               }
             ],
             "title": "Deflator Series"
+          },
+          "sg_provenance": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sg Provenance"
           }
         },
         "type": "object",

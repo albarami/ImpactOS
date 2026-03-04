@@ -15,7 +15,6 @@ from uuid import UUID
 from src.models.common import ClaimStatus, ClaimType
 from src.models.governance import Claim
 
-
 # ---------------------------------------------------------------------------
 # Classification heuristics (keyword-based, deterministic)
 # ---------------------------------------------------------------------------

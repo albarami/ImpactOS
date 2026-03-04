@@ -6,7 +6,6 @@ only — human must approve.
 """
 
 import pytest
-from uuid_extensions import uuid7
 
 from src.agents.assumption_agent import (
     AssumptionDraft,
@@ -14,7 +13,6 @@ from src.agents.assumption_agent import (
     ResidualContext,
 )
 from src.models.common import AssumptionStatus, AssumptionType
-
 
 # ---------------------------------------------------------------------------
 # Helpers

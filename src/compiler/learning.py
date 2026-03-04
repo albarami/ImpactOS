@@ -11,16 +11,14 @@ suggestions in later engagements.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 from uuid_extensions import uuid7
 
-from src.models.common import utc_now
 from src.models.mapping import MappingLibraryEntry
-
 
 # ---------------------------------------------------------------------------
 # Tokenization (reuse pattern from mapping agent)

@@ -16,17 +16,16 @@ from src.models.document import (
     Document,
     DocumentGraph,
     DocumentType,
+    ExtractedTable,
     ExtractionJob,
     ExtractionMetadata,
     ExtractionStatus,
-    ExtractedTable,
     LanguageCode,
     PageBlock,
     SourceType,
     TableCell,
 )
 from src.models.governance import BoundingBox
-
 
 # ---------------------------------------------------------------------------
 # Helpers

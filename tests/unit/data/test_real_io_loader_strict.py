@@ -22,7 +22,6 @@ from src.data.real_io_loader import (
     load_real_saudi_io_strict,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helper: minimal valid IO model JSON
 # ---------------------------------------------------------------------------

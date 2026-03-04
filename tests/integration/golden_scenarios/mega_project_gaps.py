@@ -18,7 +18,6 @@ from uuid_extensions import uuid7
 
 from src.engine.constraints.schema import (
     Constraint,
-    ConstraintBoundScope,
     ConstraintScope,
     ConstraintSet,
     ConstraintType,
@@ -26,7 +25,7 @@ from src.engine.constraints.schema import (
 )
 from src.models.common import ConstraintConfidence
 from src.models.document import BoQLineItem
-from src.models.mapping import DecisionType, MappingDecision
+from src.models.mapping import MappingDecision
 
 from .shared import ISIC_20_SECTIONS, make_decision, make_line_item
 

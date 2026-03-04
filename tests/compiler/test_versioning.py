@@ -11,7 +11,6 @@ from src.compiler.mapping_state import MappingState, MappingStateMachine
 from src.compiler.versioning import ScenarioVersioningService
 from src.models.scenario import ScenarioSpec, TimeHorizon
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

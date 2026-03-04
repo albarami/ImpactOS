@@ -7,8 +7,7 @@ average cycle time, NFF compliance rates, library growth.
 import pytest
 from uuid_extensions import uuid7
 
-from src.observability.dashboard import DashboardService, DashboardSummary
-
+from src.observability.dashboard import DashboardService
 
 # ---------------------------------------------------------------------------
 # Helpers

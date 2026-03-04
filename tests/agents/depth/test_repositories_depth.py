@@ -3,12 +3,12 @@
 Uses SAVEPOINT-isolated db_session from conftest.py.
 """
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from src.models.common import new_uuid7
 from src.repositories.depth import DepthArtifactRepository, DepthPlanRepository
-
 
 # ---------------------------------------------------------------------------
 # DepthPlanRepository

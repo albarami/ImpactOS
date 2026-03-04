@@ -10,7 +10,6 @@ from src.flywheel.models import ReuseScopeLevel
 from src.flywheel.scenario_patterns import ScenarioPattern, ScenarioPatternLibrary
 from src.models.common import new_uuid7
 
-
 # ---------------------------------------------------------------------------
 # Helper factories
 # ---------------------------------------------------------------------------

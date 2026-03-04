@@ -1,6 +1,6 @@
 """Scenario models — ScenarioSpec, ShockItem variants, DataQualitySummary."""
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -14,7 +14,6 @@ from src.models.common import (
     new_uuid7,
     utc_now,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shock item variants (union type per Appendix A)
@@ -73,7 +72,7 @@ class ConstraintOverride(ImpactOSBase):
 
 
 ShockItem = Annotated[
-    Union[FinalDemandShock, ImportSubstitutionShock, LocalContentChange, ConstraintOverride],
+    FinalDemandShock | ImportSubstitutionShock | LocalContentChange | ConstraintOverride,
     Field(discriminator="type"),
 ]
 

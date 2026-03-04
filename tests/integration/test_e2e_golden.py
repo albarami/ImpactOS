@@ -11,18 +11,18 @@ Updated JSON files must be reviewed and committed.
 """
 
 import json
+from datetime import UTC, datetime
+from pathlib import Path
+
 import numpy as np
 import pytest
-from datetime import datetime, timezone
 from numpy.testing import assert_allclose
-from pathlib import Path
 from uuid_extensions import uuid7
 
 from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import ModelStore
 from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
 from src.quality.service import QualityAssessmentService
-
 from tests.integration.golden_scenarios.shared import (
     EMPLOYMENT_ATOL,
     GDP_RTOL,
@@ -30,7 +30,6 @@ from tests.integration.golden_scenarios.shared import (
     GOLDEN_X,
     GOLDEN_Z,
     NUMERIC_RTOL,
-    OUTPUT_RTOL,
     SECTOR_CODES_SMALL,
     SMALL_IMPORT_RATIO,
     SMALL_JOBS_COEFF,
@@ -102,7 +101,7 @@ class TestEndToEndGolden:
         if update_golden:
             snapshot = {
                 "scenario": "industrial_zone",
-                "computed_at": datetime.now(timezone.utc).isoformat(),
+                "computed_at": datetime.now(UTC).isoformat(),
                 "model": "3-sector ISIC F/C/G",
                 "tolerances": {
                     "rtol": NUMERIC_RTOL,
@@ -153,7 +152,7 @@ class TestEndToEndGolden:
         if update_golden:
             snapshot = {
                 "scenario": "contraction",
-                "computed_at": datetime.now(timezone.utc).isoformat(),
+                "computed_at": datetime.now(UTC).isoformat(),
                 "model": "3-sector ISIC F/C/G",
                 "tolerances": {
                     "rtol": NUMERIC_RTOL,
@@ -196,7 +195,7 @@ class TestEndToEndGolden:
         if update_golden:
             snapshot = {
                 "scenario": "mega_project_gaps",
-                "computed_at": datetime.now(timezone.utc).isoformat(),
+                "computed_at": datetime.now(UTC).isoformat(),
                 "model": "3-sector ISIC F/C/G",
                 "tolerances": {
                     "rtol": NUMERIC_RTOL,

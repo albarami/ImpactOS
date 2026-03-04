@@ -32,7 +32,6 @@ from src.models.governance import Claim
 from src.models.mapping import DecisionType, MappingDecision
 from src.models.scenario import TimeHorizon
 from src.quality.service import QualityAssessmentService
-
 from tests.integration.golden_scenarios.shared import (
     GOLDEN_BASE_YEAR,
     GOLDEN_X,

@@ -24,9 +24,7 @@ from src.flywheel.scenario_patterns import ScenarioPatternLibrary
 from src.flywheel.stores import InMemoryVersionedLibraryStore
 from src.flywheel.workforce_refinement import WorkforceBridgeRefinement
 from src.models.mapping import MappingLibraryEntry
-
 from tests.integration.golden_scenarios.shared import SEED_LIBRARY
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

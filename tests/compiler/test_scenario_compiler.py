@@ -8,16 +8,14 @@ DataQualitySummary, residual buckets.
 import pytest
 from uuid_extensions import uuid7
 
-from src.compiler.scenario_compiler import ScenarioCompiler, CompilationInput
+from src.compiler.scenario_compiler import CompilationInput, ScenarioCompiler
 from src.models.document import BoQLineItem
-from src.models.governance import BoundingBox, EvidenceSnippet
 from src.models.mapping import DecisionType, MappingDecision
 from src.models.scenario import (
     FinalDemandShock,
     ScenarioSpec,
     TimeHorizon,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

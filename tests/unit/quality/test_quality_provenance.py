@@ -7,11 +7,8 @@ into the returned assessment.
 
 from __future__ import annotations
 
-import pytest
-
 from src.data.real_io_loader import DataMode, IODataProvenance
 from src.quality.models import (
-    QualityDimension,
     QualitySeverity,
     RunQualityAssessment,
 )

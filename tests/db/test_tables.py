@@ -9,35 +9,33 @@ Tests verify:
 - Matrix storage escape hatch (storage_format column)
 """
 
-from uuid import UUID
 
 import pytest
-from sqlalchemy import inspect, select, text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy import inspect
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from src.db.session import Base
 from src.db.tables import (
-    WorkspaceRow,
-    ModelVersionRow,
-    ModelDataRow,
-    ScenarioSpecRow,
-    RunSnapshotRow,
-    ResultSetRow,
-    BatchRow,
-    DocumentRow,
-    ExtractionJobRow,
-    LineItemRow,
-    EvidenceSnippetRow,
-    MappingDecisionRow,
-    AssumptionRow,
     AssumptionLinkRow,
+    AssumptionRow,
+    BatchRow,
     ClaimRow,
     CompilationRow,
-    ExportRow,
-    MetricEventRow,
+    DocumentRow,
     EngagementRow,
+    EvidenceSnippetRow,
+    ExportRow,
+    ExtractionJobRow,
+    MappingDecisionRow,
+    MetricEventRow,
+    ModelDataRow,
+    ModelVersionRow,
     OverridePairRow,
+    ResultSetRow,
+    RunSnapshotRow,
+    ScenarioSpecRow,
+    WorkspaceRow,
 )
 from src.models.common import new_uuid7, utc_now
 

@@ -5,7 +5,6 @@ confidence scoring, explanation generation, Pydantic validation,
 fallback when LLM unavailable.
 """
 
-import pytest
 from uuid_extensions import uuid7
 
 from src.agents.mapping_agent import (
@@ -15,7 +14,6 @@ from src.agents.mapping_agent import (
 )
 from src.models.document import BoQLineItem
 from src.models.mapping import MappingLibraryEntry
-
 
 # ---------------------------------------------------------------------------
 # Helpers

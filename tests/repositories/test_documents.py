@@ -3,12 +3,12 @@
 import pytest
 from uuid_extensions import uuid7
 
+from src.models.common import utc_now
 from src.repositories.documents import (
     DocumentRepository,
     ExtractionJobRepository,
     LineItemRepository,
 )
-from src.models.common import utc_now
 
 
 @pytest.fixture

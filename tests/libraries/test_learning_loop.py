@@ -5,7 +5,6 @@ Event-driven learning: HITL actions trigger library updates.
 
 from uuid_extensions import uuid7
 
-from src.models.common import ConstraintConfidence
 from src.models.libraries import (
     AssumptionLibraryEntry,
     EntryStatus,

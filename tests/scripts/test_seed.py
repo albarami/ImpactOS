@@ -7,9 +7,9 @@ from scripts.seed import (
     SAMPLE_SECTOR_CODES,
     SAMPLE_X_VECTOR,
     SAMPLE_Z_MATRIX,
+    seed_boq_line_items,
     seed_model,
     seed_workspace,
-    seed_boq_line_items,
 )
 from src.repositories.documents import DocumentRepository, LineItemRepository
 from src.repositories.engine import ModelDataRepository, ModelVersionRepository

@@ -7,10 +7,8 @@ with assumption rationale. Falls back to library defaults if LLM unavailable.
 CRITICAL: Agent proposes splits only — NEVER computes economic results.
 """
 
-from dataclasses import dataclass, field
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Models

@@ -14,7 +14,6 @@ from uuid import UUID
 from src.models.common import ClaimStatus
 from src.models.governance import Claim
 
-
 # States that count as "resolved" — eligible for publication
 _RESOLVED_STATES = frozenset({
     ClaimStatus.SUPPORTED,

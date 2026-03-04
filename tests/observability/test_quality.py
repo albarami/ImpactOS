@@ -7,10 +7,9 @@ disputes, sensitivity coverage rate, mapping confidence distribution.
 import pytest
 from uuid_extensions import uuid7
 
-from src.observability.quality import QualityMetrics, QualitySnapshot
 from src.models.common import ClaimStatus, ClaimType, MappingConfidenceBand
 from src.models.governance import Claim
-
+from src.observability.quality import QualityMetrics
 
 # ---------------------------------------------------------------------------
 # Helpers

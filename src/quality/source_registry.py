@@ -9,7 +9,7 @@ Deterministic -- no LLM calls.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import Field
 
@@ -127,7 +127,7 @@ class SourceFreshnessRegistry:
         registry = cls()
 
         def _utc(year: int, month: int = 1, day: int = 1) -> datetime:
-            return datetime(year, month, day, tzinfo=timezone.utc)
+            return datetime(year, month, day, tzinfo=UTC)
 
         seeds: list[DataSource] = [
             DataSource(

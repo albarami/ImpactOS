@@ -1,7 +1,8 @@
 """Tests for Step 3: Mujahada — Contrarian Challenge."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from src.agents.depth.mujahada import MujahadaAgent, _generate_fallback_contrarians
 from src.models.common import DataClassification

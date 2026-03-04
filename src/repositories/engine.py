@@ -23,11 +23,13 @@ class ModelVersionRepository:
         self, *, model_version_id: UUID, base_year: int,
         source: str, sector_count: int, checksum: str,
         provenance_class: str = "unknown",
+        sg_provenance: dict | None = None,
     ) -> ModelVersionRow:
         row = ModelVersionRow(
             model_version_id=model_version_id, base_year=base_year,
             source=source, sector_count=sector_count, checksum=checksum,
             provenance_class=provenance_class,
+            sg_provenance=sg_provenance,
             created_at=utc_now(),
         )
         self._session.add(row)

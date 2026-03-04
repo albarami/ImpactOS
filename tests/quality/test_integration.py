@@ -9,12 +9,11 @@ Deterministic -- no LLM calls.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 import numpy as np
 import pytest
-from uuid_extensions import uuid7
 
 from src.engine.batch import SingleRunResult
 from src.engine.model_store import ModelStore
@@ -25,14 +24,11 @@ from src.quality.models import (
     QualityDimension,
     QualityGrade,
     QualitySeverity,
-    SourceAge,
-    SourceUpdateFrequency,
 )
 from src.quality.nowcast import NowcastingService, TargetTotalProvenance
 from src.quality.plausibility import PlausibilityChecker
 from src.quality.service import QualityAssessmentService
 from src.quality.source_registry import SourceFreshnessRegistry
-
 
 # ===================================================================
 # Helpers
@@ -139,7 +135,7 @@ class TestEndToEndPipeline:
         registry = SourceFreshnessRegistry.with_seed_defaults()
 
         # d. Get source_ages from registry
-        as_of = datetime(2026, 2, 28, tzinfo=timezone.utc)
+        as_of = datetime(2026, 2, 28, tzinfo=UTC)
         source_ages = registry.to_source_ages(as_of)
 
         # e. Run QualityAssessmentService.assess() with all inputs

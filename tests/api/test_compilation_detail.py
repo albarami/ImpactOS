@@ -3,7 +3,7 @@
 GET /v1/workspaces/{ws}/compiler/{compilation_id}  — B-17
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
@@ -481,7 +481,7 @@ class TestCompilationDetailWithDecisions:
         compilation_uuid = UUID(comp_id)
 
         # Insert two decisions with identical created_at
-        fixed_ts = datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc)
+        fixed_ts = datetime(2026, 3, 1, 12, 0, 0, tzinfo=UTC)
         decision_repo = MappingDecisionRepository(db_session)
 
         id_a = uuid7()
@@ -491,7 +491,6 @@ class TestCompilationDetailWithDecisions:
             id_a, id_b = id_b, id_a
 
         from src.db.tables import MappingDecisionRow
-        from src.models.common import utc_now  # noqa: F811
 
         # Row A: AI_SUGGESTED (lower ID)
         row_a = MappingDecisionRow(

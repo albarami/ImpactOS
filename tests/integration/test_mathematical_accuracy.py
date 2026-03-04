@@ -16,7 +16,6 @@ from uuid_extensions import uuid7
 from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import ModelStore
 from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
-
 from tests.integration.golden_scenarios.shared import (
     EXPECTED_B_SMALL,
     GOLDEN_BASE_YEAR,
@@ -169,7 +168,6 @@ class TestMathematicalAccuracy:
 # ---------------------------------------------------------------------------
 
 from src.engine.value_measures import ValueMeasuresComputer
-
 from tests.integration.golden_scenarios.shared import (
     SMALL_DEFLATOR_SERIES,
     SMALL_FINAL_DEMAND_F,
@@ -315,7 +313,6 @@ class TestValueMeasuresMathematicalAccuracy:
 # ---------------------------------------------------------------------------
 
 from src.engine.batch import BatchRequest, BatchRunner, ScenarioInput, SingleRunResult
-from src.engine.model_store import ModelStore
 
 
 def _run_batch_for_series() -> SingleRunResult:

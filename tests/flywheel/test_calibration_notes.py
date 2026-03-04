@@ -8,7 +8,6 @@ from src.flywheel.calibration import CalibrationNote, CalibrationNoteStore
 from src.flywheel.models import PromotionStatus, ReuseScopeLevel
 from src.models.common import new_uuid7
 
-
 # ---------------------------------------------------------------------------
 # Helper factories
 # ---------------------------------------------------------------------------

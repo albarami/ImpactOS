@@ -10,7 +10,7 @@ Return structured data for frontend consumption.
 Deterministic — no LLM calls.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

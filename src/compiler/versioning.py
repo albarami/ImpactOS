@@ -11,7 +11,6 @@ from uuid import UUID
 from src.compiler.mapping_state import MappingState, MappingStateMachine
 from src.models.scenario import ScenarioSpec
 
-
 # States that count as "resolved" — eligible for locking
 _LOCKABLE_STATES = frozenset({MappingState.APPROVED, MappingState.OVERRIDDEN})
 

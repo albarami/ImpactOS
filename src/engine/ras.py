@@ -8,7 +8,6 @@ Pure deterministic — no LLM calls.
 """
 
 from dataclasses import dataclass
-from uuid import UUID
 
 import numpy as np
 

@@ -4,7 +4,6 @@ Covers: HIGH/MEDIUM/LOW classification, bulk-approve, bulk-override,
 defer, escalate, audit trail.
 """
 
-import pytest
 from uuid_extensions import uuid7
 
 from src.compiler.confidence import (
@@ -17,7 +16,6 @@ from src.compiler.hitl import (
     HITLService,
 )
 from src.compiler.mapping_state import MappingState, MappingStateMachine
-
 
 # ---------------------------------------------------------------------------
 # Helpers

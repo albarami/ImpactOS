@@ -13,7 +13,6 @@ from pydantic import BaseModel, Field
 from src.models.common import AssumptionStatus, AssumptionType
 from src.models.governance import Assumption, AssumptionRange
 
-
 # ---------------------------------------------------------------------------
 # Input context
 # ---------------------------------------------------------------------------

@@ -22,11 +22,10 @@ import openpyxl
 from src.models.common import utc_now
 from src.models.document import (
     DocumentGraph,
-    ExtractionMetadata,
     ExtractedTable,
+    ExtractionMetadata,
     PageBlock,
     TableCell,
-    TextBlock,
 )
 from src.models.governance import BoundingBox, EvidenceSnippet, TableCellRef
 

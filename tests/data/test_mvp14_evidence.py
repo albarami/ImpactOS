@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-
 CHECKLIST_PATH = (
     Path(__file__).resolve().parent.parent.parent
     / "docs"

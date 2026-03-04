@@ -6,11 +6,9 @@ ModelVersion output labeled as "balanced-nowcast".
 
 import numpy as np
 import pytest
-from uuid_extensions import uuid7
 
 from src.engine.model_store import ModelStore
 from src.engine.ras import RASBalancer, RASResult
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

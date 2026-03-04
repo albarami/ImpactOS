@@ -1,7 +1,8 @@
 """Tests for Step 2: Muraqaba — Bias Register."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from src.agents.depth.muraqaba import MuraqabaAgent, _detect_biases_heuristically
 from src.models.common import DataClassification

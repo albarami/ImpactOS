@@ -1,6 +1,6 @@
 """Shared types, enums, and base models used across ImpactOS domain models."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
@@ -11,7 +11,7 @@ from uuid_extensions import uuid7
 
 def utc_now() -> datetime:
     """Return the current UTC timestamp (timezone-aware)."""
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def new_uuid7() -> UUID:

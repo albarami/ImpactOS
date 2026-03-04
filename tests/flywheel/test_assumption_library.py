@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from uuid import UUID
-
 import pytest
 
 from src.flywheel.assumption_library import (
@@ -16,7 +14,6 @@ from src.flywheel.assumption_library import (
 from src.flywheel.models import AssumptionValueType, DraftStatus, ReuseScopeLevel
 from src.flywheel.stores import InMemoryVersionedLibraryStore
 from src.models.common import AssumptionType, new_uuid7
-
 
 # ---------------------------------------------------------------------------
 # Helper factories

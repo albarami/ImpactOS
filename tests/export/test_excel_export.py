@@ -4,15 +4,12 @@ Covers: generate workbook with run metadata, input vectors, linked formulas,
 integrity signature in hidden sheet. Modification detection.
 """
 
-import hashlib
 import io
 
-import pytest
 from openpyxl import load_workbook
 from uuid_extensions import uuid7
 
 from src.export.excel_export import ExcelExporter, IntegrityChecker
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -23,7 +23,6 @@ from src.models.document import (
 )
 from src.models.governance import EvidenceSnippet
 
-
 # ---------------------------------------------------------------------------
 # Header normalization mapping
 # ---------------------------------------------------------------------------

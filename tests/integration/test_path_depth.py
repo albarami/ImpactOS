@@ -15,22 +15,21 @@ No real LLM calls, no database -- all dependencies are mocked.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
 from uuid_extensions import uuid7
 
-from src.agents.depth.orchestrator import DepthOrchestrator, _STEP_DISCLOSURE
+from src.agents.depth.orchestrator import _STEP_DISCLOSURE, DepthOrchestrator
 from src.agents.llm_client import LLMClient, LLMProvider, TokenUsage
 from src.models.common import DataClassification, DisclosureTier
 from src.models.depth import (
     DepthPlanStatus,
     DepthStepName,
     KhawatirOutput,
-    MujahadaOutput,
     MuhasabaOutput,
+    MujahadaOutput,
     MuraqabaOutput,
     SuitePlanningOutput,
 )

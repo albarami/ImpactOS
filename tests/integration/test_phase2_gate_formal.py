@@ -13,9 +13,10 @@ with a seeded MappingLibraryEntry list against a labeled ground-truth BoQ.
 """
 
 import json
+from pathlib import Path
+
 import numpy as np
 import pytest
-from pathlib import Path
 from uuid_extensions import uuid7
 
 from src.agents.mapping_agent import MappingSuggestionAgent
@@ -27,20 +28,17 @@ from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
 from src.models.common import ConstraintConfidence, new_uuid7
 from src.models.document import BoQLineItem
 from src.quality.service import QualityAssessmentService
-
 from tests.integration.golden_scenarios.shared import (
     GOLDEN_BASE_YEAR,
     GOLDEN_X,
     GOLDEN_Z,
     LABELED_BOQ,
-    SEED_LIBRARY,
     SECTOR_CODES_SMALL,
+    SEED_LIBRARY,
     SMALL_IMPORT_RATIO,
     SMALL_JOBS_COEFF,
     SMALL_VA_RATIO,
-    make_line_item,
 )
-
 
 # ---------------------------------------------------------------------------
 # Gate Criterion 1: Compiler >= 60% auto-mapping (Amendment 4)
@@ -90,7 +88,7 @@ class TestCompilerAutoMapping:
 
         # Accuracy: of suggested items, how many match ground truth?
         correct = 0
-        for suggestion, entry in zip(batch.suggestions, LABELED_BOQ):
+        for suggestion, entry in zip(batch.suggestions, LABELED_BOQ, strict=False):
             if suggestion.sector_code and suggestion.sector_code == entry["ground_truth_isic"]:
                 correct += 1
         accuracy = correct / len(covered) if covered else 0.0
@@ -109,8 +107,12 @@ class TestFeasibilityDualOutput:
     def test_feasibility_dual_output(self):
         """Both unconstrained and feasible results present with diagnostics."""
         from src.engine.constraints.schema import (
-            Constraint, ConstraintBoundScope, ConstraintScope,
-            ConstraintSet, ConstraintType, ConstraintUnit,
+            Constraint,
+            ConstraintBoundScope,
+            ConstraintScope,
+            ConstraintSet,
+            ConstraintType,
+            ConstraintUnit,
         )
 
         store = ModelStore()
@@ -176,8 +178,12 @@ class TestFeasibilityDualOutput:
     def test_feasibility_produces_dual_output_with_diagnostics(self):
         """Verifies diagnostic messages exist on binding constraints."""
         from src.engine.constraints.schema import (
-            Constraint, ConstraintBoundScope, ConstraintScope,
-            ConstraintSet, ConstraintType, ConstraintUnit,
+            Constraint,
+            ConstraintBoundScope,
+            ConstraintScope,
+            ConstraintSet,
+            ConstraintType,
+            ConstraintUnit,
         )
 
         store = ModelStore()
@@ -244,12 +250,14 @@ class TestWorkforceConfidenceLabeled:
         The JSON fixtures have extra fields not accepted by frozen dataclass
         constructors, so we manually extract only the required fields.
         """
-        from src.data.workforce.occupation_bridge import (
-            OccupationBridge, OccupationBridgeEntry,
-        )
         from src.data.workforce.nationality_classification import (
-            NationalityClassification, NationalityClassificationSet,
+            NationalityClassification,
+            NationalityClassificationSet,
             NationalityTier,
+        )
+        from src.data.workforce.occupation_bridge import (
+            OccupationBridge,
+            OccupationBridgeEntry,
         )
         from src.data.workforce.unit_registry import QualityConfidence
         from src.models.common import ConstraintConfidence as CC
@@ -304,8 +312,8 @@ class TestWorkforceConfidenceLabeled:
 
     def test_workforce_confidence_labels(self):
         """WorkforceResult has confidence labels and sensitivity envelopes."""
-        from src.engine.workforce_satellite.satellite import WorkforceSatellite
         from src.engine.satellites import SatelliteResult
+        from src.engine.workforce_satellite.satellite import WorkforceSatellite
 
         bridge, nat_set = self._load_workforce_fixtures()
         ws = WorkforceSatellite(
@@ -332,8 +340,8 @@ class TestWorkforceConfidenceLabeled:
 
     def test_workforce_splits_have_confidence_and_ranges(self):
         """Each sector summary has confidence label + numeric ranges."""
-        from src.engine.workforce_satellite.satellite import WorkforceSatellite
         from src.engine.satellites import SatelliteResult
+        from src.engine.workforce_satellite.satellite import WorkforceSatellite
 
         bridge, nat_set = self._load_workforce_fixtures()
         ws = WorkforceSatellite(

@@ -7,7 +7,6 @@ provider availability checks.
 
 import pytest
 from pydantic import BaseModel
-from uuid_extensions import uuid7
 
 from src.agents.llm_client import (
     LLMClient,
@@ -18,7 +17,6 @@ from src.agents.llm_client import (
     TokenUsage,
 )
 from src.models.common import DataClassification
-
 
 # ---------------------------------------------------------------------------
 # Helpers

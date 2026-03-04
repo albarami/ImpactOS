@@ -11,6 +11,7 @@ validate the loader→engine pipeline, NOT that real curated data was used.
 """
 
 import warnings
+
 import numpy as np
 import pytest
 from uuid_extensions import uuid7
@@ -179,7 +180,7 @@ class TestDataLoaderSmoke:
 
     def test_loader_reports_which_path_was_used(self):
         """Provenanced loader always reports data source path."""
-        from src.data.real_io_loader import load_real_saudi_io_strict, DataMode
+        from src.data.real_io_loader import DataMode, load_real_saudi_io_strict
         result = load_real_saudi_io_strict(mode=DataMode.PREFER_REAL)
         assert result.provenance.resolved_source in (
             "curated_real", "curated_estimated", "synthetic_fallback", "synthetic_only"

@@ -325,18 +325,29 @@ def load_from_json(path: str | Path) -> IOModelData:
 
 
 def load_from_excel(
-    path: str | Path,  # noqa: ARG001
+    path: str | Path,
     config: ExcelSheetConfig | None = None,  # noqa: ARG001
 ) -> IOModelData:
-    """Load IO model from Excel (stub for future GASTAT integration).
+    """Load IO model from Excel workbook.
 
-    Raises:
-        NotImplementedError: Always — Excel loading planned for GASTAT integration.
+    Routes by extension:
+      .xlsb, .xlsx -> SG model adapter
+      Other -> raises SGImportError with SG_UNSUPPORTED_FORMAT
+
+    config parameter reserved for future GASTAT integration.
     """
-    raise NotImplementedError(
-        "Excel loading is planned for GASTAT integration. "
-        "Use load_from_json() with curated data for now."
-    )
+    from src.data.sg_model_adapter import SGImportError, extract_io_model
+
+    p = Path(path)
+    ext = p.suffix.lower()
+
+    if ext not in (".xlsb", ".xlsx"):
+        raise SGImportError(
+            "SG_UNSUPPORTED_FORMAT",
+            f"Unsupported file extension '{ext}'. Expected .xlsb or .xlsx.",
+        )
+
+    return extract_io_model(p)
 
 
 def load_satellites_from_json(path: str | Path) -> SatelliteData:

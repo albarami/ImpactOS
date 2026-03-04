@@ -19,7 +19,6 @@ from src.flywheel.workforce_refinement import (
 )
 from src.models.common import ConstraintConfidence, new_uuid7
 
-
 # ---------------------------------------------------------------------------
 # Helper factories
 # ---------------------------------------------------------------------------

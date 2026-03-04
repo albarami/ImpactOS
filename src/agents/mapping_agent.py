@@ -9,14 +9,12 @@ CRITICAL: Agent NEVER produces economic numbers. Output is validated
 MappingSuggestion objects (Pydantic) — mappings only.
 """
 
-from dataclasses import dataclass, field
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 from src.models.document import BoQLineItem
 from src.models.mapping import MappingLibraryEntry
-
 
 # ---------------------------------------------------------------------------
 # Output schemas

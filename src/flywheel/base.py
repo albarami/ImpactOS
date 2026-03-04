@@ -96,7 +96,7 @@ class VersionedLibraryManager(ABC, Generic[TEntry, TDraft, TVersion]):
         version = self._make_version(draft, version_number, published_by)
 
         self._store.save_version(version)
-        vid: UUID = getattr(version, "version_id")
+        vid: UUID = version.version_id
         self._store.set_active(vid)
 
         self._next_version_number += 1

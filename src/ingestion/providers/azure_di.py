@@ -15,8 +15,8 @@ from src.ingestion.providers.base import ExtractionOptions, ExtractionProvider
 from src.models.common import utc_now
 from src.models.document import (
     DocumentGraph,
-    ExtractionMetadata,
     ExtractedTable,
+    ExtractionMetadata,
     PageBlock,
     TableCell,
     TextBlock,

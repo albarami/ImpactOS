@@ -11,7 +11,6 @@ from src.governance.assumption_registry import AssumptionRegistry
 from src.models.common import AssumptionStatus, AssumptionType
 from src.models.governance import Assumption, AssumptionRange
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -8,8 +8,7 @@ Output as waterfall dataset.
 import pytest
 from uuid_extensions import uuid7
 
-from src.export.variance_bridge import VarianceBridge, WaterfallDataset, DriverType
-
+from src.export.variance_bridge import DriverType, VarianceBridge, WaterfallDataset
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -6,13 +6,12 @@ staleness detection, SourceAge conversion, and seed defaults.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from src.quality.models import SourceAge, SourceUpdateFrequency
 from src.quality.source_registry import DataSource, SourceFreshnessRegistry
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -20,7 +19,7 @@ from src.quality.source_registry import DataSource, SourceFreshnessRegistry
 
 def _utc(year: int, month: int = 1, day: int = 1) -> datetime:
     """Shorthand for timezone-aware UTC datetime."""
-    return datetime(year, month, day, tzinfo=timezone.utc)
+    return datetime(year, month, day, tzinfo=UTC)
 
 
 # ===================================================================
@@ -192,7 +191,7 @@ class TestRegistryGetStaleSources:
         reg.register(ds)
 
         # 600 days after 2024-01-01
-        as_of = datetime(2025, 8, 24, tzinfo=timezone.utc)
+        as_of = datetime(2025, 8, 24, tzinfo=UTC)
         stale = reg.get_stale_sources(as_of)
         assert len(stale) == 1
         assert stale[0].name == "Old Annual"
@@ -210,7 +209,7 @@ class TestRegistryGetStaleSources:
         )
         reg.register(ds)
 
-        as_of = datetime(2025, 7, 20, tzinfo=timezone.utc)
+        as_of = datetime(2025, 7, 20, tzinfo=UTC)
         stale = reg.get_stale_sources(as_of)
         assert len(stale) == 0
 
@@ -227,7 +226,7 @@ class TestRegistryGetStaleSources:
         )
         reg.register(ds)
 
-        as_of = datetime(2025, 5, 31, tzinfo=timezone.utc)
+        as_of = datetime(2025, 5, 31, tzinfo=UTC)
         stale = reg.get_stale_sources(as_of)
         assert len(stale) == 1
         assert stale[0].name == "Old Quarterly"
@@ -262,7 +261,7 @@ class TestRegistryGetStaleSources:
         )
         reg.register(ds)
 
-        as_of = datetime(2026, 2, 15, tzinfo=timezone.utc)
+        as_of = datetime(2026, 2, 15, tzinfo=UTC)
         stale = reg.get_stale_sources(as_of)
         assert len(stale) == 1
 
@@ -304,7 +303,7 @@ class TestRegistryGetStaleSources:
             )
         )
 
-        as_of = datetime(2025, 8, 24, tzinfo=timezone.utc)
+        as_of = datetime(2025, 8, 24, tzinfo=UTC)
         stale = reg.get_stale_sources(as_of)
         assert len(stale) == 1
         assert stale[0].name == "Stale"
@@ -330,7 +329,7 @@ class TestRegistryToSourceAges:
         )
         reg.register(ds)
 
-        as_of = datetime(2025, 4, 11, tzinfo=timezone.utc)  # 100 days later
+        as_of = datetime(2025, 4, 11, tzinfo=UTC)  # 100 days later
         ages = reg.to_source_ages(as_of)
         assert len(ages) == 1
         assert ages[0].source_name == "Age Test"

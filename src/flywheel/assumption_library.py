@@ -19,7 +19,6 @@ from pydantic import Field
 
 from src.flywheel.base import VersionedLibraryManager
 from src.flywheel.models import AssumptionValueType, DraftStatus, ReuseScopeLevel
-from src.flywheel.stores import VersionedLibraryStore
 from src.models.common import (
     AssumptionType,
     ImpactOSBase,
@@ -28,7 +27,6 @@ from src.models.common import (
     new_uuid7,
     utc_now,
 )
-
 
 # ---------------------------------------------------------------------------
 # Entry model

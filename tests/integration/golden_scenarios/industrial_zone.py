@@ -15,7 +15,6 @@ Constraints -> Workforce -> Quality -> RunSnapshot
 from dataclasses import dataclass, field
 from uuid import UUID
 
-import numpy as np
 from uuid_extensions import uuid7
 
 from src.engine.constraints.schema import (
@@ -28,8 +27,7 @@ from src.engine.constraints.schema import (
 )
 from src.models.common import ConstraintConfidence, new_uuid7
 from src.models.document import BoQLineItem
-from src.models.mapping import DecisionType, MappingDecision
-from src.models.scenario import TimeHorizon
+from src.models.mapping import MappingDecision
 
 from .shared import make_decision, make_line_item
 
@@ -165,7 +163,7 @@ def build_industrial_zone_decisions(
     )
 
     decisions = []
-    for item, sector in zip(line_items, sector_map):
+    for item, sector in zip(line_items, sector_map, strict=False):
         decisions.append(
             make_decision(
                 line_item_id=item.line_item_id,

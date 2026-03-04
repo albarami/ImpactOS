@@ -8,7 +8,7 @@ Deterministic — no LLM calls.
 """
 
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from uuid import UUID
 
 from src.models.common import ClaimStatus, MappingConfidenceBand
