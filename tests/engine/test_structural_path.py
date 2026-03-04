@@ -56,11 +56,13 @@ def model_3x3() -> dict:
     A is chosen so that the Leontief inverse B has strong cross-sector linkages.
     Sector 1 (index 1) is designed to be a chokepoint.
     """
-    A = np.array([
-        [0.10, 0.25, 0.05],
-        [0.20, 0.15, 0.30],
-        [0.05, 0.20, 0.10],
-    ])
+    A = np.array(
+        [
+            [0.10, 0.25, 0.05],
+            [0.20, 0.15, 0.30],
+            [0.05, 0.20, 0.10],
+        ]
+    )
     I = np.eye(3)
     B = np.linalg.inv(I - A)
     delta_d = np.array([100.0, 50.0, 0.0])
@@ -80,8 +82,12 @@ class TestDepthAndCoverage:
         """max_depth=0 gives identity (A^0 = I) contributions only."""
         m = model_2x2
         result = compute_spa(
-            m["A"], m["B"], m["delta_d"], m["sector_codes"],
-            max_depth=0, top_k=20,
+            m["A"],
+            m["B"],
+            m["delta_d"],
+            m["sector_codes"],
+            max_depth=0,
+            top_k=20,
         )
         assert result.max_depth == 0
         # A^0 = I, so only diagonal entries (i==j) contribute.
@@ -99,8 +105,12 @@ class TestDepthAndCoverage:
         """max_depth=1 captures direct (A^0) + first indirect (A^1)."""
         m = model_2x2
         result = compute_spa(
-            m["A"], m["B"], m["delta_d"], m["sector_codes"],
-            max_depth=1, top_k=20,
+            m["A"],
+            m["B"],
+            m["delta_d"],
+            m["sector_codes"],
+            max_depth=1,
+            top_k=20,
         )
         assert result.max_depth == 1
         depths_present = {p.depth for p in result.top_paths}
@@ -116,8 +126,12 @@ class TestDepthAndCoverage:
         """max_depth=10 gives coverage_ratio > 0.99."""
         m = model_2x2
         result = compute_spa(
-            m["A"], m["B"], m["delta_d"], m["sector_codes"],
-            max_depth=10, top_k=20,
+            m["A"],
+            m["B"],
+            m["delta_d"],
+            m["sector_codes"],
+            max_depth=10,
+            top_k=20,
         )
         assert result.coverage_ratio > 0.99
 
@@ -139,12 +153,14 @@ class TestIdentityInvariants:
         """sum(depth_contributions[k].signed) ~= sum(B @ delta_d)."""
         m = model_2x2_fast_converge
         result = compute_spa(
-            m["A"], m["B"], m["delta_d"], m["sector_codes"],
-            max_depth=10, top_k=100,
+            m["A"],
+            m["B"],
+            m["delta_d"],
+            m["sector_codes"],
+            max_depth=10,
+            top_k=100,
         )
-        total_from_depth = sum(
-            dc.signed for dc in result.depth_contributions.values()
-        )
+        total_from_depth = sum(dc.signed for dc in result.depth_contributions.values())
         expected_total = float(np.sum(m["B"] @ m["delta_d"]))
         assert total_from_depth == pytest.approx(expected_total, abs=1e-10)
 
@@ -158,14 +174,16 @@ class TestIdentityInvariants:
         max_depth = 10
         # top_k large enough for all paths: n*n*(max_depth+1) = 2*2*11 = 44
         result = compute_spa(
-            m["A"], m["B"], m["delta_d"], m["sector_codes"],
-            max_depth=max_depth, top_k=100,
+            m["A"],
+            m["B"],
+            m["delta_d"],
+            m["sector_codes"],
+            max_depth=max_depth,
+            top_k=100,
         )
         expected = m["B"] @ m["delta_d"]
         for i in range(n):
-            sector_sum = sum(
-                p.contribution for p in result.top_paths if p.target_sector == i
-            )
+            sector_sum = sum(p.contribution for p in result.top_paths if p.target_sector == i)
             assert sector_sum == pytest.approx(expected[i], abs=1e-10)
 
 
@@ -181,8 +199,12 @@ class TestTopKRanking:
         """Tie-break: |contribution| DESC, k ASC, i ASC, j ASC."""
         m = model_2x2
         result = compute_spa(
-            m["A"], m["B"], m["delta_d"], m["sector_codes"],
-            max_depth=6, top_k=100,
+            m["A"],
+            m["B"],
+            m["delta_d"],
+            m["sector_codes"],
+            max_depth=6,
+            top_k=100,
         )
         paths = result.top_paths
         for a, b in zip(paths, paths[1:]):
@@ -202,8 +224,12 @@ class TestTopKRanking:
         """len(top_paths) <= top_k."""
         m = model_2x2
         result = compute_spa(
-            m["A"], m["B"], m["delta_d"], m["sector_codes"],
-            max_depth=6, top_k=3,
+            m["A"],
+            m["B"],
+            m["delta_d"],
+            m["sector_codes"],
+            max_depth=6,
+            top_k=3,
         )
         assert len(result.top_paths) <= 3
 
@@ -221,8 +247,12 @@ class TestZeroShock:
         m = model_2x2
         zero_d = np.zeros(2)
         result = compute_spa(
-            m["A"], m["B"], zero_d, m["sector_codes"],
-            max_depth=6, top_k=20,
+            m["A"],
+            m["B"],
+            zero_d,
+            m["sector_codes"],
+            max_depth=6,
+            top_k=20,
         )
         assert result.top_paths == []
         for dc in result.depth_contributions.values():
@@ -244,8 +274,12 @@ class TestDepthContributions:
         A = m["A"]
         delta_d = m["delta_d"]
         result = compute_spa(
-            A, m["B"], delta_d, m["sector_codes"],
-            max_depth=3, top_k=100,
+            A,
+            m["B"],
+            delta_d,
+            m["sector_codes"],
+            max_depth=3,
+            top_k=100,
         )
         # Manually compute depth-0: C_0 = I * delta_d broadcast = diag(delta_d)
         # signed_0 = sum(diag(delta_d)) = 100 + 0 = 100
@@ -255,9 +289,7 @@ class TestDepthContributions:
         # Depth 1: C_1 = A * delta_d broadcast
         C1 = A * delta_d[np.newaxis, :]
         assert result.depth_contributions[1].signed == pytest.approx(float(np.sum(C1)))
-        assert result.depth_contributions[1].absolute == pytest.approx(
-            float(np.sum(np.abs(C1)))
-        )
+        assert result.depth_contributions[1].absolute == pytest.approx(float(np.sum(np.abs(C1))))
 
 
 # ===================================================================
@@ -273,8 +305,12 @@ class TestChokepoints:
         m = model_3x3
         B = m["B"]
         result = compute_spa(
-            m["A"], B, m["delta_d"], m["sector_codes"],
-            max_depth=6, top_k=20,
+            m["A"],
+            B,
+            m["delta_d"],
+            m["sector_codes"],
+            max_depth=6,
+            top_k=20,
         )
         # Rasmussen convention:
         # backward_linkage[j] = sum_i(B[i,j])  (column sum)
@@ -293,8 +329,12 @@ class TestChokepoints:
         """chokepoint_score = sqrt(norm_forward * norm_backward)."""
         m = model_3x3
         result = compute_spa(
-            m["A"], m["B"], m["delta_d"], m["sector_codes"],
-            max_depth=6, top_k=20,
+            m["A"],
+            m["B"],
+            m["delta_d"],
+            m["sector_codes"],
+            max_depth=6,
+            top_k=20,
         )
         for cp in result.chokepoints:
             expected = np.sqrt(cp.norm_forward * cp.norm_backward)
@@ -304,8 +344,12 @@ class TestChokepoints:
         """is_chokepoint True only when BOTH normalised linkages > 1.0."""
         m = model_3x3
         result = compute_spa(
-            m["A"], m["B"], m["delta_d"], m["sector_codes"],
-            max_depth=6, top_k=20,
+            m["A"],
+            m["B"],
+            m["delta_d"],
+            m["sector_codes"],
+            max_depth=6,
+            top_k=20,
         )
         for cp in result.chokepoints:
             if cp.is_chokepoint:
@@ -346,9 +390,7 @@ class TestDegenerate:
         assert result.coverage_ratio > 0.9999
 
         # Scalar identity check
-        total_from_depth = sum(
-            dc.signed for dc in result.depth_contributions.values()
-        )
+        total_from_depth = sum(dc.signed for dc in result.depth_contributions.values())
         expected = float(np.sum(B @ delta_d))  # ~11.111...
         assert total_from_depth == pytest.approx(expected, abs=1e-10)
 
@@ -375,26 +417,42 @@ class TestValidation:
         # A wrong shape
         with pytest.raises(SPADimensionError):
             compute_spa(
-                np.eye(3), m["B"], m["delta_d"], m["sector_codes"],
-                max_depth=6, top_k=20,
+                np.eye(3),
+                m["B"],
+                m["delta_d"],
+                m["sector_codes"],
+                max_depth=6,
+                top_k=20,
             )
         # B wrong shape
         with pytest.raises(SPADimensionError):
             compute_spa(
-                m["A"], np.eye(3), m["delta_d"], m["sector_codes"],
-                max_depth=6, top_k=20,
+                m["A"],
+                np.eye(3),
+                m["delta_d"],
+                m["sector_codes"],
+                max_depth=6,
+                top_k=20,
             )
         # delta_d wrong shape
         with pytest.raises(SPADimensionError):
             compute_spa(
-                m["A"], m["B"], np.array([1.0, 2.0, 3.0]), m["sector_codes"],
-                max_depth=6, top_k=20,
+                m["A"],
+                m["B"],
+                np.array([1.0, 2.0, 3.0]),
+                m["sector_codes"],
+                max_depth=6,
+                top_k=20,
             )
         # sector_codes wrong length
         with pytest.raises(SPADimensionError):
             compute_spa(
-                m["A"], m["B"], m["delta_d"], ["S1", "S2", "S3"],
-                max_depth=6, top_k=20,
+                m["A"],
+                m["B"],
+                m["delta_d"],
+                ["S1", "S2", "S3"],
+                max_depth=6,
+                top_k=20,
             )
 
     def test_config_out_of_bounds_raises(self, model_2x2: dict) -> None:
@@ -402,21 +460,37 @@ class TestValidation:
         m = model_2x2
         with pytest.raises(SPAConfigError):
             compute_spa(
-                m["A"], m["B"], m["delta_d"], m["sector_codes"],
-                max_depth=13, top_k=20,
+                m["A"],
+                m["B"],
+                m["delta_d"],
+                m["sector_codes"],
+                max_depth=13,
+                top_k=20,
             )
         with pytest.raises(SPAConfigError):
             compute_spa(
-                m["A"], m["B"], m["delta_d"], m["sector_codes"],
-                max_depth=6, top_k=0,
+                m["A"],
+                m["B"],
+                m["delta_d"],
+                m["sector_codes"],
+                max_depth=6,
+                top_k=0,
             )
         with pytest.raises(SPAConfigError):
             compute_spa(
-                m["A"], m["B"], m["delta_d"], m["sector_codes"],
-                max_depth=-1, top_k=20,
+                m["A"],
+                m["B"],
+                m["delta_d"],
+                m["sector_codes"],
+                max_depth=-1,
+                top_k=20,
             )
         with pytest.raises(SPAConfigError):
             compute_spa(
-                m["A"], m["B"], m["delta_d"], m["sector_codes"],
-                max_depth=6, top_k=101,
+                m["A"],
+                m["B"],
+                m["delta_d"],
+                m["sector_codes"],
+                max_depth=6,
+                top_k=101,
             )

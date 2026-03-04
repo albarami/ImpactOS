@@ -15,7 +15,6 @@ from uuid import UUID
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
-
 from pydantic import BaseModel, Field
 
 from src.api.auth_deps import WorkspaceMember, require_workspace_member
@@ -64,6 +63,7 @@ class _CreateRequest(BaseModel):
 
     run_id: UUID
     config: _RawConfig = Field(default_factory=_RawConfig)
+
 
 _logger = logging.getLogger(__name__)
 
@@ -195,7 +195,9 @@ async def create_path_analysis(
     # 3. Idempotency check
     ch = _config_hash(config)
     existing = await pa_repo.get_by_run_and_config_for_workspace(
-        body.run_id, ch, workspace_id,
+        body.run_id,
+        ch,
+        workspace_id,
     )
     if existing is not None:
         resp_data = _row_to_response(existing)
@@ -207,7 +209,9 @@ async def create_path_analysis(
     # 4. Load model data
     try:
         loaded = await _ensure_model_loaded(
-            snap_row.model_version_id, mv_repo, md_repo,
+            snap_row.model_version_id,
+            mv_repo,
+            md_repo,
         )
     except HTTPException:
         raise HTTPException(
@@ -215,8 +219,7 @@ async def create_path_analysis(
             detail={
                 "reason_code": "SPA_MODEL_DATA_UNAVAILABLE",
                 "message": (
-                    f"Model data for version {snap_row.model_version_id} "
-                    "could not be loaded."
+                    f"Model data for version {snap_row.model_version_id} could not be loaded."
                 ),
             },
         )
@@ -236,9 +239,7 @@ async def create_path_analysis(
             status_code=422,
             detail={
                 "reason_code": "SPA_MISSING_DIRECT_EFFECT",
-                "message": (
-                    f"No direct_effect result set found for run {body.run_id}."
-                ),
+                "message": (f"No direct_effect result set found for run {body.run_id}."),
             },
         )
 
@@ -382,7 +383,10 @@ async def list_path_analyses(
         )
 
     rows, total = await pa_repo.list_by_run(
-        run_id, workspace_id, limit=limit, offset=offset,
+        run_id,
+        workspace_id,
+        limit=limit,
+        offset=offset,
     )
     return PathAnalysisListResponse(
         items=[_row_to_response(r) for r in rows],
