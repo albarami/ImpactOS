@@ -8,6 +8,7 @@ POST /v1/workspaces/{workspace_id}/scenarios/{id}/mapping-decisions   — bulk
 GET  /v1/workspaces/{workspace_id}/scenarios/{id}/versions            — history
 POST /v1/workspaces/{workspace_id}/scenarios/{id}/lock                — lock
 POST /v1/workspaces/{workspace_id}/scenarios/{id}/run                 — run (B-16)
+POST /v1/workspaces/{workspace_id}/scenarios/compare-runs             — compare runs (S19-2)
 
 S0-4: Workspace-scoped routes.
 Deterministic — no LLM calls.
@@ -216,6 +217,45 @@ class ScenarioDetailResponse(BaseModel):
     updated_at: str
 
 
+# --- S19-2: Scenario comparison schemas ---
+
+
+class CompareRunsRequest(BaseModel):
+    run_id_a: str
+    run_id_b: str
+    include_annual: bool = False
+    include_peak: bool = False
+
+
+class MetricComparison(BaseModel):
+    metric_type: str
+    value_a: float
+    value_b: float
+    delta: float
+    pct_change: float | None = None
+
+
+class AnnualComparison(BaseModel):
+    year: int
+    metrics: list[MetricComparison]
+
+
+class PeakComparison(BaseModel):
+    peak_year_a: int | None = None
+    peak_year_b: int | None = None
+    metrics: list[MetricComparison]
+
+
+class CompareRunsResponse(BaseModel):
+    run_id_a: str
+    run_id_b: str
+    model_version_a: str
+    model_version_b: str
+    metrics: list[MetricComparison]
+    annual: list[AnnualComparison] | None = None
+    peak: PeakComparison | None = None
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -354,6 +394,62 @@ async def _load_items_from_document(
     return boq_items
 
 
+def _extract_aggregate(values: dict) -> float:
+    """Deterministic aggregate: use _total if present, else sum numeric values."""
+    if "_total" in values:
+        return float(values["_total"])
+    return sum(float(v) for v in values.values() if isinstance(v, (int, float)))
+
+
+def _build_metric_comparison(
+    metric_type: str,
+    values_a: dict,
+    values_b: dict,
+) -> MetricComparison:
+    va = _extract_aggregate(values_a)
+    vb = _extract_aggregate(values_b)
+    delta = vb - va
+    pct = (delta / va * 100) if va != 0.0 else None
+    return MetricComparison(
+        metric_type=metric_type,
+        value_a=va, value_b=vb,
+        delta=delta, pct_change=pct,
+    )
+
+
+def _build_annual_comparisons(
+    annual_a: list, annual_b: list, years: list[int],
+) -> list[AnnualComparison]:
+    """Build per-year metric comparisons from annual ResultSet rows."""
+    def _group(rows):
+        out: dict = {}
+        for r in rows:
+            out.setdefault(r.year, {})[r.metric_type] = r.values
+        return out
+    ga, gb = _group(annual_a), _group(annual_b)
+    result: list[AnnualComparison] = []
+    for y in years:
+        year_a, year_b = ga.get(y, {}), gb.get(y, {})
+        shared = sorted(set(year_a) & set(year_b))
+        result.append(AnnualComparison(
+            year=y,
+            metrics=[_build_metric_comparison(mt, year_a[mt], year_b[mt]) for mt in shared],
+        ))
+    return result
+
+
+def _build_peak_comparison(peak_a: list, peak_b: list) -> PeakComparison:
+    """Build peak-year metric comparison."""
+    map_a = {r.metric_type: r.values for r in peak_a}
+    map_b = {r.metric_type: r.values for r in peak_b}
+    shared = sorted(set(map_a) & set(map_b))
+    return PeakComparison(
+        peak_year_a=peak_a[0].year if peak_a else None,
+        peak_year_b=peak_b[0].year if peak_b else None,
+        metrics=[_build_metric_comparison(mt, map_a[mt], map_b[mt]) for mt in shared],
+    )
+
+
 def _derive_status(row) -> str:
     """Derive scenario status from data.
 
@@ -372,6 +468,118 @@ def _derive_status(row) -> str:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+
+# --- S19-2: Scenario comparison ---
+
+
+@router.post(
+    "/{workspace_id}/scenarios/compare-runs",
+    response_model=CompareRunsResponse,
+)
+async def compare_runs(
+    workspace_id: UUID,
+    body: CompareRunsRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+) -> CompareRunsResponse:
+    """Compare two runs' deterministic outputs within the same workspace."""
+    run_id_a = UUID(body.run_id_a)
+    run_id_b = UUID(body.run_id_b)
+
+    # 1. Load and validate runs
+    snap_a = await snap_repo.get(run_id_a)
+    if snap_a is None or snap_a.workspace_id != workspace_id:
+        raise HTTPException(status_code=404, detail={
+            "reason_code": "COMPARE_RUN_NOT_FOUND",
+            "message": f"Run {body.run_id_a} not found in workspace.",
+        })
+    snap_b = await snap_repo.get(run_id_b)
+    if snap_b is None or snap_b.workspace_id != workspace_id:
+        raise HTTPException(status_code=404, detail={
+            "reason_code": "COMPARE_RUN_NOT_FOUND",
+            "message": f"Run {body.run_id_b} not found in workspace.",
+        })
+
+    # 2. Load cumulative results (series_kind=None)
+    results_a = await rs_repo.get_by_run_series(run_id_a, series_kind=None)
+    results_b = await rs_repo.get_by_run_series(run_id_b, series_kind=None)
+    if not results_a:
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "COMPARE_NO_RESULTS",
+            "message": f"Run {body.run_id_a} has no result sets.",
+        })
+    if not results_b:
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "COMPARE_NO_RESULTS",
+            "message": f"Run {body.run_id_b} has no result sets.",
+        })
+
+    # 3. Model mismatch check
+    if snap_a.model_version_id != snap_b.model_version_id:
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "COMPARE_MODEL_MISMATCH",
+            "message": "Runs use different model versions.",
+        })
+
+    # 4. Metric set validation
+    metrics_a = {r.metric_type for r in results_a}
+    metrics_b = {r.metric_type for r in results_b}
+    if metrics_a != metrics_b:
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "COMPARE_METRIC_SET_MISMATCH",
+            "message": f"Metric sets differ: a={sorted(metrics_a)}, b={sorted(metrics_b)}.",
+        })
+
+    # 5. Build cumulative comparisons
+    map_a = {r.metric_type: r.values for r in results_a}
+    map_b = {r.metric_type: r.values for r in results_b}
+    metrics = [
+        _build_metric_comparison(mt, map_a[mt], map_b[mt])
+        for mt in sorted(metrics_a)
+    ]
+
+    # 6. Annual comparison (optional)
+    annual = None
+    if body.include_annual:
+        annual_a = await rs_repo.get_by_run_series(run_id_a, series_kind="annual")
+        annual_b = await rs_repo.get_by_run_series(run_id_b, series_kind="annual")
+        if not annual_a or not annual_b:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "COMPARE_ANNUAL_UNAVAILABLE",
+                "message": "Annual series data not available for one or both runs.",
+            })
+        years_a = {r.year for r in annual_a}
+        years_b = {r.year for r in annual_b}
+        if years_a != years_b:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "COMPARE_ANNUAL_YEAR_MISMATCH",
+                "message": f"Year sets differ: a={sorted(years_a)}, b={sorted(years_b)}.",
+            })
+        annual = _build_annual_comparisons(annual_a, annual_b, sorted(years_a))
+
+    # 7. Peak comparison (optional)
+    peak = None
+    if body.include_peak:
+        peak_a = await rs_repo.get_by_run_series(run_id_a, series_kind="peak")
+        peak_b = await rs_repo.get_by_run_series(run_id_b, series_kind="peak")
+        if not peak_a or not peak_b:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "COMPARE_PEAK_UNAVAILABLE",
+                "message": "Peak data not available for one or both runs.",
+            })
+        peak = _build_peak_comparison(peak_a, peak_b)
+
+    return CompareRunsResponse(
+        run_id_a=str(run_id_a),
+        run_id_b=str(run_id_b),
+        model_version_a=str(snap_a.model_version_id),
+        model_version_b=str(snap_b.model_version_id),
+        metrics=metrics,
+        annual=annual,
+        peak=peak,
+    )
 
 
 # --- B-9: Scenario list ---

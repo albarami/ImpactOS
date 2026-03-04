@@ -117,7 +117,9 @@ class TestApproveAssumption:
             f"/v1/workspaces/{WS_ID}/governance/assumptions/{assumption_id}/approve",
             json={"actor": str(uuid7())},
         )
-        assert response.status_code == 400
+        assert response.status_code == 422
+        data = response.json()
+        assert data["detail"]["reason_code"] == "ASSUMPTION_RANGE_REQUIRED"
 
 
 class TestGovernanceStatus:

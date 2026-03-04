@@ -301,6 +301,9 @@ class AssumptionRow(Base):
     units: Mapped[str] = mapped_column(String(50), nullable=False)
     justification: Mapped[str] = mapped_column(Text, nullable=False)
     evidence_refs = mapped_column(FlexJSON, nullable=False)
+    workspace_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workspaces.workspace_id"), nullable=True, index=True,
+    )
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     approved_by: Mapped[UUID | None] = mapped_column(nullable=True)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

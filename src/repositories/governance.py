@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.tables import (
@@ -24,13 +24,14 @@ class AssumptionRepository:
                      units: str, justification: str,
                      evidence_refs: list | None = None,
                      range_json: dict | None = None,
-                     status: str = "DRAFT") -> AssumptionRow:
+                     status: str = "DRAFT",
+                     workspace_id: UUID | None = None) -> AssumptionRow:
         now = utc_now()
         row = AssumptionRow(
             assumption_id=assumption_id, type=type, value=value,
             range_json=range_json, units=units, justification=justification,
-            evidence_refs=evidence_refs or [], status=status,
-            created_at=now, updated_at=now,
+            evidence_refs=evidence_refs or [], workspace_id=workspace_id,
+            status=status, created_at=now, updated_at=now,
         )
         self._session.add(row)
         await self._session.flush()
@@ -89,6 +90,51 @@ class AssumptionRepository:
             )
         )
         return list(result.scalars().all())
+
+    async def get_for_workspace(
+        self, assumption_id: UUID, workspace_id: UUID,
+    ) -> AssumptionRow | None:
+        """Get assumption only if it belongs to the given workspace.
+
+        Returns None for wrong workspace or legacy NULL workspace_id rows.
+        """
+        result = await self._session.execute(
+            select(AssumptionRow).where(
+                AssumptionRow.assumption_id == assumption_id,
+                AssumptionRow.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_workspace(
+        self, workspace_id: UUID, *,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[AssumptionRow], int]:
+        """List assumptions scoped to workspace with optional status filter.
+
+        Returns (page_rows, total_count). Excludes NULL workspace_id rows.
+        Orders by created_at DESC, assumption_id DESC.
+        """
+        base = select(AssumptionRow).where(
+            AssumptionRow.workspace_id == workspace_id,
+        )
+        if status is not None:
+            base = base.where(AssumptionRow.status == status)
+
+        count_result = await self._session.execute(
+            select(func.count()).select_from(base.subquery())
+        )
+        total = count_result.scalar_one()
+
+        rows_result = await self._session.execute(
+            base.order_by(
+                AssumptionRow.created_at.desc(),
+                AssumptionRow.assumption_id.desc(),
+            ).limit(limit).offset(offset)
+        )
+        return list(rows_result.scalars().all()), total
 
 
 class ClaimRepository:
@@ -302,8 +348,8 @@ class EvidenceSnippetRepository:
     ) -> list[EvidenceSnippetRow]:
         """Get evidence snippets for a run's source documents.
 
-        Resolves run → source_checksums → workspace documents matching those
-        checksums → all evidence snippets for those documents.
+        Resolves run -> source_checksums -> workspace documents matching those
+        checksums -> all evidence snippets for those documents.
         """
         snapshot_result = await self._session.execute(
             select(RunSnapshotRow).where(
@@ -335,3 +381,76 @@ class EvidenceSnippetRepository:
             .order_by(EvidenceSnippetRow.created_at.asc())
         )
         return list(result.scalars().all())
+
+    async def browse(
+        self, workspace_id: UUID, *,
+        run_id: UUID | None = None,
+        snippet_ids: list[UUID] | None = None,
+        source_id: UUID | None = None,
+        text_query: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> tuple[list[EvidenceSnippetRow], int | None]:
+        """Paginated, filtered evidence browsing with workspace scoping.
+
+        Returns (rows, total_count). total_count is None when unpaginated.
+        snippet_ids is pre-resolved from claim's evidence_refs by the API layer.
+        """
+        base = (
+            select(EvidenceSnippetRow)
+            .join(DocumentRow, EvidenceSnippetRow.source_id == DocumentRow.doc_id)
+            .where(DocumentRow.workspace_id == workspace_id)
+        )
+
+        if snippet_ids is not None:
+            if not snippet_ids:
+                return [], 0
+            base = base.where(EvidenceSnippetRow.snippet_id.in_(snippet_ids))
+
+        if source_id is not None:
+            base = base.where(EvidenceSnippetRow.source_id == source_id)
+
+        if text_query is not None:
+            base = base.where(
+                EvidenceSnippetRow.extracted_text.ilike(f"%{text_query}%")
+            )
+
+        if run_id is not None:
+            snap_result = await self._session.execute(
+                select(RunSnapshotRow).where(
+                    RunSnapshotRow.run_id == run_id,
+                    RunSnapshotRow.workspace_id == workspace_id,
+                )
+            )
+            snapshot = snap_result.scalar_one_or_none()
+            if snapshot is None:
+                return [], 0
+            checksums = snapshot.source_checksums or []
+            if not checksums:
+                return [], 0
+            doc_result = await self._session.execute(
+                select(DocumentRow.doc_id).where(
+                    DocumentRow.workspace_id == workspace_id,
+                    DocumentRow.hash_sha256.in_(checksums),
+                )
+            )
+            doc_ids = list(doc_result.scalars().all())
+            if not doc_ids:
+                return [], 0
+            base = base.where(EvidenceSnippetRow.source_id.in_(doc_ids))
+
+        base = base.order_by(
+            EvidenceSnippetRow.created_at.asc(),
+            EvidenceSnippetRow.snippet_id.asc(),
+        )
+
+        total_count: int | None = None
+        if limit is not None:
+            count_result = await self._session.execute(
+                select(func.count()).select_from(base.subquery())
+            )
+            total_count = count_result.scalar_one()
+            base = base.limit(limit).offset(offset or 0)
+
+        result = await self._session.execute(base)
+        return list(result.scalars().all()), total_count

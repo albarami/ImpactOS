@@ -3,9 +3,14 @@
 POST /v1/workspaces/{workspace_id}/governance/claims/extract   — extract claims
 POST /v1/workspaces/{workspace_id}/governance/nff/check        — NFF gate check
 POST /v1/workspaces/{workspace_id}/governance/assumptions      — create assumption
+GET  /v1/workspaces/{workspace_id}/governance/assumptions       — list assumptions
+GET  /v1/workspaces/{workspace_id}/governance/assumptions/{id}  — assumption detail
 POST /v1/workspaces/{workspace_id}/governance/assumptions/{id}/approve — approve
+POST /v1/workspaces/{workspace_id}/governance/assumptions/{id}/reject  — reject
 GET  /v1/workspaces/{workspace_id}/governance/status/{run_id}  — governance status
 GET  /v1/workspaces/{workspace_id}/governance/blocking-reasons/{run_id}
+GET  /v1/workspaces/{workspace_id}/governance/evidence          — browse evidence
+       ?run_id=&claim_id=&source_id=&text_query=&limit=&offset=
 
 S0-4: Workspace-scoped routes.
 Deterministic — no LLM calls.
@@ -24,6 +29,7 @@ from src.api.auth_deps import (
 from src.api.dependencies import (
     get_assumption_repo,
     get_claim_repo,
+    get_document_repo,
     get_evidence_snippet_repo,
     get_run_snapshot_repo,
 )
@@ -36,6 +42,7 @@ from src.models.common import (
     DisclosureTier,
 )
 from src.models.governance import VALID_CLAIM_TRANSITIONS, Assumption, Claim
+from src.repositories.documents import DocumentRepository
 from src.repositories.engine import RunSnapshotRepository
 from src.repositories.governance import (
     AssumptionRepository,
@@ -191,6 +198,10 @@ class EvidenceListItem(BaseModel):
 class EvidenceListResponse(BaseModel):
     items: list[EvidenceListItem]
     total: int
+    total_matching: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
 
 
 class BBoxResponse(BaseModel):
@@ -221,6 +232,58 @@ class LinkEvidenceResponse(BaseModel):
     total_linked: int
 
 
+# --- S19-1: Assumption sign-off schemas ---
+
+
+class AssumptionListItem(BaseModel):
+    assumption_id: str
+    type: str
+    value: float
+    units: str
+    justification: str
+    status: str
+    range_min: float | None = None
+    range_max: float | None = None
+    approved_by: str | None = None
+    approved_at: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class AssumptionListResponse(BaseModel):
+    items: list[AssumptionListItem]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
+class AssumptionDetailResponse(BaseModel):
+    assumption_id: str
+    type: str
+    value: float
+    units: str
+    justification: str
+    status: str
+    range_min: float | None = None
+    range_max: float | None = None
+    evidence_refs: list[str]
+    approved_by: str | None = None
+    approved_at: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class RejectAssumptionRequest(BaseModel):
+    actor: str
+    reason: str | None = None
+
+
+class RejectAssumptionResponse(BaseModel):
+    assumption_id: str
+    status: str
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -238,6 +301,43 @@ def _row_to_claim(row: object) -> Claim:
         evidence_refs=[],
         created_at=row.created_at,
         updated_at=row.updated_at,
+    )
+
+
+def _row_to_assumption_item(row: object) -> AssumptionListItem:
+    """Convert AssumptionRow to list item response."""
+    return AssumptionListItem(
+        assumption_id=str(row.assumption_id),
+        type=row.type,
+        value=row.value,
+        units=row.units,
+        justification=row.justification,
+        status=row.status,
+        range_min=row.range_json.get("min") if row.range_json else None,
+        range_max=row.range_json.get("max") if row.range_json else None,
+        approved_by=str(row.approved_by) if row.approved_by else None,
+        approved_at=row.approved_at.isoformat() if row.approved_at else None,
+        created_at=row.created_at.isoformat(),
+        updated_at=row.updated_at.isoformat(),
+    )
+
+
+def _row_to_assumption_detail(row: object) -> AssumptionDetailResponse:
+    """Convert AssumptionRow to detail response."""
+    return AssumptionDetailResponse(
+        assumption_id=str(row.assumption_id),
+        type=row.type,
+        value=row.value,
+        units=row.units,
+        justification=row.justification,
+        status=row.status,
+        range_min=row.range_json.get("min") if row.range_json else None,
+        range_max=row.range_json.get("max") if row.range_json else None,
+        evidence_refs=[str(e) for e in (row.evidence_refs or [])],
+        approved_by=str(row.approved_by) if row.approved_by else None,
+        approved_at=row.approved_at.isoformat() if row.approved_at else None,
+        created_at=row.created_at.isoformat(),
+        updated_at=row.updated_at.isoformat(),
     )
 
 
@@ -349,12 +449,66 @@ async def create_assumption(
         justification=assumption.justification,
         evidence_refs=[str(er) for er in assumption.evidence_refs],
         status=assumption.status.value,
+        workspace_id=workspace_id,
     )
 
     return CreateAssumptionResponse(
         assumption_id=str(assumption.assumption_id),
         status=assumption.status.value,
     )
+
+
+@router.get(
+    "/{workspace_id}/governance/assumptions",
+    response_model=AssumptionListResponse,
+)
+async def list_assumptions(
+    workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
+    assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
+    status: str | None = Query(default=None),
+    limit: int = Query(default=50),
+    offset: int = Query(default=0),
+) -> AssumptionListResponse:
+    """List assumptions scoped to workspace with pagination."""
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "ASSUMPTION_INVALID_PAGINATION",
+            "message": f"limit must be 1-100, got {limit}.",
+        })
+    if offset < 0:
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "ASSUMPTION_INVALID_PAGINATION",
+            "message": f"offset must be >= 0, got {offset}.",
+        })
+    rows, total = await assumption_repo.list_by_workspace(
+        workspace_id, status=status, limit=limit, offset=offset,
+    )
+    items = [_row_to_assumption_item(r) for r in rows]
+    return AssumptionListResponse(
+        items=items, total=total, limit=limit, offset=offset,
+        has_more=total > offset + limit,
+    )
+
+
+@router.get(
+    "/{workspace_id}/governance/assumptions/{assumption_id}",
+    response_model=AssumptionDetailResponse,
+)
+async def get_assumption_detail(
+    workspace_id: UUID,
+    assumption_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
+    assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
+) -> AssumptionDetailResponse:
+    """Get assumption detail (workspace-scoped)."""
+    row = await assumption_repo.get_for_workspace(assumption_id, workspace_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail={
+            "reason_code": "ASSUMPTION_NOT_FOUND",
+            "message": f"Assumption {assumption_id} not found.",
+        })
+    return _row_to_assumption_detail(row)
 
 
 @router.post(
@@ -365,28 +519,30 @@ async def approve_assumption(
     workspace_id: UUID,
     assumption_id: UUID,
     body: ApproveAssumptionRequest,
-    member: WorkspaceMember = Depends(require_workspace_member),
+    member: WorkspaceMember = Depends(require_role("manager", "admin")),
     assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
 ) -> ApproveAssumptionResponse:
-    """Approve an assumption — requires sensitivity range."""
+    """Approve an assumption — manager/admin only, requires sensitivity range."""
     if body.range_min is None or body.range_max is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Approved assumptions must include range_min and range_max.",
-        )
+        raise HTTPException(status_code=422, detail={
+            "reason_code": "ASSUMPTION_RANGE_REQUIRED",
+            "message": "Approved assumptions must include range_min and range_max.",
+        })
 
-    row = await assumption_repo.get(assumption_id)
+    row = await assumption_repo.get_for_workspace(assumption_id, workspace_id)
     if row is None:
-        raise HTTPException(status_code=404, detail=f"Assumption {assumption_id} not found.")
+        raise HTTPException(status_code=404, detail={
+            "reason_code": "ASSUMPTION_NOT_FOUND",
+            "message": f"Assumption {assumption_id} not found.",
+        })
 
     if row.status != "DRAFT":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Cannot approve: assumption {assumption_id}"
-                f" is not DRAFT (currently {row.status})."
+        raise HTTPException(status_code=409, detail={
+            "reason_code": "ASSUMPTION_NOT_DRAFT",
+            "message": (
+                f"Cannot approve: status is {row.status}, expected DRAFT."
             ),
-        )
+        })
 
     range_json = {"min": body.range_min, "max": body.range_max}
     updated = await assumption_repo.approve(
@@ -400,6 +556,36 @@ async def approve_assumption(
         status=updated.status,
         range_min=updated.range_json.get("min") if updated.range_json else None,
         range_max=updated.range_json.get("max") if updated.range_json else None,
+    )
+
+
+@router.post(
+    "/{workspace_id}/governance/assumptions/{assumption_id}/reject",
+    response_model=RejectAssumptionResponse,
+)
+async def reject_assumption(
+    workspace_id: UUID,
+    assumption_id: UUID,
+    body: RejectAssumptionRequest,
+    member: WorkspaceMember = Depends(require_role("manager", "admin")),
+    assumption_repo: AssumptionRepository = Depends(get_assumption_repo),
+) -> RejectAssumptionResponse:
+    """Reject an assumption — manager/admin only."""
+    row = await assumption_repo.get_for_workspace(assumption_id, workspace_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail={
+            "reason_code": "ASSUMPTION_NOT_FOUND",
+            "message": f"Assumption {assumption_id} not found.",
+        })
+    if row.status != "DRAFT":
+        raise HTTPException(status_code=409, detail={
+            "reason_code": "ASSUMPTION_NOT_DRAFT",
+            "message": f"Cannot reject: status is {row.status}, expected DRAFT.",
+        })
+    updated = await assumption_repo.reject(assumption_id)
+    return RejectAssumptionResponse(
+        assumption_id=str(updated.assumption_id),
+        status=updated.status,
     )
 
 
@@ -596,14 +782,51 @@ async def list_evidence(
     workspace_id: UUID,
     member: WorkspaceMember = Depends(require_workspace_member),
     run_id: UUID | None = Query(default=None, description="Filter evidence by run_id"),
+    claim_id: UUID | None = Query(default=None, description="Filter by claim's evidence_refs"),
+    source_id: UUID | None = Query(default=None, description="Filter by source document"),
+    text_query: str | None = Query(default=None, description="Text search (ILIKE)"),
+    limit: int | None = Query(default=None, description="Page size (1-100)"),
+    offset: int | None = Query(default=None, description="Page offset"),
     evidence_repo: EvidenceSnippetRepository = Depends(get_evidence_snippet_repo),
     run_snapshot_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    claim_repo: ClaimRepository = Depends(get_claim_repo),
+    document_repo: DocumentRepository = Depends(get_document_repo),
 ) -> EvidenceListResponse:
-    """B-7: List evidence snippets scoped to a run within a workspace.
+    """List evidence snippets with optional filters and pagination.
 
-    Returns 404 if run_id does not exist or belongs to another workspace.
-    Returns only evidence snippets linked to claims in the specified run.
+    Backward-compatible: without limit, returns all matching rows.
+    With limit, returns paginated results with total_matching and has_more.
+    Filters (run_id, claim_id, source_id, text_query) are AND-combined.
     """
+    # --- Pagination validation ---
+    if limit is not None:
+        if limit < 1 or limit > 100:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "EVIDENCE_INVALID_PAGINATION",
+                "message": f"limit must be 1-100, got {limit}.",
+            })
+    if offset is not None:
+        if offset < 0:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "EVIDENCE_INVALID_PAGINATION",
+                "message": f"offset must be >= 0, got {offset}.",
+            })
+        if limit is None:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "EVIDENCE_INVALID_PAGINATION",
+                "message": "offset requires limit to be set.",
+            })
+
+    # --- Text query validation ---
+    if text_query is not None:
+        text_query = text_query.strip()
+        if len(text_query) < 2:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": "EVIDENCE_TEXT_QUERY_TOO_SHORT",
+                "message": "text_query must be at least 2 characters after trimming.",
+            })
+
+    # --- run_id 404 check (preserve existing behavior) ---
     if run_id is not None:
         snapshot = await run_snapshot_repo.get(run_id)
         if snapshot is None:
@@ -614,9 +837,44 @@ async def list_evidence(
             raise HTTPException(
                 status_code=404, detail=f"Run {run_id} not found.",
             )
-        rows = await evidence_repo.list_by_run_for_workspace(run_id, workspace_id)
-    else:
-        rows = await evidence_repo.list_by_workspace(workspace_id)
+
+    # --- claim_id resolution ---
+    snippet_ids: list[UUID] | None = None
+    if claim_id is not None:
+        claim_row = await claim_repo.get_for_workspace(claim_id, workspace_id)
+        if claim_row is None:
+            raise HTTPException(
+                status_code=404, detail=f"Claim {claim_id} not found.",
+            )
+        refs = claim_row.evidence_refs or []
+        snippet_ids = [UUID(r) for r in refs]
+        # Short-circuit: empty refs means no matching snippets
+        if not snippet_ids:
+            return EvidenceListResponse(
+                items=[], total=0,
+                total_matching=0 if limit is not None else None,
+                limit=limit, offset=offset,
+                has_more=False if limit is not None else None,
+            )
+
+    # --- source_id 404 check ---
+    if source_id is not None:
+        doc_row = await document_repo.get(source_id)
+        if doc_row is None or doc_row.workspace_id != workspace_id:
+            raise HTTPException(
+                status_code=404, detail=f"Document {source_id} not found.",
+            )
+
+    # --- Browse ---
+    rows, total_count = await evidence_repo.browse(
+        workspace_id,
+        run_id=run_id,
+        snippet_ids=snippet_ids,
+        source_id=source_id,
+        text_query=text_query,
+        limit=limit,
+        offset=offset,
+    )
 
     items = [
         EvidenceListItem(
@@ -629,7 +887,17 @@ async def list_evidence(
         )
         for r in rows
     ]
-    return EvidenceListResponse(items=items, total=len(items))
+
+    return EvidenceListResponse(
+        items=items,
+        total=len(items) if total_count is None else total_count,
+        total_matching=total_count,
+        limit=limit,
+        offset=offset,
+        has_more=(
+            total_count > (offset or 0) + limit
+        ) if limit is not None and total_count is not None else None,
+    )
 
 
 @router.get(

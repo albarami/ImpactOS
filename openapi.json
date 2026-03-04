@@ -2278,6 +2278,138 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "governance"
+        ],
+        "summary": "List Assumptions",
+        "description": "List assumptions scoped to workspace with pagination.",
+        "operationId": "list_assumptions_v1_workspaces__workspace_id__governance_assumptions_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssumptionListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/governance/assumptions/{assumption_id}": {
+      "get": {
+        "tags": [
+          "governance"
+        ],
+        "summary": "Get Assumption Detail",
+        "description": "Get assumption detail (workspace-scoped).",
+        "operationId": "get_assumption_detail_v1_workspaces__workspace_id__governance_assumptions__assumption_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "assumption_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Assumption Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssumptionDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/workspaces/{workspace_id}/governance/assumptions/{assumption_id}/approve": {
@@ -2286,7 +2418,7 @@
           "governance"
         ],
         "summary": "Approve Assumption",
-        "description": "Approve an assumption \u2014 requires sensitivity range.",
+        "description": "Approve an assumption \u2014 manager/admin only, requires sensitivity range.",
         "operationId": "approve_assumption_v1_workspaces__workspace_id__governance_assumptions__assumption_id__approve_post",
         "parameters": [
           {
@@ -2327,6 +2459,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApproveAssumptionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/governance/assumptions/{assumption_id}/reject": {
+      "post": {
+        "tags": [
+          "governance"
+        ],
+        "summary": "Reject Assumption",
+        "description": "Reject an assumption \u2014 manager/admin only.",
+        "operationId": "reject_assumption_v1_workspaces__workspace_id__governance_assumptions__assumption_id__reject_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "assumption_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Assumption Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectAssumptionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RejectAssumptionResponse"
                 }
               }
             }
@@ -2637,7 +2833,7 @@
           "governance"
         ],
         "summary": "List Evidence",
-        "description": "B-7: List evidence snippets scoped to a run within a workspace.\n\nReturns 404 if run_id does not exist or belongs to another workspace.\nReturns only evidence snippets linked to claims in the specified run.",
+        "description": "List evidence snippets with optional filters and pagination.\n\nBackward-compatible: without limit, returns all matching rows.\nWith limit, returns paginated results with total_matching and has_more.\nFilters (run_id, claim_id, source_id, text_query) are AND-combined.",
         "operationId": "list_evidence_v1_workspaces__workspace_id__governance_evidence_get",
         "parameters": [
           {
@@ -2668,6 +2864,98 @@
               "title": "Run Id"
             },
             "description": "Filter evidence by run_id"
+          },
+          {
+            "name": "claim_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by claim's evidence_refs",
+              "title": "Claim Id"
+            },
+            "description": "Filter by claim's evidence_refs"
+          },
+          {
+            "name": "source_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by source document",
+              "title": "Source Id"
+            },
+            "description": "Filter by source document"
+          },
+          {
+            "name": "text_query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text search (ILIKE)",
+              "title": "Text Query"
+            },
+            "description": "Text search (ILIKE)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (1-100)",
+              "title": "Limit"
+            },
+            "description": "Page size (1-100)"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page offset",
+              "title": "Offset"
+            },
+            "description": "Page offset"
           }
         ],
         "responses": {
@@ -4507,6 +4795,60 @@
         }
       }
     },
+    "/v1/workspaces/{workspace_id}/scenarios/compare-runs": {
+      "post": {
+        "tags": [
+          "scenarios"
+        ],
+        "summary": "Compare Runs",
+        "description": "Compare two runs' deterministic outputs within the same workspace.",
+        "operationId": "compare_runs_v1_workspaces__workspace_id__scenarios_compare_runs_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareRunsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareRunsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace_id}/scenarios": {
       "get": {
         "tags": [
@@ -5861,6 +6203,27 @@
   },
   "components": {
     "schemas": {
+      "AnnualComparison": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/MetricComparison"
+            },
+            "type": "array",
+            "title": "Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "metrics"
+        ],
+        "title": "AnnualComparison"
+      },
       "ApproveAssumptionRequest": {
         "properties": {
           "range_min": {
@@ -5996,6 +6359,106 @@
         ],
         "title": "ArtifactSummary"
       },
+      "AssumptionDetailResponse": {
+        "properties": {
+          "assumption_id": {
+            "type": "string",
+            "title": "Assumption Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "units": {
+            "type": "string",
+            "title": "Units"
+          },
+          "justification": {
+            "type": "string",
+            "title": "Justification"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "range_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Min"
+          },
+          "range_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Max"
+          },
+          "evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Refs"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assumption_id",
+          "type",
+          "value",
+          "units",
+          "justification",
+          "status",
+          "evidence_refs",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AssumptionDetailResponse"
+      },
       "AssumptionEntryResponse": {
         "properties": {
           "entry_id": {
@@ -6114,6 +6577,134 @@
           "status"
         ],
         "title": "AssumptionEntryResponse"
+      },
+      "AssumptionListItem": {
+        "properties": {
+          "assumption_id": {
+            "type": "string",
+            "title": "Assumption Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "units": {
+            "type": "string",
+            "title": "Units"
+          },
+          "justification": {
+            "type": "string",
+            "title": "Justification"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "range_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Min"
+          },
+          "range_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Max"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assumption_id",
+          "type",
+          "value",
+          "units",
+          "justification",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AssumptionListItem"
+      },
+      "AssumptionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AssumptionListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "AssumptionListResponse"
       },
       "AssumptionVersionResponse": {
         "properties": {
@@ -6875,6 +7466,94 @@
           "sector_coefficients"
         ],
         "title": "CoefficientsResponse"
+      },
+      "CompareRunsRequest": {
+        "properties": {
+          "run_id_a": {
+            "type": "string",
+            "title": "Run Id A"
+          },
+          "run_id_b": {
+            "type": "string",
+            "title": "Run Id B"
+          },
+          "include_annual": {
+            "type": "boolean",
+            "title": "Include Annual",
+            "default": false
+          },
+          "include_peak": {
+            "type": "boolean",
+            "title": "Include Peak",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id_a",
+          "run_id_b"
+        ],
+        "title": "CompareRunsRequest"
+      },
+      "CompareRunsResponse": {
+        "properties": {
+          "run_id_a": {
+            "type": "string",
+            "title": "Run Id A"
+          },
+          "run_id_b": {
+            "type": "string",
+            "title": "Run Id B"
+          },
+          "model_version_a": {
+            "type": "string",
+            "title": "Model Version A"
+          },
+          "model_version_b": {
+            "type": "string",
+            "title": "Model Version B"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/MetricComparison"
+            },
+            "type": "array",
+            "title": "Metrics"
+          },
+          "annual": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AnnualComparison"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual"
+          },
+          "peak": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PeakComparison"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id_a",
+          "run_id_b",
+          "model_version_a",
+          "model_version_b",
+          "metrics"
+        ],
+        "title": "CompareRunsResponse"
       },
       "CompilationDetailResponse": {
         "properties": {
@@ -8659,6 +9338,50 @@
           "total": {
             "type": "integer",
             "title": "Total"
+          },
+          "total_matching": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Matching"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offset"
+          },
+          "has_more": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has More"
           }
         },
         "type": "object",
@@ -9519,6 +10242,45 @@
         "title": "MeResponse",
         "description": "Current user profile response."
       },
+      "MetricComparison": {
+        "properties": {
+          "metric_type": {
+            "type": "string",
+            "title": "Metric Type"
+          },
+          "value_a": {
+            "type": "number",
+            "title": "Value A"
+          },
+          "value_b": {
+            "type": "number",
+            "title": "Value B"
+          },
+          "delta": {
+            "type": "number",
+            "title": "Delta"
+          },
+          "pct_change": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Change"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric_type",
+          "value_a",
+          "value_b",
+          "delta"
+        ],
+        "title": "MetricComparison"
+      },
       "MetricEventOut": {
         "properties": {
           "event_id": {
@@ -9935,6 +10697,44 @@
           "created_at"
         ],
         "title": "PatternResponse"
+      },
+      "PeakComparison": {
+        "properties": {
+          "peak_year_a": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Year A"
+          },
+          "peak_year_b": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Year B"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/MetricComparison"
+            },
+            "type": "array",
+            "title": "Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metrics"
+        ],
+        "title": "PeakComparison"
       },
       "QualityOverviewResponse": {
         "properties": {
@@ -10377,6 +11177,48 @@
           "checksum"
         ],
         "title": "RegisterModelResponse"
+      },
+      "RejectAssumptionRequest": {
+        "properties": {
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actor"
+        ],
+        "title": "RejectAssumptionRequest"
+      },
+      "RejectAssumptionResponse": {
+        "properties": {
+          "assumption_id": {
+            "type": "string",
+            "title": "Assumption Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assumption_id",
+          "status"
+        ],
+        "title": "RejectAssumptionResponse"
       },
       "ResultSetResponse": {
         "properties": {
