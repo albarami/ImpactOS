@@ -87,18 +87,18 @@ class TestMigration014Postgres:
         )
 
     def test_downgrade_removes_column(self):
-        """Downgrade -1; verify workspace_id column is gone."""
+        """Downgrade to 013_sg_provenance; verify workspace_id column is gone."""
         _run_alembic("upgrade", "head")
-        r = _run_alembic("downgrade", "-1")
+        r = _run_alembic("downgrade", "013_sg_provenance")
         assert r.returncode == 0, f"downgrade failed:\n{r.stderr}"
         assert not _column_exists("assumptions", "workspace_id"), (
             "workspace_id column still present on assumptions after downgrade"
         )
 
     def test_re_upgrade(self):
-        """Downgrade then re-upgrade; verify clean."""
+        """Downgrade to 013_sg_provenance then re-upgrade; verify clean."""
         _run_alembic("upgrade", "head")
-        _run_alembic("downgrade", "-1")
+        _run_alembic("downgrade", "013_sg_provenance")
         r = _run_alembic("upgrade", "head")
         assert r.returncode == 0, f"re-upgrade failed:\n{r.stderr}"
         assert _column_exists("assumptions", "workspace_id"), (
