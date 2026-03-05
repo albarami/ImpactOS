@@ -28,6 +28,7 @@ Based on merged work on `main`:
 | 22 | MVP-22 | Live Workshop Dashboard | 4556 | a9c0729 | sprint-22-complete | 2026-03-04 |
 | 23 | MVP-23 | Advanced Variance Bridges + Explainability | 4609 | 33303cf | sprint-23-complete | 2026-03-05 |
 | 24 | S24 | Full-System Staging Proof + Go/No-Go | 4932 | 1146f70 | - | 2026-03-05 |
+| 25 | S25 | Economist Copilot v1 (Chat + Agent) | 4985 | 0a7f01c | - | 2026-03-05 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
@@ -61,6 +62,17 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
     - Staging proof evidence: `docs/evidence/sprint24-staging-proof.md`
     - Go/No-Go dossier: `docs/evidence/sprint24-go-no-go-dossier.md`
 
+### Wave D: AI-Assisted Workflows — IN PROGRESS
+
+12. Sprint 25: Economist Copilot v1 — done (0a7f01c)
+    - Conversational AI economist assistant with versioned prompt (`copilot_v1`)
+    - Chat persistence: migration 020, `chat_sessions` + `chat_messages` tables
+    - Confirmation gate: `build_scenario` and `run_engine` require user approval
+    - Trace metadata: provenance on every results message (run_id, scenario, confidence)
+    - Agent-to-math boundary enforced: LLM never computes numbers
+    - 53 new backend tests + 13 frontend tests, all pre-existing tests pass
+    - Evidence: `docs/evidence/sprint25-copilot-evidence.md`
+
 ## 4) Definition of "fully built and wired"
 
 The system is only considered fully complete when all are true:
@@ -80,10 +92,12 @@ The system is only considered fully complete when all are true:
 
 ## 5) Immediate next action
 
-- Sprint 24 (Full-System Staging Proof + Go/No-Go) complete at 1146f70.
+- Sprint 25 (Economist Copilot v1) complete at 0a7f01c.
 - All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed.
+- Sprint 25 adds AI-assisted economist workflow: chat, copilot agent, confirmation gate, trace metadata.
 - Go/No-Go dossier: CONDITIONAL GO. Proceed to staging deployment when infrastructure prerequisites met.
 - See `docs/evidence/sprint24-go-no-go-dossier.md` for full criteria and rollback plan.
+- See `docs/evidence/sprint25-copilot-evidence.md` for copilot constraint compliance.
 
 ## 6) Minimum environment needed to see "live" behavior
 
