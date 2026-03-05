@@ -700,17 +700,85 @@ class TestNarrateResultsHandler:
 
 
 class TestCreateExportHandler:
-    """S27-1b: create_export handler creates an export record."""
+    """S28-2: create_export handler calls ExportExecutionService.execute()."""
 
-    async def test_success(self, db_session):
-        session, ws_id = db_session
+    async def test_success_completed(self, db_session_with_model):
+        """Sandbox export with quality assessment returns COMPLETED."""
+        session, ws_id, mv_id = db_session_with_model
 
-        # Create a RunSnapshot so export can be created
+        # Create a RunSnapshot referencing the model
         run_id = new_uuid7()
         now = utc_now()
         snap = RunSnapshotRow(
             run_id=run_id,
-            model_version_id=new_uuid7(),
+            model_version_id=mv_id,
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            source_checksums=[],
+            workspace_id=ws_id,
+            created_at=now,
+        )
+        session.add(snap)
+        await session.flush()
+
+        # Seed quality assessment so export is not blocked
+        from src.quality.models import RunQualityAssessment, QualityGrade
+        from src.repositories.data_quality import DataQualityRepository
+
+        quality_payload = RunQualityAssessment(
+            assessment_id=new_uuid7(),
+            assessment_version=1,
+            run_id=run_id,
+            composite_score=0.9,
+            grade=QualityGrade.A,
+            used_synthetic_fallback=False,
+        )
+        quality_repo = DataQualityRepository(session)
+        await quality_repo.save_summary(
+            summary_id=new_uuid7(),
+            run_id=run_id,
+            workspace_id=ws_id,
+            overall_run_score=0.9,
+            overall_run_grade="A",
+            coverage_pct=1.0,
+            publication_gate_pass=True,
+            publication_gate_mode="SANDBOX",
+            payload=quality_payload.model_dump(mode="json"),
+        )
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="create_export", arguments={
+            "run_id": str(run_id),
+            "mode": "SANDBOX",
+            "export_formats": ["excel"],
+            "pack_data": {"title": "Tourism Impact Report"},
+        })
+        result = await executor.execute(tc)
+        assert result.status == "success"
+        data = result.result
+        assert "export_id" in data
+        assert data["status"] == "COMPLETED"
+        assert "checksums" in data
+
+        # Verify persisted
+        repo = ExportRepository(session)
+        row = await repo.get(UUID(data["export_id"]))
+        assert row is not None
+        assert row.mode == "SANDBOX"
+        assert row.status == "COMPLETED"
+
+    async def test_blocked_without_quality(self, db_session_with_model):
+        """Export without quality assessment returns BLOCKED (not PENDING)."""
+        session, ws_id, mv_id = db_session_with_model
+
+        run_id = new_uuid7()
+        now = utc_now()
+        snap = RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=mv_id,
             taxonomy_version_id=new_uuid7(),
             concordance_version_id=new_uuid7(),
             mapping_library_version_id=new_uuid7(),
@@ -727,21 +795,14 @@ class TestCreateExportHandler:
         tc = ToolCall(tool_name="create_export", arguments={
             "run_id": str(run_id),
             "mode": "SANDBOX",
-            "export_formats": ["pptx", "xlsx"],
-            "pack_data": {"title": "Tourism Impact Report"},
+            "export_formats": ["excel"],
+            "pack_data": {"title": "Report"},
         })
         result = await executor.execute(tc)
         assert result.status == "success"
         data = result.result
-        assert "export_id" in data
-        assert data["status"] == "PENDING"
-
-        # Verify persisted
-        repo = ExportRepository(session)
-        row = await repo.get(UUID(data["export_id"]))
-        assert row is not None
-        assert row.mode == "SANDBOX"
-        assert row.status == "PENDING"
+        assert data["status"] == "BLOCKED"
+        assert data["status"] != "PENDING"
 
     async def test_missing_run_id_returns_invalid_args(self, executor):
         tc = ToolCall(tool_name="create_export", arguments={
@@ -1055,3 +1116,228 @@ class TestRunEngineRealExecution:
         assert isinstance(result.result["result_summary"], dict)
         # result_summary should have at least one metric type from persisted results
         assert len(result.result["result_summary"]) > 0
+
+
+# ------------------------------------------------------------------
+# Sprint 28: Real export orchestration tests (S28-2)
+# ------------------------------------------------------------------
+
+
+class TestCreateExportRealOrchestration:
+    """S28-2: create_export wired to ExportExecutionService.execute()."""
+
+    async def test_sandbox_export_completed(self, db_session_with_model):
+        """Sandbox export returns COMPLETED with checksums."""
+        session, ws_id, mv_id = db_session_with_model
+
+        # Create RunSnapshot referencing the model
+        run_id = new_uuid7()
+        now = utc_now()
+        snap = RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=mv_id,
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            source_checksums=[],
+            workspace_id=ws_id,
+            created_at=now,
+        )
+        session.add(snap)
+        await session.flush()
+
+        # Seed quality assessment to pass governance gate
+        from src.quality.models import RunQualityAssessment, QualityGrade
+        from src.repositories.data_quality import DataQualityRepository
+
+        quality_payload = RunQualityAssessment(
+            assessment_id=new_uuid7(),
+            assessment_version=1,
+            run_id=run_id,
+            composite_score=0.9,
+            grade=QualityGrade.A,
+            used_synthetic_fallback=False,
+        )
+        quality_repo = DataQualityRepository(session)
+        await quality_repo.save_summary(
+            summary_id=new_uuid7(),
+            run_id=run_id,
+            workspace_id=ws_id,
+            overall_run_score=0.9,
+            overall_run_grade="A",
+            coverage_pct=1.0,
+            publication_gate_pass=True,
+            publication_gate_mode="SANDBOX",
+            payload=quality_payload.model_dump(mode="json"),
+        )
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="create_export", arguments={
+            "run_id": str(run_id),
+            "mode": "SANDBOX",
+            "export_formats": ["excel"],
+            "pack_data": {"title": "Sandbox Complete"},
+        })
+        result = await executor.execute(tc)
+        assert result.status == "success"
+        data = result.result
+        assert data["status"] == "COMPLETED"
+        assert "checksums" in data
+        assert data["checksums"]  # non-empty
+
+        # Verify DB persistence
+        repo = ExportRepository(session)
+        row = await repo.get(UUID(data["export_id"]))
+        assert row is not None
+        assert row.status == "COMPLETED"
+        assert row.checksums_json is not None
+
+    async def test_export_blocked_no_quality(self, db_session_with_model):
+        """Export blocked when no quality assessment."""
+        session, ws_id, mv_id = db_session_with_model
+
+        run_id = new_uuid7()
+        now = utc_now()
+        snap = RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=mv_id,
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            source_checksums=[],
+            workspace_id=ws_id,
+            created_at=now,
+        )
+        session.add(snap)
+        await session.flush()
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="create_export", arguments={
+            "run_id": str(run_id),
+            "mode": "SANDBOX",
+            "export_formats": ["excel"],
+            "pack_data": {"title": "No Quality"},
+        })
+        result = await executor.execute(tc)
+        assert result.status == "success"
+        data = result.result
+        assert data["status"] == "BLOCKED"
+
+    async def test_export_returns_blocking_reasons(self, db_session_with_model):
+        """Blocked export includes blocking_reasons list."""
+        session, ws_id, mv_id = db_session_with_model
+
+        run_id = new_uuid7()
+        now = utc_now()
+        snap = RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=mv_id,
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            source_checksums=[],
+            workspace_id=ws_id,
+            created_at=now,
+        )
+        session.add(snap)
+        await session.flush()
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="create_export", arguments={
+            "run_id": str(run_id),
+            "mode": "SANDBOX",
+            "export_formats": ["excel"],
+            "pack_data": {"title": "Blocking Reasons"},
+        })
+        result = await executor.execute(tc)
+        assert result.status == "success"
+        data = result.result
+        assert data["status"] == "BLOCKED"
+        assert "blocking_reasons" in data
+        assert isinstance(data["blocking_reasons"], list)
+        assert len(data["blocking_reasons"]) > 0
+
+    async def test_export_not_pending(self, db_session_with_model):
+        """Export status is NOT PENDING after S28."""
+        session, ws_id, mv_id = db_session_with_model
+
+        run_id = new_uuid7()
+        now = utc_now()
+        snap = RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=mv_id,
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            source_checksums=[],
+            workspace_id=ws_id,
+            created_at=now,
+        )
+        session.add(snap)
+        await session.flush()
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="create_export", arguments={
+            "run_id": str(run_id),
+            "mode": "SANDBOX",
+            "export_formats": ["excel"],
+            "pack_data": {"title": "Not Pending"},
+        })
+        result = await executor.execute(tc)
+        assert result.status == "success"
+        data = result.result
+        # After S28 exports are never PENDING -- they go to COMPLETED or BLOCKED
+        assert data["status"] != "PENDING"
+        assert data["status"] in ("COMPLETED", "BLOCKED")
+
+    async def test_export_blocked_is_not_error(self, db_session_with_model):
+        """BLOCKED export should NOT have ToolExecutionResult.status='error'.
+
+        BLOCKED is a valid governance outcome, not a handler failure.
+        """
+        session, ws_id, mv_id = db_session_with_model
+
+        run_id = new_uuid7()
+        now = utc_now()
+        snap = RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=mv_id,
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            source_checksums=[],
+            workspace_id=ws_id,
+            created_at=now,
+        )
+        session.add(snap)
+        await session.flush()
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="create_export", arguments={
+            "run_id": str(run_id),
+            "mode": "SANDBOX",
+            "export_formats": ["excel"],
+            "pack_data": {"title": "Blocked Not Error"},
+        })
+        result = await executor.execute(tc)
+
+        # The export will be BLOCKED (no quality assessment)
+        assert result.result["status"] == "BLOCKED"
+
+        # But at ToolExecutionResult level it should be "success" not "error"
+        assert result.status == "success"
+        assert result.status != "error"
+        # reason_code should be empty (not an error reason code)
+        assert result.reason_code not in (
+            "export_failed", "run_not_found", "invalid_args",
+        )

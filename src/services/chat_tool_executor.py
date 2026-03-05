@@ -238,19 +238,24 @@ class ChatToolExecutor:
         }
 
     async def _handle_create_export(self, arguments: dict) -> dict:
-        """Initiate an export request for a Decision Pack.
+        """Execute a full export via ExportExecutionService (Sprint 28).
 
         Required args: run_id, mode, export_formats, pack_data
         Guards: RunSnapshot must exist for run_id AND belong to current
         workspace (prevents orphan exports and cross-workspace access).
 
-        Note: This creates a PENDING export record only. Actual artifact
-        generation (orchestrator, NFF gates, watermarking, S3 storage) is
-        handled by the API export endpoint or a future background worker.
-        TODO(S28+): Wire to ExportOrchestrator or async export queue.
+        Delegates to ExportExecutionService.execute() for governance checks,
+        artifact generation, watermarking, and checksum computation.
         """
-        from src.db.tables import RunSnapshotRow
+        from src.services.export_execution import (
+            ExportExecutionService, ExportExecutionInput, ExportRepositories,
+        )
         from src.repositories.exports import ExportRepository
+        from src.repositories.governance import ClaimRepository
+        from src.repositories.data_quality import DataQualityRepository
+        from src.repositories.engine import RunSnapshotRepository, ModelVersionRepository
+        from src.export.artifact_storage import ExportArtifactStorage
+        from src.config.settings import get_settings
 
         run_id = arguments.get("run_id")
         mode = arguments.get("mode")
@@ -282,6 +287,8 @@ class ChatToolExecutor:
 
         # Guard: RunSnapshot must exist AND belong to this workspace
         # (prevents orphan exports from dry-run IDs and cross-workspace access)
+        from src.db.tables import RunSnapshotRow
+
         snap = await self._session.get(RunSnapshotRow, run_uuid)
         if snap is None or snap.workspace_id != self._workspace_id:
             return {
@@ -289,19 +296,40 @@ class ChatToolExecutor:
                 "error": f"RunSnapshot {run_id} not found in workspace",
             }
 
-        export_id = new_uuid7()
-        repo = ExportRepository(self._session)
-        row = await repo.create(
-            export_id=export_id,
+        settings = get_settings()
+        artifact_store = ExportArtifactStorage(storage_root=settings.OBJECT_STORAGE_PATH)
+
+        repos = ExportRepositories(
+            export_repo=ExportRepository(self._session),
+            claim_repo=ClaimRepository(self._session),
+            quality_repo=DataQualityRepository(self._session),
+            snap_repo=RunSnapshotRepository(self._session),
+            mv_repo=ModelVersionRepository(self._session),
+            artifact_store=artifact_store,
+        )
+        svc = ExportExecutionService()
+        inp = ExportExecutionInput(
+            workspace_id=self._workspace_id,
             run_id=run_uuid,
-            mode=validated_mode.value,
-            status="PENDING",
+            mode=validated_mode,
+            export_formats=export_formats,
+            pack_data=pack_data,
         )
 
-        return {
-            "export_id": str(row.export_id),
-            "status": "PENDING",
+        result = await svc.execute(inp, repos)
+
+        if result.status == "FAILED":
+            return {"reason_code": "export_failed", "error": result.error or "Export failed"}
+
+        response: dict = {
+            "export_id": str(result.export_id),
+            "status": result.status,
         }
+        if result.checksums:
+            response["checksums"] = result.checksums
+        if result.blocking_reasons:
+            response["blocking_reasons"] = result.blocking_reasons
+        return response
 
     # ------------------------------------------------------------------
     # Execute single / execute all
@@ -326,7 +354,7 @@ class ChatToolExecutor:
         # Reason codes that indicate handler-level validation failures
         _ERROR_REASON_CODES = frozenset({
             "invalid_args", "scenario_not_found", "no_results", "run_not_found",
-            "run_failed",
+            "run_failed", "export_failed",
         })
 
         start = time.monotonic()
