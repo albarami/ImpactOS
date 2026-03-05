@@ -9,6 +9,16 @@ export interface ToolCall {
   result?: Record<string, unknown> | null;
 }
 
+export interface ToolExecutionResult {
+  tool_name: string;
+  status: 'success' | 'error' | 'blocked';
+  reason_code: string;
+  retryable: boolean;
+  latency_ms: number;
+  result?: Record<string, unknown> | null;
+  error_summary?: string | null;
+}
+
 export interface PendingConfirmation {
   tool: string;
   arguments: Record<string, unknown>;
@@ -19,6 +29,7 @@ export interface TraceMetadata {
   scenario_spec_id?: string | null;
   scenario_spec_version?: number | null;
   model_version_id?: string | null;
+  export_id?: string | null;
   io_table?: string | null;
   multiplier_type?: string | null;
   assumptions?: string[];

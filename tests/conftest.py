@@ -6,6 +6,7 @@ Provides:
 - client: AsyncClient with dependency overrides for DB + auth (default principal)
 """
 
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
@@ -21,6 +22,7 @@ from src.api.auth_deps import (
     get_current_principal,
     require_workspace_member,
 )
+from src.config.settings import Settings
 from src.db.session import Base, get_async_session
 
 _DEFAULT_PRINCIPAL = AuthPrincipal(
@@ -97,10 +99,17 @@ async def client(db_session):
     app.dependency_overrides[get_current_principal] = _override_principal
     app.dependency_overrides[require_workspace_member] = _override_workspace_member
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as ac:
-        yield ac
+    # Disable copilot in integration tests to avoid real LLM calls.
+    # Tests that specifically test copilot wiring use _build_copilot directly.
+    _test_settings = Settings(
+        DATABASE_URL="sqlite:///test.db",
+        COPILOT_ENABLED=False,
+    )
+    with patch("src.api.chat.get_settings", return_value=_test_settings):
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as ac:
+            yield ac
 
     app.dependency_overrides.clear()

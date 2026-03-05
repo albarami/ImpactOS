@@ -1,6 +1,6 @@
 # ImpactOS Full-System Completion Master Plan (Post-Phase 3B)
 
-Date: 2026-03-04 (updated)
+Date: 2026-03-06 (updated)
 Owner: Backend + Data + Frontend + Ops
 
 ## 1) What is complete now
@@ -29,7 +29,8 @@ Based on merged work on `main`:
 | 23 | MVP-23 | Advanced Variance Bridges + Explainability | 4609 | 33303cf | sprint-23-complete | 2026-03-05 |
 | 24 | S24 | Full-System Staging Proof + Go/No-Go | 4932 | 1146f70 | - | 2026-03-05 |
 | 25 | S25 | Economist Copilot v1 (Chat + Agent) | 4698 + 320 FE | 599ec87 | sprint-25-complete | 2026-03-05 |
-| 26 | S26 | Copilot Hardening (Backlog Burn-Down) | 4725 + 328 FE | *(branch)* | - | 2026-03-05 |
+| 26 | S26 | Copilot Hardening (Backlog Burn-Down) | 4728 + 328 FE | 0d0ab79 | sprint-26-complete | 2026-03-05 |
+| 27 | S27 | Copilot Tool Execution (Operationalization) | 4852 + 336 FE | *(branch)* | - | 2026-03-06 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
@@ -76,7 +77,7 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
     - Evidence: `docs/evidence/sprint25-copilot-evidence.md`
     - Known gaps → Sprint 26 backlog: S26-BL-1 (multi-turn history), S26-BL-2 (chatFetch client), S26-BL-3 (nested JSON regex), S26-BL-4 (unused settings), S26-BL-5 (unstructured LLM mode)
 
-13. Sprint 26: Copilot Hardening (Backlog Burn-Down) — branch `phase3-sprint26-copilot-hardening`
+13. Sprint 26: Copilot Hardening (Backlog Burn-Down) — merged (PR #31 → `0d0ab79`, tag `sprint-26-complete`)
     - All 5 Sprint 25 backlog items resolved: S26-BL-1 through S26-BL-5
     - Multi-turn history: LLMRequest `messages` field, all 3 providers updated
     - Unstructured mode: `call_unstructured()`, `_DummySchema` removed
@@ -84,7 +85,20 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
     - Settings wiring: COPILOT_MODEL/COPILOT_MAX_TOKENS into runtime
     - Frontend migration: useChat hooks to shared openapi-fetch client
     - Zero new product surface, full backward compatibility
+    - Post-merge verification: 4728 backend passed (29 skipped), 328 frontend passed
     - Evidence: `docs/evidence/sprint25-copilot-evidence.md` (Sprint 26 Resolutions section)
+
+14. Sprint 27: Copilot Tool Execution (Operationalization) — branch `phase3-sprint27-copilot-tool-execution` (PR #32)
+    - `ChatToolExecutor` with 5 workspace-scoped tool handlers: `lookup_data`, `build_scenario`, `run_engine`, `narrate_results`, `create_export`
+    - Safety caps: max 5 tool calls/turn, max 1 `run_engine` + 1 `create_export` per turn
+    - `run_engine`: dry-run validation MVP (validates scenario in workspace, honors `scenario_spec_version` for provenance pinning; full `BatchRunner.run()` deferred)
+    - `create_export`: initiation only (creates PENDING row, workspace-scoped RunSnapshot guard; ExportOrchestrator deferred)
+    - Runtime wiring: `_build_copilot()` factory, `COPILOT_ENABLED` kill switch, fail-closed non-dev (503)
+    - Trace metadata: populated from execution results; `run_id` suppressed from dry-run
+    - Frontend: status badges on tool calls, deep links to runs/exports
+    - Pre-merge verification: 4852 backend passed (29 skipped), 336 frontend passed
+    - Evidence: `docs/evidence/sprint25-copilot-evidence.md` (Sprint 27 section)
+    - Design: `docs/plans/2026-03-05-sprint27-copilot-tool-execution-design.md`
 
 ## 4) Definition of "fully built and wired"
 
@@ -106,12 +120,13 @@ The system is only considered fully complete when all are true:
 ## 5) Immediate next action
 
 - Sprint 25 (Economist Copilot v1) merged: PR #30 → `599ec87`, tag `sprint-25-complete`.
-- Sprint 26 (Copilot Hardening): All 5 backlog items (S26-BL-1..5) resolved on branch `phase3-sprint26-copilot-hardening`.
-- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprint 25 merged. Sprint 26 in PR.
-- Post-Sprint 26 verification: 4725 backend passed (29 skipped), 328 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
+- Sprint 26 (Copilot Hardening) merged: PR #31 → `0d0ab79`, tag `sprint-26-complete`. All 5 backlog items resolved.
+- Sprint 27 (Copilot Tool Execution): PR #32 on branch `phase3-sprint27-copilot-tool-execution`. Executor infrastructure complete with workspace-scoped handlers, safety caps, version pinning. `run_engine` is dry-run MVP; full engine execution deferred.
+- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprints 25-26 merged. Sprint 27 in PR.
+- Post-Sprint 27 verification: 4852 backend passed (29 skipped), 336 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
 - Go/No-Go dossier: CONDITIONAL GO. Proceed to staging deployment when infrastructure prerequisites met.
 - See `docs/evidence/sprint24-go-no-go-dossier.md` for full criteria and rollback plan.
-- See `docs/evidence/sprint25-copilot-evidence.md` for copilot constraint compliance and Sprint 26 resolutions.
+- See `docs/evidence/sprint25-copilot-evidence.md` for copilot constraint compliance, Sprint 26 resolutions, and Sprint 27 tool execution evidence.
 
 ## 6) Minimum environment needed to see "live" behavior
 

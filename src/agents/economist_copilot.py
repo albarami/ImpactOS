@@ -29,7 +29,7 @@ _logger = logging.getLogger(__name__)
 _GATED_TOOLS = frozenset({"build_scenario", "run_engine"})
 
 # Valid tool names
-_VALID_TOOLS = frozenset({"lookup_data", "build_scenario", "run_engine", "narrate_results"})
+_VALID_TOOLS = frozenset({"lookup_data", "build_scenario", "run_engine", "narrate_results", "create_export"})
 
 
 class ConfirmationRequiredError(Exception):

@@ -127,7 +127,7 @@ export function ChatInterface({ workspaceId, sessionId }: ChatInterfaceProps) {
             </div>
           )}
           {messages.map((msg) => (
-            <MessageBubble key={msg.message_id} message={msg} />
+            <MessageBubble key={msg.message_id} message={msg} workspaceId={workspaceId} />
           ))}
           {sendMessage.isPending && (
             <div className="flex items-center gap-2 text-sm text-slate-400" data-testid="sending-indicator">

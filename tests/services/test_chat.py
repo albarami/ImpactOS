@@ -1,19 +1,21 @@
-"""Tests for ChatService (Sprint 25)."""
+"""Tests for ChatService (Sprint 25 + Sprint 27 tool execution)."""
 
 import pytest
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
+
+pytestmark = pytest.mark.anyio
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.db.session import Base
 import src.db.tables  # noqa: F401
 from src.db.tables import WorkspaceRow
-from src.models.common import utc_now
+from src.models.common import new_uuid7, utc_now
 from src.repositories.chat import ChatMessageRepository, ChatSessionRepository
 from src.services.chat import ChatService
 from src.agents.economist_copilot import CopilotResponse
-from src.models.chat import TokenUsage, TraceMetadata
+from src.models.chat import TokenUsage, ToolCall, ToolExecutionResult, TraceMetadata
 
 
 @pytest.fixture
@@ -308,6 +310,18 @@ class TestChatService:
         ctx = call_args.kwargs.get("context", call_args[0][2] if len(call_args[0]) > 2 else {})
         assert ctx["max_tokens"] == 16384
 
+    async def test_copilot_none_returns_stub(self, db_session):
+        """S27-0: Service returns stub when copilot=None."""
+        session, ws_id = db_session
+        svc = ChatService(
+            session_repo=ChatSessionRepository(session),
+            message_repo=ChatMessageRepository(session),
+            copilot=None,
+        )
+        sess = await svc.create_session(ws_id, title="test")
+        msg = await svc.send_message(ws_id, UUID(sess.session_id), "hi")
+        assert "not configured" in msg.content.lower()
+
     async def test_chat_service_sends_history_to_copilot(self, db_session):
         """Chat service passes prior messages as history to copilot."""
         session, ws_id = db_session
@@ -355,3 +369,206 @@ class TestChatService:
         roles = [m["role"] for m in history_arg]
         assert "user" in roles
         assert "assistant" in roles
+
+
+# ------------------------------------------------------------------
+# Sprint 27: Tool execution integration tests
+# ------------------------------------------------------------------
+
+
+class TestToolExecution:
+    """S27-2: ChatService tool execution integration."""
+
+    async def test_confirmed_tool_gets_executed(self, db_session):
+        """When copilot returns tool calls (no pending_confirmation), executor runs."""
+        session, ws_id = db_session
+
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(return_value=CopilotResponse(
+            content="Looking up available datasets.",
+            tool_calls=[
+                ToolCall(tool_name="lookup_data", arguments={"dataset_id": "io_tables"}),
+            ],
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=100, output_tokens=50),
+        ))
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+        result = await svc.send_message(ws_id, sid, "Show me available data")
+
+        # Tool calls should be in the response with results populated
+        assert result.tool_calls is not None
+        assert len(result.tool_calls) == 1
+        tc = result.tool_calls[0]
+        assert tc.tool_name == "lookup_data"
+        assert tc.result is not None
+        assert tc.result["status"] == "success"
+
+    async def test_unconfirmed_gated_tool_not_executed(self, db_session):
+        """When copilot returns pending_confirmation, executor NOT called."""
+        session, ws_id = db_session
+
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(return_value=CopilotResponse(
+            content="Shall I proceed with this scenario?",
+            pending_confirmation={
+                "tool": "build_scenario",
+                "arguments": {"name": "Tourism Impact"},
+            },
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=100, output_tokens=50),
+        ))
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+        result = await svc.send_message(ws_id, sid, "Build a tourism scenario")
+
+        # No tool calls (copilot returned pending, not tool_calls)
+        # The pending_confirmation should be in trace
+        assert result.trace_metadata is not None
+        assert result.trace_metadata.pending_confirmation is not None
+
+    async def test_trace_metadata_populated_from_run_engine_dry_run(self, db_session):
+        """After run_engine dry-run, trace has scenario refs but NOT run_id.
+
+        run_engine MVP returns scenario_validated_dry_run — the synthetic
+        run_id must NOT leak into trace metadata (no RunSnapshot exists).
+        Scenario/model refs ARE populated since they come from real DB rows.
+        """
+        session, ws_id = db_session
+
+        # Create a scenario first so run_engine can validate
+        from src.repositories.scenarios import ScenarioVersionRepository
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        mv_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="Test",
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(return_value=CopilotResponse(
+            content="Running the engine on your scenario.",
+            tool_calls=[
+                ToolCall(
+                    tool_name="run_engine",
+                    arguments={
+                        "scenario_spec_id": str(spec_id),
+                        "scenario_spec_version": 1,
+                    },
+                ),
+            ],
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=100, output_tokens=50),
+        ))
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+        result = await svc.send_message(ws_id, sid, "Run the engine")
+
+        assert result.trace_metadata is not None
+        # run_id must NOT be populated from dry-run (synthetic, no RunSnapshot)
+        assert result.trace_metadata.run_id is None
+        # scenario/model refs are real DB data and should be populated
+        assert result.trace_metadata.scenario_spec_id == str(spec_id)
+        assert result.trace_metadata.scenario_spec_version == 1
+        assert result.trace_metadata.model_version_id == str(mv_id)
+
+    async def test_trace_metadata_populated_from_build_scenario(self, db_session):
+        """After build_scenario execution, trace has scenario_spec_id."""
+        session, ws_id = db_session
+
+        mv_id = str(new_uuid7())
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(return_value=CopilotResponse(
+            content="Building the tourism scenario.",
+            tool_calls=[
+                ToolCall(
+                    tool_name="build_scenario",
+                    arguments={
+                        "name": "Tourism Impact",
+                        "base_year": 2023,
+                        "base_model_version_id": mv_id,
+                    },
+                ),
+            ],
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=100, output_tokens=50),
+        ))
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+        result = await svc.send_message(ws_id, sid, "Create a tourism scenario")
+
+        assert result.trace_metadata is not None
+        assert result.trace_metadata.scenario_spec_id is not None
+        assert result.trace_metadata.scenario_spec_version == 1
+
+    async def test_no_executor_skips_execution(self, db_session):
+        """When db_session is None, tool calls are persisted but not executed."""
+        session, ws_id = db_session
+
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(return_value=CopilotResponse(
+            content="Looking up data.",
+            tool_calls=[
+                ToolCall(tool_name="lookup_data", arguments={"dataset_id": "io_tables"}),
+            ],
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=100, output_tokens=50),
+        ))
+
+        # db_session=None means no executor created
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=None,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+        result = await svc.send_message(ws_id, sid, "Show me data")
+
+        # Tool calls should be persisted but without execution results
+        assert result.tool_calls is not None
+        assert len(result.tool_calls) == 1
+        tc = result.tool_calls[0]
+        assert tc.tool_name == "lookup_data"
+        assert tc.result is None  # not executed

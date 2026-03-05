@@ -267,3 +267,81 @@ All five Sprint 25 backlog items resolved with zero new product surface and full
 | `pytest --tb=no -q` | **4728 passed**, 29 skipped, 0 failures |
 | `vitest run` | **328 passed** (37 test files), 0 failures |
 | Tag | `sprint-26-complete` pushed on `0d0ab79` |
+
+---
+
+## Sprint 27: Copilot Tool Execution (Operationalization)
+
+**Branch:** `phase3-sprint27-copilot-tool-execution`
+**Date:** 2026-03-05
+
+Sprint 27 closes the operational gap: copilot tool calls are now dispatched through a workspace-scoped executor with safety caps, latency tracking, and DB-backed handlers. `build_scenario` creates real ScenarioSpecs. `narrate_results` reads persisted ResultSets (workspace-scoped). `create_export` initiates a PENDING export record (workspace-scoped, guarded by RunSnapshot existence; actual artifact generation deferred). `run_engine` performs scenario validation (dry-run MVP); full `BatchRunner.run()` integration is deferred. `lookup_data` returns a dataset catalog (MVP stub). Tool results are surfaced in the message's `tool_calls[*].result` payload; a post-execution LLM narrative pass is deferred.
+
+### Scope Items
+
+| ID | Feature | Implementation |
+|----|---------|---------------|
+| S27-0 | Runtime wiring | `_build_copilot()` factory creates real `EconomistCopilot` from settings; `COPILOT_ENABLED` kill switch; non-dev fail-closed (503) when no real LLM providers |
+| S27-1a | Tool executor skeleton | `ChatToolExecutor` with safety caps (5/turn, 1 run_engine, 1 create_export); `ToolExecutionResult` model |
+| S27-1b | Tool handlers (workspace-scoped) | `build_scenario` (creates ScenarioSpec), `run_engine` (validates scenario in workspace — dry-run MVP), `narrate_results` (reads ResultSets, workspace-scoped), `create_export` (initiates PENDING export, workspace-scoped RunSnapshot guard), `lookup_data` (MVP stub) |
+| S27-1c | create_export tool | Added as 5th copilot tool (not gated); prompt and definitions updated |
+| S27-2 | ChatService integration | Tool execution after confirmation gate; trace metadata populated with scenario_spec_id, model_version_id (run_id only from real engine runs, not dry-run); results persisted in tool_calls[*].result |
+| S27-3 | Frontend visibility | Status badges (green/red/amber) on tool calls; error_summary display; deep links from trace_metadata.run_id to /w/{id}/runs/{runId} |
+| S27-4 | Contracts + evidence | OpenAPI regenerated; evidence doc updated; master build plan updated |
+
+### Sprint 27 Commit Log
+
+| Commit | Description |
+|--------|-------------|
+| `0eeac34` | wire chat runtime to real copilot dependency with fail-closed behavior |
+| `a6c8cb0` | add ToolExecutionResult model and ChatToolExecutor skeleton with safety caps |
+| `878bb65` | implement tool handlers for scenario engine narrate and export |
+| `00d9034` | integrate chat service with executed tool results and trace linking |
+| `3be21b6` | add create_export tool to copilot prompt and valid tools |
+| `559e154` | add frontend visibility for tool execution status and run/export links |
+
+### Sprint 27 Files Delivered
+
+**Backend (new):**
+- `src/services/chat_tool_executor.py` — ChatToolExecutor with 5 tool handlers
+- `tests/services/test_chat_tool_executor.py` — 62 executor tests
+
+**Backend (modified):**
+- `src/config/settings.py` — `COPILOT_ENABLED` setting
+- `src/api/chat.py` — `_build_copilot()` factory, fail-closed wiring
+- `src/models/chat.py` — `ToolExecutionResult` model
+- `src/services/chat.py` — tool execution integration, trace population
+- `src/agents/economist_copilot.py` — `create_export` in `_VALID_TOOLS`
+- `src/agents/prompts/economist_copilot_v1.py` — tool 5 definition
+- `tests/services/test_chat.py` — 5 new tool execution tests
+- `tests/api/test_chat.py` — 6 new runtime wiring tests
+- `tests/agents/test_economist_copilot.py` — 7 new create_export tests
+
+**Frontend (modified):**
+- `frontend/src/components/chat/message-bubble.tsx` — status badges, error display
+- `frontend/src/components/chat/trace-metadata.tsx` — deep links to runs
+- `frontend/src/components/chat/chat-interface.tsx` — workspaceId prop threading
+- `frontend/src/lib/api/hooks/useChat.ts` — ToolExecutionResult type export
+- `frontend/src/lib/api/hooks/__tests__/useChat.type.test.ts` — 4 new type tests
+- `frontend/src/components/chat/__tests__/chat-interface.test.tsx` — 4 new badge/link tests
+
+### Sprint 27 Pre-Merge Verification
+
+| Check | Result |
+|-------|--------|
+| `alembic current` | `020_chat_sessions_messages (head)` — no new migration needed |
+| `pytest --tb=no -q` | **4852 passed**, 29 skipped, 0 failures |
+| `vitest run` | **336 passed** (38 test files), 0 failures |
+| Backend delta | +124 tests over Sprint 26 baseline (4728 → 4852) |
+| Frontend delta | +8 tests over Sprint 26 baseline (328 → 336) |
+
+### Sprint 27 Scope Limitations (Documented)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| `run_engine` | Dry-run validation only | Validates scenario exists in workspace, returns refs; does NOT call `BatchRunner.run()` or persist `RunSnapshot`/`ResultSet`. Honors caller-provided `scenario_spec_version` for provenance pinning. Deferred. |
+| `create_export` | Initiation only | Creates PENDING row (workspace-scoped RunSnapshot guard). Does NOT call `ExportOrchestrator` (NFF gates, artifact generation, watermarking, S3). Deferred. |
+| Post-execution narrative | Not implemented | Assistant message is pre-execution text. Tool results surfaced in `tool_calls[*].result` payload but LLM does not narrate from them in same turn. Deferred. |
+| Trace `run_id` | Not populated from dry-run | `ChatService` skips `run_id` population when `reason_code == "scenario_validated_dry_run"`. Scenario/model refs still populated. |
+| `narrate_results` | Functional but no data in dry-run | Returns structured ResultSet data (workspace-scoped). Returns `run_not_found` for dry-run `run_id`s (no RunSnapshot exists). |
+| `lookup_data` | MVP stub | Returns dataset catalog metadata, not actual data queries. |

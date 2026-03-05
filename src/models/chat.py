@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -12,6 +14,7 @@ class TraceMetadata(BaseModel):
     scenario_spec_id: str | None = None
     scenario_spec_version: int | None = None
     model_version_id: str | None = None
+    export_id: str | None = None
     io_table: str | None = None
     multiplier_type: str | None = None
     assumptions: list[str] = Field(default_factory=list)
@@ -26,6 +29,18 @@ class ToolCall(BaseModel):
     tool_name: str
     arguments: dict
     result: dict | None = None
+
+
+class ToolExecutionResult(BaseModel):
+    """Result of executing a tool call."""
+
+    tool_name: str
+    status: Literal["success", "error", "blocked"]
+    reason_code: str = ""
+    retryable: bool = False
+    latency_ms: int = 0
+    result: dict | None = None
+    error_summary: str | None = None
 
 
 class TokenUsage(BaseModel):
