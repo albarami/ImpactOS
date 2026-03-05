@@ -1,20 +1,23 @@
-"""ChatToolExecutor — dispatches copilot tool calls to handlers (Sprint 27).
+"""ChatToolExecutor -- dispatches copilot tool calls to handlers (Sprint 27).
 
 Executes tool calls proposed by the EconomistCopilot, enforcing per-turn
-safety caps and measuring latency. Stub handlers return structured JSON;
-real implementations will be wired in later sprints.
+safety caps and measuring latency.  Handlers interact with repositories
+to create scenarios, validate engine runs, read results, and create exports.
 
 Agent-to-Math Boundary: this executor dispatches to deterministic engine
-endpoints — it never performs economic computations itself.
+endpoints -- it never performs economic computations itself.
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from typing import Callable, Awaitable
+from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.chat import ToolCall, ToolExecutionResult
+from src.models.common import ExportMode, new_uuid7
 
 _logger = logging.getLogger(__name__)
 
@@ -31,44 +34,13 @@ _PER_TOOL_CAPS: dict[str, int] = {
     "create_export": _MAX_CREATE_EXPORT_PER_TURN,
 }
 
-
-# ------------------------------------------------------------------
-# Stub handlers
-# ------------------------------------------------------------------
-
-async def _handle_lookup_data(arguments: dict) -> dict:
-    """Stub: look up economic data."""
-    return {"stub": True, "tool": "lookup_data", "arguments": arguments}
-
-
-async def _handle_build_scenario(arguments: dict) -> dict:
-    """Stub: build a scenario spec from user intent."""
-    return {"stub": True, "tool": "build_scenario", "arguments": arguments}
-
-
-async def _handle_run_engine(arguments: dict) -> dict:
-    """Stub: run the deterministic I-O engine."""
-    return {"stub": True, "tool": "run_engine", "arguments": arguments}
-
-
-async def _handle_narrate_results(arguments: dict) -> dict:
-    """Stub: narrate engine results into natural language."""
-    return {"stub": True, "tool": "narrate_results", "arguments": arguments}
-
-
-async def _handle_create_export(arguments: dict) -> dict:
-    """Stub: create an export (Excel/PPT/PDF)."""
-    return {"stub": True, "tool": "create_export", "arguments": arguments}
-
-
-# Handler registry: tool_name -> async handler(arguments) -> dict
-_HANDLER_REGISTRY: dict[str, Callable[[dict], Awaitable[dict]]] = {
-    "lookup_data": _handle_lookup_data,
-    "build_scenario": _handle_build_scenario,
-    "run_engine": _handle_run_engine,
-    "narrate_results": _handle_narrate_results,
-    "create_export": _handle_create_export,
-}
+# Available dataset types for lookup_data MVP stub
+_AVAILABLE_DATASETS = [
+    {"dataset_id": "io_tables", "description": "Input-Output tables (KAPSARC)"},
+    {"dataset_id": "multipliers", "description": "Output, income, and employment multipliers"},
+    {"dataset_id": "employment_coefficients", "description": "Employment coefficients by sector"},
+    {"dataset_id": "macro_indicators", "description": "GDP, trade, and fiscal indicators"},
+]
 
 
 # ------------------------------------------------------------------
@@ -77,13 +49,211 @@ _HANDLER_REGISTRY: dict[str, Callable[[dict], Awaitable[dict]]] = {
 
 
 class ChatToolExecutor:
-    """Dispatches tool calls to handlers with safety caps and latency tracking."""
+    """Dispatches tool calls to handlers with safety caps and latency tracking.
 
-    def _get_handler(
-        self, tool_name: str,
-    ) -> Callable[[dict], Awaitable[dict]] | None:
+    Each handler receives a DB session and workspace_id for repository access.
+    """
+
+    def __init__(self, session: AsyncSession, workspace_id: UUID) -> None:
+        self._session = session
+        self._workspace_id = workspace_id
+        self._handler_map = {
+            "lookup_data": self._handle_lookup_data,
+            "build_scenario": self._handle_build_scenario,
+            "run_engine": self._handle_run_engine,
+            "narrate_results": self._handle_narrate_results,
+            "create_export": self._handle_create_export,
+        }
+
+    def _get_handler(self, tool_name: str):
         """Return the handler for a tool, or None if unknown."""
-        return _HANDLER_REGISTRY.get(tool_name)
+        return self._handler_map.get(tool_name)
+
+    # ------------------------------------------------------------------
+    # Tool handlers
+    # ------------------------------------------------------------------
+
+    async def _handle_lookup_data(self, arguments: dict) -> dict:
+        """MVP stub: return available dataset metadata list."""
+        return {
+            "reason_code": "datasets_listed",
+            "datasets": _AVAILABLE_DATASETS,
+        }
+
+    async def _handle_build_scenario(self, arguments: dict) -> dict:
+        """Create a ScenarioSpec via ScenarioVersionRepository.
+
+        Required args: name, base_year, base_model_version_id
+        Optional: start_year, end_year (used for time_horizon)
+        """
+        from src.repositories.scenarios import ScenarioVersionRepository
+
+        name = arguments.get("name")
+        base_year = arguments.get("base_year")
+        base_model_version_id = arguments.get("base_model_version_id")
+
+        if not name or base_year is None or not base_model_version_id:
+            return {
+                "reason_code": "invalid_args",
+                "error": "Missing required fields: name, base_year, base_model_version_id",
+            }
+
+        start_year = arguments.get("start_year", base_year)
+        end_year = arguments.get("end_year", base_year)
+
+        scenario_spec_id = new_uuid7()
+        repo = ScenarioVersionRepository(self._session)
+        row = await repo.create(
+            scenario_spec_id=scenario_spec_id,
+            version=1,
+            name=name,
+            workspace_id=self._workspace_id,
+            base_model_version_id=UUID(str(base_model_version_id)),
+            base_year=int(base_year),
+            time_horizon={"start_year": int(start_year), "end_year": int(end_year)},
+            shock_items=arguments.get("shock_items", []),
+        )
+
+        return {
+            "scenario_spec_id": str(row.scenario_spec_id),
+            "version": row.version,
+            "name": row.name,
+        }
+
+    async def _handle_run_engine(self, arguments: dict) -> dict:
+        """Validate scenario exists and return success with run_id.
+
+        Sprint 27 MVP: validates scenario, returns structured result.
+        Full engine execution (model loading, BatchRunner) comes in a
+        follow-up sprint when the full pipeline is wired.
+        """
+        from src.repositories.scenarios import ScenarioVersionRepository
+
+        scenario_spec_id = arguments.get("scenario_spec_id")
+        if not scenario_spec_id:
+            return {
+                "reason_code": "invalid_args",
+                "error": "Missing required field: scenario_spec_id",
+            }
+
+        try:
+            spec_uuid = UUID(str(scenario_spec_id))
+        except (ValueError, AttributeError):
+            return {
+                "reason_code": "invalid_args",
+                "error": f"Invalid scenario_spec_id format: {scenario_spec_id}",
+            }
+
+        repo = ScenarioVersionRepository(self._session)
+        row = await repo.get_latest(spec_uuid)
+        if row is None:
+            return {
+                "reason_code": "scenario_not_found",
+                "error": f"Scenario {scenario_spec_id} not found",
+            }
+
+        run_id = new_uuid7()
+        return {
+            "status": "success",
+            "reason_code": "scenario_validated",
+            "run_id": str(run_id),
+            "scenario_spec_id": str(row.scenario_spec_id),
+            "scenario_spec_version": row.version,
+            "model_version_id": str(row.base_model_version_id),
+        }
+
+    async def _handle_narrate_results(self, arguments: dict) -> dict:
+        """Read ResultSet rows for a run and return structured result data."""
+        from src.repositories.engine import ResultSetRepository
+
+        run_id = arguments.get("run_id")
+        if not run_id:
+            return {
+                "reason_code": "invalid_args",
+                "error": "Missing required field: run_id",
+            }
+
+        try:
+            run_uuid = UUID(str(run_id))
+        except (ValueError, AttributeError):
+            return {
+                "reason_code": "invalid_args",
+                "error": f"Invalid run_id format: {run_id}",
+            }
+
+        repo = ResultSetRepository(self._session)
+        rows = await repo.get_by_run(run_uuid)
+
+        if not rows:
+            return {
+                "reason_code": "no_results",
+                "run_id": str(run_id),
+                "result": {},
+            }
+
+        # Structure results: metric_type -> values dict
+        result_data: dict[str, dict] = {}
+        for row in rows:
+            result_data[row.metric_type] = row.values
+
+        return {
+            "reason_code": "results_found",
+            "run_id": str(run_id),
+            "result": result_data,
+        }
+
+    async def _handle_create_export(self, arguments: dict) -> dict:
+        """Create an export record for a Decision Pack.
+
+        Required args: run_id, mode, export_formats, pack_data
+        """
+        from src.repositories.exports import ExportRepository
+
+        run_id = arguments.get("run_id")
+        mode = arguments.get("mode")
+        export_formats = arguments.get("export_formats")
+        pack_data = arguments.get("pack_data")
+
+        if not run_id or not mode or not export_formats or pack_data is None:
+            return {
+                "reason_code": "invalid_args",
+                "error": "Missing required fields: run_id, mode, export_formats, pack_data",
+            }
+
+        # Validate mode against ExportMode enum
+        try:
+            validated_mode = ExportMode(mode)
+        except ValueError:
+            return {
+                "reason_code": "invalid_args",
+                "error": f"Invalid mode: {mode}. Must be SANDBOX or GOVERNED.",
+            }
+
+        try:
+            run_uuid = UUID(str(run_id))
+        except (ValueError, AttributeError):
+            return {
+                "reason_code": "invalid_args",
+                "error": f"Invalid run_id format: {run_id}",
+            }
+
+        export_id = new_uuid7()
+        repo = ExportRepository(self._session)
+        row = await repo.create(
+            export_id=export_id,
+            run_id=run_uuid,
+            mode=validated_mode.value,
+            status="PENDING",
+        )
+
+        return {
+            "export_id": str(row.export_id),
+            "status": "PENDING",
+        }
+
+    # ------------------------------------------------------------------
+    # Execute single / execute all
+    # ------------------------------------------------------------------
 
     async def execute(self, tool_call: ToolCall) -> ToolExecutionResult:
         """Execute a single tool call.
