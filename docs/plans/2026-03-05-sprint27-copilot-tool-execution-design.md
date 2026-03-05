@@ -86,12 +86,20 @@ def _get_chat_service(session, copilot=None):
 | `lookup_data` | Query data repos | `dataset_id`, `sector_codes`, `year` | Dataset rows/metadata | No | - |
 | `build_scenario` | Create ScenarioSpec | `name`, `base_year`, `shock_items` | `scenario_spec_id`, `version` | Yes | - |
 | `run_engine` | Validate scenario (dry-run MVP) | `scenario_spec_id`, `version` | `scenario_spec_id`, `model_version_id`, `reason_code: scenario_validated_dry_run` | Yes | Max 1/turn |
-| `narrate_results` | Read persisted ResultSets by run_id | `run_id` | Result data for LLM narrative | No | - |
-| `create_export` | Create export record (requires RunSnapshot) | `run_id`, `mode`, `export_formats[]`, `pack_data` | `export_id`, `status: PENDING` | No | Max 1/turn |
+| `narrate_results` | Read persisted ResultSets by run_id (workspace-scoped) | `run_id` | Structured result data surfaced in tool_calls payload | No | - |
+| `create_export` | Initiate export request (requires workspace-scoped RunSnapshot) | `run_id`, `mode`, `export_formats[]`, `pack_data` | `export_id`, `status: PENDING` | No | Max 1/turn |
 
 ### narrate_results source-of-truth
 
-`narrate_results` must read persisted ResultSets from DB by `run_id`. It does NOT accept free-form result data from the LLM. This enforces the agent-to-math boundary: the LLM narrates real numbers, not invented ones.
+`narrate_results` reads persisted ResultSets from DB by `run_id` (workspace-scoped). It does NOT accept free-form result data from the LLM. This enforces the agent-to-math boundary.
+
+**Current limitation:** Tool results are surfaced in the message's `tool_calls[*].result` payload but the LLM does not receive a second pass to narrate from them in the same turn. The assistant message content is the pre-execution text from the first LLM call. A post-execution narrative pass is deferred to a follow-up sprint.
+TODO(S28+): Add second LLM call after tool execution to produce narrative from tool results, OR include tool results in conversation history so the LLM can narrate on the next turn.
+
+### create_export scope
+
+`create_export` inserts a PENDING export record only. It does NOT trigger the `ExportOrchestrator` pipeline (NFF gate checks, artifact generation, watermarking, S3 storage). The real export generation is handled by the `POST /exports` API endpoint or a future background worker.
+TODO(S28+): Wire chat `create_export` to `ExportOrchestrator` or async export queue.
 
 ## Trace Metadata Population
 
@@ -144,14 +152,21 @@ When `ENVIRONMENT != dev` and required LLM provider config is missing:
 - Full `create_export` → real RunSnapshot pipeline
 
 **Guards added to prevent data integrity issues:**
-1. `create_export` now verifies `RunSnapshotRow` exists for `run_id` before creating export; returns `reason_code: "run_not_found"` if missing.
+1. `create_export` now verifies `RunSnapshotRow` exists for `run_id` AND belongs to current workspace before creating export; returns `reason_code: "run_not_found"` if missing or cross-workspace.
 2. `ChatService` trace metadata no longer populates `run_id` from dry-run results (`reason_code == "scenario_validated_dry_run"` is skipped). Scenario/model refs are still populated since they come from real DB rows.
+3. All handlers are workspace-scoped: `run_engine` uses `get_latest_by_workspace()`, `narrate_results` verifies RunSnapshot workspace ownership before reading ResultSets, `create_export` verifies RunSnapshot workspace ownership.
 
 **What Sprint 27 delivers:**
 - Executor infrastructure: safety caps, latency tracking, error handling, `ToolExecutionResult` contract
+- Workspace-scoped handlers (all queries filter by workspace_id)
 - Real `build_scenario` handler (creates ScenarioSpec in DB)
-- Real `narrate_results` handler (reads persisted ResultSets)
-- Real `create_export` handler (creates ExportRow, guarded by RunSnapshot existence)
-- `run_engine` dry-run validation (confirms scenario exists, returns refs)
+- Real `narrate_results` handler (reads persisted ResultSets, returns structured data in tool_calls payload)
+- `create_export` handler (initiates PENDING export record, guarded by workspace-scoped RunSnapshot existence; actual artifact generation deferred)
+- `run_engine` dry-run validation (confirms scenario exists in workspace, returns refs)
 - `lookup_data` MVP stub (returns dataset catalog)
 - Runtime wiring, confirmation gates, frontend visibility
+
+**What Sprint 27 does NOT deliver:**
+- Post-execution LLM narrative (assistant message is pre-execution text; tool results are in `tool_calls[*].result` but not narrated)
+- Export artifact generation (PENDING row only; orchestrator/NFF/watermark/S3 pipeline not wired)
+- Real engine execution (`BatchRunner.run()`, RunSnapshot/ResultSet persistence)

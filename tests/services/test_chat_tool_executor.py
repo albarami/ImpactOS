@@ -469,14 +469,45 @@ class TestNarrateResultsHandler:
         assert "employment_impact" in data["result"]
         assert data["result"]["gdp_impact"]["total"] == 1200000000
 
-    async def test_no_results_returns_empty(self, executor):
+    async def test_no_results_returns_empty(self, db_session):
+        """narrate_results returns no_results when run exists but has no ResultSets."""
+        session, ws_id = db_session
+
+        # Create a RunSnapshot (so workspace guard passes) but no ResultSets
+        run_id = new_uuid7()
+        now = utc_now()
+        snap = RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=new_uuid7(),
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            source_checksums=[],
+            workspace_id=ws_id,
+            created_at=now,
+        )
+        session.add(snap)
+        await session.flush()
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
         tc = ToolCall(tool_name="narrate_results", arguments={
-            "run_id": str(new_uuid7()),
+            "run_id": str(run_id),
         })
         result = await executor.execute(tc)
         assert result.status == "error"
         assert result.reason_code == "no_results"
         assert result.result["result"] == {}
+
+    async def test_run_not_found_returns_error(self, executor):
+        """narrate_results rejects run_ids with no RunSnapshot."""
+        tc = ToolCall(tool_name="narrate_results", arguments={
+            "run_id": str(new_uuid7()),
+        })
+        result = await executor.execute(tc)
+        assert result.status == "error"
+        assert result.reason_code == "run_not_found"
 
     async def test_invalid_run_id_format(self, executor):
         tc = ToolCall(tool_name="narrate_results", arguments={
@@ -601,4 +632,137 @@ class TestCreateExportHandler:
         result = await executor.execute(tc)
         assert result.status == "error"
         assert result.reason_code == "run_not_found"
-        assert "engine run required" in (result.error_summary or "")
+
+    async def test_cross_workspace_run_rejected(self, db_session):
+        """create_export rejects RunSnapshot from a different workspace."""
+        session, ws_id = db_session
+        other_ws_id = uuid4()
+
+        # Create RunSnapshot in OTHER workspace
+        run_id = new_uuid7()
+        now = utc_now()
+        other_ws = WorkspaceRow(
+            workspace_id=other_ws_id,
+            client_name="Other",
+            engagement_code="T-OTHER",
+            classification="INTERNAL",
+            description="other workspace",
+            created_by=uuid4(),
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(other_ws)
+        snap = RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=new_uuid7(),
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            source_checksums=[],
+            workspace_id=other_ws_id,
+            created_at=now,
+        )
+        session.add(snap)
+        await session.flush()
+
+        # Executor scoped to original workspace — should reject
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="create_export", arguments={
+            "run_id": str(run_id),
+            "mode": "SANDBOX",
+            "export_formats": ["pptx"],
+            "pack_data": {"title": "Report"},
+        })
+        result = await executor.execute(tc)
+        assert result.status == "error"
+        assert result.reason_code == "run_not_found"
+
+
+# ------------------------------------------------------------------
+# Workspace isolation tests
+# ------------------------------------------------------------------
+
+
+class TestWorkspaceIsolation:
+    """Handlers must reject resources from other workspaces."""
+
+    async def test_run_engine_rejects_cross_workspace_scenario(self, db_session):
+        """run_engine returns scenario_not_found for scenario in another workspace."""
+        session, ws_id = db_session
+        other_ws_id = uuid4()
+        now = utc_now()
+        other_ws = WorkspaceRow(
+            workspace_id=other_ws_id,
+            client_name="Other",
+            engagement_code="T-OTHER",
+            classification="INTERNAL",
+            description="other workspace",
+            created_by=uuid4(),
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(other_ws)
+        await session.flush()
+
+        # Create scenario in OTHER workspace
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="Other WS Scenario",
+            workspace_id=other_ws_id, base_model_version_id=new_uuid7(),
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        # Executor scoped to original workspace — should reject
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="run_engine", arguments={
+            "scenario_spec_id": str(spec_id),
+        })
+        result = await executor.execute(tc)
+        assert result.status == "error"
+        assert result.reason_code == "scenario_not_found"
+
+    async def test_narrate_results_rejects_cross_workspace_run(self, db_session):
+        """narrate_results returns run_not_found for run in another workspace."""
+        session, ws_id = db_session
+        other_ws_id = uuid4()
+        now = utc_now()
+        other_ws = WorkspaceRow(
+            workspace_id=other_ws_id,
+            client_name="Other",
+            engagement_code="T-OTHER",
+            classification="INTERNAL",
+            description="other workspace",
+            created_by=uuid4(),
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(other_ws)
+
+        # Create RunSnapshot in OTHER workspace
+        run_id = new_uuid7()
+        snap = RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=new_uuid7(),
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            source_checksums=[],
+            workspace_id=other_ws_id,
+            created_at=now,
+        )
+        session.add(snap)
+        await session.flush()
+
+        # Executor scoped to original workspace — should reject
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="narrate_results", arguments={
+            "run_id": str(run_id),
+        })
+        result = await executor.execute(tc)
+        assert result.status == "error"
+        assert result.reason_code == "run_not_found"

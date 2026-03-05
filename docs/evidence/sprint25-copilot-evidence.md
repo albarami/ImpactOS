@@ -275,7 +275,7 @@ All five Sprint 25 backlog items resolved with zero new product surface and full
 **Branch:** `phase3-sprint27-copilot-tool-execution`
 **Date:** 2026-03-05
 
-Sprint 27 closes the operational gap: copilot tool calls are now dispatched through a real executor with safety caps, latency tracking, and DB-backed handlers. `build_scenario`, `narrate_results`, and `create_export` execute against real repositories. `run_engine` performs scenario validation (dry-run MVP); full `BatchRunner.run()` integration is deferred to a follow-up sprint. `lookup_data` returns a dataset catalog (MVP stub).
+Sprint 27 closes the operational gap: copilot tool calls are now dispatched through a workspace-scoped executor with safety caps, latency tracking, and DB-backed handlers. `build_scenario` creates real ScenarioSpecs. `narrate_results` reads persisted ResultSets (workspace-scoped). `create_export` initiates a PENDING export record (workspace-scoped, guarded by RunSnapshot existence; actual artifact generation deferred). `run_engine` performs scenario validation (dry-run MVP); full `BatchRunner.run()` integration is deferred. `lookup_data` returns a dataset catalog (MVP stub). Tool results are surfaced in the message's `tool_calls[*].result` payload; a post-execution LLM narrative pass is deferred.
 
 ### Scope Items
 
@@ -283,7 +283,7 @@ Sprint 27 closes the operational gap: copilot tool calls are now dispatched thro
 |----|---------|---------------|
 | S27-0 | Runtime wiring | `_build_copilot()` factory creates real `EconomistCopilot` from settings; `COPILOT_ENABLED` kill switch; non-dev fail-closed (503) when no real LLM providers |
 | S27-1a | Tool executor skeleton | `ChatToolExecutor` with safety caps (5/turn, 1 run_engine, 1 create_export); `ToolExecutionResult` model |
-| S27-1b | Tool handlers | `build_scenario` (creates ScenarioSpec), `run_engine` (validates scenario — dry-run MVP, defers `BatchRunner.run()`), `narrate_results` (reads ResultSets), `create_export` (guarded by RunSnapshot existence), `lookup_data` (MVP stub) |
+| S27-1b | Tool handlers (workspace-scoped) | `build_scenario` (creates ScenarioSpec), `run_engine` (validates scenario in workspace — dry-run MVP), `narrate_results` (reads ResultSets, workspace-scoped), `create_export` (initiates PENDING export, workspace-scoped RunSnapshot guard), `lookup_data` (MVP stub) |
 | S27-1c | create_export tool | Added as 5th copilot tool (not gated); prompt and definitions updated |
 | S27-2 | ChatService integration | Tool execution after confirmation gate; trace metadata populated with scenario_spec_id, model_version_id (run_id only from real engine runs, not dry-run); results persisted in tool_calls[*].result |
 | S27-3 | Frontend visibility | Status badges (green/red/amber) on tool calls; error_summary display; deep links from trace_metadata.run_id to /w/{id}/runs/{runId} |
@@ -339,8 +339,9 @@ Sprint 27 closes the operational gap: copilot tool calls are now dispatched thro
 
 | Item | Status | Notes |
 |------|--------|-------|
-| `run_engine` | Dry-run validation only | Validates scenario exists, returns refs; does NOT call `BatchRunner.run()` or persist `RunSnapshot`/`ResultSet`. Deferred to follow-up sprint. |
-| `create_export` | Guarded | Rejects `run_id` values with no persisted `RunSnapshotRow` (prevents orphan exports from dry-run synthetic IDs). |
+| `run_engine` | Dry-run validation only | Validates scenario exists in workspace, returns refs; does NOT call `BatchRunner.run()` or persist `RunSnapshot`/`ResultSet`. Deferred. |
+| `create_export` | Initiation only | Creates PENDING row (workspace-scoped RunSnapshot guard). Does NOT call `ExportOrchestrator` (NFF gates, artifact generation, watermarking, S3). Deferred. |
+| Post-execution narrative | Not implemented | Assistant message is pre-execution text. Tool results surfaced in `tool_calls[*].result` payload but LLM does not narrate from them in same turn. Deferred. |
 | Trace `run_id` | Not populated from dry-run | `ChatService` skips `run_id` population when `reason_code == "scenario_validated_dry_run"`. Scenario/model refs still populated. |
-| `narrate_results` | Functional but no data | Will correctly return `no_results` when called with a dry-run `run_id` (no `ResultSet` rows exist). |
+| `narrate_results` | Functional but no data in dry-run | Returns structured ResultSet data (workspace-scoped). Returns `run_not_found` for dry-run `run_id`s (no RunSnapshot exists). |
 | `lookup_data` | MVP stub | Returns dataset catalog metadata, not actual data queries. |

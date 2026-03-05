@@ -146,11 +146,11 @@ class ChatToolExecutor:
             }
 
         repo = ScenarioVersionRepository(self._session)
-        row = await repo.get_latest(spec_uuid)
+        row = await repo.get_latest_by_workspace(spec_uuid, self._workspace_id)
         if row is None:
             return {
                 "reason_code": "scenario_not_found",
-                "error": f"Scenario {scenario_spec_id} not found",
+                "error": f"Scenario {scenario_spec_id} not found in workspace",
             }
 
         run_id = new_uuid7()
@@ -164,7 +164,12 @@ class ChatToolExecutor:
         }
 
     async def _handle_narrate_results(self, arguments: dict) -> dict:
-        """Read ResultSet rows for a run and return structured result data."""
+        """Read ResultSet rows for a run and return structured result data.
+
+        Workspace-scoped: verifies RunSnapshot belongs to current workspace
+        before reading ResultSets.
+        """
+        from src.db.tables import RunSnapshotRow
         from src.repositories.engine import ResultSetRepository
 
         run_id = arguments.get("run_id")
@@ -180,6 +185,14 @@ class ChatToolExecutor:
             return {
                 "reason_code": "invalid_args",
                 "error": f"Invalid run_id format: {run_id}",
+            }
+
+        # Verify run belongs to this workspace
+        snap = await self._session.get(RunSnapshotRow, run_uuid)
+        if snap is None or snap.workspace_id != self._workspace_id:
+            return {
+                "reason_code": "run_not_found",
+                "error": f"Run {run_id} not found in workspace",
             }
 
         repo = ResultSetRepository(self._session)
@@ -204,11 +217,16 @@ class ChatToolExecutor:
         }
 
     async def _handle_create_export(self, arguments: dict) -> dict:
-        """Create an export record for a Decision Pack.
+        """Initiate an export request for a Decision Pack.
 
         Required args: run_id, mode, export_formats, pack_data
-        Guards: RunSnapshot must exist for run_id (prevents orphan exports
-        from synthetic dry-run IDs).
+        Guards: RunSnapshot must exist for run_id AND belong to current
+        workspace (prevents orphan exports and cross-workspace access).
+
+        Note: This creates a PENDING export record only. Actual artifact
+        generation (orchestrator, NFF gates, watermarking, S3 storage) is
+        handled by the API export endpoint or a future background worker.
+        TODO(S28+): Wire to ExportOrchestrator or async export queue.
         """
         from src.db.tables import RunSnapshotRow
         from src.repositories.exports import ExportRepository
@@ -241,13 +259,13 @@ class ChatToolExecutor:
                 "error": f"Invalid run_id format: {run_id}",
             }
 
-        # Guard: RunSnapshot must exist (prevents exports against synthetic
-        # dry-run IDs that have no persisted engine results)
+        # Guard: RunSnapshot must exist AND belong to this workspace
+        # (prevents orphan exports from dry-run IDs and cross-workspace access)
         snap = await self._session.get(RunSnapshotRow, run_uuid)
-        if snap is None:
+        if snap is None or snap.workspace_id != self._workspace_id:
             return {
                 "reason_code": "run_not_found",
-                "error": f"RunSnapshot {run_id} not found — engine run required before export",
+                "error": f"RunSnapshot {run_id} not found in workspace",
             }
 
         export_id = new_uuid7()
