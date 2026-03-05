@@ -89,6 +89,16 @@ class Settings(BaseSettings):
         description="Base delay for exponential backoff between retries.",
     )
 
+    # --- Economist Copilot (Sprint 25) ---
+    COPILOT_MODEL: str = Field(
+        default="claude-sonnet-4-20250514",
+        description="Model for economist copilot.",
+    )
+    COPILOT_MAX_TOKENS: int = Field(
+        default=4096,
+        description="Max response tokens for copilot.",
+    )
+
     # --- Azure Document Intelligence ---
     AZURE_DI_ENDPOINT: str = Field(
         default="",

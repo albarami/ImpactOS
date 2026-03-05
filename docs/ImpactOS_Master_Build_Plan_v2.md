@@ -123,3 +123,4 @@ All fields are optional (None by default). Existing functionality is unaffected.
 | MVP-22 | Live Workshop Dashboard | 4556 | a9c0729 | 2026-03-04 |
 | MVP-23 | Advanced Variance Bridges + Explainability | 4609 | 33303cf | 2026-03-05 |
 | S24 | Full-System Staging Proof + Go/No-Go | 4932 | 1146f70 | 2026-03-05 |
+| S25 | Economist Copilot v1 (Chat + Agent + Confirmation Gate) | 4985 | 0a7f01c | 2026-03-05 |

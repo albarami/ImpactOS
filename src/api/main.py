@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from src.api.auth import router as auth_router
+from src.api.chat import router as chat_router
 from src.api.compiler import router as compiler_router
 from src.api.data_quality import router as data_quality_router
 from src.api.depth import router as depth_router
@@ -106,6 +107,7 @@ app.include_router(engine_models_router)
 app.include_router(workspaces_router)
 
 # Workspace-scoped routers (all under /v1/workspaces/{workspace_id}/...)
+app.include_router(chat_router)
 app.include_router(compiler_router)
 app.include_router(data_quality_router)
 app.include_router(depth_router)
