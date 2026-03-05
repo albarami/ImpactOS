@@ -92,13 +92,26 @@ class TokenUsage:
 
 @dataclass
 class LLMRequest:
-    """Structured request to an LLM provider."""
+    """Structured request to an LLM provider.
+
+    For structured output callers, set ``output_schema`` and leave
+    ``structured=True`` (the default).  For free-form conversation
+    (e.g. the economist copilot), set ``structured=False`` and omit
+    ``output_schema``.
+
+    When ``messages`` is provided it is sent as the full conversation
+    history to the provider; otherwise a single user turn built from
+    ``user_prompt`` is used.
+    """
 
     system_prompt: str
     user_prompt: str
-    output_schema: type[BaseModel]
+    output_schema: type[BaseModel] | None = None
     max_tokens: int = 1024
     temperature: float = 0.0
+    messages: list[dict[str, str]] | None = None
+    structured: bool = True
+    model: str = ""
 
 
 @dataclass
@@ -106,7 +119,7 @@ class LLMResponse:
     """Structured response from an LLM provider."""
 
     content: str
-    parsed: BaseModel
+    parsed: BaseModel | None
     provider: LLMProvider
     model: str
     usage: TokenUsage
@@ -301,6 +314,32 @@ class LLMClient:
         )
         return response
 
+    async def call_unstructured(
+        self,
+        request: LLMRequest,
+        *,
+        classification: DataClassification | None = None,
+    ) -> LLMResponse:
+        """Call LLM without structured output parsing.
+
+        Convenience wrapper that forces ``structured=False`` and clears
+        ``output_schema`` so the response is returned as plain text
+        without Pydantic validation.  All other request parameters
+        (messages, temperature, max_tokens, etc.) are preserved.
+        """
+        unstructured_request = LLMRequest(
+            system_prompt=request.system_prompt,
+            user_prompt=request.user_prompt,
+            messages=request.messages,
+            output_schema=None,
+            max_tokens=request.max_tokens,
+            temperature=request.temperature,
+            structured=False,
+            model=request.model,
+        )
+        cls = classification if classification is not None else DataClassification.INTERNAL
+        return await self.call(unstructured_request, classification=cls)
+
     async def _call_external_with_retry(
         self,
         request: LLMRequest,
@@ -324,6 +363,7 @@ class LLMClient:
                     raw_response,
                     provider=provider,
                     schema=request.output_schema,
+                    structured=request.structured,
                 )
             except Exception as exc:
                 last_error = exc
@@ -344,8 +384,20 @@ class LLMClient:
 
         Works offline with no API keys or network. Used for RESTRICTED
         workspaces and as dev/test fallback.
+
+        When ``output_schema`` is *None* (unstructured mode) a simple
+        placeholder string is returned instead of schema-derived defaults.
         """
         schema = request.output_schema
+        if schema is None or not request.structured:
+            return LLMResponse(
+                content="",
+                parsed=None,
+                provider=LLMProvider.LOCAL,
+                model="local-deterministic",
+                usage=TokenUsage(input_tokens=0, output_tokens=0),
+            )
+
         defaults: dict[str, Any] = {}
         for field_name, field_info in schema.model_fields.items():
             annotation = field_info.annotation
@@ -376,9 +428,16 @@ class LLMClient:
         raw: Any,
         *,
         provider: LLMProvider,
-        schema: type[T],
+        schema: type[T] | None,
+        structured: bool = True,
     ) -> LLMResponse:
-        """Normalize raw provider response into LLMResponse."""
+        """Normalize raw provider response into LLMResponse.
+
+        When ``structured`` is *True* and a ``schema`` is provided the
+        raw text is parsed and validated against the Pydantic model.
+        In unstructured mode (``structured=False`` or ``schema is None``)
+        the ``parsed`` field is set to *None*.
+        """
         if provider == LLMProvider.ANTHROPIC:
             text = raw.content[0].text
             model = raw.model
@@ -405,7 +464,11 @@ class LLMClient:
         else:
             raise ValueError(f"Cannot normalize response from provider: {provider}")
 
-        parsed = self.parse_structured_output(raw=text, schema=schema)
+        if structured and schema is not None:
+            parsed = self.parse_structured_output(raw=text, schema=schema)
+        else:
+            parsed = None
+
         self.record_usage(usage)
 
         return LLMResponse(
@@ -424,12 +487,14 @@ class LLMClient:
             api_key=self._anthropic_key,
             timeout=self._request_timeout,
         )
+        msgs = request.messages if request.messages else [{"role": "user", "content": request.user_prompt}]
+        model = request.model or self._model_anthropic
         return await client.messages.create(
-            model=self._model_anthropic,
+            model=model,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             system=request.system_prompt,
-            messages=[{"role": "user", "content": request.user_prompt}],
+            messages=msgs,
         )
 
     async def _call_openai(self, request: LLMRequest) -> Any:
@@ -440,19 +505,24 @@ class LLMClient:
             api_key=self._openai_key,
             timeout=self._request_timeout,
         )
+        msgs = request.messages if request.messages else [{"role": "user", "content": request.user_prompt}]
+        full_msgs = [{"role": "system", "content": request.system_prompt}] + msgs
+        model = request.model or self._model_openai
         return await client.chat.completions.create(
-            model=self._model_openai,
+            model=model,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
-            messages=[
-                {"role": "system", "content": request.system_prompt},
-                {"role": "user", "content": request.user_prompt},
-            ],
+            messages=full_msgs,
         )
 
     async def _call_openrouter(self, request: LLMRequest) -> Any:
         """Call OpenRouter API via httpx. Returns raw httpx Response."""
         import httpx
+
+        msgs = request.messages if request.messages else [{"role": "user", "content": request.user_prompt}]
+        full_msgs = [{"role": "system", "content": request.system_prompt}] + msgs
+
+        model = request.model or self._model_openrouter
 
         async with httpx.AsyncClient(timeout=self._request_timeout) as http:
             resp = await http.post(
@@ -462,13 +532,10 @@ class LLMClient:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": self._model_openrouter,
+                    "model": model,
                     "max_tokens": request.max_tokens,
                     "temperature": request.temperature,
-                    "messages": [
-                        {"role": "system", "content": request.system_prompt},
-                        {"role": "user", "content": request.user_prompt},
-                    ],
+                    "messages": full_msgs,
                 },
             )
             resp.raise_for_status()

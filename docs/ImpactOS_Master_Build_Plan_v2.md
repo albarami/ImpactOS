@@ -124,3 +124,4 @@ All fields are optional (None by default). Existing functionality is unaffected.
 | MVP-23 | Advanced Variance Bridges + Explainability | 4609 | 33303cf | 2026-03-05 |
 | S24 | Full-System Staging Proof + Go/No-Go | 4932 | 1146f70 | 2026-03-05 |
 | S25 | Economist Copilot v1 (Chat + Agent + Confirmation Gate) | 4698 + 320 FE | 599ec87 | 2026-03-05 |
+| S26 | Copilot Hardening (Backlog Burn-Down) | 4725 + 328 FE | *(branch)* | 2026-03-05 |
