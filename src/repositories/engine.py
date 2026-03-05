@@ -97,7 +97,9 @@ class RunSnapshotRepository:
                      prompt_pack_version_id: UUID,
                      constraint_set_version_id: UUID | None = None,
                      source_checksums: list | None = None,
-                     workspace_id: UUID | None = None) -> RunSnapshotRow:
+                     workspace_id: UUID | None = None,
+                     scenario_spec_id: UUID | None = None,
+                     scenario_spec_version: int | None = None) -> RunSnapshotRow:
         row = RunSnapshotRow(
             run_id=run_id, model_version_id=model_version_id,
             taxonomy_version_id=taxonomy_version_id,
@@ -108,6 +110,8 @@ class RunSnapshotRepository:
             constraint_set_version_id=constraint_set_version_id,
             source_checksums=source_checksums or [],
             workspace_id=workspace_id,
+            scenario_spec_id=scenario_spec_id,
+            scenario_spec_version=scenario_spec_version,
             created_at=utc_now(),
         )
         self._session.add(row)

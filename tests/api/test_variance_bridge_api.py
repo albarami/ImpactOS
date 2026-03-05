@@ -407,6 +407,48 @@ class TestListVarianceBridges:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# I-2: Scenario spec integration tests
+# ---------------------------------------------------------------------------
+
+
+class TestScenarioSpecIntegration:
+    """I-2: scenario_spec_id stored on runs and available to bridge engine."""
+
+    async def test_run_snapshot_stores_scenario_spec_id(self, db_session):
+        """RunSnapshotRow accepts and stores scenario_spec_id/version."""
+        await _seed_ws(db_session)
+        run_id = uuid7()
+        spec_id = uuid7()
+        row = RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=uuid7(),
+            taxonomy_version_id=UUID(_DUMMY_IDS["taxonomy_version_id"]),
+            concordance_version_id=UUID(_DUMMY_IDS["concordance_version_id"]),
+            mapping_library_version_id=UUID(_DUMMY_IDS["mapping_library_version_id"]),
+            assumption_library_version_id=UUID(_DUMMY_IDS["assumption_library_version_id"]),
+            prompt_pack_version_id=UUID(_DUMMY_IDS["prompt_pack_version_id"]),
+            source_checksums=[],
+            workspace_id=UUID(WS),
+            scenario_spec_id=spec_id,
+            scenario_spec_version=3,
+            created_at=utc_now(),
+        )
+        db_session.add(row)
+        await db_session.flush()
+        loaded = await db_session.get(RunSnapshotRow, run_id)
+        assert loaded.scenario_spec_id == spec_id
+        assert loaded.scenario_spec_version == 3
+
+    async def test_run_snapshot_backward_compat_no_spec(self, db_session):
+        """Runs created without scenario_spec_id still work (None)."""
+        await _seed_ws(db_session)
+        run_id, _ = await _create_run(db_session)
+        loaded = await db_session.get(RunSnapshotRow, run_id)
+        assert loaded.scenario_spec_id is None
+        assert loaded.scenario_spec_version is None
+
+
 class TestLegacyVarianceBridge:
     """Legacy variance bridge endpoint must remain unchanged."""
 

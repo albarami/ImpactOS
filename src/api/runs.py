@@ -411,6 +411,8 @@ async def _persist_run_result(
     snap_repo: RunSnapshotRepository,
     rs_repo: ResultSetRepository,
     workspace_id: UUID | None = None,
+    scenario_spec_id: UUID | None = None,
+    scenario_spec_version: int | None = None,
 ) -> None:
     """Persist a SingleRunResult to DB (snapshot + result sets)."""
     snap = sr.snapshot
@@ -423,6 +425,8 @@ async def _persist_run_result(
         assumption_library_version_id=snap.assumption_library_version_id,
         prompt_pack_version_id=snap.prompt_pack_version_id,
         workspace_id=workspace_id,
+        scenario_spec_id=scenario_spec_id,
+        scenario_spec_version=scenario_spec_version,
     )
     for rs in sr.result_sets:
         await rs_repo.create(

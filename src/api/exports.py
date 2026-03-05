@@ -33,6 +33,7 @@ from src.api.dependencies import (
     get_model_version_repo,
     get_result_set_repo,
     get_run_snapshot_repo,
+    get_scenario_version_repo,
     get_variance_bridge_repo,
 )
 from src.api.runs import ALLOWED_RUNTIME_PROVENANCE
@@ -51,6 +52,7 @@ from src.repositories.engine import (
 )
 from src.repositories.exports import ExportRepository, VarianceBridgeRepository
 from src.repositories.governance import ClaimRepository
+from src.repositories.scenarios import ScenarioVersionRepository
 
 router = APIRouter(prefix="/v1/workspaces", tags=["exports"])
 
@@ -380,6 +382,14 @@ async def variance_bridge(
     )
 
 
+def _scenario_row_to_bridge_dict(row: "ScenarioSpecRow") -> dict:
+    """Convert ScenarioSpecRow to dict for bridge engine spec comparison."""
+    return {
+        "time_horizon": row.time_horizon if isinstance(row.time_horizon, dict) else {},
+        "shock_items": row.shock_items if isinstance(row.shock_items, list) else [],
+    }
+
+
 def _snapshot_to_dict(snap: "RunSnapshotRow") -> dict:
     """Extract all version-ID fields from a snapshot for bridge attribution.
 
@@ -423,6 +433,7 @@ async def create_variance_bridge(
     bridge_repo: VarianceBridgeRepository = Depends(get_variance_bridge_repo),
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     result_repo: ResultSetRepository = Depends(get_result_set_repo),
+    scenario_repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
 ) -> BridgeAnalysisResponse:
     """Compute + persist a variance bridge between two runs.
 
@@ -495,14 +506,32 @@ async def create_variance_bridge(
         "values": result_b.values if isinstance(result_b.values, dict) else {},
     }
 
+    # I-2: Fetch ScenarioSpec for PHASING/IMPORT_SHARE/FEASIBILITY detection
+    spec_a_dict: dict | None = None
+    spec_b_dict: dict | None = None
+    if getattr(snap_a, "scenario_spec_id", None):
+        spec_row_a = await scenario_repo.get_by_id_and_version(
+            snap_a.scenario_spec_id,
+            snap_a.scenario_spec_version or 1,
+        )
+        if spec_row_a:
+            spec_a_dict = _scenario_row_to_bridge_dict(spec_row_a)
+    if getattr(snap_b, "scenario_spec_id", None):
+        spec_row_b = await scenario_repo.get_by_id_and_version(
+            snap_b.scenario_spec_id,
+            snap_b.scenario_spec_version or 1,
+        )
+        if spec_row_b:
+            spec_b_dict = _scenario_row_to_bridge_dict(spec_row_b)
+
     # Compute bridge
-    # TODO(sprint-24): Pass spec_a/spec_b from ScenarioSpec repository
-    # to enable PHASING, IMPORT_SHARE, and FEASIBILITY driver detection.
     bridge_result = AdvancedVarianceBridge.compute_from_artifacts(
         run_a_snapshot=snap_a_dict,
         run_b_snapshot=snap_b_dict,
         result_a=result_a_dict,
         result_b=result_b_dict,
+        spec_a=spec_a_dict,
+        spec_b=spec_b_dict,
     )
 
     # Build config for persistence (directional -- no sorting!)
