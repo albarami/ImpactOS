@@ -5,9 +5,10 @@ import { Badge } from '@/components/ui/badge';
 
 interface TraceMetadataProps {
   trace: TraceMetadataType;
+  workspaceId?: string;
 }
 
-export function TraceMetadata({ trace }: TraceMetadataProps) {
+export function TraceMetadata({ trace, workspaceId }: TraceMetadataProps) {
   const hasContent =
     trace.run_id ||
     trace.scenario_spec_id ||
@@ -26,9 +27,19 @@ export function TraceMetadata({ trace }: TraceMetadataProps) {
         {trace.run_id && (
           <div className="flex items-center gap-2">
             <span className="font-medium text-slate-600">Run:</span>
-            <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-700">
-              {trace.run_id}
-            </code>
+            {workspaceId ? (
+              <a
+                data-testid="trace-run-link"
+                href={`/w/${workspaceId}/runs/${trace.run_id}`}
+                className="rounded bg-slate-100 px-1 py-0.5 font-mono text-blue-600 underline hover:text-blue-800"
+              >
+                {trace.run_id}
+              </a>
+            ) : (
+              <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-700">
+                {trace.run_id}
+              </code>
+            )}
           </div>
         )}
         {trace.scenario_spec_id && (

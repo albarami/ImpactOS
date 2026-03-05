@@ -9,6 +9,16 @@ export interface ToolCall {
   result?: Record<string, unknown> | null;
 }
 
+export interface ToolExecutionResult {
+  tool_name: string;
+  status: 'success' | 'error' | 'blocked';
+  reason_code: string;
+  retryable: boolean;
+  latency_ms: number;
+  result?: Record<string, unknown> | null;
+  error_summary?: string | null;
+}
+
 export interface PendingConfirmation {
   tool: string;
   arguments: Record<string, unknown>;

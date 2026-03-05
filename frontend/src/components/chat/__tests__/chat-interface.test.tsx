@@ -309,4 +309,97 @@ describe('ChatInterface', () => {
       confirm_scenario: true,
     });
   });
+
+  // ── Tool Execution Visibility Tests ─────────────────────────────────
+
+  it('renders executed tool results with success badge', () => {
+    const msgWithSuccessTool = makeMessage({
+      message_id: 'msg-010',
+      role: 'assistant',
+      content: 'I ran the engine for you.',
+      tool_calls: [
+        {
+          tool_name: 'run_engine',
+          arguments: { scenario_id: 'sc-01' },
+          result: {
+            status: 'success',
+            reason_code: 'ok',
+            retryable: false,
+            latency_ms: 320,
+            result: { gdp_impact: 1.5 },
+          },
+        },
+      ],
+    });
+
+    setupDefaultMocks([USER_MESSAGE, msgWithSuccessTool]);
+    renderChatInterface();
+
+    expect(screen.getByText('success')).toBeInTheDocument();
+    expect(screen.getByTestId('tool-status-badge-success')).toBeInTheDocument();
+  });
+
+  it('renders executed tool results with error badge and error_summary', () => {
+    const msgWithErrorTool = makeMessage({
+      message_id: 'msg-011',
+      role: 'assistant',
+      content: 'The engine run failed.',
+      tool_calls: [
+        {
+          tool_name: 'run_engine',
+          arguments: { scenario_id: 'sc-02' },
+          result: {
+            status: 'error',
+            reason_code: 'engine_timeout',
+            retryable: true,
+            latency_ms: 5000,
+            error_summary: 'Engine timed out after 5s',
+          },
+        },
+      ],
+    });
+
+    setupDefaultMocks([USER_MESSAGE, msgWithErrorTool]);
+    renderChatInterface();
+
+    expect(screen.getByText('error')).toBeInTheDocument();
+    expect(screen.getByTestId('tool-status-badge-error')).toBeInTheDocument();
+    expect(screen.getByText('Engine timed out after 5s')).toBeInTheDocument();
+  });
+
+  it('renders executed tool results with blocked badge and reason_code', () => {
+    const msgWithBlockedTool = makeMessage({
+      message_id: 'msg-012',
+      role: 'assistant',
+      content: 'The tool was blocked by governance.',
+      tool_calls: [
+        {
+          tool_name: 'build_scenario',
+          arguments: { sector: 'S01' },
+          result: {
+            status: 'blocked',
+            reason_code: 'governance_hold',
+            retryable: false,
+            latency_ms: 10,
+          },
+        },
+      ],
+    });
+
+    setupDefaultMocks([USER_MESSAGE, msgWithBlockedTool]);
+    renderChatInterface();
+
+    expect(screen.getByText('blocked')).toBeInTheDocument();
+    expect(screen.getByTestId('tool-status-badge-blocked')).toBeInTheDocument();
+    expect(screen.getByText('governance_hold')).toBeInTheDocument();
+  });
+
+  it('renders deep link for run_id in trace metadata', () => {
+    setupDefaultMocks([USER_MESSAGE, ASSISTANT_WITH_TRACE]);
+    renderChatInterface();
+
+    const runLink = screen.getByTestId('trace-run-link');
+    expect(runLink).toBeInTheDocument();
+    expect(runLink).toHaveAttribute('href', '/w/ws-001/runs/run-abc');
+  });
 });

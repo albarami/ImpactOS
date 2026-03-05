@@ -6,9 +6,24 @@ import { cn } from '@/lib/utils';
 
 interface MessageBubbleProps {
   message: ChatMessageResponse;
+  workspaceId?: string;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+/** Map tool execution status to badge styling. */
+function statusBadgeClass(status: string): string {
+  switch (status) {
+    case 'success':
+      return 'bg-green-100 text-green-800 border-green-300';
+    case 'error':
+      return 'bg-red-100 text-red-800 border-red-300';
+    case 'blocked':
+      return 'bg-amber-100 text-amber-800 border-amber-300';
+    default:
+      return 'bg-slate-100 text-slate-600 border-slate-300';
+  }
+}
+
+export function MessageBubble({ message, workspaceId }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   const resolvedToolCalls = message.tool_calls?.filter(
@@ -31,39 +46,73 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
         {resolvedToolCalls && resolvedToolCalls.length > 0 && (
           <div className="mt-2 space-y-1">
-            {resolvedToolCalls.map((tc, i) => (
-              <details
-                key={i}
-                className={cn(
-                  'rounded border text-xs',
-                  isUser
-                    ? 'border-blue-500 bg-blue-700'
-                    : 'border-slate-200 bg-slate-50'
-                )}
-              >
-                <summary
+            {resolvedToolCalls.map((tc, i) => {
+              const result = tc.result as Record<string, unknown> | undefined;
+              const status = result?.status as string | undefined;
+              const errorSummary = result?.error_summary as string | undefined;
+              const reasonCode = result?.reason_code as string | undefined;
+
+              return (
+                <details
+                  key={i}
                   className={cn(
-                    'cursor-pointer px-2 py-1 font-medium',
-                    isUser ? 'text-blue-200' : 'text-slate-600'
+                    'rounded border text-xs',
+                    isUser
+                      ? 'border-blue-500 bg-blue-700'
+                      : 'border-slate-200 bg-slate-50'
                   )}
                 >
-                  Tool: {tc.tool_name}
-                </summary>
-                <pre
-                  className={cn(
-                    'overflow-auto px-2 py-1 font-mono',
-                    isUser ? 'text-blue-200' : 'text-slate-600'
+                  <summary
+                    className={cn(
+                      'cursor-pointer px-2 py-1 font-medium flex items-center gap-2',
+                      isUser ? 'text-blue-200' : 'text-slate-600'
+                    )}
+                  >
+                    <span>Tool: {tc.tool_name}</span>
+                    {status && (
+                      <span
+                        data-testid={`tool-status-badge-${status}`}
+                        className={cn(
+                          'inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none',
+                          statusBadgeClass(status)
+                        )}
+                      >
+                        {status}
+                      </span>
+                    )}
+                  </summary>
+
+                  {status === 'error' && errorSummary && (
+                    <div className="px-2 py-1 text-red-600 font-medium">
+                      {errorSummary}
+                    </div>
                   )}
-                >
-                  {JSON.stringify(tc.result, null, 2)}
-                </pre>
-              </details>
-            ))}
+
+                  {status === 'blocked' && reasonCode && (
+                    <div className="px-2 py-1 text-amber-700 font-medium">
+                      {reasonCode}
+                    </div>
+                  )}
+
+                  <pre
+                    className={cn(
+                      'overflow-auto px-2 py-1 font-mono',
+                      isUser ? 'text-blue-200' : 'text-slate-600'
+                    )}
+                  >
+                    {JSON.stringify(tc.result, null, 2)}
+                  </pre>
+                </details>
+              );
+            })}
           </div>
         )}
 
         {!isUser && message.trace_metadata && (
-          <TraceMetadata trace={message.trace_metadata} />
+          <TraceMetadata
+            trace={message.trace_metadata}
+            workspaceId={workspaceId}
+          />
         )}
 
         <div className="mt-1 text-right text-xs text-slate-400">
