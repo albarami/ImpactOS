@@ -175,6 +175,16 @@ class RunResponse(BaseModel):
     snapshot: SnapshotResponse
 
 
+class RunSummary(BaseModel):
+    run_id: str
+    model_version_id: str
+    created_at: str
+
+
+class ListRunsResponse(BaseModel):
+    runs: list[RunSummary]
+
+
 class BatchResponse(BaseModel):
     batch_id: str
     status: str = "COMPLETED"
@@ -411,6 +421,8 @@ async def _persist_run_result(
     snap_repo: RunSnapshotRepository,
     rs_repo: ResultSetRepository,
     workspace_id: UUID | None = None,
+    scenario_spec_id: UUID | None = None,
+    scenario_spec_version: int | None = None,
 ) -> None:
     """Persist a SingleRunResult to DB (snapshot + result sets)."""
     snap = sr.snapshot
@@ -423,6 +435,8 @@ async def _persist_run_result(
         assumption_library_version_id=snap.assumption_library_version_id,
         prompt_pack_version_id=snap.prompt_pack_version_id,
         workspace_id=workspace_id,
+        scenario_spec_id=scenario_spec_id,
+        scenario_spec_version=scenario_spec_version,
     )
     for rs in sr.result_sets:
         await rs_repo.create(
@@ -669,6 +683,30 @@ async def create_run(
     await _persist_run_result(sr, snap_repo, rs_repo, workspace_id=workspace_id)
 
     return _single_run_to_response(sr)
+
+
+@router.get("/{workspace_id}/engine/runs", response_model=ListRunsResponse)
+async def list_runs(
+    workspace_id: UUID,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    member: WorkspaceMember = Depends(require_workspace_member),
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+) -> ListRunsResponse:
+    """List run snapshots for a workspace (newest first, paginated)."""
+    rows = await snap_repo.list_for_workspace(
+        workspace_id, limit=limit, offset=offset,
+    )
+    return ListRunsResponse(
+        runs=[
+            RunSummary(
+                run_id=str(row.run_id),
+                model_version_id=str(row.model_version_id),
+                created_at=row.created_at.isoformat(),
+            )
+            for row in rows
+        ],
+    )
 
 
 @router.get("/{workspace_id}/engine/runs/{run_id}", response_model=RunResponse)

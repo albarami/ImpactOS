@@ -133,6 +133,8 @@ class RunSnapshotRow(Base):
     prompt_pack_version_id: Mapped[UUID] = mapped_column(nullable=False)
     constraint_set_version_id: Mapped[UUID | None] = mapped_column(nullable=True)
     workspace_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)  # S0-1 Amendment 3
+    scenario_spec_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)
+    scenario_spec_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source_checksums = mapped_column(FlexJSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

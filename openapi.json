@@ -2,7 +2,6 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ImpactOS API",
-    "description": "Impact & Scenario Intelligence System for Strategic Gears.",
     "version": "0.1.0"
   },
   "paths": {
@@ -5128,6 +5127,71 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "engine"
+        ],
+        "summary": "List Runs",
+        "description": "List run snapshots for a workspace (newest first, paginated).",
+        "operationId": "list_runs_v1_workspaces__workspace_id__engine_runs_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListRunsResponse"
                 }
               }
             }
@@ -11126,6 +11190,22 @@
         ],
         "title": "LinkEvidenceResponse"
       },
+      "ListRunsResponse": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "runs"
+        ],
+        "title": "ListRunsResponse"
+      },
       "LockRequest": {
         "properties": {
           "actor": {
@@ -13025,6 +13105,29 @@
           "snapshot"
         ],
         "title": "RunResponse"
+      },
+      "RunSummary": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "model_version_id": {
+            "type": "string",
+            "title": "Model Version Id"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "model_version_id",
+          "created_at"
+        ],
+        "title": "RunSummary"
       },
       "SatelliteCoeffsPayload": {
         "properties": {

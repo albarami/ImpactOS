@@ -1007,7 +1007,12 @@ async def run_from_scenario(
     result = runner.run(request)
     sr = result.run_results[0]
 
-    await _persist_run_result(sr, snap_repo, rs_repo, workspace_id=workspace_id)
+    await _persist_run_result(
+        sr, snap_repo, rs_repo,
+        workspace_id=workspace_id,
+        scenario_spec_id=row.scenario_spec_id,
+        scenario_spec_version=row.version,
+    )
 
     run_resp = _single_run_to_response(sr)
     return RunFromScenarioResponse(

@@ -27,6 +27,7 @@ Based on merged work on `main`:
 | 21 | MVP-21 | Portfolio Optimization | 4506 | ee25cdf | sprint-21-complete | 2026-03-04 |
 | 22 | MVP-22 | Live Workshop Dashboard | 4556 | a9c0729 | sprint-22-complete | 2026-03-04 |
 | 23 | MVP-23 | Advanced Variance Bridges + Explainability | 4609 | 33303cf | sprint-23-complete | 2026-03-05 |
+| 24 | S24 | Full-System Staging Proof + Go/No-Go | 4932 | 1146f70 | - | 2026-03-05 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
@@ -52,16 +53,13 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
 9. Sprint 22: MVP-22 Live Workshop Dashboard — done (a9c0729, tag sprint-22-complete)
 10. Sprint 23: MVP-23 Advanced Variance Bridges + explainability package — done (33303cf, tag sprint-23-complete)
 
-### Wave C: Full go-live proof
+### Wave C: Full go-live proof — COMPLETE
 
-11. Sprint 24: Full-system staging proof (all layers) + production go/no-go dossier
-
-### Sprint 24 Carryover (from Sprint 23 code review)
-
-| ID | Description | Severity | Origin |
-|----|-------------|----------|--------|
-| I-2 | Pass ScenarioSpec data to AdvancedVarianceBridge engine to enable PHASING, IMPORT_SHARE, and FEASIBILITY driver detection | Important | Sprint 23 code review |
-| I-4 | Integrate runs-listing API hook into compare page RunSelector (currently empty array) | Important | Sprint 23 code review |
+11. Sprint 24: Full-system staging proof + go/no-go dossier — done (1146f70)
+    - Carryover I-2 CLOSED: ScenarioSpec wired to bridge engine (8bece0c)
+    - Carryover I-4 CLOSED: RunSelector populated from workspace runs (d9829c6)
+    - Staging proof evidence: `docs/evidence/sprint24-staging-proof.md`
+    - Go/No-Go dossier: `docs/evidence/sprint24-go-no-go-dossier.md`
 
 ## 4) Definition of "fully built and wired"
 
@@ -82,9 +80,10 @@ The system is only considered fully complete when all are true:
 
 ## 5) Immediate next action
 
-- Sprint 23 (MVP-23 Advanced Variance Bridges + Explainability) complete at 33303cf, tag sprint-23-complete.
-- All Phase 1-3 MVPs (1-23) complete. Proceed to Sprint 24 (full-system staging proof).
-- Do not start production deployment until Sprint 24 go/no-go criteria pass.
+- Sprint 24 (Full-System Staging Proof + Go/No-Go) complete at 1146f70.
+- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed.
+- Go/No-Go dossier: CONDITIONAL GO. Proceed to staging deployment when infrastructure prerequisites met.
+- See `docs/evidence/sprint24-go-no-go-dossier.md` for full criteria and rollback plan.
 
 ## 6) Minimum environment needed to see "live" behavior
 

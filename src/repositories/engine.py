@@ -97,7 +97,9 @@ class RunSnapshotRepository:
                      prompt_pack_version_id: UUID,
                      constraint_set_version_id: UUID | None = None,
                      source_checksums: list | None = None,
-                     workspace_id: UUID | None = None) -> RunSnapshotRow:
+                     workspace_id: UUID | None = None,
+                     scenario_spec_id: UUID | None = None,
+                     scenario_spec_version: int | None = None) -> RunSnapshotRow:
         row = RunSnapshotRow(
             run_id=run_id, model_version_id=model_version_id,
             taxonomy_version_id=taxonomy_version_id,
@@ -108,6 +110,8 @@ class RunSnapshotRepository:
             constraint_set_version_id=constraint_set_version_id,
             source_checksums=source_checksums or [],
             workspace_id=workspace_id,
+            scenario_spec_id=scenario_spec_id,
+            scenario_spec_version=scenario_spec_version,
             created_at=utc_now(),
         )
         self._session.add(row)
@@ -121,6 +125,19 @@ class RunSnapshotRepository:
         """Get all run snapshots for a workspace (Amendment 3)."""
         result = await self._session.execute(
             select(RunSnapshotRow).where(RunSnapshotRow.workspace_id == workspace_id)
+        )
+        return list(result.scalars().all())
+
+    async def list_for_workspace(
+        self, workspace_id: UUID, *, limit: int = 50, offset: int = 0,
+    ) -> list[RunSnapshotRow]:
+        """List run snapshots for a workspace, newest first (paginated)."""
+        result = await self._session.execute(
+            select(RunSnapshotRow)
+            .where(RunSnapshotRow.workspace_id == workspace_id)
+            .order_by(RunSnapshotRow.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
         return list(result.scalars().all())
 
