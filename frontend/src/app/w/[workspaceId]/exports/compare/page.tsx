@@ -10,6 +10,7 @@ import {
   useCreateVarianceBridge,
   type BridgeAnalysisResponse,
 } from '@/lib/api/hooks/useVarianceBridges';
+import { useWorkspaceRuns } from '@/lib/api/hooks/useRuns';
 
 export default function ComparePage() {
   const params = useParams<{ workspaceId: string }>();
@@ -19,9 +20,14 @@ export default function ComparePage() {
   const [result, setResult] = useState<BridgeAnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // TODO(sprint-24): Integrate useRuns(workspaceId) hook to populate
-  // RunSelector dropdown. Currently passes empty array, requiring users
-  // to use manual UUID entry mode.
+  // I-4: Populate RunSelector from workspace runs
+  const { data: runsData } = useWorkspaceRuns(workspaceId);
+  const runs = (runsData?.runs ?? []).map((r) => ({
+    run_id: r.run_id,
+    label: r.run_id.slice(0, 8) + '...',
+    created_at: r.created_at,
+  }));
+
   const [runIdA, setRunIdA] = useState('');
   const [runIdB, setRunIdB] = useState('');
   const [manualMode, setManualMode] = useState(false);
@@ -124,19 +130,21 @@ export default function ComparePage() {
           ) : (
             <div className="space-y-4">
               <RunSelector
-                runs={[]}
+                runs={runs}
                 onCompare={handleCompare}
                 loading={createBridge.isPending}
               />
-              <p className="text-sm text-slate-500">
-                No runs loaded yet.{' '}
-                <button
-                  onClick={() => setManualMode(true)}
-                  className="text-primary underline hover:text-primary/80"
-                >
-                  Enter run IDs manually
-                </button>
-              </p>
+              {runs.length === 0 && (
+                <p className="text-sm text-slate-500">
+                  No runs found.{' '}
+                  <button
+                    onClick={() => setManualMode(true)}
+                    className="text-primary underline hover:text-primary/80"
+                  >
+                    Enter run IDs manually
+                  </button>
+                </p>
+              )}
             </div>
           )}
         </CardContent>

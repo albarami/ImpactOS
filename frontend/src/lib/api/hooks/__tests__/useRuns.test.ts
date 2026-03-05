@@ -5,8 +5,10 @@ import { createElement, type ReactNode } from 'react';
 import {
   useCreateRun,
   useRunResults,
+  useWorkspaceRuns,
   type CreateRunRequest,
   type RunResponse,
+  type ListRunsResponse,
 } from '../useRuns';
 
 const mockPost = vi.fn();
@@ -233,5 +235,91 @@ describe('useRunResults', () => {
     await waitFor(() => {
       expect(result.current.isError).toBe(true);
     });
+  });
+});
+
+// ── useWorkspaceRuns (Sprint 24 — I-4) ───────────────────────────────
+
+describe('useWorkspaceRuns', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fetches workspace runs list', async () => {
+    const response: ListRunsResponse = {
+      runs: [
+        {
+          run_id: 'run-001',
+          model_version_id: 'mv-001',
+          created_at: '2025-06-01T10:00:00Z',
+        },
+        {
+          run_id: 'run-002',
+          model_version_id: 'mv-001',
+          created_at: '2025-06-02T14:30:00Z',
+        },
+      ],
+    };
+    mockGet.mockResolvedValueOnce({ data: response, error: undefined });
+
+    const { result } = renderHook(
+      () => useWorkspaceRuns(WORKSPACE_ID),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(mockGet).toHaveBeenCalledWith(
+      '/v1/workspaces/{workspace_id}/engine/runs',
+      {
+        params: { path: { workspace_id: WORKSPACE_ID } },
+      }
+    );
+    expect(result.current.data?.runs).toHaveLength(2);
+    expect(result.current.data?.runs[0].run_id).toBe('run-001');
+  });
+
+  it('is disabled when workspaceId is empty', () => {
+    const { result } = renderHook(
+      () => useWorkspaceRuns(''),
+      { wrapper: createWrapper() }
+    );
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(mockGet).not.toHaveBeenCalled();
+  });
+
+  it('throws on API error', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: undefined,
+      error: { detail: 'Workspace not found' },
+    });
+
+    const { result } = renderHook(
+      () => useWorkspaceRuns(WORKSPACE_ID),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+  });
+
+  it('handles empty runs list', async () => {
+    const response: ListRunsResponse = { runs: [] };
+    mockGet.mockResolvedValueOnce({ data: response, error: undefined });
+
+    const { result } = renderHook(
+      () => useWorkspaceRuns(WORKSPACE_ID),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(result.current.data?.runs).toHaveLength(0);
   });
 });

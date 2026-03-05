@@ -33,6 +33,18 @@ export interface RunResponse {
   snapshot: RunSnapshot;
 }
 
+// ── Run listing types (Sprint 24 — I-4) ──────────────────────────────
+
+export interface RunSummary {
+  run_id: string;
+  model_version_id: string;
+  created_at: string;
+}
+
+export interface ListRunsResponse {
+  runs: RunSummary[];
+}
+
 // ── Hooks ──────────────────────────────────────────────────────────────
 
 /**
@@ -80,5 +92,26 @@ export function useRunResults(workspaceId: string, runId: string) {
       return data as unknown as RunResponse;
     },
     enabled: !!runId,
+  });
+}
+
+/**
+ * List all runs for a workspace (newest first).
+ * GET /v1/workspaces/{workspace_id}/engine/runs
+ */
+export function useWorkspaceRuns(workspaceId: string) {
+  return useQuery<ListRunsResponse>({
+    queryKey: ['workspaceRuns', workspaceId],
+    queryFn: async () => {
+      const { data, error } = await api.GET(
+        '/v1/workspaces/{workspace_id}/engine/runs' as any,
+        {
+          params: { path: { workspace_id: workspaceId } },
+        }
+      );
+      if (error) throw error;
+      return data as unknown as ListRunsResponse;
+    },
+    enabled: !!workspaceId,
   });
 }
