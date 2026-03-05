@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
 import {
+  MessageSquare,
   FileText,
   GitCompare,
   Layers,
@@ -19,6 +20,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { label: 'Chat', href: '/chat', icon: MessageSquare },
   { label: 'Documents', href: '/documents', icon: FileText },
   { label: 'Compilations', href: '/compilations', icon: GitCompare },
   { label: 'Scenarios', href: '/scenarios', icon: Layers },

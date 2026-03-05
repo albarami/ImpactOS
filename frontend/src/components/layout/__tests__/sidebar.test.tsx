@@ -8,6 +8,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 const NAV_ITEMS = [
+  { label: 'Chat', href: '/w/test-ws/chat' },
   { label: 'Documents', href: '/w/test-ws/documents' },
   { label: 'Compilations', href: '/w/test-ws/compilations' },
   { label: 'Scenarios', href: '/w/test-ws/scenarios' },
