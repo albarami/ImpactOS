@@ -236,6 +236,40 @@ class ChatService:
                     elif er.tool_name == "create_export":
                         trace_dict["export_id"] = er.result.get("export_id")
 
+        # --- Post-execution narrative (S28) ---
+        if (
+            copilot_response.tool_calls
+            and self._db_session is not None
+            and not copilot_response.pending_confirmation
+        ):
+            from src.services.chat_narrative import ChatNarrativeService
+            from src.models.chat import ToolExecutionResult as TER
+
+            narrative_svc = ChatNarrativeService()
+            # Build ToolExecutionResult objects from exec_results
+            ter_list: list[TER] = []
+            for tc in copilot_response.tool_calls:
+                if tc.result is not None:
+                    if isinstance(tc.result, TER):
+                        ter_list.append(tc.result)
+                    elif isinstance(tc.result, dict):
+                        ter_list.append(TER(**tc.result))
+
+            if ter_list:
+                facts = narrative_svc.extract_facts(ter_list)
+
+                if facts.has_meaningful_results:
+                    # Replace pre-execution LLM content with post-execution narrative
+                    baseline = narrative_svc.build_baseline_narrative(facts)
+                    if baseline:
+                        copilot_response.content = baseline
+                elif facts.errors:
+                    # All failed: preserve original + append failure summary
+                    failure_summary = narrative_svc.build_baseline_narrative(facts)
+                    if failure_summary:
+                        copilot_response.content += "\n\n" + failure_summary
+                # else: no meaningful results and no errors -> content unchanged
+
         # Build tool_calls list for persistence
         tool_calls_list = None
         if copilot_response.tool_calls:

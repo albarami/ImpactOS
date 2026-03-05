@@ -648,3 +648,116 @@ class TestToolExecution:
         tc = result.tool_calls[0]
         assert tc.tool_name == "lookup_data"
         assert tc.result is None  # not executed
+
+
+# ------------------------------------------------------------------
+# Sprint 28: Post-execution narrative integration tests
+# ------------------------------------------------------------------
+
+
+class TestPostExecutionNarrative:
+    """S28-3b: Post-execution narrative replaces/augments assistant content."""
+
+    async def test_content_replaced_with_narrative_on_success(self, db_session_with_model):
+        """When tools produce meaningful results, content = baseline narrative."""
+        session, ws_id, mv_id = db_session_with_model
+
+        # Create a scenario referencing the model
+        from src.repositories.scenarios import ScenarioVersionRepository
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="Narrative Test",
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(return_value=CopilotResponse(
+            content="I'll run the analysis now.",
+            tool_calls=[
+                ToolCall(
+                    tool_name="run_engine",
+                    arguments={
+                        "scenario_spec_id": str(spec_id),
+                        "scenario_spec_version": 1,
+                    },
+                ),
+            ],
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=100, output_tokens=50),
+        ))
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+        with _mock_satellite_coefficients():
+            result = await svc.send_message(ws_id, sid, "Run the engine")
+
+        # Content should be replaced with narrative, NOT the original copilot text
+        assert "Engine run completed" in result.content
+        assert "run_id:" in result.content
+        assert "I'll run the analysis now." not in result.content
+
+    async def test_content_preserved_when_all_tools_fail(self, db_session):
+        """When all tools fail, original content preserved + failure summary appended."""
+        session, ws_id = db_session
+
+        # Use a nonexistent scenario_spec_id to force a failure
+        fake_spec_id = str(new_uuid7())
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(return_value=CopilotResponse(
+            content="I'll run the analysis now.",
+            tool_calls=[
+                ToolCall(
+                    tool_name="run_engine",
+                    arguments={
+                        "scenario_spec_id": fake_spec_id,
+                        "scenario_spec_version": 1,
+                    },
+                ),
+            ],
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=100, output_tokens=50),
+        ))
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+        result = await svc.send_message(ws_id, sid, "Run the engine")
+
+        # Original content should still be present
+        assert "I'll run the analysis now." in result.content
+        # Failure summary should be appended
+        assert "error" in result.content.lower()
+
+    async def test_content_unchanged_when_no_tools(self, db_session, mock_copilot):
+        """When no tools executed, original content unchanged."""
+        session, ws_id = db_session
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=mock_copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+        result = await svc.send_message(ws_id, sid, "What is the impact of tourism?")
+
+        # Content should be exactly what the mock copilot returns
+        assert result.content == "I understand your question about tourism impacts."
