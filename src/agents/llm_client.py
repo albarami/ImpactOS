@@ -111,6 +111,7 @@ class LLMRequest:
     temperature: float = 0.0
     messages: list[dict[str, str]] | None = None
     structured: bool = True
+    model: str = ""
 
 
 @dataclass
@@ -334,6 +335,7 @@ class LLMClient:
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             structured=False,
+            model=request.model,
         )
         cls = classification if classification is not None else DataClassification.INTERNAL
         return await self.call(unstructured_request, classification=cls)
@@ -486,8 +488,9 @@ class LLMClient:
             timeout=self._request_timeout,
         )
         msgs = request.messages if request.messages else [{"role": "user", "content": request.user_prompt}]
+        model = request.model or self._model_anthropic
         return await client.messages.create(
-            model=self._model_anthropic,
+            model=model,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             system=request.system_prompt,
@@ -504,8 +507,9 @@ class LLMClient:
         )
         msgs = request.messages if request.messages else [{"role": "user", "content": request.user_prompt}]
         full_msgs = [{"role": "system", "content": request.system_prompt}] + msgs
+        model = request.model or self._model_openai
         return await client.chat.completions.create(
-            model=self._model_openai,
+            model=model,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             messages=full_msgs,
@@ -518,6 +522,8 @@ class LLMClient:
         msgs = request.messages if request.messages else [{"role": "user", "content": request.user_prompt}]
         full_msgs = [{"role": "system", "content": request.system_prompt}] + msgs
 
+        model = request.model or self._model_openrouter
+
         async with httpx.AsyncClient(timeout=self._request_timeout) as http:
             resp = await http.post(
                 "https://openrouter.ai/api/v1/chat/completions",
@@ -526,7 +532,7 @@ class LLMClient:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": self._model_openrouter,
+                    "model": model,
                     "max_tokens": request.max_tokens,
                     "temperature": request.temperature,
                     "messages": full_msgs,

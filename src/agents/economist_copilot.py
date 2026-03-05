@@ -119,7 +119,7 @@ def _extract_balanced_braces(text: str, start: int) -> str | None:
             escape_next = True
             continue
 
-        if ch == '"' and not escape_next:
+        if ch == '"':
             in_string = not in_string
             continue
 
@@ -210,6 +210,7 @@ class EconomistCopilot:
             user_prompt=user_message,
             messages=llm_messages,
             max_tokens=ctx.get("max_tokens", 4096),
+            model=ctx.get("model", ""),
         )
 
         response = await self._llm.call_unstructured(

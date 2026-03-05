@@ -340,3 +340,25 @@ class TestProcessTurnMultiTurn:
         assert result.model_id == "claude-sonnet-4-20250514"
         assert result.token_usage.input_tokens == 100
         assert result.token_usage.output_tokens == 80
+
+    async def test_process_turn_passes_model_from_context(self):
+        """process_turn wires ctx['model'] into LLMRequest.model."""
+        mock_llm = MagicMock()
+        mock_llm.call_unstructured = AsyncMock(return_value=LLMResponse(
+            content="Using the specified model.",
+            parsed=None,
+            provider=LLMProvider.ANTHROPIC,
+            model="claude-sonnet-4-20250514",
+            usage=TokenUsage(input_tokens=30, output_tokens=20),
+        ))
+
+        copilot = EconomistCopilot(llm_client=mock_llm)
+        await copilot.process_turn(
+            messages=[],
+            user_message="Test model routing.",
+            context={"model": "claude-sonnet-4-20250514"},
+        )
+
+        call_args = mock_llm.call_unstructured.call_args
+        request = call_args[0][0]
+        assert request.model == "claude-sonnet-4-20250514"

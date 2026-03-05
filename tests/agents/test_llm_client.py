@@ -341,6 +341,20 @@ class TestMultiTurnMessages:
         assert req.structured is True
         assert req.messages is None
 
+    def test_llm_request_model_defaults_empty(self) -> None:
+        """model defaults to empty string (use provider default)."""
+        req = LLMRequest(system_prompt="s", user_prompt="u")
+        assert req.model == ""
+
+    def test_llm_request_model_override(self) -> None:
+        """model field accepts a model ID for provider override."""
+        req = LLMRequest(
+            system_prompt="s",
+            user_prompt="u",
+            model="claude-sonnet-4-20250514",
+        )
+        assert req.model == "claude-sonnet-4-20250514"
+
 
 # ===================================================================
 # Unstructured mode (Sprint 26 — S26-BL-5)
