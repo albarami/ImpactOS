@@ -67,10 +67,14 @@ class ChatService:
         session_repo: ChatSessionRepository,
         message_repo: ChatMessageRepository,
         copilot: EconomistCopilot | None = None,
+        max_tokens: int = 4096,
+        model: str = "",
     ) -> None:
         self._session_repo = session_repo
         self._message_repo = message_repo
         self._copilot = copilot
+        self._max_tokens = max_tokens
+        self._model = model
 
     async def create_session(
         self,
@@ -178,6 +182,8 @@ class ChatService:
         context = {
             "user_confirmed": confirm_scenario is True,
             "workspace_id": str(workspace_id),
+            "max_tokens": self._max_tokens,
+            "model": self._model,
         }
 
         copilot_response: CopilotResponse = await self._copilot.process_turn(

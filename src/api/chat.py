@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth_deps import WorkspaceMember, require_workspace_member
+from src.config.settings import get_settings
 from src.db.session import get_async_session
 from src.models.chat import (
     ChatMessageResponse,
@@ -34,10 +35,13 @@ def _get_chat_service(
     copilot=None,
 ) -> ChatService:
     """Build ChatService with repos from DB session."""
+    settings = get_settings()
     return ChatService(
         session_repo=ChatSessionRepository(session),
         message_repo=ChatMessageRepository(session),
         copilot=copilot,
+        max_tokens=settings.COPILOT_MAX_TOKENS,
+        model=settings.COPILOT_MODEL,
     )
 
 
