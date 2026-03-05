@@ -8,7 +8,15 @@ Output as waterfall dataset.
 import pytest
 from uuid_extensions import uuid7
 
-from src.export.variance_bridge import DriverType, VarianceBridge, WaterfallDataset
+from src.export.variance_bridge import (
+    AdvancedVarianceBridge,
+    BridgeDiagnostics,
+    BridgeResult,
+    DriverType,
+    VarianceBridge,
+    VarianceDriver,
+    WaterfallDataset,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -171,3 +179,246 @@ class TestWaterfallDataset:
             assert "driver_type" in driver
             assert "description" in driver
             assert "impact" in driver
+
+
+# ---------------------------------------------------------------------------
+# Sprint 23: Advanced artifact-linked variance bridge tests
+# ---------------------------------------------------------------------------
+
+
+class TestAdvancedBridgeAttribution:
+    """S23-1: Deterministic attribution from artifact diffs."""
+
+    def test_phasing_driver_from_time_horizon_diff(self):
+        """Phasing driver detected when time_horizon differs."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(model_version_id="mv1"),
+            run_b_snapshot=_snap(model_version_id="mv1"),
+            result_a=_result(total=100.0),
+            result_b=_result(total=120.0),
+            spec_a=_spec(time_horizon={"start": 2025, "end": 2030}),
+            spec_b=_spec(time_horizon={"start": 2025, "end": 2035}),
+        )
+        driver_types = [d.driver_type for d in result.drivers]
+        assert DriverType.PHASING in driver_types
+
+    def test_import_share_driver_from_shock_diff(self):
+        """Import share driver detected when ImportSubstitution shocks differ."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(),
+            run_b_snapshot=_snap(),
+            result_a=_result(total=100.0),
+            result_b=_result(total=110.0),
+            spec_a=_spec(shock_items=[{"type": "ImportSubstitution", "sector": "A", "value": 0.1}]),
+            spec_b=_spec(shock_items=[{"type": "ImportSubstitution", "sector": "A", "value": 0.2}]),
+        )
+        driver_types = [d.driver_type for d in result.drivers]
+        assert DriverType.IMPORT_SHARE in driver_types
+
+    def test_mapping_driver_from_version_diff(self):
+        """Mapping driver detected when mapping_library_version_id differs."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(mapping_library_version_id="map_v1"),
+            run_b_snapshot=_snap(mapping_library_version_id="map_v2"),
+            result_a=_result(total=100.0),
+            result_b=_result(total=115.0),
+        )
+        driver_types = [d.driver_type for d in result.drivers]
+        assert DriverType.MAPPING in driver_types
+
+    def test_constraint_driver_from_version_diff(self):
+        """Constraint driver detected when constraint_set_version_id differs."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(constraint_set_version_id="cs1"),
+            run_b_snapshot=_snap(constraint_set_version_id="cs2"),
+            result_a=_result(total=100.0),
+            result_b=_result(total=108.0),
+        )
+        driver_types = [d.driver_type for d in result.drivers]
+        assert DriverType.CONSTRAINT in driver_types
+
+    def test_model_version_driver_from_version_diff(self):
+        """Model version driver detected when model_version_id differs."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(model_version_id="mv1"),
+            run_b_snapshot=_snap(model_version_id="mv2"),
+            result_a=_result(total=100.0),
+            result_b=_result(total=130.0),
+        )
+        driver_types = [d.driver_type for d in result.drivers]
+        assert DriverType.MODEL_VERSION in driver_types
+
+    def test_feasibility_driver_from_constraint_shocks(self):
+        """Feasibility driver detected when ConstraintOverride shocks differ."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(),
+            run_b_snapshot=_snap(),
+            result_a=_result(total=100.0),
+            result_b=_result(total=95.0),
+            spec_a=_spec(shock_items=[]),
+            spec_b=_spec(shock_items=[{"type": "ConstraintOverride", "sector": "X", "value": 0.5}]),
+        )
+        driver_types = [d.driver_type for d in result.drivers]
+        assert DriverType.FEASIBILITY in driver_types
+
+
+class TestAdvancedBridgeIdentity:
+    """S23-1: Strict identity invariant."""
+
+    def test_drivers_sum_to_total_variance(self):
+        """sum(driver.impact) == total_variance within tolerance."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(model_version_id="mv1", mapping_library_version_id="m1"),
+            run_b_snapshot=_snap(model_version_id="mv2", mapping_library_version_id="m2"),
+            result_a=_result(total=100.0),
+            result_b=_result(total=150.0),
+        )
+        driver_sum = sum(d.impact for d in result.drivers)
+        assert abs(driver_sum - result.total_variance) < 1e-9
+
+    def test_zero_magnitudes_nonzero_variance_goes_to_residual(self):
+        """All zero magnitudes + nonzero variance -> 100% RESIDUAL."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(),
+            run_b_snapshot=_snap(),  # identical snapshots
+            result_a=_result(total=100.0),
+            result_b=_result(total=120.0),  # but different results
+        )
+        assert len(result.drivers) == 1
+        assert result.drivers[0].driver_type == DriverType.RESIDUAL
+        assert abs(result.drivers[0].impact - 20.0) < 1e-9
+
+    def test_zero_variance_no_drivers(self):
+        """Zero total variance -> no drivers (or one RESIDUAL with 0)."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(),
+            run_b_snapshot=_snap(),
+            result_a=_result(total=100.0),
+            result_b=_result(total=100.0),
+        )
+        driver_sum = sum(d.impact for d in result.drivers)
+        assert abs(driver_sum) < 1e-9
+
+    def test_identity_tolerance_boundary(self):
+        """Identity check uses 1e-9 tolerance."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(model_version_id="mv1"),
+            run_b_snapshot=_snap(model_version_id="mv2"),
+            result_a=_result(total=100.0),
+            result_b=_result(total=100.0 + 1e-10),
+        )
+        assert result.diagnostics.identity_verified
+
+
+class TestAdvancedBridgeDeterminism:
+    """S23-1: Deterministic replay."""
+
+    def test_same_inputs_produce_identical_checksum(self):
+        """Same inputs -> identical output checksum."""
+        kwargs = dict(
+            run_a_snapshot=_snap(model_version_id="mv1"),
+            run_b_snapshot=_snap(model_version_id="mv2"),
+            result_a=_result(total=100.0),
+            result_b=_result(total=130.0),
+        )
+        r1 = AdvancedVarianceBridge.compute_from_artifacts(**kwargs)
+        r2 = AdvancedVarianceBridge.compute_from_artifacts(**kwargs)
+        assert r1.diagnostics.checksum == r2.diagnostics.checksum
+
+    def test_deterministic_driver_sort(self):
+        """Drivers sorted by DriverType enum order, then abs(impact) desc."""
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(
+                model_version_id="mv1",
+                mapping_library_version_id="m1",
+                constraint_set_version_id="cs1",
+            ),
+            run_b_snapshot=_snap(
+                model_version_id="mv2",
+                mapping_library_version_id="m2",
+                constraint_set_version_id="cs2",
+            ),
+            result_a=_result(total=100.0),
+            result_b=_result(total=160.0),
+        )
+        types = [d.driver_type for d in result.drivers]
+        # Enum order: PHASING, IMPORT_SHARE, MAPPING, CONSTRAINT, MODEL_VERSION, FEASIBILITY, RESIDUAL
+        type_indices = [list(DriverType).index(t) for t in types]
+        assert type_indices == sorted(type_indices)
+
+
+class TestAdvancedBridgeDiagnostics:
+    """S23-1: Structured diagnostics payload."""
+
+    def test_diagnostics_includes_checksum(self):
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(),
+            run_b_snapshot=_snap(),
+            result_a=_result(total=100.0),
+            result_b=_result(total=100.0),
+        )
+        assert result.diagnostics.checksum.startswith("sha256:")
+
+    def test_diagnostics_identity_verified(self):
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(),
+            run_b_snapshot=_snap(),
+            result_a=_result(total=100.0),
+            result_b=_result(total=120.0),
+        )
+        assert result.diagnostics.identity_verified is True
+
+    def test_diagnostics_per_driver_metadata(self):
+        result = AdvancedVarianceBridge.compute_from_artifacts(
+            run_a_snapshot=_snap(model_version_id="mv1"),
+            run_b_snapshot=_snap(model_version_id="mv2"),
+            result_a=_result(total=100.0),
+            result_b=_result(total=130.0),
+        )
+        mv_driver = next(d for d in result.drivers if d.driver_type == DriverType.MODEL_VERSION)
+        assert mv_driver.raw_magnitude > 0
+        assert mv_driver.weight > 0
+        assert mv_driver.source_field is not None
+
+
+# ---------------------------------------------------------------------------
+# Test fixture helpers
+# ---------------------------------------------------------------------------
+
+def _snap(
+    *,
+    model_version_id: str = "mv_default",
+    taxonomy_version_id: str = "tv_default",
+    concordance_version_id: str = "cv_default",
+    mapping_library_version_id: str = "ml_default",
+    assumption_library_version_id: str = "al_default",
+    prompt_pack_version_id: str = "pp_default",
+    constraint_set_version_id: str | None = None,
+) -> dict:
+    """Build a minimal RunSnapshot-like dict for testing."""
+    return {
+        "model_version_id": model_version_id,
+        "taxonomy_version_id": taxonomy_version_id,
+        "concordance_version_id": concordance_version_id,
+        "mapping_library_version_id": mapping_library_version_id,
+        "assumption_library_version_id": assumption_library_version_id,
+        "prompt_pack_version_id": prompt_pack_version_id,
+        "constraint_set_version_id": constraint_set_version_id,
+    }
+
+
+def _result(*, total: float) -> dict:
+    """Build a minimal ResultSet-like dict for testing."""
+    return {"values": {"total": total}}
+
+
+def _spec(
+    *,
+    time_horizon: dict | None = None,
+    shock_items: list | None = None,
+) -> dict:
+    """Build a minimal ScenarioSpec-like dict for testing."""
+    return {
+        "time_horizon": time_horizon or {"start": 2025, "end": 2030},
+        "shock_items": shock_items or [],
+    }

@@ -79,7 +79,7 @@ See: `docs/SG_Methodology_vs_ImpactOS_Gap_Analysis.md` for full analysis.
 | MVP-20 | Structural Path Analysis | Chokepoint analytics, critical path identification in supply chains |
 | MVP-21 | Portfolio Optimization | Goal-seeking workflows, multi-scenario portfolio comparison |
 | MVP-22 | Live Workshop Dashboard | Slider-driven scenario adjustments with governance-safe exports |
-| MVP-23 | Variance Bridges | Executive explainability: waterfall charts, attribution analysis, scenario delta decomposition |
+| MVP-23 | Advanced Variance Bridges | Deterministic artifact-linked attribution, waterfall explainability, additive workspace-scoped API |
 
 ---
 
@@ -121,4 +121,4 @@ All fields are optional (None by default). Existing functionality is unaffected.
 | MVP-20 | Structural Path Analysis + Chokepoints | 4422 | e284aa8 | 2026-03-04 |
 | MVP-21 | Portfolio Optimization | 4506 | ee25cdf | 2026-03-04 |
 | MVP-22 | Live Workshop Dashboard | 4556 | a9c0729 | 2026-03-04 |
-| MVP-23 | Phase 3 Remaining | - | - | Future |
+| MVP-23 | Advanced Variance Bridges + Explainability | 4609 | 331efcc | 2026-03-05 |

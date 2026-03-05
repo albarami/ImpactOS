@@ -1044,3 +1044,46 @@ class WorkshopSessionRow(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+
+
+# ---------------------------------------------------------------------------
+# Variance Bridge Analysis — Sprint 23, IMMUTABLE
+# ---------------------------------------------------------------------------
+
+
+class VarianceBridgeAnalysisRow(Base):
+    """Workspace-scoped variance bridge analysis (Sprint 23)."""
+
+    __tablename__ = "variance_bridge_analyses"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "config_hash", name="uq_vba_ws_config"),
+    )
+
+    analysis_id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id"),
+        nullable=False,
+        index=True,
+    )
+    run_a_id: Mapped[UUID] = mapped_column(
+        ForeignKey("run_snapshots.run_id"),
+        nullable=False,
+    )
+    run_b_id: Mapped[UUID] = mapped_column(
+        ForeignKey("run_snapshots.run_id"),
+        nullable=False,
+    )
+    metric_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    analysis_version: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        server_default="bridge_v1",
+    )
+    config_json = mapped_column(FlexJSON, nullable=False)
+    config_hash: Mapped[str] = mapped_column(String(100), nullable=False)
+    result_json = mapped_column(FlexJSON, nullable=False)
+    result_checksum: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )

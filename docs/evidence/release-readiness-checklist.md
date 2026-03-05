@@ -756,3 +756,130 @@ cd frontend && npx vitest run
 | OpenAPI spec includes 5 workshop paths | Yes | openapi.json regenerated with 103 routes |
 | Frontend 275 tests pass | Yes | `npx vitest run` — 32 files, 275 pass |
 | Existing tests unchanged | Yes | Full suite: 4,556 passed, 1 failed (pre-existing PG table ownership), 3 skipped |
+
+---
+
+## Sprint 23: Advanced Variance Bridges + Explainability (MVP-23)
+
+Branch: `phase3-sprint23-advanced-variance-bridges`
+Commit: `331efcc`
+
+### What Changed
+
+| Category | Description |
+|---|---|
+| Migration normalization | `tests/migration/pg_migration_helpers.py` — shared DSN policy, CI fail-hard enforcement |
+| Bridge engine | `src/export/variance_bridge.py` — `AdvancedVarianceBridge.compute_from_artifacts()`, 7-category deterministic attribution |
+| Pydantic models | `src/models/export.py` — `VarianceBridgeAnalysis`, `BridgeReasonCode` |
+| DB migration | `alembic/versions/018_variance_bridge_analyses.py` — variance_bridge_analyses table with FK, UNIQUE(workspace_id, config_hash) |
+| ORM | `src/db/tables.py` — `VarianceBridgeAnalysisRow` |
+| Repository | `src/repositories/exports.py` — `VarianceBridgeRepository` (CRUD, workspace-scoped, idempotent) |
+| DI | `src/api/dependencies.py` — `get_variance_bridge_repo` factory |
+| API endpoints | `src/api/exports.py` — 3 additive endpoints: POST create, GET single, GET list (all workspace-scoped) |
+| Frontend hooks | `frontend/src/lib/api/hooks/useVarianceBridges.ts` — 3 TanStack Query hooks |
+| Frontend UI | `frontend/src/components/exports/` — WaterfallChart, DriverCard, RunSelector |
+| Frontend pages | Compare page, bridge detail page, CTA on exports page |
+
+### Driver Attribution Matrix
+
+| DriverType | Source Artifact | Detection Logic |
+|---|---|---|
+| PHASING | `spec.time_horizon` | Dict diff between spec_a and spec_b |
+| IMPORT_SHARE | `spec.shock_items[ImportSubstitution]` | Count diff of ImportSubstitution shocks |
+| MAPPING | `snapshot.mapping_library_version_id` | UUID comparison |
+| CONSTRAINT | `snapshot.constraint_set_version_id` | UUID comparison |
+| MODEL_VERSION | `snapshot.model_version_id` | UUID comparison |
+| FEASIBILITY | `spec.shock_items[ConstraintOverride]` | Count diff of ConstraintOverride shocks |
+| RESIDUAL | (computed) | total_variance - sum(attributed) when > tolerance |
+
+### API Error Reason Codes
+
+| Code | HTTP | Trigger |
+|---|---|---|
+| `BRIDGE_SAME_RUN` | 422 | run_a_id == run_b_id |
+| `BRIDGE_RUN_NOT_FOUND` | 404 | Run not found or wrong workspace |
+| `BRIDGE_NO_RESULTS` | 404 | No ResultSet for run |
+| `BRIDGE_INCOMPATIBLE_RUNS` | 422 | Reserved for future model-mismatch check |
+| `BRIDGE_NOT_FOUND` | 404 | Analysis ID not in workspace |
+
+### Bridge Mathematical Identity
+
+| Property | Specification | Verification |
+|---|---|---|
+| Sum-to-total | Σ driver.impact == total_variance (within 1e-9) | `test_sum_to_total_identity` |
+| Zero magnitudes | All zero magnitudes + nonzero variance → 100% RESIDUAL | `test_zero_magnitudes_all_residual` |
+| Zero variance | Zero total_variance → no drivers emitted | `test_zero_variance_produces_no_drivers` |
+| Deterministic sort | Enum order first, abs(impact) desc tie-break | `test_deterministic_sort_order` |
+| Checksum | SHA-256 from canonical JSON, identical inputs → identical hash | `test_identical_inputs_produce_identical_checksum` |
+| Directional | config_hash does NOT sort run_a/run_b (directional bridge) | `test_directional_bridge` |
+
+### Test Evidence
+
+| Test File | Count | Coverage |
+|---|---|---|
+| `tests/export/test_variance_bridge.py` | 28 | Engine: 6 attribution + 4 identity + 2 determinism + 3 diagnostics + 13 legacy |
+| `tests/repositories/test_exports.py` | 12 (6×2) | Repo: CRUD, workspace scoping, idempotency, config hash |
+| `tests/api/test_variance_bridge_api.py` | 28 (14×2) | API: happy paths, error codes, workspace isolation, legacy compat |
+| `tests/migration/test_018_*` | 4 | Migration: upgrade, unique constraint, downgrade |
+| Frontend tests | 28 | WaterfallChart (8), DriverCard (10), RunSelector (10) |
+| Migration helper refactor | — | 6 files normalized, 651 lines dedup, CI fail-hard |
+| **Full backend suite** | **4609** | All pass, 0 failed |
+| **Full frontend suite** | **303** | 35 files, all pass |
+
+### Migration Normalization Evidence
+
+| File | Before | After |
+|---|---|---|
+| `test_012_runseries_postgres.py` | Hardcoded `Salim1977`, inline DSN | Shared helper import |
+| `test_013_sg_provenance_postgres.py` | Hardcoded `impactos:impactos` | Shared helper import |
+| `test_014_assumption_workspace_postgres.py` | Inline `postgresql://postgres:` | Shared helper import |
+| `test_015_path_analyses_postgres.py` | Inline DSN construction | Shared helper import |
+| `test_016_portfolio_optimization_postgres.py` | Inline DSN construction | Shared helper import |
+| `test_017_workshop_sessions_postgres.py` | Inline DSN construction | Shared helper import |
+| CI behavior | Silent skip when no PG | `RuntimeError` when `CI=true` and `MIGRATION_TEST_DSN` unset |
+
+### Preflight Checks
+
+```bash
+# 1. Migration normalization tests
+python -m pytest tests/migration/test_012_runseries_postgres.py tests/migration/test_013_sg_provenance_postgres.py tests/migration/test_014_assumption_workspace_postgres.py tests/migration/test_015_path_analyses_postgres.py tests/migration/test_016_portfolio_optimization_postgres.py tests/migration/test_017_workshop_sessions_postgres.py -q
+
+# 2. Bridge engine + persistence + API tests
+python -m pytest tests/export/test_variance_bridge.py tests/api/test_variance_bridge_api.py tests/repositories/test_exports.py -q
+
+# 3. Legacy export tests (no regression)
+python -m pytest tests/api/test_exports.py tests/api/test_exports_quality_wiring.py -q
+
+# 4. Cross-cutting integration tests
+python -m pytest tests/engine/test_batch.py tests/engine/test_runseries.py tests/integration/test_path_doc_to_export.py -q
+
+# 5. Frontend tests
+cd frontend && npx vitest run
+
+# 6. Full backend suite
+python -m pytest tests --ignore=tests/migration -q
+
+# 7. Alembic
+python -m alembic current   # -> 018_variance_bridge_analyses (head)
+python -m alembic check     # -> No new upgrade operations detected
+```
+
+### Go/No-Go Criteria (additive)
+
+| Criteria | Required | How to Verify |
+|---|---|---|
+| MIGRATION_TEST_DSN env var drives all migration tests | Yes | All 6 files use shared helper |
+| CI fails hard when DSN unset | Yes | `pg_migration_helpers.py` RuntimeError |
+| Advanced bridge: strict sum-to-total identity | Yes | `test_sum_to_total_identity` passes |
+| Bridge is directional (config_hash preserves order) | Yes | `test_directional_bridge` passes |
+| Zero magnitudes → 100% RESIDUAL | Yes | `test_zero_magnitudes_all_residual` passes |
+| Deterministic sort (enum order + abs tie-break) | Yes | `test_deterministic_sort_order` passes |
+| Persistence idempotent by config_hash | Yes | `test_idempotent_create_by_config_hash` passes |
+| API 404 for cross-workspace (not 403) | Yes | `test_get_wrong_workspace_returns_404` passes |
+| Legacy export endpoint unchanged | Yes | `test_legacy_variance_bridge_still_works` passes |
+| Frontend: compare page defaults to selector mode | Yes | `manualMode = useState(false)` verified |
+| Frontend: CTA links on exports page | Yes | "Compare Runs" button present |
+| OpenAPI regenerated and valid | Yes | `openapi.json` parseable |
+| All backend tests pass | Yes | 4609 passed, 0 failed |
+| All frontend tests pass | Yes | 303 passed (35 files) |
+| No regressions in existing test suite | Yes | Full suite passes |

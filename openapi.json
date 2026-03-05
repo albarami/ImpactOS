@@ -1834,6 +1834,180 @@
         }
       }
     },
+    "/v1/workspaces/{workspace_id}/variance-bridges": {
+      "post": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Create Variance Bridge",
+        "description": "Compute + persist a variance bridge between two runs.\n\nDirectional: A->B is different from B->A.\nIdempotent: same config_hash returns existing analysis.",
+        "operationId": "create_variance_bridge_v1_workspaces__workspace_id__variance_bridges_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBridgeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeAnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "List Variance Bridges",
+        "description": "List variance bridges for a workspace.",
+        "operationId": "list_variance_bridges_v1_workspaces__workspace_id__variance_bridges_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BridgeAnalysisResponse"
+                  },
+                  "title": "Response List Variance Bridges V1 Workspaces  Workspace Id  Variance Bridges Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}/variance-bridges/{analysis_id}": {
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Get Variance Bridge Analysis",
+        "description": "Get a single variance bridge analysis.",
+        "operationId": "get_variance_bridge_analysis_v1_workspaces__workspace_id__variance_bridges__analysis_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "analysis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Analysis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeAnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace_id}/constraints": {
       "post": {
         "tags": [
@@ -7915,6 +8089,139 @@
         ],
         "title": "Body_upload_document_v1_workspaces__workspace_id__documents_post"
       },
+      "BridgeAnalysisResponse": {
+        "properties": {
+          "analysis_id": {
+            "type": "string",
+            "title": "Analysis Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "run_a_id": {
+            "type": "string",
+            "title": "Run A Id"
+          },
+          "run_b_id": {
+            "type": "string",
+            "title": "Run B Id"
+          },
+          "metric_type": {
+            "type": "string",
+            "title": "Metric Type"
+          },
+          "analysis_version": {
+            "type": "string",
+            "title": "Analysis Version"
+          },
+          "start_value": {
+            "type": "number",
+            "title": "Start Value"
+          },
+          "end_value": {
+            "type": "number",
+            "title": "End Value"
+          },
+          "total_variance": {
+            "type": "number",
+            "title": "Total Variance"
+          },
+          "drivers": {
+            "items": {
+              "$ref": "#/components/schemas/BridgeDriverResponse"
+            },
+            "type": "array",
+            "title": "Drivers"
+          },
+          "config_hash": {
+            "type": "string",
+            "title": "Config Hash"
+          },
+          "result_checksum": {
+            "type": "string",
+            "title": "Result Checksum"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "analysis_id",
+          "workspace_id",
+          "run_a_id",
+          "run_b_id",
+          "metric_type",
+          "analysis_version",
+          "start_value",
+          "end_value",
+          "total_variance",
+          "drivers",
+          "config_hash",
+          "result_checksum",
+          "created_at"
+        ],
+        "title": "BridgeAnalysisResponse",
+        "description": "Full bridge analysis response."
+      },
+      "BridgeDriverResponse": {
+        "properties": {
+          "driver_type": {
+            "type": "string",
+            "title": "Driver Type"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "impact": {
+            "type": "number",
+            "title": "Impact"
+          },
+          "raw_magnitude": {
+            "type": "number",
+            "title": "Raw Magnitude"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          },
+          "source_field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Field"
+          },
+          "diff_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "driver_type",
+          "description",
+          "impact",
+          "raw_magnitude",
+          "weight"
+        ],
+        "title": "BridgeDriverResponse",
+        "description": "Single driver in a bridge analysis response."
+      },
       "BulkApproveRequest": {
         "properties": {
           "confidence_threshold": {
@@ -8899,6 +9206,34 @@
           "status"
         ],
         "title": "CreateAssumptionResponse"
+      },
+      "CreateBridgeRequest": {
+        "properties": {
+          "run_a_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run A Id"
+          },
+          "run_b_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run B Id"
+          },
+          "metric_type": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Metric Type",
+            "default": "total_output"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_a_id",
+          "run_b_id"
+        ],
+        "title": "CreateBridgeRequest",
+        "description": "Request to compute and persist a variance bridge."
       },
       "CreateConstraintSetRequest": {
         "properties": {
