@@ -84,6 +84,7 @@ def _get_chat_service(
         copilot=copilot,
         max_tokens=settings.COPILOT_MAX_TOKENS,
         model=settings.COPILOT_MODEL,
+        db_session=session,
     )
 
 

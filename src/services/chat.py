@@ -1,13 +1,15 @@
-"""Chat service — orchestrates conversation turns (Sprint 25).
+"""Chat service — orchestrates conversation turns (Sprint 25 + Sprint 27).
 
-Manages session lifecycle, message persistence, and copilot agent invocation.
-Enforces confirmation gate at the service level.
+Manages session lifecycle, message persistence, copilot agent invocation,
+and tool execution.  Enforces confirmation gate at the service level.
 """
 
 from __future__ import annotations
 
 import logging
 from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.economist_copilot import CopilotResponse, EconomistCopilot
 from src.models.chat import (
@@ -20,6 +22,7 @@ from src.models.chat import (
 )
 from src.models.common import new_uuid7
 from src.repositories.chat import ChatMessageRepository, ChatSessionRepository
+from src.services.chat_tool_executor import ChatToolExecutor
 
 _logger = logging.getLogger(__name__)
 
@@ -69,12 +72,14 @@ class ChatService:
         copilot: EconomistCopilot | None = None,
         max_tokens: int = 4096,
         model: str = "",
+        db_session: AsyncSession | None = None,
     ) -> None:
         self._session_repo = session_repo
         self._message_repo = message_repo
         self._copilot = copilot
         self._max_tokens = max_tokens
         self._model = model
+        self._db_session = db_session
 
     async def create_session(
         self,
@@ -201,6 +206,33 @@ class ChatService:
         if copilot_response.pending_confirmation:
             trace_dict = trace_dict or {}
             trace_dict["pending_confirmation"] = copilot_response.pending_confirmation
+
+        # Execute confirmed tool calls (skip if pending_confirmation)
+        if (
+            copilot_response.tool_calls
+            and self._db_session is not None
+            and not copilot_response.pending_confirmation
+        ):
+            tool_executor = ChatToolExecutor(
+                session=self._db_session,
+                workspace_id=workspace_id,
+            )
+            exec_results = await tool_executor.execute_all(copilot_response.tool_calls)
+            # Merge results into tool calls
+            for tc, er in zip(copilot_response.tool_calls, exec_results):
+                tc.result = er.model_dump()
+            # Populate trace metadata from execution results
+            trace_dict = trace_dict or {}
+            for er in exec_results:
+                if er.status == "success" and er.result:
+                    if er.tool_name == "run_engine":
+                        trace_dict["run_id"] = er.result.get("run_id")
+                        trace_dict["model_version_id"] = er.result.get("model_version_id")
+                        trace_dict["scenario_spec_id"] = er.result.get("scenario_spec_id")
+                        trace_dict["scenario_spec_version"] = er.result.get("scenario_spec_version")
+                    elif er.tool_name == "build_scenario":
+                        trace_dict["scenario_spec_id"] = er.result.get("scenario_spec_id")
+                        trace_dict["scenario_spec_version"] = er.result.get("version")
 
         # Build tool_calls list for persistence
         tool_calls_list = None
