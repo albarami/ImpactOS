@@ -30,7 +30,7 @@ Based on merged work on `main`:
 | 24 | S24 | Full-System Staging Proof + Go/No-Go | 4932 | 1146f70 | - | 2026-03-05 |
 | 25 | S25 | Economist Copilot v1 (Chat + Agent) | 4698 + 320 FE | 599ec87 | sprint-25-complete | 2026-03-05 |
 | 26 | S26 | Copilot Hardening (Backlog Burn-Down) | 4728 + 328 FE | 0d0ab79 | sprint-26-complete | 2026-03-05 |
-| 27 | S27 | Copilot Tool Execution (Operationalization) | 4852 + 336 FE | *(branch)* | - | 2026-03-06 |
+| 27 | S27 | Copilot Tool Execution (Operationalization) | 4852 + 336 FE | ec3dca8 | sprint-27-complete | 2026-03-06 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
@@ -88,7 +88,7 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
     - Post-merge verification: 4728 backend passed (29 skipped), 328 frontend passed
     - Evidence: `docs/evidence/sprint25-copilot-evidence.md` (Sprint 26 Resolutions section)
 
-14. Sprint 27: Copilot Tool Execution (Operationalization) — branch `phase3-sprint27-copilot-tool-execution` (PR #32)
+14. Sprint 27: Copilot Tool Execution (Operationalization) — merged (PR #32 → `ec3dca8`, tag `sprint-27-complete`)
     - `ChatToolExecutor` with 5 workspace-scoped tool handlers: `lookup_data`, `build_scenario`, `run_engine`, `narrate_results`, `create_export`
     - Safety caps: max 5 tool calls/turn, max 1 `run_engine` + 1 `create_export` per turn
     - `run_engine`: dry-run validation MVP (validates scenario in workspace, honors `scenario_spec_version` for provenance pinning; full `BatchRunner.run()` deferred)
@@ -96,7 +96,7 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
     - Runtime wiring: `_build_copilot()` factory, `COPILOT_ENABLED` kill switch, fail-closed non-dev (503)
     - Trace metadata: populated from execution results; `run_id` suppressed from dry-run
     - Frontend: status badges on tool calls, deep links to runs/exports
-    - Pre-merge verification: 4852 backend passed (29 skipped), 336 frontend passed
+    - Post-merge verification: 4852 backend passed (29 skipped), 336 frontend passed
     - Evidence: `docs/evidence/sprint25-copilot-evidence.md` (Sprint 27 section)
     - Design: `docs/plans/2026-03-05-sprint27-copilot-tool-execution-design.md`
 
@@ -121,9 +121,9 @@ The system is only considered fully complete when all are true:
 
 - Sprint 25 (Economist Copilot v1) merged: PR #30 → `599ec87`, tag `sprint-25-complete`.
 - Sprint 26 (Copilot Hardening) merged: PR #31 → `0d0ab79`, tag `sprint-26-complete`. All 5 backlog items resolved.
-- Sprint 27 (Copilot Tool Execution): PR #32 on branch `phase3-sprint27-copilot-tool-execution`. Executor infrastructure complete with workspace-scoped handlers, safety caps, version pinning. `run_engine` is dry-run MVP; full engine execution deferred.
-- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprints 25-26 merged. Sprint 27 in PR.
-- Post-Sprint 27 verification: 4852 backend passed (29 skipped), 336 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
+- Sprint 27 (Copilot Tool Execution) merged: PR #32 → `ec3dca8`, tag `sprint-27-complete`. Executor infrastructure with workspace-scoped handlers, safety caps, version pinning. `run_engine` is dry-run MVP; full engine execution deferred.
+- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprints 25-27 merged.
+- Post-Sprint 27 verification (on main): 4852 backend passed (29 skipped), 336 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
 - Go/No-Go dossier: CONDITIONAL GO. Proceed to staging deployment when infrastructure prerequisites met.
 - See `docs/evidence/sprint24-go-no-go-dossier.md` for full criteria and rollback plan.
 - See `docs/evidence/sprint25-copilot-evidence.md` for copilot constraint compliance, Sprint 26 resolutions, and Sprint 27 tool execution evidence.

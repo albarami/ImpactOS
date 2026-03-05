@@ -273,7 +273,10 @@ All five Sprint 25 backlog items resolved with zero new product surface and full
 ## Sprint 27: Copilot Tool Execution (Operationalization)
 
 **Branch:** `phase3-sprint27-copilot-tool-execution`
-**Date:** 2026-03-05
+**PR:** https://github.com/albarami/ImpactOS/pull/32
+**Merge commit:** `ec3dca8`
+**Tag:** `sprint-27-complete`
+**Date:** 2026-03-06
 
 Sprint 27 closes the operational gap: copilot tool calls are now dispatched through a workspace-scoped executor with safety caps, latency tracking, and DB-backed handlers. `build_scenario` creates real ScenarioSpecs. `narrate_results` reads persisted ResultSets (workspace-scoped). `create_export` initiates a PENDING export record (workspace-scoped, guarded by RunSnapshot existence; actual artifact generation deferred). `run_engine` performs scenario validation (dry-run MVP); full `BatchRunner.run()` integration is deferred. `lookup_data` returns a dataset catalog (MVP stub). Tool results are surfaced in the message's `tool_calls[*].result` payload; a post-execution LLM narrative pass is deferred.
 
@@ -345,3 +348,14 @@ Sprint 27 closes the operational gap: copilot tool calls are now dispatched thro
 | Trace `run_id` | Not populated from dry-run | `ChatService` skips `run_id` population when `reason_code == "scenario_validated_dry_run"`. Scenario/model refs still populated. |
 | `narrate_results` | Functional but no data in dry-run | Returns structured ResultSet data (workspace-scoped). Returns `run_not_found` for dry-run `run_id`s (no RunSnapshot exists). |
 | `lookup_data` | MVP stub | Returns dataset catalog metadata, not actual data queries. |
+
+### Sprint 27 Post-Merge Verification
+
+| Check | Result |
+|-------|--------|
+| Merge commit | `ec3dca8` on `main` |
+| Tag | `sprint-27-complete` on `ec3dca8` |
+| `alembic current` | `020_chat_sessions_messages (head)` |
+| `alembic check` | No new upgrade operations detected |
+| `pytest --tb=no -q` (on main) | **4852 passed**, 29 skipped, 0 failures |
+| `vitest run` (on main) | **336 passed** (38 test files), 0 failures |
