@@ -267,3 +267,70 @@ All five Sprint 25 backlog items resolved with zero new product surface and full
 | `pytest --tb=no -q` | **4728 passed**, 29 skipped, 0 failures |
 | `vitest run` | **328 passed** (37 test files), 0 failures |
 | Tag | `sprint-26-complete` pushed on `0d0ab79` |
+
+---
+
+## Sprint 27: Copilot Tool Execution (Operationalization)
+
+**Branch:** `phase3-sprint27-copilot-tool-execution`
+**Date:** 2026-03-05
+
+Sprint 27 closes the operational gap: copilot now executes tool calls end-to-end instead of just suggesting them.
+
+### Scope Items
+
+| ID | Feature | Implementation |
+|----|---------|---------------|
+| S27-0 | Runtime wiring | `_build_copilot()` factory creates real `EconomistCopilot` from settings; `COPILOT_ENABLED` kill switch; non-dev fail-closed (503) when no real LLM providers |
+| S27-1a | Tool executor skeleton | `ChatToolExecutor` with safety caps (5/turn, 1 run_engine, 1 create_export); `ToolExecutionResult` model |
+| S27-1b | Tool handlers | `build_scenario` (creates ScenarioSpec), `run_engine` (validates scenario, MVP), `narrate_results` (reads ResultSets), `create_export` (fire-and-return), `lookup_data` (MVP stub) |
+| S27-1c | create_export tool | Added as 5th copilot tool (not gated); prompt and definitions updated |
+| S27-2 | ChatService integration | Tool execution after confirmation gate; trace metadata populated with run_id, scenario_spec_id; results persisted in tool_calls[*].result |
+| S27-3 | Frontend visibility | Status badges (green/red/amber) on tool calls; error_summary display; deep links from trace_metadata.run_id to /w/{id}/runs/{runId} |
+| S27-4 | Contracts + evidence | OpenAPI regenerated; evidence doc updated; master build plan updated |
+
+### Sprint 27 Commit Log
+
+| Commit | Description |
+|--------|-------------|
+| `0eeac34` | wire chat runtime to real copilot dependency with fail-closed behavior |
+| `a6c8cb0` | add ToolExecutionResult model and ChatToolExecutor skeleton with safety caps |
+| `878bb65` | implement tool handlers for scenario engine narrate and export |
+| `00d9034` | integrate chat service with executed tool results and trace linking |
+| `3be21b6` | add create_export tool to copilot prompt and valid tools |
+| `559e154` | add frontend visibility for tool execution status and run/export links |
+
+### Sprint 27 Files Delivered
+
+**Backend (new):**
+- `src/services/chat_tool_executor.py` — ChatToolExecutor with 5 tool handlers
+- `tests/services/test_chat_tool_executor.py` — 62 executor tests
+
+**Backend (modified):**
+- `src/config/settings.py` — `COPILOT_ENABLED` setting
+- `src/api/chat.py` — `_build_copilot()` factory, fail-closed wiring
+- `src/models/chat.py` — `ToolExecutionResult` model
+- `src/services/chat.py` — tool execution integration, trace population
+- `src/agents/economist_copilot.py` — `create_export` in `_VALID_TOOLS`
+- `src/agents/prompts/economist_copilot_v1.py` — tool 5 definition
+- `tests/services/test_chat.py` — 5 new tool execution tests
+- `tests/api/test_chat.py` — 6 new runtime wiring tests
+- `tests/agents/test_economist_copilot.py` — 7 new create_export tests
+
+**Frontend (modified):**
+- `frontend/src/components/chat/message-bubble.tsx` — status badges, error display
+- `frontend/src/components/chat/trace-metadata.tsx` — deep links to runs
+- `frontend/src/components/chat/chat-interface.tsx` — workspaceId prop threading
+- `frontend/src/lib/api/hooks/useChat.ts` — ToolExecutionResult type export
+- `frontend/src/lib/api/hooks/__tests__/useChat.type.test.ts` — 4 new type tests
+- `frontend/src/components/chat/__tests__/chat-interface.test.tsx` — 4 new badge/link tests
+
+### Sprint 27 Pre-Merge Verification
+
+| Check | Result |
+|-------|--------|
+| `alembic current` | `020_chat_sessions_messages (head)` — no new migration needed |
+| `pytest --tb=no -q` | **4815 passed**, 29 skipped, 0 failures |
+| `vitest run` | **336 passed** (38 test files), 0 failures |
+| Backend delta | +87 tests over Sprint 26 baseline (4728 → 4815) |
+| Frontend delta | +8 tests over Sprint 26 baseline (328 → 336) |
