@@ -98,6 +98,10 @@ class Settings(BaseSettings):
         default=4096,
         description="Max response tokens for copilot.",
     )
+    COPILOT_ENABLED: bool = Field(
+        default=True,
+        description="Enable economist copilot. Set false to disable.",
+    )
 
     # --- Azure Document Intelligence ---
     AZURE_DI_ENDPOINT: str = Field(

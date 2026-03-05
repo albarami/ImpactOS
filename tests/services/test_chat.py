@@ -308,6 +308,18 @@ class TestChatService:
         ctx = call_args.kwargs.get("context", call_args[0][2] if len(call_args[0]) > 2 else {})
         assert ctx["max_tokens"] == 16384
 
+    async def test_copilot_none_returns_stub(self, db_session):
+        """S27-0: Service returns stub when copilot=None."""
+        session, ws_id = db_session
+        svc = ChatService(
+            session_repo=ChatSessionRepository(session),
+            message_repo=ChatMessageRepository(session),
+            copilot=None,
+        )
+        sess = await svc.create_session(ws_id, title="test")
+        msg = await svc.send_message(ws_id, UUID(sess.session_id), "hi")
+        assert "not configured" in msg.content.lower()
+
     async def test_chat_service_sends_history_to_copilot(self, db_session):
         """Chat service passes prior messages as history to copilot."""
         session, ws_id = db_session

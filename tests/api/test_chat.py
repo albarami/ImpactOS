@@ -214,6 +214,34 @@ class TestSendMessage:
         assert resp.status_code == 201
 
 
+class TestCopilotRuntimeWiring:
+    """S27-0: Chat API wires real copilot by default."""
+
+    async def test_copilot_enabled_setting_defaults_true(self):
+        from src.config.settings import Settings
+        s = Settings(DATABASE_URL="sqlite:///test.db")
+        assert s.COPILOT_ENABLED is True
+
+    async def test_copilot_enabled_false_setting(self):
+        from src.config.settings import Settings
+        s = Settings(DATABASE_URL="sqlite:///test.db", COPILOT_ENABLED=False)
+        assert s.COPILOT_ENABLED is False
+
+    async def test_build_copilot_returns_none_when_disabled(self):
+        from src.config.settings import Settings
+        from src.api.chat import _build_copilot
+        s = Settings(DATABASE_URL="sqlite:///test.db", COPILOT_ENABLED=False)
+        assert _build_copilot(s) is None
+
+    async def test_build_copilot_returns_copilot_in_dev(self):
+        from src.config.settings import Settings
+        from src.api.chat import _build_copilot
+        s = Settings(DATABASE_URL="sqlite:///test.db", COPILOT_ENABLED=True, ENVIRONMENT="dev")
+        result = _build_copilot(s)
+        # In dev, should create copilot even without API keys (LOCAL provider)
+        assert result is not None
+
+
 class TestWorkspaceIsolation:
     async def test_workspace_isolation(self, client, db_session):
         """Session from workspace A not accessible from workspace B."""
