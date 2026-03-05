@@ -201,3 +201,51 @@ class TestChatService:
         sid = UUID(created.session_id)
         result = await svc.send_message(ws_id, sid, "Hello")
         assert "not configured" in result.content.lower()
+
+    async def test_chat_service_sends_history_to_copilot(self, db_session):
+        """Chat service passes prior messages as history to copilot."""
+        session, ws_id = db_session
+        copilot = AsyncMock()
+
+        # First turn response
+        first_response = CopilotResponse(
+            content="Tourism affects sectors I and G.",
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=50, output_tokens=30),
+        )
+        # Second turn response
+        second_response = CopilotResponse(
+            content="Sector I includes accommodation and food.",
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=100, output_tokens=60),
+        )
+        copilot.process_turn = AsyncMock(side_effect=[first_response, second_response])
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+
+        # Send first message
+        await svc.send_message(ws_id, sid, "What sectors does tourism affect?")
+
+        # Send second message — history should include first exchange
+        await svc.send_message(ws_id, sid, "Tell me more about sector I.")
+
+        # Verify the second call received history
+        second_call = copilot.process_turn.call_args_list[1]
+        history_arg = second_call.kwargs.get("messages", second_call[0][0] if second_call[0] else [])
+
+        # History should include at least the first user msg and first assistant response
+        # (the second user message is passed separately as user_message)
+        assert len(history_arg) >= 2
+        roles = [m["role"] for m in history_arg]
+        assert "user" in roles
+        assert "assistant" in roles

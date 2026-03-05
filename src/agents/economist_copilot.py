@@ -15,8 +15,6 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import BaseModel
-
 from src.agents.llm_client import LLMClient, LLMRequest, ProviderUnavailableError
 from src.models.common import DataClassification
 from src.agents.prompts.economist_copilot_v1 import (
@@ -158,24 +156,30 @@ class EconomistCopilot:
         ctx = context or {}
         system_prompt = build_system_prompt(ctx)
 
-        # Build message list for LLM
+        # Build full conversation history for LLM
         llm_messages = list(messages) + [{"role": "user", "content": user_message}]
 
-        # Call LLM via the client
+        classification = ctx.get("classification", DataClassification.INTERNAL)
+
         request = LLMRequest(
             system_prompt=system_prompt,
             user_prompt=user_message,
-            output_schema=_DummySchema,
+            messages=llm_messages,
             max_tokens=ctx.get("max_tokens", 4096),
         )
 
-        classification = ctx.get("classification", DataClassification.INTERNAL)
-        response = await self._llm.call(request, classification=classification)
+        response = await self._llm.call_unstructured(
+            request, classification=classification,
+        )
 
-        # Extract content and usage from response
-        content = self._extract_content(response)
-        usage = self._extract_usage(response)
-        provider, model_id = self._extract_model_info(response)
+        # Extract content and usage from normalized LLMResponse
+        content = response.content
+        usage = TokenUsage(
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
+        provider = response.provider.value if hasattr(response.provider, "value") else str(response.provider)
+        model_id = response.model
 
         # Check for tool calls in response
         tool_calls_raw = parse_tool_calls(content)
@@ -218,81 +222,3 @@ class EconomistCopilot:
             token_usage=usage,
         )
 
-    def _extract_content(self, response: Any) -> str:
-        """Extract text content from LLM response (provider-agnostic)."""
-        # LLMResponse from our client
-        if hasattr(response, "content") and isinstance(response.content, str):
-            return response.content
-
-        # Anthropic SDK response
-        if hasattr(response, "content") and isinstance(response.content, list):
-            texts = [b.text for b in response.content if hasattr(b, "text")]
-            return "\n".join(texts) if texts else ""
-
-        # OpenAI / OpenRouter response
-        if hasattr(response, "choices"):
-            choices = response.choices
-            if choices and hasattr(choices[0], "message"):
-                return choices[0].message.content or ""
-
-        # httpx Response (OpenRouter raw)
-        if hasattr(response, "json"):
-            data = response.json()
-            choices = data.get("choices", [])
-            if choices:
-                return choices[0].get("message", {}).get("content", "")
-
-        # Fallback
-        return str(response)
-
-    def _extract_usage(self, response: Any) -> TokenUsage:
-        """Extract token usage from LLM response."""
-        # LLMResponse from our client
-        if hasattr(response, "usage"):
-            u = response.usage
-            if hasattr(u, "input_tokens"):
-                return TokenUsage(
-                    input_tokens=getattr(u, "input_tokens", 0),
-                    output_tokens=getattr(u, "output_tokens", 0),
-                )
-            # OpenAI style
-            if hasattr(u, "prompt_tokens"):
-                return TokenUsage(
-                    input_tokens=u.prompt_tokens or 0,
-                    output_tokens=u.completion_tokens or 0,
-                )
-
-        return TokenUsage()
-
-    def _extract_model_info(self, response: Any) -> tuple[str, str]:
-        """Extract provider and model ID from response."""
-        # LLMResponse from our client
-        if hasattr(response, "provider") and hasattr(response, "model"):
-            return str(getattr(response, "provider", "")), str(getattr(response, "model", ""))
-
-        if hasattr(response, "model"):
-            model = response.model or ""
-            if "claude" in model.lower():
-                return "anthropic", model
-            elif "gpt" in model.lower():
-                return "openai", model
-            return "openrouter", model
-
-        if hasattr(response, "json"):
-            data = response.json()
-            model = data.get("model", "")
-            return "openrouter", model
-
-        return "", ""
-
-
-# Private dummy schema for LLMRequest compatibility — the copilot uses
-# free-form conversation, not structured output, but LLMRequest requires
-# an output_schema.  This is only used when calling through the existing
-# LLMClient.call() path and won't affect the actual prompt/response.
-# NOTE: A future sprint should add an unstructured mode to LLMClient
-# so conversational agents don't need this workaround.
-class _DummySchema(BaseModel):
-    """Placeholder schema for LLMRequest when structured output isn't needed."""
-
-    raw_response: str = ""

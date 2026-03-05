@@ -1,6 +1,7 @@
-"""Tests for Economist Copilot agent and versioned prompt (Sprint 25)."""
+"""Tests for Economist Copilot agent and versioned prompt (Sprint 25 + Sprint 26)."""
 
 import pytest
+from unittest.mock import AsyncMock, MagicMock
 
 from src.agents.prompts.economist_copilot_v1 import (
     COPILOT_PROMPT_VERSION,
@@ -10,10 +11,12 @@ from src.agents.prompts.economist_copilot_v1 import (
 from src.agents.economist_copilot import (
     ConfirmationRequiredError,
     CopilotResponse,
+    EconomistCopilot,
     InvalidToolCallError,
     parse_tool_calls,
     validate_tool_call,
 )
+from src.agents.llm_client import LLMProvider, LLMResponse, TokenUsage
 
 
 # ── Prompt tests ────────────────────────────────────────────────────────
@@ -177,3 +180,116 @@ class TestConfirmationGate:
         assert err.tool_name == "build_scenario"
         assert err.proposed_args == {"name": "test"}
         assert "confirmation" in str(err).lower()
+
+
+# ── DummySchema removal (Sprint 26 — S26-BL-5) ──────────────────────────
+
+
+class TestDummySchemaRemoved:
+    """Verify _DummySchema is no longer defined (Sprint 26)."""
+
+    def test_dummy_schema_not_importable(self):
+        """_DummySchema should no longer exist in the module."""
+        import src.agents.economist_copilot as mod
+
+        assert not hasattr(mod, "_DummySchema"), (
+            "_DummySchema should have been removed in Sprint 26"
+        )
+
+
+# ── process_turn with mocked LLM (Sprint 26 — S26-BL-1) ────────────────
+
+
+class TestProcessTurnMultiTurn:
+    """Copilot passes conversation history to LLM via messages field."""
+
+    async def test_process_turn_passes_history_in_messages(self):
+        """process_turn builds messages list with history + current msg."""
+        mock_llm = MagicMock()
+        mock_llm.call_unstructured = AsyncMock(return_value=LLMResponse(
+            content="I can help with that tourism analysis.",
+            parsed=None,
+            provider=LLMProvider.LOCAL,
+            model="local-deterministic",
+            usage=TokenUsage(input_tokens=50, output_tokens=30),
+        ))
+
+        copilot = EconomistCopilot(llm_client=mock_llm)
+
+        history = [
+            {"role": "user", "content": "What sectors are affected by tourism?"},
+            {"role": "assistant", "content": "Tourism primarily affects sectors I and G."},
+        ]
+        result = await copilot.process_turn(
+            messages=history,
+            user_message="Tell me more about sector I.",
+        )
+
+        # Verify call_unstructured was called
+        assert mock_llm.call_unstructured.called
+
+        # Get the LLMRequest that was passed
+        call_args = mock_llm.call_unstructured.call_args
+        request = call_args[0][0]  # first positional arg
+
+        # messages should include history + new user message
+        assert request.messages is not None
+        assert len(request.messages) == 3  # 2 history + 1 new
+        assert request.messages[0]["role"] == "user"
+        assert request.messages[0]["content"] == "What sectors are affected by tourism?"
+        assert request.messages[1]["role"] == "assistant"
+        assert request.messages[2]["role"] == "user"
+        assert request.messages[2]["content"] == "Tell me more about sector I."
+
+        # user_prompt still set for compatibility
+        assert request.user_prompt == "Tell me more about sector I."
+
+        # Response content comes from mocked LLM
+        assert result.content == "I can help with that tourism analysis."
+
+    async def test_process_turn_empty_history(self):
+        """process_turn works with empty history (first message)."""
+        mock_llm = MagicMock()
+        mock_llm.call_unstructured = AsyncMock(return_value=LLMResponse(
+            content="Welcome! How can I help?",
+            parsed=None,
+            provider=LLMProvider.LOCAL,
+            model="local-deterministic",
+            usage=TokenUsage(input_tokens=20, output_tokens=15),
+        ))
+
+        copilot = EconomistCopilot(llm_client=mock_llm)
+
+        result = await copilot.process_turn(
+            messages=[],
+            user_message="Hello",
+        )
+
+        call_args = mock_llm.call_unstructured.call_args
+        request = call_args[0][0]
+
+        assert request.messages is not None
+        assert len(request.messages) == 1  # only the new user message
+        assert request.messages[0] == {"role": "user", "content": "Hello"}
+
+    async def test_process_turn_extracts_provider_and_model(self):
+        """process_turn correctly extracts provider and model from LLMResponse."""
+        mock_llm = MagicMock()
+        mock_llm.call_unstructured = AsyncMock(return_value=LLMResponse(
+            content="Analysis results.",
+            parsed=None,
+            provider=LLMProvider.ANTHROPIC,
+            model="claude-sonnet-4-20250514",
+            usage=TokenUsage(input_tokens=100, output_tokens=80),
+        ))
+
+        copilot = EconomistCopilot(llm_client=mock_llm)
+        result = await copilot.process_turn(
+            messages=[],
+            user_message="Analyze this.",
+        )
+
+        assert result.model_provider == "ANTHROPIC"
+        assert result.model_id == "claude-sonnet-4-20250514"
+        assert result.token_usage.input_tokens == 100
+        assert result.token_usage.output_tokens == 80

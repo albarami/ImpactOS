@@ -270,3 +270,202 @@ class TestCumulativeTracking:
         client.reset_usage()
         total = client.cumulative_usage()
         assert total.total_tokens == 0
+
+
+# ===================================================================
+# Multi-turn messages (Sprint 26 — S26-BL-1)
+# ===================================================================
+
+
+class TestMultiTurnMessages:
+    """LLMRequest multi-turn history support."""
+
+    def test_llm_request_defaults_messages_none(self) -> None:
+        """messages defaults to None when not provided."""
+        req = LLMRequest(
+            system_prompt="s",
+            user_prompt="u",
+        )
+        assert req.messages is None
+
+    def test_llm_request_with_messages(self) -> None:
+        """messages field accepts a list of role/content dicts."""
+        msgs = [
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "hello"},
+            {"role": "user", "content": "follow-up"},
+        ]
+        req = LLMRequest(
+            system_prompt="s",
+            user_prompt="follow-up",
+            messages=msgs,
+        )
+        assert req.messages is not None
+        assert len(req.messages) == 3
+        assert req.messages[0]["role"] == "user"
+
+    def test_llm_request_output_schema_optional(self) -> None:
+        """output_schema can be None (unstructured mode)."""
+        req = LLMRequest(
+            system_prompt="s",
+            user_prompt="u",
+            output_schema=None,
+        )
+        assert req.output_schema is None
+
+    def test_llm_request_structured_defaults_true(self) -> None:
+        """structured flag defaults to True for backward compat."""
+        req = LLMRequest(
+            system_prompt="s",
+            user_prompt="u",
+        )
+        assert req.structured is True
+
+    def test_llm_request_structured_explicit_false(self) -> None:
+        """structured flag can be set to False."""
+        req = LLMRequest(
+            system_prompt="s",
+            user_prompt="u",
+            structured=False,
+        )
+        assert req.structured is False
+
+    def test_llm_request_backward_compat_with_schema(self) -> None:
+        """Existing callers passing output_schema positionally still work."""
+        req = LLMRequest(
+            system_prompt="s",
+            user_prompt="u",
+            output_schema=MockOutput,
+        )
+        assert req.output_schema is MockOutput
+        assert req.structured is True
+        assert req.messages is None
+
+
+# ===================================================================
+# Unstructured mode (Sprint 26 — S26-BL-5)
+# ===================================================================
+
+
+class TestUnstructuredMode:
+    """Unstructured conversation mode — skip JSON parsing."""
+
+    def test_normalize_response_unstructured_skips_parsing(self) -> None:
+        """When structured=False, parsed is None even with valid JSON."""
+
+        class _FakeAnthropicBlock:
+            def __init__(self, text: str):
+                self.text = text
+
+        class _FakeUsage:
+            input_tokens = 10
+            output_tokens = 20
+
+        class _FakeResponse:
+            content = [_FakeAnthropicBlock('{"sector_code": "F", "confidence": 0.9}')]
+            model = "claude-test"
+            usage = _FakeUsage()
+
+        client = LLMClient()
+        result = client._normalize_response(
+            _FakeResponse(),
+            provider=LLMProvider.ANTHROPIC,
+            schema=MockOutput,
+            structured=False,
+        )
+        assert result.parsed is None
+        assert result.content == '{"sector_code": "F", "confidence": 0.9}'
+        assert result.provider == LLMProvider.ANTHROPIC
+
+    def test_normalize_response_structured_still_parses(self) -> None:
+        """When structured=True with a schema, parsing works as before."""
+
+        class _FakeAnthropicBlock:
+            def __init__(self, text: str):
+                self.text = text
+
+        class _FakeUsage:
+            input_tokens = 10
+            output_tokens = 20
+
+        class _FakeResponse:
+            content = [_FakeAnthropicBlock('{"sector_code": "F", "confidence": 0.9}')]
+            model = "claude-test"
+            usage = _FakeUsage()
+
+        client = LLMClient()
+        result = client._normalize_response(
+            _FakeResponse(),
+            provider=LLMProvider.ANTHROPIC,
+            schema=MockOutput,
+            structured=True,
+        )
+        assert result.parsed is not None
+        assert result.parsed.sector_code == "F"
+        assert result.parsed.confidence == 0.9
+
+    def test_normalize_response_no_schema_skips_parsing(self) -> None:
+        """When schema is None, parsed is None regardless of structured flag."""
+
+        class _FakeAnthropicBlock:
+            def __init__(self, text: str):
+                self.text = text
+
+        class _FakeUsage:
+            input_tokens = 5
+            output_tokens = 15
+
+        class _FakeResponse:
+            content = [_FakeAnthropicBlock("Just a text response")]
+            model = "claude-test"
+            usage = _FakeUsage()
+
+        client = LLMClient()
+        result = client._normalize_response(
+            _FakeResponse(),
+            provider=LLMProvider.ANTHROPIC,
+            schema=None,
+            structured=True,
+        )
+        assert result.parsed is None
+        assert result.content == "Just a text response"
+
+    def test_response_with_parsed_none(self) -> None:
+        """LLMResponse accepts parsed=None for unstructured mode."""
+        resp = LLMResponse(
+            content="Hello, this is a conversation.",
+            parsed=None,
+            provider=LLMProvider.LOCAL,
+            model="local-deterministic",
+            usage=TokenUsage(input_tokens=0, output_tokens=0),
+        )
+        assert resp.parsed is None
+        assert resp.content == "Hello, this is a conversation."
+
+    def test_call_local_unstructured(self) -> None:
+        """LOCAL provider returns empty content and None parsed for unstructured."""
+        client = LLMClient()
+        req = LLMRequest(
+            system_prompt="s",
+            user_prompt="u",
+            output_schema=None,
+            structured=False,
+        )
+        result = client._call_local(req)
+        assert result.parsed is None
+        assert result.content == ""
+        assert result.provider == LLMProvider.LOCAL
+
+    def test_call_local_structured_still_works(self) -> None:
+        """LOCAL provider still generates schema defaults for structured mode."""
+        client = LLMClient()
+        req = LLMRequest(
+            system_prompt="s",
+            user_prompt="u",
+            output_schema=MockOutput,
+            structured=True,
+        )
+        result = client._call_local(req)
+        assert result.parsed is not None
+        assert result.parsed.sector_code == "UNKNOWN"
+        assert result.parsed.confidence == 0.0
