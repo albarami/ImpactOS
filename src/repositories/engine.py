@@ -128,6 +128,19 @@ class RunSnapshotRepository:
         )
         return list(result.scalars().all())
 
+    async def list_for_workspace(
+        self, workspace_id: UUID, *, limit: int = 50, offset: int = 0,
+    ) -> list[RunSnapshotRow]:
+        """List run snapshots for a workspace, newest first (paginated)."""
+        result = await self._session.execute(
+            select(RunSnapshotRow)
+            .where(RunSnapshotRow.workspace_id == workspace_id)
+            .order_by(RunSnapshotRow.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(result.scalars().all())
+
 
 class ResultSetRepository:
     def __init__(self, session: AsyncSession) -> None:
