@@ -585,3 +585,20 @@ class TestCreateExportHandler:
         result = await executor.execute(tc)
         assert result.status == "error"
         assert result.reason_code == "invalid_args"
+
+    async def test_missing_run_snapshot_returns_run_not_found(self, db_session):
+        """create_export rejects run_ids with no persisted RunSnapshot."""
+        session, ws_id = db_session
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+
+        # Use a synthetic run_id that has no RunSnapshotRow
+        tc = ToolCall(tool_name="create_export", arguments={
+            "run_id": str(new_uuid7()),
+            "mode": "SANDBOX",
+            "export_formats": ["pptx"],
+            "pack_data": {"title": "Report"},
+        })
+        result = await executor.execute(tc)
+        assert result.status == "error"
+        assert result.reason_code == "run_not_found"
+        assert "engine run required" in (result.error_summary or "")

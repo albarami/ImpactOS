@@ -445,8 +445,13 @@ class TestToolExecution:
         assert result.trace_metadata is not None
         assert result.trace_metadata.pending_confirmation is not None
 
-    async def test_trace_metadata_populated_from_run_engine(self, db_session):
-        """After run_engine execution, trace has run_id and scenario_spec_id."""
+    async def test_trace_metadata_populated_from_run_engine_dry_run(self, db_session):
+        """After run_engine dry-run, trace has scenario refs but NOT run_id.
+
+        run_engine MVP returns scenario_validated_dry_run — the synthetic
+        run_id must NOT leak into trace metadata (no RunSnapshot exists).
+        Scenario/model refs ARE populated since they come from real DB rows.
+        """
         session, ws_id = db_session
 
         # Create a scenario first so run_engine can validate
@@ -489,7 +494,9 @@ class TestToolExecution:
         result = await svc.send_message(ws_id, sid, "Run the engine")
 
         assert result.trace_metadata is not None
-        assert result.trace_metadata.run_id is not None
+        # run_id must NOT be populated from dry-run (synthetic, no RunSnapshot)
+        assert result.trace_metadata.run_id is None
+        # scenario/model refs are real DB data and should be populated
         assert result.trace_metadata.scenario_spec_id == str(spec_id)
         assert result.trace_metadata.scenario_spec_version == 1
         assert result.trace_metadata.model_version_id == str(mv_id)

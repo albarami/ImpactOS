@@ -275,7 +275,7 @@ All five Sprint 25 backlog items resolved with zero new product surface and full
 **Branch:** `phase3-sprint27-copilot-tool-execution`
 **Date:** 2026-03-05
 
-Sprint 27 closes the operational gap: copilot now executes tool calls end-to-end instead of just suggesting them.
+Sprint 27 closes the operational gap: copilot tool calls are now dispatched through a real executor with safety caps, latency tracking, and DB-backed handlers. `build_scenario`, `narrate_results`, and `create_export` execute against real repositories. `run_engine` performs scenario validation (dry-run MVP); full `BatchRunner.run()` integration is deferred to a follow-up sprint. `lookup_data` returns a dataset catalog (MVP stub).
 
 ### Scope Items
 
@@ -283,9 +283,9 @@ Sprint 27 closes the operational gap: copilot now executes tool calls end-to-end
 |----|---------|---------------|
 | S27-0 | Runtime wiring | `_build_copilot()` factory creates real `EconomistCopilot` from settings; `COPILOT_ENABLED` kill switch; non-dev fail-closed (503) when no real LLM providers |
 | S27-1a | Tool executor skeleton | `ChatToolExecutor` with safety caps (5/turn, 1 run_engine, 1 create_export); `ToolExecutionResult` model |
-| S27-1b | Tool handlers | `build_scenario` (creates ScenarioSpec), `run_engine` (validates scenario, MVP), `narrate_results` (reads ResultSets), `create_export` (fire-and-return), `lookup_data` (MVP stub) |
+| S27-1b | Tool handlers | `build_scenario` (creates ScenarioSpec), `run_engine` (validates scenario — dry-run MVP, defers `BatchRunner.run()`), `narrate_results` (reads ResultSets), `create_export` (guarded by RunSnapshot existence), `lookup_data` (MVP stub) |
 | S27-1c | create_export tool | Added as 5th copilot tool (not gated); prompt and definitions updated |
-| S27-2 | ChatService integration | Tool execution after confirmation gate; trace metadata populated with run_id, scenario_spec_id; results persisted in tool_calls[*].result |
+| S27-2 | ChatService integration | Tool execution after confirmation gate; trace metadata populated with scenario_spec_id, model_version_id (run_id only from real engine runs, not dry-run); results persisted in tool_calls[*].result |
 | S27-3 | Frontend visibility | Status badges (green/red/amber) on tool calls; error_summary display; deep links from trace_metadata.run_id to /w/{id}/runs/{runId} |
 | S27-4 | Contracts + evidence | OpenAPI regenerated; evidence doc updated; master build plan updated |
 
@@ -330,7 +330,17 @@ Sprint 27 closes the operational gap: copilot now executes tool calls end-to-end
 | Check | Result |
 |-------|--------|
 | `alembic current` | `020_chat_sessions_messages (head)` — no new migration needed |
-| `pytest --tb=no -q` | **4815 passed**, 29 skipped, 0 failures |
+| `pytest --tb=no -q` | **4838 passed**, 29 skipped, 0 failures |
 | `vitest run` | **336 passed** (38 test files), 0 failures |
-| Backend delta | +87 tests over Sprint 26 baseline (4728 → 4815) |
+| Backend delta | +110 tests over Sprint 26 baseline (4728 → 4838) |
 | Frontend delta | +8 tests over Sprint 26 baseline (328 → 336) |
+
+### Sprint 27 Scope Limitations (Documented)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| `run_engine` | Dry-run validation only | Validates scenario exists, returns refs; does NOT call `BatchRunner.run()` or persist `RunSnapshot`/`ResultSet`. Deferred to follow-up sprint. |
+| `create_export` | Guarded | Rejects `run_id` values with no persisted `RunSnapshotRow` (prevents orphan exports from dry-run synthetic IDs). |
+| Trace `run_id` | Not populated from dry-run | `ChatService` skips `run_id` population when `reason_code == "scenario_validated_dry_run"`. Scenario/model refs still populated. |
+| `narrate_results` | Functional but no data | Will correctly return `no_results` when called with a dry-run `run_id` (no `ResultSet` rows exist). |
+| `lookup_data` | MVP stub | Returns dataset catalog metadata, not actual data queries. |

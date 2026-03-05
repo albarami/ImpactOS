@@ -207,7 +207,10 @@ class ChatToolExecutor:
         """Create an export record for a Decision Pack.
 
         Required args: run_id, mode, export_formats, pack_data
+        Guards: RunSnapshot must exist for run_id (prevents orphan exports
+        from synthetic dry-run IDs).
         """
+        from src.db.tables import RunSnapshotRow
         from src.repositories.exports import ExportRepository
 
         run_id = arguments.get("run_id")
@@ -236,6 +239,15 @@ class ChatToolExecutor:
             return {
                 "reason_code": "invalid_args",
                 "error": f"Invalid run_id format: {run_id}",
+            }
+
+        # Guard: RunSnapshot must exist (prevents exports against synthetic
+        # dry-run IDs that have no persisted engine results)
+        snap = await self._session.get(RunSnapshotRow, run_uuid)
+        if snap is None:
+            return {
+                "reason_code": "run_not_found",
+                "error": f"RunSnapshot {run_id} not found — engine run required before export",
             }
 
         export_id = new_uuid7()
@@ -274,7 +286,7 @@ class ChatToolExecutor:
 
         # Reason codes that indicate handler-level validation failures
         _ERROR_REASON_CODES = frozenset({
-            "invalid_args", "scenario_not_found", "no_results",
+            "invalid_args", "scenario_not_found", "no_results", "run_not_found",
         })
 
         start = time.monotonic()

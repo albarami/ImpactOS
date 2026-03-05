@@ -26,7 +26,7 @@ User -> ChatAPI.send_message()
               -> ChatToolExecutor.execute_tool_calls() [sequential, capped dispatch]
                    -> lookup_data    -> data repos/services
                    -> build_scenario -> ScenarioVersionRepository
-                   -> run_engine     -> engine.leontief (deterministic)
+                   -> run_engine     -> scenario validation (dry-run MVP; TODO: BatchRunner.run())
                    -> narrate_results -> reads persisted ResultSets, returns to LLM
                    -> create_export   -> ExportService (fire-and-return)
               -> Persist message with tool_calls[*].result + trace_metadata
@@ -85,9 +85,9 @@ def _get_chat_service(session, copilot=None):
 |------|---------|-------|--------|--------|-----|
 | `lookup_data` | Query data repos | `dataset_id`, `sector_codes`, `year` | Dataset rows/metadata | No | - |
 | `build_scenario` | Create ScenarioSpec | `name`, `base_year`, `shock_items` | `scenario_spec_id`, `version` | Yes | - |
-| `run_engine` | `compute_leontief()` | `scenario_spec_id`, `version` | `run_id`, summary results | Yes | Max 1/turn |
+| `run_engine` | Validate scenario (dry-run MVP) | `scenario_spec_id`, `version` | `scenario_spec_id`, `model_version_id`, `reason_code: scenario_validated_dry_run` | Yes | Max 1/turn |
 | `narrate_results` | Read persisted ResultSets by run_id | `run_id` | Result data for LLM narrative | No | - |
-| `create_export` | Create export record, return ID | `run_id`, `mode`, `export_formats[]`, `pack_data` | `export_id`, `status: PENDING` | No | Max 1/turn |
+| `create_export` | Create export record (requires RunSnapshot) | `run_id`, `mode`, `export_formats[]`, `pack_data` | `export_id`, `status: PENDING` | No | Max 1/turn |
 
 ### narrate_results source-of-truth
 
@@ -97,7 +97,9 @@ def _get_chat_service(session, copilot=None):
 
 After tool execution, `ChatService` populates `TraceMetadata` fields:
 - `build_scenario` -> `scenario_spec_id`, `scenario_spec_version`
-- `run_engine` -> `run_id`, `model_version_id`
+- `run_engine` (real execution) -> `run_id`, `model_version_id`, `scenario_spec_id`, `scenario_spec_version`
+- `run_engine` (dry-run) -> `model_version_id`, `scenario_spec_id`, `scenario_spec_version` only (no `run_id` — synthetic ID not promoted to trace)
+- `create_export` -> `export_id`
 - Assumptions and confidence from scenario/run metadata
 - `io_table` and `multiplier_type` from run parameters
 
@@ -126,3 +128,30 @@ When `ENVIRONMENT != dev` and required LLM provider config is missing:
 - `_build_copilot()` returns `None`
 - `_get_chat_service()` detects this and raises `HTTPException(503, detail="Copilot unavailable: LLM provider not configured")`
 - No silent "not configured" stub in production.
+
+## Amendment: run_engine Scope Deferral (Merge Gate Review)
+
+**Date:** 2026-03-05
+**Context:** Merge gate review identified that `run_engine` validates scenario existence but does not call `BatchRunner.run()` or persist `RunSnapshot`/`ResultSet` rows. The design doc originally specified `compute_leontief()` as the handler target.
+
+**Decision:** Downgrade `run_engine` to explicit dry-run validation in Sprint 27. Full engine execution deferred to a follow-up sprint.
+
+**What was deferred:**
+- `BatchRunner.run()` invocation (Leontief solver, satellite impacts, value measures)
+- `RunSnapshot` persistence (immutable run record)
+- `ResultSet` persistence (per-metric output)
+- Full `narrate_results` → real ResultSets pipeline
+- Full `create_export` → real RunSnapshot pipeline
+
+**Guards added to prevent data integrity issues:**
+1. `create_export` now verifies `RunSnapshotRow` exists for `run_id` before creating export; returns `reason_code: "run_not_found"` if missing.
+2. `ChatService` trace metadata no longer populates `run_id` from dry-run results (`reason_code == "scenario_validated_dry_run"` is skipped). Scenario/model refs are still populated since they come from real DB rows.
+
+**What Sprint 27 delivers:**
+- Executor infrastructure: safety caps, latency tracking, error handling, `ToolExecutionResult` contract
+- Real `build_scenario` handler (creates ScenarioSpec in DB)
+- Real `narrate_results` handler (reads persisted ResultSets)
+- Real `create_export` handler (creates ExportRow, guarded by RunSnapshot existence)
+- `run_engine` dry-run validation (confirms scenario exists, returns refs)
+- `lookup_data` MVP stub (returns dataset catalog)
+- Runtime wiring, confirmation gates, frontend visibility
