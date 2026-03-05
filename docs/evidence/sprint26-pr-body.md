@@ -72,6 +72,19 @@ Copilot Hardening sprint -- burns down all 5 Sprint 25 backlog items (S26-BL-1..
 - [x] Alembic: no new migration (hardening only)
 - [x] New tests: 30 (14 LLM + 8 copilot + 5 service + 8 frontend)
 - [x] Code review: APPROVE with I-1 fixed (COPILOT_MODEL now wired to LLMRequest.model)
-- [ ] Manual smoke test: multi-turn chat with nested tool calls
+- [x] Manual smoke test: multi-turn chat with nested tool calls
+
+---
+
+## Post-Merge Verification (on `main` at `0d0ab79`)
+
+| Check | Result |
+|-------|--------|
+| `alembic current` | `020_chat_sessions_messages (head)` |
+| `alembic heads` | `020_chat_sessions_messages (head)` |
+| `alembic check` | No new upgrade operations detected |
+| `pytest --tb=no -q` | **4728 passed**, 29 skipped, 0 failures |
+| `vitest run` | **328 passed** (37 test files), 0 failures |
+| Tag | `sprint-26-complete` pushed on `0d0ab79` |
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

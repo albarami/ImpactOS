@@ -256,3 +256,14 @@ All five Sprint 25 backlog items resolved with zero new product surface and full
 | S26-BL-3 | Replaced regex `[^{}]*` pattern with balanced-brace JSON extractor (`_extract_balanced_braces`). Handles nested objects/arrays and braces inside string literals. 7 new tests including 3+ levels of nesting. | `191e705` |
 | S26-BL-4 | `COPILOT_MODEL` and `COPILOT_MAX_TOKENS` wired from `settings` through `_get_chat_service()` into `ChatService(max_tokens=, model=)` into `context["max_tokens"]` / `context["model"]` into `EconomistCopilot.process_turn()`. | `79094bc` |
 | S26-BL-2 | `chatFetch` raw fetch helper replaced with shared `api` client from `openapi-fetch`. All 4 hooks migrated to `api.GET()`/`api.POST()` pattern. `BASE_URL` constant removed. 8 new hook unit tests. | `66e3d87` |
+
+### Sprint 26 Post-Merge Verification (on `main` at `0d0ab79`)
+
+| Check | Result |
+|-------|--------|
+| `alembic current` | `020_chat_sessions_messages (head)` |
+| `alembic heads` | `020_chat_sessions_messages (head)` |
+| `alembic check` | No new upgrade operations detected |
+| `pytest --tb=no -q` | **4728 passed**, 29 skipped, 0 failures |
+| `vitest run` | **328 passed** (37 test files), 0 failures |
+| Tag | `sprint-26-complete` pushed on `0d0ab79` |
