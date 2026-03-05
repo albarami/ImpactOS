@@ -1,10 +1,11 @@
-"""Tests for ChatToolExecutor (Sprint 27).
+"""Tests for ChatToolExecutor (Sprint 28).
 
 Verifies ToolExecutionResult model, safety caps, latency tracking,
-error handling, and real tool handler logic.
+error handling, and real tool handler logic including real engine execution.
 """
 
 import pytest
+import numpy as np
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
@@ -12,11 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from src.db.session import Base
 import src.db.tables  # noqa: F401
-from src.db.tables import WorkspaceRow, RunSnapshotRow, ResultSetRow, ExportRow
+from src.db.tables import WorkspaceRow, RunSnapshotRow, ResultSetRow, ExportRow, ModelVersionRow, ModelDataRow
 from src.models.chat import ToolCall, ToolExecutionResult
 from src.models.common import new_uuid7, utc_now
 from src.repositories.scenarios import ScenarioVersionRepository
-from src.repositories.engine import ResultSetRepository
+from src.repositories.engine import ResultSetRepository, RunSnapshotRepository
 from src.repositories.exports import ExportRepository
 from src.services.chat_tool_executor import (
     ChatToolExecutor,
@@ -57,6 +58,87 @@ async def db_session():
         await session.flush()
         yield session, ws_id
     await engine.dispose()
+
+
+@pytest.fixture
+async def db_session_with_model():
+    """Create in-memory SQLite session with workspace, model version, and model data.
+
+    Provides the full DB state needed for real engine execution via
+    RunExecutionService (Sprint 28).
+    """
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
+        ws_id = uuid4()
+        now = utc_now()
+        ws = WorkspaceRow(
+            workspace_id=ws_id,
+            client_name="Test Client",
+            engagement_code="T-EXEC-MODEL",
+            classification="INTERNAL",
+            description="test workspace with model",
+            created_by=uuid4(),
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(ws)
+
+        # Register a 3-sector model with curated_real provenance
+        mv_id = new_uuid7()
+        mv = ModelVersionRow(
+            model_version_id=mv_id,
+            base_year=2023,
+            source="test",
+            sector_count=3,
+            checksum="sha256:1bb9deeef3696f1d6b544ca7e10a3cd14e0cf9437047501b48fa6bc9a72b65a7",
+            provenance_class="curated_real",
+            created_at=now,
+        )
+        session.add(mv)
+
+        z = [[0.1, 0.2, 0.0], [0.0, 0.1, 0.3], [0.1, 0.0, 0.1]]
+        x = [100.0, 200.0, 150.0]
+        md = ModelDataRow(
+            model_version_id=mv_id,
+            z_matrix_json=z,
+            x_vector_json=x,
+            sector_codes=["A", "B", "C"],
+        )
+        session.add(md)
+        await session.flush()
+
+        yield session, ws_id, mv_id
+    await engine.dispose()
+
+
+def _mock_satellite_coefficients():
+    """Return a context manager that patches load_satellite_coefficients."""
+    from src.engine.satellites import SatelliteCoefficients
+    from src.data.workforce.satellite_coeff_loader import (
+        LoadedCoefficients,
+        CoefficientProvenance,
+    )
+    mock_coeffs = SatelliteCoefficients(
+        jobs_coeff=np.array([0.01, 0.02, 0.015]),
+        import_ratio=np.array([0.15, 0.15, 0.15]),
+        va_ratio=np.array([0.5, 0.4, 0.6]),
+        version_id=new_uuid7(),
+    )
+    return patch(
+        "src.services.run_execution.load_satellite_coefficients",
+        return_value=LoadedCoefficients(
+            coefficients=mock_coeffs,
+            provenance=CoefficientProvenance(
+                employment_coeff_year=2023,
+                io_base_year=2023,
+                import_ratio_year=2023,
+                va_ratio_year=2023,
+            ),
+        ),
+    )
 
 
 @pytest.fixture
@@ -159,14 +241,13 @@ class TestChatToolExecutorBasics:
         for b in blocked:
             assert b.reason_code == "max_tool_calls_exceeded"
 
-    async def test_execute_all_caps_run_engine_to_one(self, db_session):
+    async def test_execute_all_caps_run_engine_to_one(self, db_session_with_model):
         """run_engine per-turn cap: second call is blocked."""
-        session, ws_id = db_session
+        session, ws_id, mv_id = db_session_with_model
 
-        # Create a scenario so run_engine can validate it
+        # Create a scenario so run_engine can execute
         repo = ScenarioVersionRepository(session)
         spec_id = new_uuid7()
-        mv_id = new_uuid7()
         await repo.create(
             scenario_spec_id=spec_id, version=1, name="Cap Test",
             workspace_id=ws_id, base_model_version_id=mv_id,
@@ -179,7 +260,8 @@ class TestChatToolExecutorBasics:
             ToolCall(tool_name="run_engine", arguments={"scenario_spec_id": str(spec_id)}),
             ToolCall(tool_name="lookup_data", arguments={}),
         ]
-        results = await executor.execute_all(calls)
+        with _mock_satellite_coefficients():
+            results = await executor.execute_all(calls)
         assert len(results) == 3
 
         # First run_engine should succeed
@@ -362,15 +444,15 @@ class TestBuildScenarioHandler:
 
 
 class TestRunEngineHandler:
-    """S27-1b: run_engine validates scenario and returns structured success."""
+    """S28-1: run_engine executes real engine run via RunExecutionService."""
 
-    async def test_success_validated_scenario(self, db_session):
-        session, ws_id = db_session
+    async def test_success_run_completed(self, db_session_with_model):
+        """run_engine executes and returns run_completed with real run_id."""
+        session, ws_id, mv_id = db_session_with_model
 
-        # Create a scenario in the DB
+        # Create a scenario in the DB referencing the model
         repo = ScenarioVersionRepository(session)
         spec_id = new_uuid7()
-        mv_id = new_uuid7()
         await repo.create(
             scenario_spec_id=spec_id, version=1, name="Engine Test",
             workspace_id=ws_id, base_model_version_id=mv_id,
@@ -382,15 +464,16 @@ class TestRunEngineHandler:
             "scenario_spec_id": str(spec_id),
             "scenario_spec_version": 1,
         })
-        result = await executor.execute(tc)
+        with _mock_satellite_coefficients():
+            result = await executor.execute(tc)
         assert result.status == "success"
         data = result.result
-        assert data["reason_code"] == "scenario_validated_dry_run"
+        assert data["reason_code"] == "run_completed"
         assert data["status"] == "success"
         assert data["scenario_spec_id"] == str(spec_id)
         assert data["scenario_spec_version"] == 1
         assert data["model_version_id"] == str(mv_id)
-        # run_id should be a valid UUID
+        # run_id should be a valid UUID backed by a real RunSnapshot
         UUID(data["run_id"])
 
     async def test_invalid_scenario_spec_id(self, executor):
@@ -413,26 +496,24 @@ class TestRunEngineHandler:
         })
         result = await executor.execute(tc)
         assert result.status == "error"
-        assert result.reason_code == "scenario_not_found"
+        assert result.reason_code == "run_failed"
 
-    async def test_version_omitted_falls_back_to_latest(self, db_session):
+    async def test_version_omitted_falls_back_to_latest(self, db_session_with_model):
         """When scenario_spec_version is not provided, run_engine uses latest version."""
-        session, ws_id = db_session
+        session, ws_id, mv_id = db_session_with_model
         repo = ScenarioVersionRepository(session)
         spec_id = new_uuid7()
-        mv_id = new_uuid7()
 
-        # Create two versions
+        # Create two versions both referencing the same model
         await repo.create(
             scenario_spec_id=spec_id, version=1, name="V1",
             workspace_id=ws_id, base_model_version_id=mv_id,
             base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
         )
-        mv_id_v2 = new_uuid7()
         await repo.create(
             scenario_spec_id=spec_id, version=2, name="V2",
-            workspace_id=ws_id, base_model_version_id=mv_id_v2,
-            base_year=2024, time_horizon={"start_year": 2024, "end_year": 2024},
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
         )
 
         executor = ChatToolExecutor(session=session, workspace_id=ws_id)
@@ -440,19 +521,20 @@ class TestRunEngineHandler:
             "scenario_spec_id": str(spec_id),
             # No scenario_spec_version — should fall back to latest (v2)
         })
-        result = await executor.execute(tc)
+        with _mock_satellite_coefficients():
+            result = await executor.execute(tc)
         assert result.status == "success"
         assert result.result["scenario_spec_version"] == 2
-        assert result.result["model_version_id"] == str(mv_id_v2)
+        assert result.result["model_version_id"] == str(mv_id)
 
-    async def test_version_pinning_wrong_version(self, db_session):
-        """run_engine returns scenario_not_found when requested version doesn't exist."""
-        session, ws_id = db_session
+    async def test_version_pinning_wrong_version(self, db_session_with_model):
+        """run_engine returns run_failed when requested version doesn't exist."""
+        session, ws_id, mv_id = db_session_with_model
         repo = ScenarioVersionRepository(session)
         spec_id = new_uuid7()
         await repo.create(
             scenario_spec_id=spec_id, version=1, name="Only V1",
-            workspace_id=ws_id, base_model_version_id=new_uuid7(),
+            workspace_id=ws_id, base_model_version_id=mv_id,
             base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
         )
 
@@ -463,12 +545,12 @@ class TestRunEngineHandler:
         })
         result = await executor.execute(tc)
         assert result.status == "error"
-        assert result.reason_code == "scenario_not_found"
+        assert result.reason_code == "run_failed"
         assert "v99" in result.error_summary
 
-    async def test_version_pinning_cross_workspace_rejected(self, db_session):
+    async def test_version_pinning_cross_workspace_rejected(self, db_session_with_model):
         """run_engine rejects version-pinned scenario from another workspace."""
-        session, ws_id = db_session
+        session, ws_id, mv_id = db_session_with_model
         other_ws_id = uuid4()
         now = utc_now()
         other_ws = WorkspaceRow(
@@ -489,7 +571,7 @@ class TestRunEngineHandler:
         spec_id = new_uuid7()
         await repo.create(
             scenario_spec_id=spec_id, version=1, name="Other WS",
-            workspace_id=other_ws_id, base_model_version_id=new_uuid7(),
+            workspace_id=other_ws_id, base_model_version_id=mv_id,
             base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
         )
 
@@ -501,7 +583,7 @@ class TestRunEngineHandler:
         })
         result = await executor.execute(tc)
         assert result.status == "error"
-        assert result.reason_code == "scenario_not_found"
+        assert result.reason_code == "run_failed"
 
 
 # ------------------------------------------------------------------
@@ -777,7 +859,7 @@ class TestWorkspaceIsolation:
     """Handlers must reject resources from other workspaces."""
 
     async def test_run_engine_rejects_cross_workspace_scenario(self, db_session):
-        """run_engine returns scenario_not_found for scenario in another workspace."""
+        """run_engine returns run_failed for scenario in another workspace."""
         session, ws_id = db_session
         other_ws_id = uuid4()
         now = utc_now()
@@ -810,7 +892,7 @@ class TestWorkspaceIsolation:
         })
         result = await executor.execute(tc)
         assert result.status == "error"
-        assert result.reason_code == "scenario_not_found"
+        assert result.reason_code == "run_failed"
 
     async def test_narrate_results_rejects_cross_workspace_run(self, db_session):
         """narrate_results returns run_not_found for run in another workspace."""
@@ -854,3 +936,122 @@ class TestWorkspaceIsolation:
         result = await executor.execute(tc)
         assert result.status == "error"
         assert result.reason_code == "run_not_found"
+
+
+# ------------------------------------------------------------------
+# Sprint 28: Real engine execution tests
+# ------------------------------------------------------------------
+
+
+class TestRunEngineRealExecution:
+    """S28-1: run_engine produces real persisted engine runs."""
+
+    async def test_run_engine_returns_real_run_id(self, db_session_with_model):
+        """run_id is backed by a real persisted RunSnapshot."""
+        session, ws_id, mv_id = db_session_with_model
+
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="Real Run Test",
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="run_engine", arguments={
+            "scenario_spec_id": str(spec_id),
+            "scenario_spec_version": 1,
+        })
+        with _mock_satellite_coefficients():
+            result = await executor.execute(tc)
+
+        assert result.status == "success"
+        run_id = UUID(result.result["run_id"])
+
+        # Verify RunSnapshot exists in DB
+        snap_repo = RunSnapshotRepository(session)
+        snap = await snap_repo.get(run_id)
+        assert snap is not None
+        assert snap.workspace_id == ws_id
+        assert snap.model_version_id == mv_id
+        assert snap.scenario_spec_id == spec_id
+        assert snap.scenario_spec_version == 1
+
+    async def test_run_engine_persists_result_sets(self, db_session_with_model):
+        """ResultSet rows exist after run."""
+        session, ws_id, mv_id = db_session_with_model
+
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="ResultSet Test",
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="run_engine", arguments={
+            "scenario_spec_id": str(spec_id),
+            "scenario_spec_version": 1,
+        })
+        with _mock_satellite_coefficients():
+            result = await executor.execute(tc)
+
+        assert result.status == "success"
+        run_id = UUID(result.result["run_id"])
+
+        # Verify ResultSet rows exist in DB
+        rs_repo = ResultSetRepository(session)
+        rs_rows = await rs_repo.get_by_run(run_id)
+        assert len(rs_rows) > 0
+
+    async def test_run_engine_no_dry_run_reason_code(self, db_session_with_model):
+        """reason_code must be run_completed, not scenario_validated_dry_run."""
+        session, ws_id, mv_id = db_session_with_model
+
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="No Dry Run Test",
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="run_engine", arguments={
+            "scenario_spec_id": str(spec_id),
+            "scenario_spec_version": 1,
+        })
+        with _mock_satellite_coefficients():
+            result = await executor.execute(tc)
+
+        assert result.status == "success"
+        assert result.result["reason_code"] == "run_completed"
+        assert result.result["reason_code"] != "scenario_validated_dry_run"
+
+    async def test_run_engine_result_summary_present(self, db_session_with_model):
+        """result dict includes result_summary from persisted rows."""
+        session, ws_id, mv_id = db_session_with_model
+
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="Summary Test",
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="run_engine", arguments={
+            "scenario_spec_id": str(spec_id),
+            "scenario_spec_version": 1,
+        })
+        with _mock_satellite_coefficients():
+            result = await executor.execute(tc)
+
+        assert result.status == "success"
+        assert "result_summary" in result.result
+        assert isinstance(result.result["result_summary"], dict)
+        # result_summary should have at least one metric type from persisted results
+        assert len(result.result["result_summary"]) > 0

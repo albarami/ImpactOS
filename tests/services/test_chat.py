@@ -1,7 +1,8 @@
-"""Tests for ChatService (Sprint 25 + Sprint 27 tool execution)."""
+"""Tests for ChatService (Sprint 25 + Sprint 28 tool execution)."""
 
 import pytest
-from unittest.mock import AsyncMock
+import numpy as np
+from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 pytestmark = pytest.mark.anyio
@@ -10,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from src.db.session import Base
 import src.db.tables  # noqa: F401
-from src.db.tables import WorkspaceRow
+from src.db.tables import WorkspaceRow, ModelVersionRow, ModelDataRow
 from src.models.common import new_uuid7, utc_now
 from src.repositories.chat import ChatMessageRepository, ChatSessionRepository
 from src.services.chat import ChatService
@@ -42,6 +43,81 @@ async def db_session():
         await session.flush()
         yield session, ws_id
     await engine.dispose()
+
+
+@pytest.fixture
+async def db_session_with_model():
+    """Create in-memory SQLite session with workspace + model data for real engine runs."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
+        ws_id = uuid4()
+        now = utc_now()
+        ws = WorkspaceRow(
+            workspace_id=ws_id,
+            client_name="Test Client",
+            engagement_code="T-SVC-MODEL",
+            classification="INTERNAL",
+            description="test workspace with model",
+            created_by=uuid4(),
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(ws)
+
+        mv_id = new_uuid7()
+        mv = ModelVersionRow(
+            model_version_id=mv_id,
+            base_year=2023,
+            source="test",
+            sector_count=3,
+            checksum="sha256:1bb9deeef3696f1d6b544ca7e10a3cd14e0cf9437047501b48fa6bc9a72b65a7",
+            provenance_class="curated_real",
+            created_at=now,
+        )
+        session.add(mv)
+
+        z = [[0.1, 0.2, 0.0], [0.0, 0.1, 0.3], [0.1, 0.0, 0.1]]
+        x = [100.0, 200.0, 150.0]
+        md = ModelDataRow(
+            model_version_id=mv_id,
+            z_matrix_json=z,
+            x_vector_json=x,
+            sector_codes=["A", "B", "C"],
+        )
+        session.add(md)
+        await session.flush()
+        yield session, ws_id, mv_id
+    await engine.dispose()
+
+
+def _mock_satellite_coefficients():
+    """Return a context manager that patches load_satellite_coefficients."""
+    from src.engine.satellites import SatelliteCoefficients
+    from src.data.workforce.satellite_coeff_loader import (
+        LoadedCoefficients,
+        CoefficientProvenance,
+    )
+    mock_coeffs = SatelliteCoefficients(
+        jobs_coeff=np.array([0.01, 0.02, 0.015]),
+        import_ratio=np.array([0.15, 0.15, 0.15]),
+        va_ratio=np.array([0.5, 0.4, 0.6]),
+        version_id=new_uuid7(),
+    )
+    return patch(
+        "src.services.run_execution.load_satellite_coefficients",
+        return_value=LoadedCoefficients(
+            coefficients=mock_coeffs,
+            provenance=CoefficientProvenance(
+                employment_coeff_year=2023,
+                io_base_year=2023,
+                import_ratio_year=2023,
+                va_ratio_year=2023,
+            ),
+        ),
+    )
 
 
 @pytest.fixture
@@ -445,20 +521,18 @@ class TestToolExecution:
         assert result.trace_metadata is not None
         assert result.trace_metadata.pending_confirmation is not None
 
-    async def test_trace_metadata_populated_from_run_engine_dry_run(self, db_session):
-        """After run_engine dry-run, trace has scenario refs but NOT run_id.
+    async def test_trace_metadata_populated_from_run_engine(self, db_session_with_model):
+        """After real run_engine execution, trace has run_id + scenario/model refs.
 
-        run_engine MVP returns scenario_validated_dry_run — the synthetic
-        run_id must NOT leak into trace metadata (no RunSnapshot exists).
-        Scenario/model refs ARE populated since they come from real DB rows.
+        Sprint 28: run_engine now executes real engine runs. The run_id in trace
+        metadata is backed by a persisted RunSnapshot.
         """
-        session, ws_id = db_session
+        session, ws_id, mv_id = db_session_with_model
 
-        # Create a scenario first so run_engine can validate
+        # Create a scenario referencing the model
         from src.repositories.scenarios import ScenarioVersionRepository
         repo = ScenarioVersionRepository(session)
         spec_id = new_uuid7()
-        mv_id = new_uuid7()
         await repo.create(
             scenario_spec_id=spec_id, version=1, name="Test",
             workspace_id=ws_id, base_model_version_id=mv_id,
@@ -491,12 +565,14 @@ class TestToolExecution:
         )
         created = await svc.create_session(ws_id)
         sid = UUID(created.session_id)
-        result = await svc.send_message(ws_id, sid, "Run the engine")
+        with _mock_satellite_coefficients():
+            result = await svc.send_message(ws_id, sid, "Run the engine")
 
         assert result.trace_metadata is not None
-        # run_id must NOT be populated from dry-run (synthetic, no RunSnapshot)
-        assert result.trace_metadata.run_id is None
-        # scenario/model refs are real DB data and should be populated
+        # run_id IS populated — backed by a real persisted RunSnapshot
+        assert result.trace_metadata.run_id is not None
+        UUID(result.trace_metadata.run_id)  # must be a valid UUID
+        # scenario/model refs are populated from real execution
         assert result.trace_metadata.scenario_spec_id == str(spec_id)
         assert result.trace_metadata.scenario_spec_version == 1
         assert result.trace_metadata.model_version_id == str(mv_id)

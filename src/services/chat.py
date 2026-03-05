@@ -1,4 +1,4 @@
-"""Chat service — orchestrates conversation turns (Sprint 25 + Sprint 27).
+"""Chat service — orchestrates conversation turns (Sprint 25 + Sprint 28).
 
 Manages session lifecycle, message persistence, copilot agent invocation,
 and tool execution.  Enforces confirmation gate at the service level.
@@ -226,12 +226,7 @@ class ChatService:
             for er in exec_results:
                 if er.status == "success" and er.result:
                     if er.tool_name == "run_engine":
-                        # Only populate run_id when engine actually ran
-                        # (dry-run produces synthetic IDs with no RunSnapshot)
-                        reason = er.result.get("reason_code", "")
-                        if reason != "scenario_validated_dry_run":
-                            trace_dict["run_id"] = er.result.get("run_id")
-                        # Scenario/model refs are always real (from DB lookup)
+                        trace_dict["run_id"] = er.result.get("run_id")
                         trace_dict["model_version_id"] = er.result.get("model_version_id")
                         trace_dict["scenario_spec_id"] = er.result.get("scenario_spec_id")
                         trace_dict["scenario_spec_version"] = er.result.get("scenario_spec_version")

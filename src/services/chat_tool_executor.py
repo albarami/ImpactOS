@@ -1,11 +1,12 @@
-"""ChatToolExecutor -- dispatches copilot tool calls to handlers (Sprint 27).
+"""ChatToolExecutor -- dispatches copilot tool calls to handlers (Sprint 28).
 
 Executes tool calls proposed by the EconomistCopilot, enforcing per-turn
 safety caps and measuring latency.  Handlers interact with repositories
-to create scenarios, validate engine runs, read results, and create exports.
+to create scenarios, execute engine runs, read results, and create exports.
 
 Agent-to-Math Boundary: this executor dispatches to deterministic engine
-endpoints -- it never performs economic computations itself.
+endpoints via RunExecutionService -- it never performs economic computations
+itself.
 """
 
 from __future__ import annotations
@@ -121,14 +122,19 @@ class ChatToolExecutor:
         }
 
     async def _handle_run_engine(self, arguments: dict) -> dict:
-        """Validate scenario exists and return success with run_id.
+        """Execute engine run via RunExecutionService (Sprint 28).
 
-        Sprint 27 MVP: validates scenario, returns structured result.
-        Full engine execution (model loading, BatchRunner.run(), RunSnapshot
-        persistence) is deferred to a follow-up sprint.
-        TODO(S28+): Call BatchRunner.run() and persist RunSnapshot here.
+        Resolves scenario -> model -> satellite coefficients -> BatchRunner.run().
+        Persists RunSnapshot + ResultSet rows and returns real run_id.
         """
+        from src.repositories.engine import (
+            ModelDataRepository, ModelVersionRepository,
+            ResultSetRepository, RunSnapshotRepository,
+        )
         from src.repositories.scenarios import ScenarioVersionRepository
+        from src.services.run_execution import (
+            RunExecutionService, RunFromScenarioInput, RunRepositories,
+        )
 
         scenario_spec_id = arguments.get("scenario_spec_id")
         if not scenario_spec_id:
@@ -145,34 +151,37 @@ class ChatToolExecutor:
                 "error": f"Invalid scenario_spec_id format: {scenario_spec_id}",
             }
 
-        repo = ScenarioVersionRepository(self._session)
         version = arguments.get("scenario_spec_version")
+        svc = RunExecutionService()
+        repos = RunRepositories(
+            scenario_repo=ScenarioVersionRepository(self._session),
+            mv_repo=ModelVersionRepository(self._session),
+            md_repo=ModelDataRepository(self._session),
+            snap_repo=RunSnapshotRepository(self._session),
+            rs_repo=ResultSetRepository(self._session),
+        )
+        inp = RunFromScenarioInput(
+            workspace_id=self._workspace_id,
+            scenario_spec_id=spec_uuid,
+            scenario_spec_version=int(version) if version is not None else None,
+        )
 
-        if version is not None:
-            # Pin to requested version (provenance: validate exactly what was approved)
-            row = await repo.get_by_id_and_version(spec_uuid, int(version))
-            if row is None or row.workspace_id != self._workspace_id:
-                return {
-                    "reason_code": "scenario_not_found",
-                    "error": f"Scenario {scenario_spec_id} v{version} not found in workspace",
-                }
-        else:
-            # Fallback: latest version in workspace
-            row = await repo.get_latest_by_workspace(spec_uuid, self._workspace_id)
-            if row is None:
-                return {
-                    "reason_code": "scenario_not_found",
-                    "error": f"Scenario {scenario_spec_id} not found in workspace",
-                }
+        result = await svc.execute_from_scenario(inp, repos)
 
-        run_id = new_uuid7()
+        if result.status == "FAILED":
+            return {
+                "reason_code": "run_failed",
+                "error": result.error or "Unknown engine failure",
+            }
+
         return {
             "status": "success",
-            "reason_code": "scenario_validated_dry_run",
-            "run_id": str(run_id),
-            "scenario_spec_id": str(row.scenario_spec_id),
-            "scenario_spec_version": row.version,
-            "model_version_id": str(row.base_model_version_id),
+            "reason_code": "run_completed",
+            "run_id": str(result.run_id),
+            "scenario_spec_id": str(result.scenario_spec_id),
+            "scenario_spec_version": result.scenario_spec_version,
+            "model_version_id": str(result.model_version_id),
+            "result_summary": result.result_summary,
         }
 
     async def _handle_narrate_results(self, arguments: dict) -> dict:
@@ -317,6 +326,7 @@ class ChatToolExecutor:
         # Reason codes that indicate handler-level validation failures
         _ERROR_REASON_CODES = frozenset({
             "invalid_args", "scenario_not_found", "no_results", "run_not_found",
+            "run_failed",
         })
 
         start = time.monotonic()
