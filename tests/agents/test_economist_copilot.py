@@ -137,6 +137,53 @@ class TestToolParsing:
         # Should not raise
         validate_tool_call({"tool": "lookup_data", "arguments": {"dataset_id": "io"}})
 
+    def test_parse_nested_json_arguments(self):
+        """Nested objects in arguments must parse correctly."""
+        content = '{"tool": "build_scenario", "arguments": {"shocks": [{"sector": "A", "value": 0.1}]}}'
+        calls = parse_tool_calls(content)
+        assert len(calls) == 1
+        assert calls[0]["tool"] == "build_scenario"
+        assert calls[0]["arguments"]["shocks"][0]["sector"] == "A"
+
+    def test_parse_deeply_nested_arguments(self):
+        """3+ levels of nesting must work."""
+        content = '{"tool": "build_scenario", "arguments": {"config": {"shocks": [{"sectors": {"primary": "A"}}]}}}'
+        calls = parse_tool_calls(content)
+        assert len(calls) == 1
+        assert calls[0]["arguments"]["config"]["shocks"][0]["sectors"]["primary"] == "A"
+
+    def test_parse_arguments_with_strings_containing_braces(self):
+        """Braces inside string values must not confuse the parser."""
+        content = '{"tool": "narrate_results", "arguments": {"template": "GDP grew by {x}%"}}'
+        calls = parse_tool_calls(content)
+        assert len(calls) == 1
+        assert calls[0]["arguments"]["template"] == "GDP grew by {x}%"
+
+    def test_parse_multiple_tool_calls_with_nesting(self):
+        """Multiple nested tool calls in one response."""
+        content = (
+            'First call: {"tool": "build_scenario", "arguments": {"shocks": [{"sector": "A"}]}} '
+            'Second call: {"tool": "narrate_results", "arguments": {"data": {"value": 1.5}}}'
+        )
+        calls = parse_tool_calls(content)
+        assert len(calls) == 2
+        assert calls[0]["tool"] == "build_scenario"
+        assert calls[1]["tool"] == "narrate_results"
+
+    def test_parse_malformed_nested_json_skipped(self):
+        """Unbalanced braces are silently skipped."""
+        content = '{"tool": "build_scenario", "arguments": {"shocks": [{"sector": "A"'
+        calls = parse_tool_calls(content)
+        assert len(calls) == 0
+
+    def test_parse_existing_flat_args_still_works(self):
+        """Regression: flat arguments continue to work."""
+        content = '{"tool": "lookup_data", "arguments": {"dataset_id": "io_tables", "year": 2023}}'
+        calls = parse_tool_calls(content)
+        assert len(calls) == 1
+        assert calls[0]["tool"] == "lookup_data"
+        assert calls[0]["arguments"]["year"] == 2023
+
 
 # ── CopilotResponse tests ──────────────────────────────────────────────
 

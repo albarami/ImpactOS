@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -70,26 +69,71 @@ class CopilotResponse:
 def parse_tool_calls(content: str) -> list[dict]:
     """Extract tool call JSON objects from LLM response content.
 
-    Looks for JSON objects with 'tool' and 'arguments' keys.
-    Returns list of parsed dicts. Malformed JSON is silently skipped
-    (fail-closed: never let bad JSON disrupt the conversation).
+    Uses balanced-brace extraction to support nested objects/arrays
+    in tool arguments. Malformed JSON is silently skipped.
     """
     tool_calls: list[dict] = []
 
-    # Match JSON objects containing "tool" key
-    pattern = r'\{[^{}]*"tool"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{[^{}]*\}[^{}]*\}'
-    matches = re.findall(pattern, content, re.DOTALL)
-
-    for match in matches:
-        try:
-            parsed = json.loads(match)
-            if "tool" in parsed and "arguments" in parsed:
-                tool_calls.append(parsed)
-        except json.JSONDecodeError:
-            # Fail closed: skip malformed JSON rather than disrupting flow
-            _logger.warning("Skipping malformed tool call JSON: %s", match)
+    i = 0
+    while i < len(content):
+        if content[i] == '{':
+            # Try to extract a balanced JSON object
+            obj_str = _extract_balanced_braces(content, i)
+            if obj_str:
+                try:
+                    parsed = json.loads(obj_str)
+                    if isinstance(parsed, dict) and "tool" in parsed and "arguments" in parsed:
+                        tool_calls.append(parsed)
+                except json.JSONDecodeError:
+                    _logger.warning("Skipping malformed tool call JSON: %.200s", obj_str)
+                i += len(obj_str)
+            else:
+                i += 1
+        else:
+            i += 1
 
     return tool_calls
+
+
+def _extract_balanced_braces(text: str, start: int) -> str | None:
+    """Extract a balanced {} block from text starting at position start.
+
+    Returns the substring including outer braces, or None if unbalanced.
+    Respects JSON string literals (skips braces inside quoted strings).
+    """
+    if start >= len(text) or text[start] != '{':
+        return None
+
+    depth = 0
+    in_string = False
+    escape_next = False
+
+    for i in range(start, len(text)):
+        ch = text[i]
+
+        if escape_next:
+            escape_next = False
+            continue
+
+        if ch == '\\' and in_string:
+            escape_next = True
+            continue
+
+        if ch == '"' and not escape_next:
+            in_string = not in_string
+            continue
+
+        if in_string:
+            continue
+
+        if ch == '{':
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+
+    return None  # Unbalanced
 
 
 def validate_tool_call(tool_call: dict) -> None:
