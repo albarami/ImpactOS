@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from '../client';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -61,19 +62,6 @@ interface ChatSessionDetailResponse {
   messages: ChatMessageResponse[];
 }
 
-// ── Fetch helper ───────────────────────────────────────────────────────
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-async function chatFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
-  });
-  if (!res.ok) throw new Error(`Chat API error: ${res.status}`);
-  return res.json();
-}
-
 // ── Hooks ──────────────────────────────────────────────────────────────
 
 /**
@@ -82,10 +70,19 @@ async function chatFetch<T>(path: string, options?: RequestInit): Promise<T> {
 export function useChatSessions(workspaceId: string) {
   return useQuery<ChatSessionsListResponse>({
     queryKey: ['chat-sessions', workspaceId],
-    queryFn: () =>
-      chatFetch<ChatSessionsListResponse>(
-        `/v1/workspaces/${workspaceId}/chat/sessions?limit=50&offset=0`
-      ),
+    queryFn: async () => {
+      const { data, error } = await api.GET(
+        '/v1/workspaces/{workspace_id}/chat/sessions' as any,
+        {
+          params: {
+            path: { workspace_id: workspaceId },
+            query: { limit: 50, offset: 0 },
+          },
+        } as any
+      );
+      if (error) throw error;
+      return data as unknown as ChatSessionsListResponse;
+    },
   });
 }
 
@@ -99,10 +96,18 @@ export function useChatSession(
 ) {
   return useQuery<ChatSessionDetailResponse>({
     queryKey: ['chat-session', workspaceId, sessionId],
-    queryFn: () =>
-      chatFetch<ChatSessionDetailResponse>(
-        `/v1/workspaces/${workspaceId}/chat/sessions/${sessionId}`
-      ),
+    queryFn: async () => {
+      const { data, error } = await api.GET(
+        '/v1/workspaces/{workspace_id}/chat/sessions/{session_id}' as any,
+        {
+          params: {
+            path: { workspace_id: workspaceId, session_id: sessionId! },
+          },
+        } as any
+      );
+      if (error) throw error;
+      return data as unknown as ChatSessionDetailResponse;
+    },
     enabled: !!sessionId,
   });
 }
@@ -114,14 +119,17 @@ export function useCreateSession(workspaceId: string) {
   const queryClient = useQueryClient();
 
   return useMutation<ChatSessionResponse, Error, { title?: string }>({
-    mutationFn: (body) =>
-      chatFetch<ChatSessionResponse>(
-        `/v1/workspaces/${workspaceId}/chat/sessions`,
+    mutationFn: async (body) => {
+      const { data, error } = await api.POST(
+        '/v1/workspaces/{workspace_id}/chat/sessions' as any,
         {
-          method: 'POST',
-          body: JSON.stringify(body),
-        }
-      ),
+          params: { path: { workspace_id: workspaceId } },
+          body,
+        } as any
+      );
+      if (error) throw error;
+      return data as unknown as ChatSessionResponse;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['chat-sessions', workspaceId],
@@ -144,14 +152,19 @@ export function useSendMessage(
     Error,
     { content: string; confirm_scenario?: boolean }
   >({
-    mutationFn: (body) =>
-      chatFetch<ChatMessageResponse>(
-        `/v1/workspaces/${workspaceId}/chat/sessions/${sessionId}/messages`,
+    mutationFn: async (body) => {
+      const { data, error } = await api.POST(
+        '/v1/workspaces/{workspace_id}/chat/sessions/{session_id}/messages' as any,
         {
-          method: 'POST',
-          body: JSON.stringify(body),
-        }
-      ),
+          params: {
+            path: { workspace_id: workspaceId, session_id: sessionId! },
+          },
+          body,
+        } as any
+      );
+      if (error) throw error;
+      return data as unknown as ChatMessageResponse;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['chat-session', workspaceId, sessionId],
