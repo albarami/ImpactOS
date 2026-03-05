@@ -4,11 +4,16 @@ POST /v1/workspaces/{workspace_id}/exports                                — cr
 GET  /v1/workspaces/{workspace_id}/exports/{export_id}                    — export status
 GET  /v1/workspaces/{workspace_id}/exports/{export_id}/download/{format}  — download artifact (B-12)
 POST /v1/workspaces/{workspace_id}/exports/variance-bridge                — variance bridge
+POST /v1/workspaces/{workspace_id}/variance-bridges                       — compute+persist bridge (S23)
+GET  /v1/workspaces/{workspace_id}/variance-bridges/{analysis_id}         — get bridge analysis (S23)
+GET  /v1/workspaces/{workspace_id}/variance-bridges                       — list bridge analyses (S23)
 
 S0-4: Workspace-scoped routes. NFF claims now fetched from DB (not empty).
 Deterministic — no LLM calls.
 """
 
+import hashlib
+import json
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -26,18 +31,25 @@ from src.api.dependencies import (
     get_export_artifact_storage,
     get_export_repo,
     get_model_version_repo,
+    get_result_set_repo,
     get_run_snapshot_repo,
+    get_variance_bridge_repo,
 )
 from src.api.runs import ALLOWED_RUNTIME_PROVENANCE
 from src.export.artifact_storage import ExportArtifactStorage
 from src.export.orchestrator import ExportOrchestrator, ExportRequest
-from src.export.variance_bridge import VarianceBridge
+from src.export.variance_bridge import AdvancedVarianceBridge, VarianceBridge
 from src.models.common import ClaimStatus, ClaimType, DisclosureTier, ExportMode
+from src.models.export import BridgeReasonCode, VarianceBridgeAnalysis
 from src.models.governance import Claim
 from src.quality.models import RunQualityAssessment
 from src.repositories.data_quality import DataQualityRepository
-from src.repositories.engine import ModelVersionRepository, RunSnapshotRepository
-from src.repositories.exports import ExportRepository
+from src.repositories.engine import (
+    ModelVersionRepository,
+    ResultSetRepository,
+    RunSnapshotRepository,
+)
+from src.repositories.exports import ExportRepository, VarianceBridgeRepository
 from src.repositories.governance import ClaimRepository
 
 router = APIRouter(prefix="/v1/workspaces", tags=["exports"])
@@ -106,6 +118,50 @@ class VarianceBridgeResponse(BaseModel):
     end_value: float
     total_variance: float
     drivers: list[VarianceDriverResponse]
+
+
+# Sprint 23: Advanced variance bridge request/response schemas
+
+
+class CreateBridgeRequest(BaseModel):
+    """Request to compute and persist a variance bridge."""
+    run_a_id: UUID
+    run_b_id: UUID
+    metric_type: str = Field(default="total_output", min_length=1, max_length=100)
+
+
+class BridgeDriverResponse(BaseModel):
+    """Single driver in a bridge analysis response."""
+    driver_type: str
+    description: str
+    impact: float
+    raw_magnitude: float
+    weight: float
+    source_field: str | None = None
+    diff_summary: str | None = None
+
+
+class BridgeAnalysisResponse(BaseModel):
+    """Full bridge analysis response."""
+    analysis_id: str
+    workspace_id: str
+    run_a_id: str
+    run_b_id: str
+    metric_type: str
+    analysis_version: str
+    start_value: float
+    end_value: float
+    total_variance: float
+    drivers: list[BridgeDriverResponse]
+    config_hash: str
+    result_checksum: str
+    created_at: str
+
+
+class BridgeErrorDetail(BaseModel):
+    """Structured error response for bridge failures."""
+    reason_code: str
+    message: str
 
 
 # ---------------------------------------------------------------------------
@@ -321,4 +377,243 @@ async def variance_bridge(
             )
             for d in result.drivers
         ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Sprint 23: Variance Bridge Analytics (additive)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{workspace_id}/variance-bridges",
+    status_code=201,
+    response_model=BridgeAnalysisResponse,
+)
+async def create_variance_bridge(
+    workspace_id: UUID,
+    body: CreateBridgeRequest,
+    member: WorkspaceMember = Depends(require_workspace_member),
+    bridge_repo: VarianceBridgeRepository = Depends(get_variance_bridge_repo),
+    snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
+    result_repo: ResultSetRepository = Depends(get_result_set_repo),
+) -> BridgeAnalysisResponse:
+    """Compute + persist a variance bridge between two runs.
+
+    Directional: A->B is different from B->A.
+    Idempotent: same config_hash returns existing analysis.
+    """
+    # Validate: same run_id
+    if body.run_a_id == body.run_b_id:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason_code": BridgeReasonCode.BRIDGE_SAME_RUN,
+                "message": "Cannot compare a run with itself",
+            },
+        )
+
+    # Fetch run snapshots (workspace-scoped: returns None if wrong workspace)
+    snap_a = await snap_repo.get(body.run_a_id)
+    if snap_a is None or (snap_a.workspace_id and snap_a.workspace_id != workspace_id):
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "reason_code": BridgeReasonCode.BRIDGE_RUN_NOT_FOUND,
+                "message": f"Run {body.run_a_id} not found in workspace",
+            },
+        )
+
+    snap_b = await snap_repo.get(body.run_b_id)
+    if snap_b is None or (snap_b.workspace_id and snap_b.workspace_id != workspace_id):
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "reason_code": BridgeReasonCode.BRIDGE_RUN_NOT_FOUND,
+                "message": f"Run {body.run_b_id} not found in workspace",
+            },
+        )
+
+    # Fetch result sets
+    results_a = await result_repo.get_by_run(body.run_a_id)
+    result_a = next((r for r in results_a if r.metric_type == body.metric_type), None)
+    if result_a is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "reason_code": BridgeReasonCode.BRIDGE_NO_RESULTS,
+                "message": f"No {body.metric_type} result for run {body.run_a_id}",
+            },
+        )
+
+    results_b = await result_repo.get_by_run(body.run_b_id)
+    result_b = next((r for r in results_b if r.metric_type == body.metric_type), None)
+    if result_b is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "reason_code": BridgeReasonCode.BRIDGE_NO_RESULTS,
+                "message": f"No {body.metric_type} result for run {body.run_b_id}",
+            },
+        )
+
+    # Build artifact dicts for engine
+    snap_a_dict = {
+        "model_version_id": str(snap_a.model_version_id),
+        "mapping_library_version_id": str(snap_a.mapping_library_version_id),
+        "constraint_set_version_id": (
+            str(snap_a.constraint_set_version_id)
+            if snap_a.constraint_set_version_id
+            else None
+        ),
+    }
+    snap_b_dict = {
+        "model_version_id": str(snap_b.model_version_id),
+        "mapping_library_version_id": str(snap_b.mapping_library_version_id),
+        "constraint_set_version_id": (
+            str(snap_b.constraint_set_version_id)
+            if snap_b.constraint_set_version_id
+            else None
+        ),
+    }
+
+    result_a_dict = {
+        "values": result_a.values if isinstance(result_a.values, dict) else {},
+    }
+    result_b_dict = {
+        "values": result_b.values if isinstance(result_b.values, dict) else {},
+    }
+
+    # Compute bridge
+    bridge_result = AdvancedVarianceBridge.compute_from_artifacts(
+        run_a_snapshot=snap_a_dict,
+        run_b_snapshot=snap_b_dict,
+        result_a=result_a_dict,
+        result_b=result_b_dict,
+    )
+
+    # Build config for persistence (directional -- no sorting!)
+    config = {
+        "workspace_id": str(workspace_id),
+        "run_a_id": str(body.run_a_id),
+        "run_b_id": str(body.run_b_id),
+        "metric_type": body.metric_type,
+        "analysis_version": "bridge_v1",
+    }
+    config_hash = "sha256:" + hashlib.sha256(
+        json.dumps(config, sort_keys=True).encode()
+    ).hexdigest()
+
+    # Build result JSON
+    result_json = {
+        "start_value": bridge_result.start_value,
+        "end_value": bridge_result.end_value,
+        "total_variance": bridge_result.total_variance,
+        "drivers": [
+            {
+                "driver_type": d.driver_type.value,
+                "description": d.description,
+                "impact": d.impact,
+                "raw_magnitude": d.raw_magnitude,
+                "weight": d.weight,
+                "source_field": d.source_field,
+                "diff_summary": d.diff_summary,
+            }
+            for d in bridge_result.drivers
+        ],
+        "diagnostics": {
+            "checksum": bridge_result.diagnostics.checksum,
+            "tolerance_used": bridge_result.diagnostics.tolerance_used,
+            "identity_verified": bridge_result.diagnostics.identity_verified,
+        },
+    }
+
+    # Persist (idempotent by config_hash)
+    analysis = VarianceBridgeAnalysis(
+        workspace_id=workspace_id,
+        run_a_id=body.run_a_id,
+        run_b_id=body.run_b_id,
+        metric_type=body.metric_type,
+        config_json=config,
+        config_hash=config_hash,
+        result_json=result_json,
+        result_checksum=bridge_result.diagnostics.checksum,
+    )
+    saved = await bridge_repo.create(analysis)
+
+    return _bridge_to_response(saved, result_json)
+
+
+@router.get(
+    "/{workspace_id}/variance-bridges/{analysis_id}",
+    response_model=BridgeAnalysisResponse,
+)
+async def get_variance_bridge_analysis(
+    workspace_id: UUID,
+    analysis_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
+    bridge_repo: VarianceBridgeRepository = Depends(get_variance_bridge_repo),
+) -> BridgeAnalysisResponse:
+    """Get a single variance bridge analysis."""
+    analysis = await bridge_repo.get(workspace_id, analysis_id)
+    if analysis is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "reason_code": BridgeReasonCode.BRIDGE_NOT_FOUND,
+                "message": "Bridge analysis not found",
+            },
+        )
+    return _bridge_to_response(analysis, analysis.result_json)
+
+
+@router.get(
+    "/{workspace_id}/variance-bridges",
+    response_model=list[BridgeAnalysisResponse],
+)
+async def list_variance_bridges(
+    workspace_id: UUID,
+    member: WorkspaceMember = Depends(require_workspace_member),
+    bridge_repo: VarianceBridgeRepository = Depends(get_variance_bridge_repo),
+    limit: int = 50,
+    offset: int = 0,
+) -> list[BridgeAnalysisResponse]:
+    """List variance bridges for a workspace."""
+    analyses = await bridge_repo.list_for_workspace(
+        workspace_id, limit=limit, offset=offset,
+    )
+    return [_bridge_to_response(a, a.result_json) for a in analyses]
+
+
+def _bridge_to_response(
+    analysis: VarianceBridgeAnalysis,
+    result_json: dict,
+) -> BridgeAnalysisResponse:
+    """Convert persisted analysis + result JSON to API response."""
+    drivers = result_json.get("drivers", [])
+    return BridgeAnalysisResponse(
+        analysis_id=str(analysis.analysis_id),
+        workspace_id=str(analysis.workspace_id),
+        run_a_id=str(analysis.run_a_id),
+        run_b_id=str(analysis.run_b_id),
+        metric_type=analysis.metric_type,
+        analysis_version=analysis.analysis_version,
+        start_value=result_json.get("start_value", 0.0),
+        end_value=result_json.get("end_value", 0.0),
+        total_variance=result_json.get("total_variance", 0.0),
+        drivers=[
+            BridgeDriverResponse(
+                driver_type=d["driver_type"],
+                description=d["description"],
+                impact=d["impact"],
+                raw_magnitude=d.get("raw_magnitude", 0.0),
+                weight=d.get("weight", 0.0),
+                source_field=d.get("source_field"),
+                diff_summary=d.get("diff_summary"),
+            )
+            for d in drivers
+        ],
+        config_hash=analysis.config_hash,
+        result_checksum=analysis.result_checksum,
+        created_at=str(analysis.created_at),
     )
