@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.economist_copilot import EconomistCopilot
-from src.agents.llm_client import LLMClient
+from src.agents.llm_client import LLMClient, LLMProvider
 from src.api.auth_deps import WorkspaceMember, require_workspace_member
 from src.config.settings import Environment, get_settings
 from src.db.session import get_async_session
@@ -52,8 +52,9 @@ def _build_copilot(settings) -> EconomistCopilot | None:
         model_openrouter=settings.LLM_DEFAULT_MODEL_OPENROUTER,
     )
 
-    # Non-dev: fail-closed if no provider available
-    if settings.ENVIRONMENT != Environment.DEV and not llm.available_providers():
+    # Non-dev: fail-closed if no real (non-LOCAL) provider available
+    real_providers = [p for p in llm.available_providers() if p != LLMProvider.LOCAL]
+    if settings.ENVIRONMENT != Environment.DEV and not real_providers:
         _logger.error("Copilot: no LLM providers available in %s", settings.ENVIRONMENT)
         return None
 

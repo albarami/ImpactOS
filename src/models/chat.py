@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -26,6 +28,18 @@ class ToolCall(BaseModel):
     tool_name: str
     arguments: dict
     result: dict | None = None
+
+
+class ToolExecutionResult(BaseModel):
+    """Result of executing a tool call."""
+
+    tool_name: str
+    status: Literal["success", "error", "blocked"]
+    reason_code: str = ""
+    retryable: bool = False
+    latency_ms: int = 0
+    result: dict | None = None
+    error_summary: str | None = None
 
 
 class TokenUsage(BaseModel):

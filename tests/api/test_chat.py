@@ -10,6 +10,8 @@ import pytest
 from uuid import UUID
 from uuid_extensions import uuid7
 
+from fastapi import HTTPException
+
 from src.db.tables import WorkspaceRow
 from src.models.common import utc_now
 
@@ -240,6 +242,43 @@ class TestCopilotRuntimeWiring:
         result = _build_copilot(s)
         # In dev, should create copilot even without API keys (LOCAL provider)
         assert result is not None
+
+    async def test_build_copilot_returns_none_in_non_dev_without_real_keys(self):
+        """Non-dev with no real API keys should return None (fail-closed)."""
+        from src.config.settings import Settings
+        from src.api.chat import _build_copilot
+        s = Settings(
+            DATABASE_URL="sqlite:///test.db",
+            COPILOT_ENABLED=True,
+            ENVIRONMENT="staging",
+            ANTHROPIC_API_KEY="",
+            OPENAI_API_KEY="",
+            OPENROUTER_API_KEY="",
+        )
+        result = _build_copilot(s)
+        assert result is None
+
+    async def test_get_chat_service_raises_503_in_non_dev_when_copilot_none(self):
+        """Non-dev fail-closed: 503 when copilot is None but enabled."""
+        from unittest.mock import patch, MagicMock
+        from src.api.chat import _get_chat_service
+
+        mock_settings = MagicMock()
+        mock_settings.COPILOT_ENABLED = True
+        mock_settings.ENVIRONMENT = "staging"
+        mock_settings.COPILOT_MAX_TOKENS = 4096
+        mock_settings.COPILOT_MODEL = ""
+        mock_settings.ANTHROPIC_API_KEY = ""
+        mock_settings.OPENAI_API_KEY = ""
+        mock_settings.OPENROUTER_API_KEY = ""
+
+        mock_session = MagicMock()
+
+        with patch("src.api.chat.get_settings", return_value=mock_settings):
+            with pytest.raises(HTTPException) as exc_info:
+                _get_chat_service(mock_session, copilot=None)
+            assert exc_info.value.status_code == 503
+            assert "not configured" in exc_info.value.detail.lower()
 
 
 class TestWorkspaceIsolation:
