@@ -14241,6 +14241,17 @@
             },
             "type": "array",
             "title": "Confidence Reasons"
+          },
+          "pending_confirmation": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Confirmation"
           }
         },
         "type": "object",

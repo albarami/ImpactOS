@@ -29,6 +29,7 @@ Based on merged work on `main`:
 | 23 | MVP-23 | Advanced Variance Bridges + Explainability | 4609 | 33303cf | sprint-23-complete | 2026-03-05 |
 | 24 | S24 | Full-System Staging Proof + Go/No-Go | 4932 | 1146f70 | - | 2026-03-05 |
 | 25 | S25 | Economist Copilot v1 (Chat + Agent) | 4698 + 320 FE | 599ec87 | sprint-25-complete | 2026-03-05 |
+| 26 | S26 | Copilot Hardening (Backlog Burn-Down) | 4725 + 328 FE | *(branch)* | - | 2026-03-05 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
@@ -75,6 +76,16 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
     - Evidence: `docs/evidence/sprint25-copilot-evidence.md`
     - Known gaps → Sprint 26 backlog: S26-BL-1 (multi-turn history), S26-BL-2 (chatFetch client), S26-BL-3 (nested JSON regex), S26-BL-4 (unused settings), S26-BL-5 (unstructured LLM mode)
 
+13. Sprint 26: Copilot Hardening (Backlog Burn-Down) — branch `phase3-sprint26-copilot-hardening`
+    - All 5 Sprint 25 backlog items resolved: S26-BL-1 through S26-BL-5
+    - Multi-turn history: LLMRequest `messages` field, all 3 providers updated
+    - Unstructured mode: `call_unstructured()`, `_DummySchema` removed
+    - Nested JSON parser: balanced-brace extractor replaces regex
+    - Settings wiring: COPILOT_MODEL/COPILOT_MAX_TOKENS into runtime
+    - Frontend migration: useChat hooks to shared openapi-fetch client
+    - Zero new product surface, full backward compatibility
+    - Evidence: `docs/evidence/sprint25-copilot-evidence.md` (Sprint 26 Resolutions section)
+
 ## 4) Definition of "fully built and wired"
 
 The system is only considered fully complete when all are true:
@@ -95,12 +106,12 @@ The system is only considered fully complete when all are true:
 ## 5) Immediate next action
 
 - Sprint 25 (Economist Copilot v1) merged: PR #30 → `599ec87`, tag `sprint-25-complete`.
-- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprint 25 merged.
-- Post-merge verification on `main`: 4698 backend passed, 320 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
-- Sprint 26 backlog: S26-BL-1 through S26-BL-5 (see `docs/evidence/sprint25-pr-body.md` Known Gaps section).
+- Sprint 26 (Copilot Hardening): All 5 backlog items (S26-BL-1..5) resolved on branch `phase3-sprint26-copilot-hardening`.
+- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprint 25 merged. Sprint 26 in PR.
+- Post-Sprint 26 verification: 4725 backend passed (29 skipped), 328 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
 - Go/No-Go dossier: CONDITIONAL GO. Proceed to staging deployment when infrastructure prerequisites met.
 - See `docs/evidence/sprint24-go-no-go-dossier.md` for full criteria and rollback plan.
-- See `docs/evidence/sprint25-copilot-evidence.md` for copilot constraint compliance.
+- See `docs/evidence/sprint25-copilot-evidence.md` for copilot constraint compliance and Sprint 26 resolutions.
 
 ## 6) Minimum environment needed to see "live" behavior
 

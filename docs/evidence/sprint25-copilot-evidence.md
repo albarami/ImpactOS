@@ -239,3 +239,20 @@ Sprint 25 delivers the Economist Copilot v1 -- a conversational AI assistant for
 | S26-BL-3 | Tool call regex cannot handle nested JSON | Low |
 | S26-BL-4 | `COPILOT_MODEL` / `COPILOT_MAX_TOKENS` settings unused | Low |
 | S26-BL-5 | `LLMClient` lacks unstructured conversation mode | Medium |
+
+---
+
+## Sprint 26 Resolutions
+
+**Branch:** `phase3-sprint26-copilot-hardening`
+**Date:** 2026-03-05
+
+All five Sprint 25 backlog items resolved with zero new product surface and full backward compatibility.
+
+| ID | Resolution | Commit |
+|----|-----------|--------|
+| S26-BL-1 | `LLMRequest` extended with `messages: list[dict] \| None`. All 3 provider methods use messages when provided, fall back to single-turn `user_prompt`. `EconomistCopilot.process_turn()` builds full conversation history via `request.messages`. | `b7e418c` |
+| S26-BL-5 | Added `structured: bool = True` flag and `call_unstructured()` convenience method to `LLMClient`. `_normalize_response` skips `parse_structured_output` when `structured=False`. `output_schema` made optional. `_DummySchema` removed from copilot. | `b7e418c` |
+| S26-BL-3 | Replaced regex `[^{}]*` pattern with balanced-brace JSON extractor (`_extract_balanced_braces`). Handles nested objects/arrays and braces inside string literals. 7 new tests including 3+ levels of nesting. | `191e705` |
+| S26-BL-4 | `COPILOT_MODEL` and `COPILOT_MAX_TOKENS` wired from `settings` through `_get_chat_service()` into `ChatService(max_tokens=, model=)` into `context["max_tokens"]` / `context["model"]` into `EconomistCopilot.process_turn()`. | `79094bc` |
+| S26-BL-2 | `chatFetch` raw fetch helper replaced with shared `api` client from `openapi-fetch`. All 4 hooks migrated to `api.GET()`/`api.POST()` pattern. `BASE_URL` constant removed. 8 new hook unit tests. | `66e3d87` |
