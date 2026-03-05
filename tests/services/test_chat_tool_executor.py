@@ -334,8 +334,8 @@ class TestBuildScenarioHandler:
             "base_model_version_id": str(new_uuid7()),
         })
         result = await executor.execute(tc)
-        assert result.status == "success"  # handler returns structured error, not exception
-        assert result.result["reason_code"] == "invalid_args"
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"
 
     async def test_missing_base_year_returns_invalid_args(self, executor):
         tc = ToolCall(tool_name="build_scenario", arguments={
@@ -343,8 +343,8 @@ class TestBuildScenarioHandler:
             "base_model_version_id": str(new_uuid7()),
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "invalid_args"
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"
 
     async def test_missing_base_model_version_id_returns_invalid_args(self, executor):
         tc = ToolCall(tool_name="build_scenario", arguments={
@@ -352,8 +352,8 @@ class TestBuildScenarioHandler:
             "base_year": 2023,
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "invalid_args"
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"
 
 
 # ------------------------------------------------------------------
@@ -385,7 +385,7 @@ class TestRunEngineHandler:
         result = await executor.execute(tc)
         assert result.status == "success"
         data = result.result
-        assert data["reason_code"] == "scenario_validated"
+        assert data["reason_code"] == "scenario_validated_dry_run"
         assert data["status"] == "success"
         assert data["scenario_spec_id"] == str(spec_id)
         assert data["scenario_spec_version"] == 1
@@ -398,22 +398,22 @@ class TestRunEngineHandler:
             "scenario_spec_id": "not-a-uuid",
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "invalid_args"
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"
 
     async def test_missing_scenario_spec_id(self, executor):
         tc = ToolCall(tool_name="run_engine", arguments={})
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "invalid_args"
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"
 
     async def test_scenario_not_found(self, executor):
         tc = ToolCall(tool_name="run_engine", arguments={
             "scenario_spec_id": str(new_uuid7()),
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "scenario_not_found"
+        assert result.status == "error"
+        assert result.reason_code == "scenario_not_found"
 
 
 # ------------------------------------------------------------------
@@ -474,8 +474,8 @@ class TestNarrateResultsHandler:
             "run_id": str(new_uuid7()),
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "no_results"
+        assert result.status == "error"
+        assert result.reason_code == "no_results"
         assert result.result["result"] == {}
 
     async def test_invalid_run_id_format(self, executor):
@@ -483,14 +483,14 @@ class TestNarrateResultsHandler:
             "run_id": "not-a-uuid",
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "invalid_args"
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"
 
     async def test_missing_run_id(self, executor):
         tc = ToolCall(tool_name="narrate_results", arguments={})
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "invalid_args"
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"
 
 
 # ------------------------------------------------------------------
@@ -549,8 +549,8 @@ class TestCreateExportHandler:
             "pack_data": {},
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "invalid_args"
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"
 
     async def test_missing_mode_returns_invalid_args(self, executor):
         tc = ToolCall(tool_name="create_export", arguments={
@@ -559,8 +559,8 @@ class TestCreateExportHandler:
             "pack_data": {},
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "invalid_args"
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"
 
     async def test_invalid_mode_returns_invalid_args(self, db_session):
         session, ws_id = db_session
@@ -572,9 +572,9 @@ class TestCreateExportHandler:
             "pack_data": {},
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "invalid_args"
-        assert "SANDBOX or GOVERNED" in result.result["error"]
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"
+        assert "SANDBOX or GOVERNED" in result.error_summary
 
     async def test_missing_pack_data_returns_invalid_args(self, executor):
         tc = ToolCall(tool_name="create_export", arguments={
@@ -583,5 +583,5 @@ class TestCreateExportHandler:
             "export_formats": ["pptx"],
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
-        assert result.result["reason_code"] == "invalid_args"
+        assert result.status == "error"
+        assert result.reason_code == "invalid_args"

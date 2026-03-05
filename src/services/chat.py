@@ -233,6 +233,8 @@ class ChatService:
                     elif er.tool_name == "build_scenario":
                         trace_dict["scenario_spec_id"] = er.result.get("scenario_spec_id")
                         trace_dict["scenario_spec_version"] = er.result.get("version")
+                    elif er.tool_name == "create_export":
+                        trace_dict["export_id"] = er.result.get("export_id")
 
         # Build tool_calls list for persistence
         tool_calls_list = None

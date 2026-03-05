@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChatMessageResponse } from '@/lib/api/hooks/useChat';
+import type { ChatMessageResponse, ToolExecutionResult } from '@/lib/api/hooks/useChat';
 import { TraceMetadata } from './trace-metadata';
 import { cn } from '@/lib/utils';
 
@@ -47,10 +47,10 @@ export function MessageBubble({ message, workspaceId }: MessageBubbleProps) {
         {resolvedToolCalls && resolvedToolCalls.length > 0 && (
           <div className="mt-2 space-y-1">
             {resolvedToolCalls.map((tc, i) => {
-              const result = tc.result as Record<string, unknown> | undefined;
-              const status = result?.status as string | undefined;
-              const errorSummary = result?.error_summary as string | undefined;
-              const reasonCode = result?.reason_code as string | undefined;
+              const result = tc.result as ToolExecutionResult | undefined;
+              const status = result?.status;
+              const errorSummary = result?.error_summary;
+              const reasonCode = result?.reason_code;
 
               return (
                 <details

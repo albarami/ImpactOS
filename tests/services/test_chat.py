@@ -4,6 +4,8 @@ import pytest
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
+pytestmark = pytest.mark.anyio
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.db.session import Base

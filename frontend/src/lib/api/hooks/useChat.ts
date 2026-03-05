@@ -29,6 +29,7 @@ export interface TraceMetadata {
   scenario_spec_id?: string | null;
   scenario_spec_version?: number | null;
   model_version_id?: string | null;
+  export_id?: string | null;
   io_table?: string | null;
   multiplier_type?: string | null;
   assumptions?: string[];

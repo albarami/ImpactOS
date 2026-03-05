@@ -118,8 +118,8 @@ Tools:
 3. run_engine — Execute the Leontief engine on a confirmed scenario (REQUIRES prior confirmation)
    Arguments: {{"scenario_spec_id": "uuid", "scenario_spec_version": 1}}
 
-4. narrate_results — Format engine ResultSets into economist-readable narrative
-   Arguments: {{"run_id": "uuid", "result_sets": [...]}}
+4. narrate_results — Read persisted engine ResultSets and format into economist-readable narrative
+   Arguments: {{"run_id": "uuid"}}
 
 5. create_export — Create a Decision Pack export from engine results
    Arguments: {{"run_id": "uuid", "mode": "SANDBOX|GOVERNED", "export_formats": ["pptx", "xlsx"], "pack_data": {{...}}}}
@@ -186,10 +186,9 @@ def get_tool_definitions() -> list[dict]:
         },
         {
             "name": "narrate_results",
-            "description": "Format engine ResultSets into economist-readable narrative with trace metadata",
+            "description": "Read persisted engine ResultSets and format into economist-readable narrative with trace metadata",
             "parameters": {
                 "run_id": {"type": "string", "required": True},
-                "result_sets": {"type": "array", "required": True},
             },
             "requires_confirmation": False,
         },

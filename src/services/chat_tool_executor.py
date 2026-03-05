@@ -124,8 +124,9 @@ class ChatToolExecutor:
         """Validate scenario exists and return success with run_id.
 
         Sprint 27 MVP: validates scenario, returns structured result.
-        Full engine execution (model loading, BatchRunner) comes in a
-        follow-up sprint when the full pipeline is wired.
+        Full engine execution (model loading, BatchRunner.run(), RunSnapshot
+        persistence) is deferred to a follow-up sprint.
+        TODO(S28+): Call BatchRunner.run() and persist RunSnapshot here.
         """
         from src.repositories.scenarios import ScenarioVersionRepository
 
@@ -155,7 +156,7 @@ class ChatToolExecutor:
         run_id = new_uuid7()
         return {
             "status": "success",
-            "reason_code": "scenario_validated",
+            "reason_code": "scenario_validated_dry_run",
             "run_id": str(run_id),
             "scenario_spec_id": str(row.scenario_spec_id),
             "scenario_spec_version": row.version,
@@ -271,10 +272,28 @@ class ChatToolExecutor:
                 error_summary=f"Unknown tool: {tool_call.tool_name}",
             )
 
+        # Reason codes that indicate handler-level validation failures
+        _ERROR_REASON_CODES = frozenset({
+            "invalid_args", "scenario_not_found", "no_results",
+        })
+
         start = time.monotonic()
         try:
             result = await handler(tool_call.arguments)
             elapsed_ms = int((time.monotonic() - start) * 1000)
+
+            # Detect handler-level validation errors
+            reason_code = result.get("reason_code", "") if isinstance(result, dict) else ""
+            if reason_code in _ERROR_REASON_CODES:
+                return ToolExecutionResult(
+                    tool_name=tool_call.tool_name,
+                    status="error",
+                    reason_code=reason_code,
+                    latency_ms=elapsed_ms,
+                    result=result,
+                    error_summary=result.get("error", "")[:200] if result.get("error") else None,
+                )
+
             return ToolExecutionResult(
                 tool_name=tool_call.tool_name,
                 status="success",
@@ -290,7 +309,7 @@ class ChatToolExecutor:
                 reason_code="handler_exception",
                 retryable=True,
                 latency_ms=elapsed_ms,
-                error_summary=str(exc),
+                error_summary=str(exc)[:200],
             )
 
     async def execute_all(
