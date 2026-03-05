@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.tables import ExportRow, RunSnapshotRow, VarianceBridgeAnalysisRow
@@ -120,7 +121,16 @@ class VarianceBridgeRepository:
             created_at=analysis.created_at,
         )
         self._session.add(row)
-        await self._session.flush()
+        try:
+            await self._session.flush()
+        except IntegrityError:
+            await self._session.rollback()
+            existing = await self.get_by_config_hash(
+                analysis.workspace_id, analysis.config_hash,
+            )
+            if existing:
+                return existing
+            raise
         return analysis
 
     async def get(

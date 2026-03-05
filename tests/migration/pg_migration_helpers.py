@@ -31,7 +31,7 @@ if _CI and not MIGRATION_TEST_DSN and not _SKIP_PG:
     )
 
 
-def _dsn_for_asyncpg() -> str:
+def dsn_for_asyncpg() -> str:
     """Return DSN suitable for asyncpg (strip +asyncpg prefix if present)."""
     dsn = MIGRATION_TEST_DSN or ""
     return dsn.replace("postgresql+asyncpg://", "postgresql://")
@@ -56,7 +56,7 @@ def _pg_reachable() -> bool:
                 "-c",
                 "import asyncio, asyncpg\n"
                 "async def _probe():\n"
-                f"    c = await asyncpg.connect('{_dsn_for_asyncpg()}', timeout=3)\n"
+                f"    c = await asyncpg.connect('{dsn_for_asyncpg()}', timeout=3)\n"
                 "    await c.close()\n"
                 "asyncio.run(_probe())\n",
             ],
@@ -113,7 +113,7 @@ _ASYNCPG_DSN_LAZY: str = ""
 def _get_dsn() -> str:
     global _ASYNCPG_DSN_LAZY
     if not _ASYNCPG_DSN_LAZY:
-        _ASYNCPG_DSN_LAZY = _dsn_for_asyncpg()
+        _ASYNCPG_DSN_LAZY = dsn_for_asyncpg()
     return _ASYNCPG_DSN_LAZY
 
 

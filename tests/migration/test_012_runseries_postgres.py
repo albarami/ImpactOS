@@ -19,7 +19,7 @@ from uuid import uuid4
 import pytest
 
 from tests.migration.pg_migration_helpers import (
-    _dsn_for_asyncpg,
+    dsn_for_asyncpg,
     pg_skip_marker,
     run_alembic,
 )
@@ -58,7 +58,7 @@ class TestMigration012Postgres:
         import asyncpg
 
         async def _test():
-            dsn = _dsn_for_asyncpg()
+            dsn = dsn_for_asyncpg()
             conn = await asyncpg.connect(dsn)
             try:
                 run_alembic("upgrade", "head")
@@ -83,7 +83,7 @@ class TestMigration012Postgres:
         import asyncpg
 
         async def _test():
-            dsn = _dsn_for_asyncpg()
+            dsn = dsn_for_asyncpg()
             conn = await asyncpg.connect(dsn)
             try:
                 # series_kind='annual' but year=NULL should fail
@@ -105,7 +105,7 @@ class TestMigration012Postgres:
         import asyncpg
 
         async def _test():
-            dsn = _dsn_for_asyncpg()
+            dsn = dsn_for_asyncpg()
             conn = await asyncpg.connect(dsn)
             try:
                 run_id = uuid4()

@@ -19,7 +19,9 @@ export default function ComparePage() {
   const [result, setResult] = useState<BridgeAnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Placeholder runs — in production these would come from a runs API hook
+  // TODO(sprint-24): Integrate useRuns(workspaceId) hook to populate
+  // RunSelector dropdown. Currently passes empty array, requiring users
+  // to use manual UUID entry mode.
   const [runIdA, setRunIdA] = useState('');
   const [runIdB, setRunIdB] = useState('');
   const [manualMode, setManualMode] = useState(false);

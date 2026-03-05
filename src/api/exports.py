@@ -380,6 +380,32 @@ async def variance_bridge(
     )
 
 
+def _snapshot_to_dict(snap: "RunSnapshotRow") -> dict:
+    """Extract all version-ID fields from a snapshot for bridge attribution.
+
+    Includes all artifact-version fields for forward-compatibility with
+    future driver categories beyond the current 7.
+    """
+    def _str_or_none(val: object) -> str | None:
+        return str(val) if val is not None else None
+
+    return {
+        "model_version_id": _str_or_none(snap.model_version_id),
+        "taxonomy_version_id": _str_or_none(getattr(snap, "taxonomy_version_id", None)),
+        "concordance_version_id": _str_or_none(
+            getattr(snap, "concordance_version_id", None)
+        ),
+        "mapping_library_version_id": _str_or_none(snap.mapping_library_version_id),
+        "assumption_library_version_id": _str_or_none(
+            getattr(snap, "assumption_library_version_id", None)
+        ),
+        "prompt_pack_version_id": _str_or_none(
+            getattr(snap, "prompt_pack_version_id", None)
+        ),
+        "constraint_set_version_id": _str_or_none(snap.constraint_set_version_id),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Sprint 23: Variance Bridge Analytics (additive)
 # ---------------------------------------------------------------------------
@@ -457,25 +483,10 @@ async def create_variance_bridge(
             },
         )
 
-    # Build artifact dicts for engine
-    snap_a_dict = {
-        "model_version_id": str(snap_a.model_version_id),
-        "mapping_library_version_id": str(snap_a.mapping_library_version_id),
-        "constraint_set_version_id": (
-            str(snap_a.constraint_set_version_id)
-            if snap_a.constraint_set_version_id
-            else None
-        ),
-    }
-    snap_b_dict = {
-        "model_version_id": str(snap_b.model_version_id),
-        "mapping_library_version_id": str(snap_b.mapping_library_version_id),
-        "constraint_set_version_id": (
-            str(snap_b.constraint_set_version_id)
-            if snap_b.constraint_set_version_id
-            else None
-        ),
-    }
+    # Build artifact dicts for engine (include all version fields for
+    # forward-compatibility with future driver categories)
+    snap_a_dict = _snapshot_to_dict(snap_a)
+    snap_b_dict = _snapshot_to_dict(snap_b)
 
     result_a_dict = {
         "values": result_a.values if isinstance(result_a.values, dict) else {},
@@ -485,6 +496,8 @@ async def create_variance_bridge(
     }
 
     # Compute bridge
+    # TODO(sprint-24): Pass spec_a/spec_b from ScenarioSpec repository
+    # to enable PHASING, IMPORT_SHARE, and FEASIBILITY driver detection.
     bridge_result = AdvancedVarianceBridge.compute_from_artifacts(
         run_a_snapshot=snap_a_dict,
         run_b_snapshot=snap_b_dict,
