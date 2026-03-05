@@ -2,7 +2,8 @@
 
 Adds the Economist Copilot v1 — a conversational AI assistant that orchestrates the ImpactOS Leontief engine via chat, with full DB persistence, versioned prompts, mandatory confirmation gate, and trace metadata.
 
-**Diff vs `origin/main`:** 31 files changed, +4467 / −55
+**Branch head:** see `git log --oneline -1` after push
+**Diff vs `origin/main`:** 32 files changed, +4562 / −55
 
 ---
 
@@ -15,7 +16,8 @@ Adds the Economist Copilot v1 — a conversational AI assistant that orchestrate
 | 3 | `4bae81c` | `[sprint25] add workspace-scoped chat api and service orchestration` |
 | 4 | `0a7f01c` | `[sprint25] add chat frontend interface with trace metadata and sidebar entry` |
 | 5 | `492ef01` | `[sprint25] refresh sprint25 evidence and openapi` |
-| 6 | `442d89f` | `[sprint25] fix code review findings: classification default, DummySchema BaseModel, confirmation gate protocol` |
+| 6 | `d158a61` | `[sprint25] fix code review findings: classification default, DummySchema BaseModel, confirmation gate protocol` |
+| 7 | *(head)* | `[sprint25] fix ORM-migration index drift for chat tables` |
 
 ---
 
@@ -25,9 +27,10 @@ Adds the Economist Copilot v1 — a conversational AI assistant that orchestrate
 |-------|---------|--------|
 | Backend pytest | `python -m pytest --tb=no -q` | **4698 passed**, 29 skipped, 0 failures |
 | Frontend vitest | `npx vitest run` | **320 passed** (36 test files), 0 failures |
-| Alembic head | `python -m alembic heads` | `020_chat_sessions_messages (head)` |
+| Alembic current | `alembic current` (live PG) | `020_chat_sessions_messages (head)` |
+| Alembic heads | `alembic heads` | `020_chat_sessions_messages (head)` |
+| Alembic check | `alembic check` (live PG) | **No new upgrade operations detected.** |
 | Alembic chain | `019_run_snapshot_scenario_link → 020_chat_sessions_messages` | Linear, no branches |
-| Alembic current/check | Requires live PostgreSQL — deferred to pre-merge gate | — |
 
 **New tests added:** 86 total
 
@@ -50,7 +53,7 @@ Adds the Economist Copilot v1 — a conversational AI assistant that orchestrate
 | C-3 | Confirmation gate | ✅ PASS | `_GATED_TOOLS = frozenset({"build_scenario", "run_engine"})` blocks execution unless `context["user_confirmed"]` is True. Frontend `ConfirmationGate` renders Approve/Edit/Reject. Backend stores `pending_confirmation` in `trace_metadata`. |
 | C-4 | Trace metadata | ✅ PASS | `TraceMetadata` model with run_id, scenario_spec_id, model_version_id, assumptions, confidence. Stored as JSONB. Frontend renders collapsible `<details>`. Verified by `test_trace_metadata_json_round_trip`. |
 | C-5 | LLM never outputs numbers | ✅ PASS | System prompt: "You NEVER compute, modify, or generate economic numbers." Agent returns structured tool calls only; engine produces numeric results. Verified by `test_system_prompt_contains_agent_math_boundary`. |
-| C-6 | Existing layers additive | ✅ PASS | Baseline: 4654 collected (pre-sprint). Current: 4698 backend + 320 frontend. Zero regressions. Only additive modifications to `sidebar.tsx` (+2 lines), `main.py` (+2 lines), `tables.py` (+55 lines), `settings.py` (+10 lines). |
+| C-6 | Existing layers additive | ✅ PASS | Baseline: 4654 collected (pre-sprint). Current: 4698 backend + 320 frontend. Zero regressions. Only additive modifications to `sidebar.tsx` (+2 lines), `main.py` (+2 lines), `tables.py` (+69 lines), `settings.py` (+10 lines). |
 
 ---
 
@@ -70,9 +73,10 @@ Adds the Economist Copilot v1 — a conversational AI assistant that orchestrate
 
 - [x] Backend: 4698 passed, 29 skipped, 0 failures
 - [x] Frontend: 320 passed, 0 failures
-- [x] Alembic head: `020_chat_sessions_messages`
+- [x] Alembic current: `020_chat_sessions_messages (head)`
+- [x] Alembic heads: `020_chat_sessions_messages (head)`
+- [x] Alembic check: No new upgrade operations detected
 - [x] New tests: 86 (23 agent + 16 repo + 10 service + 24 API + 13 frontend)
-- [ ] Pre-merge: `alembic upgrade head` + `alembic current` + `alembic check` against live PostgreSQL
 - [ ] Manual smoke test: create session → send message → verify trace metadata → confirm scenario
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

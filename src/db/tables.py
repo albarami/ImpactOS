@@ -1100,12 +1100,18 @@ class ChatSessionRow(Base):
     """Workspace-scoped chat session (Sprint 25)."""
 
     __tablename__ = "chat_sessions"
+    __table_args__ = (
+        Index(
+            "ix_chat_sessions_workspace",
+            "workspace_id",
+            "updated_at",
+        ),
+    )
 
     session_id: Mapped[UUID] = mapped_column(primary_key=True)
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.workspace_id"),
         nullable=False,
-        index=True,
     )
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -1120,6 +1126,13 @@ class ChatMessageRow(Base):
     """Single message in a chat session (Sprint 25)."""
 
     __tablename__ = "chat_messages"
+    __table_args__ = (
+        Index(
+            "ix_chat_messages_session",
+            "session_id",
+            "created_at",
+        ),
+    )
 
     message_id: Mapped[UUID] = mapped_column(primary_key=True)
     session_id: Mapped[UUID] = mapped_column(
