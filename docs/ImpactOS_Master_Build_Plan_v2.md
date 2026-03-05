@@ -125,4 +125,4 @@ All fields are optional (None by default). Existing functionality is unaffected.
 | S24 | Full-System Staging Proof + Go/No-Go | 4932 | 1146f70 | 2026-03-05 |
 | S25 | Economist Copilot v1 (Chat + Agent + Confirmation Gate) | 4698 + 320 FE | 599ec87 | 2026-03-05 |
 | S26 | Copilot Hardening (Backlog Burn-Down) | 4728 + 328 FE | `sprint-26-complete` | 2026-03-05 |
-| S27 | Copilot Tool Execution (Operationalization) — run_engine dry-run MVP | 4838 + 336 FE | *(branch)* | 2026-03-05 |
+| S27 | Copilot Tool Execution (Operationalization) — run_engine dry-run MVP | 4852 + 336 FE | *(branch)* | 2026-03-05 |

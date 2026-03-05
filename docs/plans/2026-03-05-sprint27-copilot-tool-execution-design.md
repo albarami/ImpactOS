@@ -155,6 +155,7 @@ When `ENVIRONMENT != dev` and required LLM provider config is missing:
 1. `create_export` now verifies `RunSnapshotRow` exists for `run_id` AND belongs to current workspace before creating export; returns `reason_code: "run_not_found"` if missing or cross-workspace.
 2. `ChatService` trace metadata no longer populates `run_id` from dry-run results (`reason_code == "scenario_validated_dry_run"` is skipped). Scenario/model refs are still populated since they come from real DB rows.
 3. All handlers are workspace-scoped: `run_engine` uses `get_latest_by_workspace()`, `narrate_results` verifies RunSnapshot workspace ownership before reading ResultSets, `create_export` verifies RunSnapshot workspace ownership.
+4. `run_engine` honors caller-provided `scenario_spec_version`: when present, pins to that exact version via `get_by_id_and_version()` + manual workspace ownership check (provenance: validates exactly what was approved); when absent, falls back to `get_latest_by_workspace()`. Cross-workspace version lookups are rejected.
 
 **What Sprint 27 delivers:**
 - Executor infrastructure: safety caps, latency tracking, error handling, `ToolExecutionResult` contract

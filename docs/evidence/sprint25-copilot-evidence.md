@@ -330,16 +330,16 @@ Sprint 27 closes the operational gap: copilot tool calls are now dispatched thro
 | Check | Result |
 |-------|--------|
 | `alembic current` | `020_chat_sessions_messages (head)` — no new migration needed |
-| `pytest --tb=no -q` | **4838 passed**, 29 skipped, 0 failures |
+| `pytest --tb=no -q` | **4852 passed**, 29 skipped, 0 failures |
 | `vitest run` | **336 passed** (38 test files), 0 failures |
-| Backend delta | +110 tests over Sprint 26 baseline (4728 → 4838) |
+| Backend delta | +124 tests over Sprint 26 baseline (4728 → 4852) |
 | Frontend delta | +8 tests over Sprint 26 baseline (328 → 336) |
 
 ### Sprint 27 Scope Limitations (Documented)
 
 | Item | Status | Notes |
 |------|--------|-------|
-| `run_engine` | Dry-run validation only | Validates scenario exists in workspace, returns refs; does NOT call `BatchRunner.run()` or persist `RunSnapshot`/`ResultSet`. Deferred. |
+| `run_engine` | Dry-run validation only | Validates scenario exists in workspace, returns refs; does NOT call `BatchRunner.run()` or persist `RunSnapshot`/`ResultSet`. Honors caller-provided `scenario_spec_version` for provenance pinning. Deferred. |
 | `create_export` | Initiation only | Creates PENDING row (workspace-scoped RunSnapshot guard). Does NOT call `ExportOrchestrator` (NFF gates, artifact generation, watermarking, S3). Deferred. |
 | Post-execution narrative | Not implemented | Assistant message is pre-execution text. Tool results surfaced in `tool_calls[*].result` payload but LLM does not narrate from them in same turn. Deferred. |
 | Trace `run_id` | Not populated from dry-run | `ChatService` skips `run_id` population when `reason_code == "scenario_validated_dry_run"`. Scenario/model refs still populated. |

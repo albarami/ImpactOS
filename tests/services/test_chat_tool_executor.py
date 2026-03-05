@@ -415,6 +415,94 @@ class TestRunEngineHandler:
         assert result.status == "error"
         assert result.reason_code == "scenario_not_found"
 
+    async def test_version_omitted_falls_back_to_latest(self, db_session):
+        """When scenario_spec_version is not provided, run_engine uses latest version."""
+        session, ws_id = db_session
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        mv_id = new_uuid7()
+
+        # Create two versions
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="V1",
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+        mv_id_v2 = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=2, name="V2",
+            workspace_id=ws_id, base_model_version_id=mv_id_v2,
+            base_year=2024, time_horizon={"start_year": 2024, "end_year": 2024},
+        )
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="run_engine", arguments={
+            "scenario_spec_id": str(spec_id),
+            # No scenario_spec_version — should fall back to latest (v2)
+        })
+        result = await executor.execute(tc)
+        assert result.status == "success"
+        assert result.result["scenario_spec_version"] == 2
+        assert result.result["model_version_id"] == str(mv_id_v2)
+
+    async def test_version_pinning_wrong_version(self, db_session):
+        """run_engine returns scenario_not_found when requested version doesn't exist."""
+        session, ws_id = db_session
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="Only V1",
+            workspace_id=ws_id, base_model_version_id=new_uuid7(),
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="run_engine", arguments={
+            "scenario_spec_id": str(spec_id),
+            "scenario_spec_version": 99,  # Version 99 doesn't exist
+        })
+        result = await executor.execute(tc)
+        assert result.status == "error"
+        assert result.reason_code == "scenario_not_found"
+        assert "v99" in result.error_summary
+
+    async def test_version_pinning_cross_workspace_rejected(self, db_session):
+        """run_engine rejects version-pinned scenario from another workspace."""
+        session, ws_id = db_session
+        other_ws_id = uuid4()
+        now = utc_now()
+        other_ws = WorkspaceRow(
+            workspace_id=other_ws_id,
+            client_name="Other",
+            engagement_code="T-OTHER",
+            classification="INTERNAL",
+            description="other workspace",
+            created_by=uuid4(),
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(other_ws)
+        await session.flush()
+
+        # Create scenario in OTHER workspace
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="Other WS",
+            workspace_id=other_ws_id, base_model_version_id=new_uuid7(),
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        # Executor scoped to original workspace — version-pinned lookup should reject
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(tool_name="run_engine", arguments={
+            "scenario_spec_id": str(spec_id),
+            "scenario_spec_version": 1,  # Exists in other workspace, not ours
+        })
+        result = await executor.execute(tc)
+        assert result.status == "error"
+        assert result.reason_code == "scenario_not_found"
+
 
 # ------------------------------------------------------------------
 # Handler tests: narrate_results

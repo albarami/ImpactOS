@@ -146,12 +146,24 @@ class ChatToolExecutor:
             }
 
         repo = ScenarioVersionRepository(self._session)
-        row = await repo.get_latest_by_workspace(spec_uuid, self._workspace_id)
-        if row is None:
-            return {
-                "reason_code": "scenario_not_found",
-                "error": f"Scenario {scenario_spec_id} not found in workspace",
-            }
+        version = arguments.get("scenario_spec_version")
+
+        if version is not None:
+            # Pin to requested version (provenance: validate exactly what was approved)
+            row = await repo.get_by_id_and_version(spec_uuid, int(version))
+            if row is None or row.workspace_id != self._workspace_id:
+                return {
+                    "reason_code": "scenario_not_found",
+                    "error": f"Scenario {scenario_spec_id} v{version} not found in workspace",
+                }
+        else:
+            # Fallback: latest version in workspace
+            row = await repo.get_latest_by_workspace(spec_uuid, self._workspace_id)
+            if row is None:
+                return {
+                    "reason_code": "scenario_not_found",
+                    "error": f"Scenario {scenario_spec_id} not found in workspace",
+                }
 
         run_id = new_uuid7()
         return {
