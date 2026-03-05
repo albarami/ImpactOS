@@ -121,4 +121,4 @@ All fields are optional (None by default). Existing functionality is unaffected.
 | MVP-20 | Structural Path Analysis + Chokepoints | 4422 | e284aa8 | 2026-03-04 |
 | MVP-21 | Portfolio Optimization | 4506 | ee25cdf | 2026-03-04 |
 | MVP-22 | Live Workshop Dashboard | 4556 | a9c0729 | 2026-03-04 |
-| MVP-23 | Advanced Variance Bridges + Explainability | 4609 | 331efcc | 2026-03-05 |
+| MVP-23 | Advanced Variance Bridges + Explainability | 4609 | 33303cf | 2026-03-05 |

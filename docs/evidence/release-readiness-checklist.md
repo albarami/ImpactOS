@@ -762,7 +762,7 @@ cd frontend && npx vitest run
 ## Sprint 23: Advanced Variance Bridges + Explainability (MVP-23)
 
 Branch: `phase3-sprint23-advanced-variance-bridges`
-Commit: `331efcc`
+Commit: `33303cf`
 
 ### What Changed
 
