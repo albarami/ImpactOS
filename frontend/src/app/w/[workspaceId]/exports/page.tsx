@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +29,22 @@ export default function ExportsPage() {
           Create a Decision Pack export from a completed engine run.
         </p>
       </div>
+
+      {/* Compare Runs CTA */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Variance Bridge Analysis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-sm text-slate-500">
+            Compare two engine runs side-by-side to understand what drove
+            differences in output metrics.
+          </p>
+          <Link href={`/w/${workspaceId}/exports/compare`}>
+            <Button variant="outline">Compare Runs</Button>
+          </Link>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
