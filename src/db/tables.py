@@ -1089,3 +1089,58 @@ class VarianceBridgeAnalysisRow(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+
+
+# ---------------------------------------------------------------------------
+# Chat Persistence — Sprint 25
+# ---------------------------------------------------------------------------
+
+
+class ChatSessionRow(Base):
+    """Workspace-scoped chat session (Sprint 25)."""
+
+    __tablename__ = "chat_sessions"
+
+    session_id: Mapped[UUID] = mapped_column(primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id"),
+        nullable=False,
+        index=True,
+    )
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
+
+
+class ChatMessageRow(Base):
+    """Single message in a chat session (Sprint 25)."""
+
+    __tablename__ = "chat_messages"
+
+    message_id: Mapped[UUID] = mapped_column(primary_key=True)
+    session_id: Mapped[UUID] = mapped_column(
+        ForeignKey("chat_sessions.session_id"),
+        nullable=False,
+    )
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    tool_calls = mapped_column(FlexJSON, nullable=True)
+    tool_results = mapped_column(FlexJSON, nullable=True)
+    trace_metadata = mapped_column(FlexJSON, nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(
+        String(50), nullable=True,
+    )
+    model_provider: Mapped[str | None] = mapped_column(
+        String(50), nullable=True,
+    )
+    model_id: Mapped[str | None] = mapped_column(
+        String(100), nullable=True,
+    )
+    token_usage = mapped_column(FlexJSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
