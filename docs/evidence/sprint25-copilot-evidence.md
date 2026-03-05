@@ -2,7 +2,9 @@
 
 **Date:** 2026-03-05
 **Branch:** `phase3-sprint25-economist-copilot-v1`
-**Head commit:** `0a7f01c`
+**Head commit:** `20f8c26` (branch) → `599ec87` (merge on main)
+**PR:** https://github.com/albarami/ImpactOS/pull/30
+**Tag:** `sprint-25-complete` on `599ec87`
 
 ---
 
@@ -213,3 +215,27 @@ Sprint 25 delivers the Economist Copilot v1 -- a conversational AI assistant for
 ### Docs
 - `openapi.json` (regenerated with chat endpoints)
 - `docs/evidence/sprint25-copilot-evidence.md` (this file)
+
+---
+
+## Post-Merge Verification (on `main` at `599ec87`)
+
+| Check | Result |
+|-------|--------|
+| `alembic upgrade head` | `019 → 020_chat_sessions_messages` applied |
+| `alembic current` | `020_chat_sessions_messages (head)` |
+| `alembic heads` | `020_chat_sessions_messages (head)` |
+| `alembic check` | No new upgrade operations detected |
+| `pytest --tb=no -q` | **4698 passed**, 29 skipped, 0 failures (2997.89s) |
+| `vitest run` | **320 passed** (36 test files), 0 failures |
+| Tag | `sprint-25-complete` pushed on `599ec87` |
+
+### Sprint 26 Backlog (from PR #30 Known Gaps)
+
+| ID | Gap | Severity |
+|----|-----|----------|
+| S26-BL-1 | Multi-turn conversation history not sent to LLM | Medium |
+| S26-BL-2 | `chatFetch` bypasses shared `openapi-fetch` client | Medium |
+| S26-BL-3 | Tool call regex cannot handle nested JSON | Low |
+| S26-BL-4 | `COPILOT_MODEL` / `COPILOT_MAX_TOKENS` settings unused | Low |
+| S26-BL-5 | `LLMClient` lacks unstructured conversation mode | Medium |
