@@ -105,7 +105,7 @@ CONVERSATION PROTOCOL:
 7. After results — narrate with trace metadata block
 
 TOOL CALLING:
-You have 4 tools. Call them by outputting JSON in this format:
+You have 5 tools. Call them by outputting JSON in this format:
 {{"tool": "<tool_name>", "arguments": {{...}}}}
 
 Tools:
@@ -120,6 +120,9 @@ Tools:
 
 4. narrate_results — Format engine ResultSets into economist-readable narrative
    Arguments: {{"run_id": "uuid", "result_sets": [...]}}
+
+5. create_export — Create a Decision Pack export from engine results
+   Arguments: {{"run_id": "uuid", "mode": "SANDBOX|GOVERNED", "export_formats": ["pptx", "xlsx"], "pack_data": {{...}}}}
 
 OUTPUT FORMAT FOR RESULTS:
 - Always include: Direct, Indirect, Total impacts (and Induced if Type II)
@@ -187,6 +190,17 @@ def get_tool_definitions() -> list[dict]:
             "parameters": {
                 "run_id": {"type": "string", "required": True},
                 "result_sets": {"type": "array", "required": True},
+            },
+            "requires_confirmation": False,
+        },
+        {
+            "name": "create_export",
+            "description": "Create a Decision Pack export from engine results",
+            "parameters": {
+                "run_id": {"type": "string", "required": True},
+                "mode": {"type": "string", "required": True, "enum": ["SANDBOX", "GOVERNED"]},
+                "export_formats": {"type": "array", "items": "string", "required": True},
+                "pack_data": {"type": "object", "required": True},
             },
             "requires_confirmation": False,
         },

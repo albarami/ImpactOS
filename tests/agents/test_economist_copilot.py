@@ -84,12 +84,12 @@ class TestToolDefinitions:
 
     def test_tool_definitions_count(self):
         tools = get_tool_definitions()
-        assert len(tools) == 4
+        assert len(tools) == 5
 
     def test_tool_names(self):
         tools = get_tool_definitions()
         names = {t["name"] for t in tools}
-        assert names == {"lookup_data", "build_scenario", "run_engine", "narrate_results"}
+        assert names == {"lookup_data", "build_scenario", "run_engine", "narrate_results", "create_export"}
 
     def test_gated_tools_require_confirmation(self):
         tools = get_tool_definitions()
@@ -98,6 +98,7 @@ class TestToolDefinitions:
         assert "run_engine" in gated
         assert "lookup_data" not in gated
         assert "narrate_results" not in gated
+        assert "create_export" not in gated
 
 
 # ── Tool parsing tests ──────────────────────────────────────────────────
@@ -362,3 +363,53 @@ class TestProcessTurnMultiTurn:
         call_args = mock_llm.call_unstructured.call_args
         request = call_args[0][0]
         assert request.model == "claude-sonnet-4-20250514"
+
+
+# -- create_export tool (Sprint 27 — S27-1c) ---------------------------------
+
+
+class TestCreateExportTool:
+    """Sprint 27: create_export added to copilot valid tools and prompt."""
+
+    def test_create_export_is_valid_tool(self):
+        from src.agents.economist_copilot import _VALID_TOOLS
+        assert "create_export" in _VALID_TOOLS
+
+    def test_create_export_not_gated(self):
+        from src.agents.economist_copilot import _GATED_TOOLS
+        assert "create_export" not in _GATED_TOOLS
+
+    def test_prompt_includes_create_export(self):
+        prompt = build_system_prompt({})
+        assert "create_export" in prompt
+
+    def test_tool_definitions_include_create_export(self):
+        tools = get_tool_definitions()
+        tool_names = [t["name"] for t in tools]
+        assert "create_export" in tool_names
+
+    def test_create_export_definition_has_required_params(self):
+        tools = get_tool_definitions()
+        export_tool = next(t for t in tools if t["name"] == "create_export")
+        params = export_tool["parameters"]
+        assert params["run_id"]["required"] is True
+        assert params["mode"]["required"] is True
+        assert params["export_formats"]["required"] is True
+        assert params["pack_data"]["required"] is True
+
+    def test_create_export_does_not_require_confirmation(self):
+        tools = get_tool_definitions()
+        export_tool = next(t for t in tools if t["name"] == "create_export")
+        assert export_tool["requires_confirmation"] is False
+
+    def test_validate_create_export_passes(self):
+        """create_export is a valid tool and validates successfully."""
+        validate_tool_call({
+            "tool": "create_export",
+            "arguments": {
+                "run_id": "some-uuid",
+                "mode": "SANDBOX",
+                "export_formats": ["pptx"],
+                "pack_data": {},
+            },
+        })
