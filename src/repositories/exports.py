@@ -5,8 +5,9 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.tables import ExportRow, RunSnapshotRow
+from src.db.tables import ExportRow, RunSnapshotRow, VarianceBridgeAnalysisRow
 from src.models.common import utc_now
+from src.models.export import VarianceBridgeAnalysis
 
 
 class ExportRepository:
@@ -82,3 +83,99 @@ class ExportRepository:
             row.status = status
             await self._session.flush()
         return row
+
+
+# ---------------------------------------------------------------------------
+# Variance Bridge Analysis (Sprint 23)
+# ---------------------------------------------------------------------------
+
+
+class VarianceBridgeRepository:
+    """Workspace-scoped variance bridge analytics repository."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self, analysis: VarianceBridgeAnalysis,
+    ) -> VarianceBridgeAnalysis:
+        """Create or return existing (idempotent by config_hash)."""
+        existing = await self.get_by_config_hash(
+            analysis.workspace_id, analysis.config_hash,
+        )
+        if existing:
+            return existing
+
+        row = VarianceBridgeAnalysisRow(
+            analysis_id=analysis.analysis_id,
+            workspace_id=analysis.workspace_id,
+            run_a_id=analysis.run_a_id,
+            run_b_id=analysis.run_b_id,
+            metric_type=analysis.metric_type,
+            analysis_version=analysis.analysis_version,
+            config_json=analysis.config_json,
+            config_hash=analysis.config_hash,
+            result_json=analysis.result_json,
+            result_checksum=analysis.result_checksum,
+            created_at=analysis.created_at,
+        )
+        self._session.add(row)
+        await self._session.flush()
+        return analysis
+
+    async def get(
+        self, workspace_id: UUID, analysis_id: UUID,
+    ) -> VarianceBridgeAnalysis | None:
+        """Get by ID, workspace-scoped."""
+        stmt = select(VarianceBridgeAnalysisRow).where(
+            VarianceBridgeAnalysisRow.analysis_id == analysis_id,
+            VarianceBridgeAnalysisRow.workspace_id == workspace_id,
+        )
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        return _row_to_bridge(row) if row else None
+
+    async def get_by_config_hash(
+        self, workspace_id: UUID, config_hash: str,
+    ) -> VarianceBridgeAnalysis | None:
+        """Get by config_hash, workspace-scoped."""
+        stmt = select(VarianceBridgeAnalysisRow).where(
+            VarianceBridgeAnalysisRow.workspace_id == workspace_id,
+            VarianceBridgeAnalysisRow.config_hash == config_hash,
+        )
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        return _row_to_bridge(row) if row else None
+
+    async def list_for_workspace(
+        self,
+        workspace_id: UUID,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[VarianceBridgeAnalysis]:
+        """List all bridges for workspace."""
+        stmt = (
+            select(VarianceBridgeAnalysisRow)
+            .where(VarianceBridgeAnalysisRow.workspace_id == workspace_id)
+            .order_by(VarianceBridgeAnalysisRow.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return [_row_to_bridge(r) for r in rows]
+
+
+def _row_to_bridge(row: VarianceBridgeAnalysisRow) -> VarianceBridgeAnalysis:
+    """Convert ORM row to Pydantic model."""
+    return VarianceBridgeAnalysis(
+        analysis_id=row.analysis_id,
+        workspace_id=row.workspace_id,
+        run_a_id=row.run_a_id,
+        run_b_id=row.run_b_id,
+        metric_type=row.metric_type,
+        analysis_version=row.analysis_version,
+        config_json=row.config_json,
+        config_hash=row.config_hash,
+        result_json=row.result_json,
+        result_checksum=row.result_checksum,
+        created_at=row.created_at,
+    )

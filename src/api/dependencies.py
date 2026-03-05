@@ -367,3 +367,16 @@ async def get_workshop_session_repo(
     session: AsyncSession = Depends(get_async_session),
 ) -> WorkshopSessionRepository:
     return WorkshopSessionRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Variance Bridge Analysis (Sprint 23)
+# ---------------------------------------------------------------------------
+
+
+async def get_variance_bridge_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> "VarianceBridgeRepository":
+    from src.repositories.exports import VarianceBridgeRepository
+
+    return VarianceBridgeRepository(session)
