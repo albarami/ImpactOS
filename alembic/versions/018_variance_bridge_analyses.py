@@ -55,12 +55,15 @@ def upgrade() -> None:
         sa.UniqueConstraint("workspace_id", "config_hash", name="uq_vba_ws_config"),
     )
     op.create_index(
-        "ix_vba_workspace_id",
+        "ix_variance_bridge_analyses_workspace_id",
         "variance_bridge_analyses",
         ["workspace_id"],
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_vba_workspace_id", table_name="variance_bridge_analyses")
+    op.drop_index(
+        "ix_variance_bridge_analyses_workspace_id",
+        table_name="variance_bridge_analyses",
+    )
     op.drop_table("variance_bridge_analyses")
