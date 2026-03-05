@@ -17,6 +17,7 @@ class TraceMetadata(BaseModel):
     assumptions: list[str] = Field(default_factory=list)
     confidence: str | None = None
     confidence_reasons: list[str] = Field(default_factory=list)
+    pending_confirmation: dict | None = None
 
 
 class ToolCall(BaseModel):

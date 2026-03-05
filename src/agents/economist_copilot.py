@@ -15,7 +15,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from pydantic import BaseModel
+
 from src.agents.llm_client import LLMClient, LLMRequest, ProviderUnavailableError
+from src.models.common import DataClassification
 from src.agents.prompts.economist_copilot_v1 import (
     COPILOT_PROMPT_VERSION,
     build_system_prompt,
@@ -166,7 +169,8 @@ class EconomistCopilot:
             max_tokens=ctx.get("max_tokens", 4096),
         )
 
-        response = await self._llm.call(request, classification=ctx.get("classification"))
+        classification = ctx.get("classification", DataClassification.INTERNAL)
+        response = await self._llm.call(request, classification=classification)
 
         # Extract content and usage from response
         content = self._extract_content(response)
@@ -286,7 +290,9 @@ class EconomistCopilot:
 # free-form conversation, not structured output, but LLMRequest requires
 # an output_schema.  This is only used when calling through the existing
 # LLMClient.call() path and won't affect the actual prompt/response.
-class _DummySchema:
+# NOTE: A future sprint should add an unstructured mode to LLMClient
+# so conversational agents don't need this workaround.
+class _DummySchema(BaseModel):
     """Placeholder schema for LLMRequest when structured output isn't needed."""
 
-    pass
+    raw_response: str = ""

@@ -6,7 +6,6 @@ import { createElement, type ReactNode } from 'react';
 import { ChatInterface } from '../chat-interface';
 import type {
   ChatMessageResponse,
-  ToolCall,
   TraceMetadata,
 } from '@/lib/api/hooks/useChat';
 
@@ -25,22 +24,13 @@ vi.mock('@/lib/api/hooks/useChat', () => ({
   useChatSession: (...args: unknown[]) => mockUseChatSession(...args),
   useSendMessage: (...args: unknown[]) => mockUseSendMessage(...args),
   hasPendingConfirmation: (msg: ChatMessageResponse) => {
-    if (msg.role !== 'assistant' || !msg.tool_calls) return false;
-    return msg.tool_calls.some(
-      (tc: ToolCall) =>
-        ['build_scenario', 'run_engine'].includes(tc.tool_name) &&
-        tc.result === undefined
-    );
+    if (msg.role !== 'assistant') return false;
+    return !!msg.trace_metadata?.pending_confirmation;
   },
   getPendingToolCall: (msg: ChatMessageResponse) => {
-    if (!msg.tool_calls) return null;
-    return (
-      msg.tool_calls.find(
-        (tc: ToolCall) =>
-          ['build_scenario', 'run_engine'].includes(tc.tool_name) &&
-          tc.result === undefined
-      ) ?? null
-    );
+    const pc = msg.trace_metadata?.pending_confirmation;
+    if (!pc) return null;
+    return { tool_name: pc.tool, arguments: pc.arguments };
   },
 }));
 
@@ -85,16 +75,16 @@ const ASSISTANT_WITH_TRACE = makeMessage({
   trace_metadata: TRACE,
 });
 
-const PENDING_TOOL_CALL: ToolCall = {
-  tool_name: 'build_scenario',
-  arguments: { sector: 'S01', shock_pct: 10 },
-};
-
 const ASSISTANT_PENDING = makeMessage({
   message_id: 'msg-004',
   role: 'assistant',
   content: 'I would like to build a scenario. Please confirm.',
-  tool_calls: [PENDING_TOOL_CALL],
+  trace_metadata: {
+    pending_confirmation: {
+      tool: 'build_scenario',
+      arguments: { sector: 'S01', shock_pct: 10 },
+    },
+  },
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────

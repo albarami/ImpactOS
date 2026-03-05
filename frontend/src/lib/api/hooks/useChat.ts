@@ -8,6 +8,11 @@ export interface ToolCall {
   result?: Record<string, unknown> | null;
 }
 
+export interface PendingConfirmation {
+  tool: string;
+  arguments: Record<string, unknown>;
+}
+
 export interface TraceMetadata {
   run_id?: string | null;
   scenario_spec_id?: string | null;
@@ -18,6 +23,7 @@ export interface TraceMetadata {
   assumptions?: string[];
   confidence?: string | null;
   confidence_reasons?: string[];
+  pending_confirmation?: PendingConfirmation | null;
 }
 
 export interface TokenUsage {
@@ -156,39 +162,30 @@ export function useSendMessage(
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-const CONFIRMABLE_TOOLS = ['build_scenario', 'run_engine'];
-
 /**
- * Check whether a message has a pending (unresolved) tool call
- * that requires user confirmation.
+ * Check whether a message has a pending confirmation gate.
  *
- * Semantics: `result === undefined` means the tool was blocked before
- * execution (confirmation gate). `result === null` means the tool ran
- * but returned no data. Only `undefined` indicates a pending gate.
+ * The backend stores pending_confirmation inside trace_metadata
+ * when a gated tool (build_scenario, run_engine) is blocked.
  */
 export function hasPendingConfirmation(
   message: ChatMessageResponse
 ): boolean {
-  if (message.role !== 'assistant' || !message.tool_calls) return false;
-  return message.tool_calls.some(
-    (tc) =>
-      CONFIRMABLE_TOOLS.includes(tc.tool_name) &&
-      tc.result === undefined
-  );
+  if (message.role !== 'assistant') return false;
+  return !!message.trace_metadata?.pending_confirmation;
 }
 
 /**
- * Extract the first pending (unresolved) confirmable tool call.
+ * Extract the pending tool call from trace_metadata.pending_confirmation.
+ * Returns a ToolCall-shaped object for the confirmation gate UI.
  */
 export function getPendingToolCall(
   message: ChatMessageResponse
 ): ToolCall | null {
-  if (!message.tool_calls) return null;
-  return (
-    message.tool_calls.find(
-      (tc) =>
-        CONFIRMABLE_TOOLS.includes(tc.tool_name) &&
-        tc.result === undefined
-    ) ?? null
-  );
+  const pc = message.trace_metadata?.pending_confirmation;
+  if (!pc) return null;
+  return {
+    tool_name: pc.tool,
+    arguments: pc.arguments,
+  };
 }
