@@ -253,3 +253,17 @@ When infrastructure is provisioned (B1-B7):
 3. `make staging-up` → build + start + migrate
 4. `make staging-preflight` → all 6 PASS
 5. `make staging-smoke` → all 6 PASS or 5 PASS + 1 SKIP (copilot)
+
+---
+
+## Post-Merge Verification
+
+**Merge:** PR #35 → main at `9bcebe2` (tag `sprint-30-complete`)
+
+| Suite | Count | Result |
+|-------|-------|--------|
+| Backend (pytest) | 5,066 passed, 29 skipped | 0 failures |
+| Frontend (vitest) | 350 passed | 0 failures |
+| Deploy tests | 50 passed | 0 failures |
+
+All suites pass on main at merge commit `9bcebe2`.

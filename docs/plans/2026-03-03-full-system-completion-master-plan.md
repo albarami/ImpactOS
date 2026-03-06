@@ -33,7 +33,7 @@ Based on merged work on `main`:
 | 27 | S27 | Copilot Tool Execution (Operationalization) | 4852 + 336 FE | ec3dca8 | sprint-27-complete | 2026-03-06 |
 | 28 | S28 | Copilot Real Execution + Post-Execution Narrative | 4958 + 350 FE | bcd9c10 | sprint-28-complete | 2026-03-06 |
 | 29 | S29 | Staging Activation + Release Candidate Closeout | 5016 + 350 FE | 0e1d33e | sprint-29-complete | 2026-03-06 |
-| 30 | S30 | Staging Deployment Execution + Live Environment Proof | 5066 + 350 FE | — | — | 2026-03-06 |
+| 30 | S30 | Backend Staging Deployment Tooling + Infrastructure Blocker Report | 5066 + 350 FE | 9bcebe2 | sprint-30-complete | 2026-03-06 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
@@ -143,9 +143,9 @@ The system is only considered fully complete when all are true:
 - Sprint 27 (Copilot Tool Execution) merged: PR #32 → `ec3dca8`, tag `sprint-27-complete`. Executor infrastructure with workspace-scoped handlers, safety caps, version pinning. `run_engine` is dry-run MVP; full engine execution deferred.
 - Sprint 28 (Copilot Real Execution) merged: PR #33 → `bcd9c10`, tag `sprint-28-complete`. All S27 dry-run deferrals closed.
 - Sprint 29 (Staging Activation) merged: PR #34 → `0e1d33e`, tag `sprint-29-complete`. Preflight/smoke automation, copilot runtime probe, fail-closed audit, evidence refresh.
-- Sprint 30 (Staging Deployment Execution) in progress: deployment runbook, staging overlay, prerequisite checker, live stack verification.
-- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprints 25-29 merged.
-- Post-Sprint 30 verification: 5066 backend passed (29 skipped), 350 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
+- Sprint 30 (Backend Staging Deployment Tooling) merged: PR #35 → `9bcebe2`, tag `sprint-30-complete`. Backend deployment runbook, staging overlay, prerequisite checker, infrastructure blocker report. Scope: backend-only; frontend staging and worker health verification deferred.
+- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprints 25-30 merged.
+- Post-Sprint 30 verification on main: 5066 backend passed (29 skipped), 350 frontend passed, 50 deploy tests passed, alembic head `020_chat_sessions_messages`, no drift.
 - Staging deployment: code-ready, blocked only by infrastructure provisioning (7 blockers documented).
 - See `docs/evidence/sprint30-staging-deployment.md` for deployment evidence.
 - See `docs/evidence/sprint30-infrastructure-blockers.md` for blocker matrix.
