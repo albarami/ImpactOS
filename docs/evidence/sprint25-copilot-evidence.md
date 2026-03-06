@@ -365,14 +365,17 @@ Sprint 27 closes the operational gap: copilot tool calls are now dispatched thro
 ## Sprint 28 — Copilot Real Execution + Post-Execution Narrative
 
 **Branch:** `phase3-sprint28-copilot-real-execution`
+**PR:** #33
+**Merge commit:** `bcd9c10`
+**Tag:** `sprint-28-complete`
 **Date:** 2026-03-06
 
 ### Scope
 - S28-0: Shared `RunExecutionService` and `ExportExecutionService` extracted
 - S28-1: Chat `run_engine` wired to real `BatchRunner.run()` with persisted RunSnapshot + ResultSet
 - S28-2: Chat `create_export` wired to real `ExportOrchestrator.execute()` with governance gates
-- S28-3: Post-execution narrative (ChatNarrativeService + optional EconomistCopilot.enrich_narrative)
-- S28-4: Frontend export blocking reasons, deep links, amber badge for BLOCKED
+- S28-3: Post-execution narrative (ChatNarrativeService + deterministic baseline + optional LLM enrichment via `EconomistCopilot.enrich_narrative()`)
+- S28-4: Frontend export blocking reasons, deep links, amber badge for BLOCKED, conditional download links
 - S28-5: Prompt, OpenAPI, evidence sync
 
 ### Key artifacts
@@ -380,17 +383,68 @@ Sprint 27 closes the operational gap: copilot tool calls are now dispatched thro
 |------|---------|
 | `src/services/run_execution.py` | Shared run execution service |
 | `src/services/export_execution.py` | Shared export execution service |
-| `src/services/chat_narrative.py` | Post-execution narrative service |
-| `src/services/chat_tool_executor.py` | Updated handlers for real execution |
-| `src/services/chat.py` | Post-execution narrative wiring |
-| `src/agents/economist_copilot.py` | `enrich_narrative()` method |
-| `frontend/src/components/chat/message-bubble.tsx` | Status badges, blocking reasons, deep links |
+| `src/services/chat_narrative.py` | Post-execution narrative service (NarrativeFacts + baseline templates) |
+| `src/services/chat_tool_executor.py` | Updated handlers for real execution with per-turn safety cap |
+| `src/services/chat.py` | Post-execution narrative wiring + enrich_narrative() integration |
+| `src/agents/economist_copilot.py` | `enrich_narrative()` method for optional LLM enrichment |
+| `frontend/src/components/chat/message-bubble.tsx` | Status badges, blocking reasons, deep links, download links |
 
 ### Sprint 27 deferrals closed
 - [x] `scenario_validated_dry_run` eliminated — run_engine creates real RunSnapshot
 - [x] `PENDING`-only export eliminated — create_export returns COMPLETED/BLOCKED/FAILED
 - [x] Pre-execution LLM text replaced — post-execution narrative from persisted outputs
+- [x] Blocked export trace propagation — export_id propagated to trace metadata for BLOCKED exports
+- [x] Mixed-turn export status — getExportStatus() filters by create_export tool_name only
+- [x] LLM enrichment wired — enrich_narrative() called with baseline fallback on failure
 
-### Test counts
-- Backend: 4938 passed, 29 skipped
-- Frontend: 348 tests
+### Sprint 28 Commit Log
+
+| Commit | Description |
+|--------|-------------|
+| `8e12d32` | add RunExecutionService and ExportExecutionService |
+| `c1a6c27` | wire chat tool handlers to real execution services |
+| `e2ae31f` | add ChatNarrativeService with fact extraction and baseline templates |
+| `3586744` | add export blocking reasons display and real deep links |
+| `47c4ed4` | update copilot prompt, refresh openapi and evidence docs |
+| `f4b9e4e` | fix merge gate findings: shock parsing, export status, deep links, error handling |
+| `9c31d41` | fix blocked export trace propagation and mixed-turn status detection |
+| `bbf758a` | wire EconomistCopilot.enrich_narrative() into post-execution narrative |
+
+### Sprint 28 Files Delivered
+
+**Backend (new):**
+- `src/services/run_execution.py` — Shared RunExecutionService
+- `src/services/export_execution.py` — Shared ExportExecutionService
+- `src/services/chat_narrative.py` — ChatNarrativeService (NarrativeFacts + baseline)
+- `tests/services/test_run_execution.py` — 18 run execution tests
+- `tests/services/test_export_execution.py` — 16 export execution tests
+- `tests/services/test_chat_narrative.py` — 15 narrative service tests
+
+**Backend (modified):**
+- `src/services/chat_tool_executor.py` — Real execution handlers, per-turn cap (3 tools)
+- `src/services/chat.py` — Post-execution narrative wiring, enrich_narrative() integration, blocked export trace propagation
+- `src/agents/economist_copilot.py` — `enrich_narrative()` method
+- `src/agents/prompts/economist_copilot_v1.py` — Updated tool descriptions
+- `tests/services/test_chat_tool_executor.py` — +29 executor tests
+- `tests/services/test_chat.py` — +15 narrative/trace tests
+- `tests/agents/test_economist_copilot.py` — +4 enrich_narrative tests
+
+**Frontend (modified):**
+- `frontend/src/components/chat/message-bubble.tsx` — Status badges (green/amber/red), blocking reasons list, deep links (run + export), conditional download link, mixed-turn export status detection
+- `frontend/src/components/chat/trace-metadata.tsx` — Export deep link support
+- `frontend/src/components/chat/__tests__/message-bubble.test.tsx` — 23 new component tests
+
+**Docs:**
+- `openapi.json` — Updated with ToolExecutionResult fields
+- `docs/evidence/sprint25-copilot-evidence.md` — This file (Sprint 28 section)
+
+### Sprint 28 Post-Merge Verification (on `main` at `bcd9c10`)
+
+| Check | Result |
+|-------|--------|
+| Merge commit | `bcd9c10` on `main` |
+| Tag | `sprint-28-complete` on `bcd9c10` |
+| `pytest --tb=no -q` (on main) | **4958 passed**, 29 skipped, 0 failures |
+| `vitest run` (on main) | **350 passed** (39 test files), 0 failures |
+| Backend delta | +106 tests over Sprint 27 baseline (4852 → 4958) |
+| Frontend delta | +14 tests over Sprint 27 baseline (336 → 350) |
