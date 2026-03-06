@@ -31,6 +31,7 @@ Based on merged work on `main`:
 | 25 | S25 | Economist Copilot v1 (Chat + Agent) | 4698 + 320 FE | 599ec87 | sprint-25-complete | 2026-03-05 |
 | 26 | S26 | Copilot Hardening (Backlog Burn-Down) | 4728 + 328 FE | 0d0ab79 | sprint-26-complete | 2026-03-05 |
 | 27 | S27 | Copilot Tool Execution (Operationalization) | 4852 + 336 FE | ec3dca8 | sprint-27-complete | 2026-03-06 |
+| 28 | S28 | Copilot Real Execution + Post-Execution Narrative | 4938 + 348 FE | In progress | - | 2026-03-06 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
@@ -100,6 +101,17 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
     - Evidence: `docs/evidence/sprint25-copilot-evidence.md` (Sprint 27 section)
     - Design: `docs/plans/2026-03-05-sprint27-copilot-tool-execution-design.md`
 
+15. Sprint 28: Copilot Real Execution + Post-Execution Narrative — in progress
+    - Shared `RunExecutionService` and `ExportExecutionService` extracted for reuse across API and chat
+    - `run_engine` wired to real `BatchRunner.run()` with persisted RunSnapshot + ResultSet (closes S27 dry-run deferral)
+    - `create_export` wired to real `ExportOrchestrator.execute()` with governance gates (returns COMPLETED/BLOCKED/FAILED)
+    - Post-execution narrative: `ChatNarrativeService` + `EconomistCopilot.enrich_narrative()`
+    - Frontend: export blocking reasons, deep links, amber badge for BLOCKED status
+    - Prompt descriptions updated to reflect real execution semantics
+    - OpenAPI spec regenerated, evidence doc updated
+    - Pre-merge verification: 4938 backend passed (29 skipped), 348 frontend passed
+    - Evidence: `docs/evidence/sprint25-copilot-evidence.md` (Sprint 28 section)
+
 ## 4) Definition of "fully built and wired"
 
 The system is only considered fully complete when all are true:
@@ -122,6 +134,7 @@ The system is only considered fully complete when all are true:
 - Sprint 25 (Economist Copilot v1) merged: PR #30 → `599ec87`, tag `sprint-25-complete`.
 - Sprint 26 (Copilot Hardening) merged: PR #31 → `0d0ab79`, tag `sprint-26-complete`. All 5 backlog items resolved.
 - Sprint 27 (Copilot Tool Execution) merged: PR #32 → `ec3dca8`, tag `sprint-27-complete`. Executor infrastructure with workspace-scoped handlers, safety caps, version pinning. `run_engine` is dry-run MVP; full engine execution deferred.
+- Sprint 28 (Copilot Real Execution) in progress: closes S27 dry-run deferrals with real engine execution, governance-gated exports, and post-execution narrative.
 - All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprints 25-27 merged.
 - Post-Sprint 27 verification (on main): 4852 backend passed (29 skipped), 336 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
 - Go/No-Go dossier: CONDITIONAL GO. Proceed to staging deployment when infrastructure prerequisites met.

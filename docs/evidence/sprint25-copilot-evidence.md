@@ -359,3 +359,38 @@ Sprint 27 closes the operational gap: copilot tool calls are now dispatched thro
 | `alembic check` | No new upgrade operations detected |
 | `pytest --tb=no -q` (on main) | **4852 passed**, 29 skipped, 0 failures |
 | `vitest run` (on main) | **336 passed** (38 test files), 0 failures |
+
+---
+
+## Sprint 28 — Copilot Real Execution + Post-Execution Narrative
+
+**Branch:** `phase3-sprint28-copilot-real-execution`
+**Date:** 2026-03-06
+
+### Scope
+- S28-0: Shared `RunExecutionService` and `ExportExecutionService` extracted
+- S28-1: Chat `run_engine` wired to real `BatchRunner.run()` with persisted RunSnapshot + ResultSet
+- S28-2: Chat `create_export` wired to real `ExportOrchestrator.execute()` with governance gates
+- S28-3: Post-execution narrative (ChatNarrativeService + optional EconomistCopilot.enrich_narrative)
+- S28-4: Frontend export blocking reasons, deep links, amber badge for BLOCKED
+- S28-5: Prompt, OpenAPI, evidence sync
+
+### Key artifacts
+| File | Purpose |
+|------|---------|
+| `src/services/run_execution.py` | Shared run execution service |
+| `src/services/export_execution.py` | Shared export execution service |
+| `src/services/chat_narrative.py` | Post-execution narrative service |
+| `src/services/chat_tool_executor.py` | Updated handlers for real execution |
+| `src/services/chat.py` | Post-execution narrative wiring |
+| `src/agents/economist_copilot.py` | `enrich_narrative()` method |
+| `frontend/src/components/chat/message-bubble.tsx` | Status badges, blocking reasons, deep links |
+
+### Sprint 27 deferrals closed
+- [x] `scenario_validated_dry_run` eliminated — run_engine creates real RunSnapshot
+- [x] `PENDING`-only export eliminated — create_export returns COMPLETED/BLOCKED/FAILED
+- [x] Pre-execution LLM text replaced — post-execution narrative from persisted outputs
+
+### Test counts
+- Backend: 4938 passed, 29 skipped
+- Frontend: 348 tests
