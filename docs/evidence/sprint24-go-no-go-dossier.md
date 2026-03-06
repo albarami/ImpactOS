@@ -14,7 +14,7 @@
 | 2 | No planned build tracker entries remain | ✅ GO | Master Build Plan v2 shows all rows filled. Sprint 24 carryovers I-2 and I-4 closed. |
 | 3 | Methodology parity gate: SG benchmark within 0.1% | ✅ GO | Golden-run benchmark tests pass (Sprint 18 evidence). |
 | 4 | Sprint 23 carryovers closed | ✅ GO | I-2: ScenarioSpec wired to bridge engine (8bece0c). I-4: RunSelector populated (d9829c6). |
-| 5 | Full test suite green | ✅ GO | Backend 4,987 collected, Frontend 350 passed. 0 failures. (Updated post-S29) |
+| 5 | Full test suite green | ✅ GO | Backend 5,016 passed (29 skipped), Frontend 350 passed. 0 failures. (Updated post-S29) |
 | 6 | OpenAPI spec current | ✅ GO | Regenerated and validated at Sprint 29. |
 | 7 | Alembic migrations chain correctly | ✅ GO | Head at 020_chat_sessions_messages, all migrations chain from 001. |
 | 8 | Staging preflight automation | ✅ GO | `scripts/staging_preflight.py` — repeatable, structured output. (Sprint 29) |
@@ -160,11 +160,11 @@ python -m alembic check               # Must report no drift
 | S26 | Copilot hardening (all 5 backlog items resolved) | +30 BE, +8 FE |
 | S27 | Tool execution (workspace-scoped handlers, safety caps) | +124 BE, +8 FE |
 | S28 | Real execution (engine runs, governance exports, narrative) | +106 BE, +14 FE |
-| S29 | Staging activation (preflight, smoke, fail-closed audit) | +16 BE |
+| S29 | Staging activation (preflight, smoke, copilot status, fail-closed audit) | +58 BE |
 
 ### Current State
 
-- **Backend tests:** 4,987+ collected, 0 failures
+- **Backend tests:** 5,016 passed, 29 skipped, 0 failures
 - **Frontend tests:** 350 passed (39 files), 0 failures
 - **Alembic:** `020_chat_sessions_messages (head)`, no pending migrations
 - **OpenAPI:** Regenerated and validated
@@ -205,4 +205,4 @@ python scripts/staging_smoke.py --json --url http://localhost:8000
 
 ### Recommendation
 
-**GO.** The system is functionally complete with 4,987+ backend tests and 350 frontend tests. All non-dev fail-closed paths are verified. Staging preflight and smoke automation are in place. The only remaining items are infrastructure configuration — no further code changes are required for deployment.
+**GO.** The system is functionally complete with 5,016 backend tests (29 skipped) and 350 frontend tests. All non-dev fail-closed paths are verified. Staging preflight and smoke automation are in place. The only remaining items are infrastructure configuration — no further code changes are required for deployment.
