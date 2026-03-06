@@ -101,7 +101,7 @@ staging-up: ## Start staging stack (docker-compose overlay)
 	@echo "Staging stack ready. Run 'make staging-preflight' next."
 
 staging-down: ## Stop staging stack (keep volumes)
-	docker compose -f docker-compose.yml -f docker-compose.staging.yml down
+	docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging down
 
 staging-preflight: ## Run preflight checks against running stack
 	python scripts/staging_preflight.py --url http://localhost:8000

@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -214,11 +213,14 @@ def check_object_storage(env: dict[str, str]) -> PrereqResult:
             status="FAIL",
             detail="OBJECT_STORAGE_PATH is empty",
         )
-    if value.startswith("./"):
+    # Accept absolute paths (/, C:\), S3 URIs, and other scheme URIs
+    is_absolute = value.startswith("/") or (len(value) >= 3 and value[1] == ":")
+    is_uri = "://" in value
+    if not is_absolute and not is_uri:
         return PrereqResult(
             name="object_storage",
             status="FAIL",
-            detail=f"OBJECT_STORAGE_PATH={value!r} — relative paths rejected in staging",
+            detail=f"OBJECT_STORAGE_PATH={value!r} — must be absolute path or S3 URI in staging",
         )
     return PrereqResult(
         name="object_storage",

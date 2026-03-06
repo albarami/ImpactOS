@@ -268,12 +268,23 @@ class TestCheckObjectStorage:
         )
         assert result.status == "PASS"
 
-    def test_relative_path_fails(self) -> None:
+    def test_relative_dot_slash_fails(self) -> None:
         result = check_object_storage(
             {"OBJECT_STORAGE_PATH": "./uploads"}
         )
         assert result.status == "FAIL"
-        assert "relative" in result.detail.lower()
+
+    def test_bare_relative_path_fails(self) -> None:
+        result = check_object_storage(
+            {"OBJECT_STORAGE_PATH": "uploads"}
+        )
+        assert result.status == "FAIL"
+
+    def test_windows_absolute_passes(self) -> None:
+        result = check_object_storage(
+            {"OBJECT_STORAGE_PATH": "C:\\data\\impactos"}
+        )
+        assert result.status == "PASS"
 
     def test_empty_fails(self) -> None:
         result = check_object_storage({"OBJECT_STORAGE_PATH": ""})
