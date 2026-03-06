@@ -20,7 +20,7 @@ Close the operational gap between "code complete" and "staging deployable" by co
 
 | # | Check | Description | Output |
 |---|-------|-------------|--------|
-| 1 | `environment` | ENVIRONMENT is non-dev (staging or prod) | PASS/WARN |
+| 1 | `environment` | ENVIRONMENT is non-dev (staging or prod) | PASS/FAIL |
 | 2 | `config_validation` | `validate_settings_for_env()` passes | PASS/FAIL |
 | 3 | `alembic` | Alembic at head, no pending migrations | PASS/FAIL |
 | 4 | `readiness` | `/readiness` returns 200 with ready=true | PASS/FAIL/SKIP |
@@ -106,7 +106,22 @@ python -m pytest tests/integration/test_path_doc_to_export.py tests/integration/
 | 3 | `auth_enforcement` | Unauthenticated GET /v1/workspaces returns 401 | PASS/FAIL |
 | 4 | `health_components` | GET /health includes all 4 component keys | PASS/FAIL |
 | 5 | `api_schema` | GET /openapi.json returns valid JSON with paths | PASS/FAIL |
-| 6 | `copilot_smoke` | Chat endpoint reachable (SKIP if no provider) | PASS/SKIP |
+| 6 | `copilot_smoke` | POST /v1/workspaces/{id}/chat/sessions probed server-side | PASS/FAIL/SKIP |
+
+Server-side detection: copilot_smoke never reads local shell env vars. It probes the real
+chat endpoint on the server. 404 = copilot not mounted (SKIP). 401/403/422 = endpoint
+wired up (PASS). 200 = auth bypass (FAIL). 5xx/other = FAIL.
+
+### Tests
+
+`tests/scripts/test_staging_smoke.py` — 25 tests:
+- StageResult/SmokeReport dataclass validation
+- Per-stage response mapping (startup, readiness, auth, health, schema, copilot)
+- Copilot probes real /chat/sessions (not /workshop/sessions)
+- Copilot has no local env gating (always probes server)
+- Unexpected statuses are FAIL (never WARN)
+- run_smoke cascade-skip on startup failure
+- run_smoke all-pass overall-pass
 
 ### CLI
 
@@ -126,8 +141,10 @@ python scripts/staging_smoke.py --json --url http://localhost:8000
 
 | Suite | Count | Result |
 |-------|-------|--------|
-| Backend (pytest) | 4983 passed, 29 skipped | 0 failures |
+| Backend (pytest) | 5008 passed, 29 skipped | 0 failures |
 | Frontend (vitest) | 350 passed | 0 failures |
+| Preflight tests | 25 passed | 0 failures |
+| Smoke tests | 25 passed | 0 failures |
 | Alembic current | `020_chat_sessions_messages (head)` | Clean |
 | Alembic check | No new upgrade operations | Clean |
 | OpenAPI | Regenerated, validated | Valid |
@@ -138,6 +155,7 @@ python scripts/staging_smoke.py --json --url http://localhost:8000
 - `scripts/staging_preflight.py` — Repeatable staging preflight runner
 - `scripts/staging_smoke.py` — One-command staging smoke harness
 - `tests/scripts/test_staging_preflight.py` — 25 preflight helper tests
+- `tests/scripts/test_staging_smoke.py` — 25 smoke harness tests
 - `docs/evidence/sprint29-staging-activation.md` — This file
 
 **Updated:**

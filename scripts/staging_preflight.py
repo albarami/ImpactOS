@@ -99,13 +99,17 @@ def redact_api_key(key: str) -> str:
 
 
 def check_environment(settings: Settings) -> CheckResult:
-    """Check 1: ENVIRONMENT is non-dev."""
+    """Check 1: ENVIRONMENT is non-dev.
+
+    Returns FAIL for dev — a dev environment must never pass the
+    staging/release gate.
+    """
     env = settings.ENVIRONMENT
     if env == Environment.DEV:
         return CheckResult(
             name="environment",
-            status="WARN",
-            detail=f"ENVIRONMENT is '{env.value}' -- expected staging or prod",
+            status="FAIL",
+            detail=f"ENVIRONMENT is '{env.value}' -- must be staging or prod for deployment",
         )
     return CheckResult(
         name="environment",

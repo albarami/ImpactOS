@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from dataclasses import asdict, dataclass, field
 
@@ -216,53 +215,43 @@ def stage_api_schema(client: httpx.Client, base_url: str) -> StageResult:
 
 
 def stage_copilot_smoke(client: httpx.Client, base_url: str) -> StageResult:
-    """Stage 6: If copilot enabled and LLM keys present, hit chat session creation.
+    """Stage 6: Verify the chat/copilot endpoint is wired up on the server.
 
-    Skips if COPILOT_ENABLED is not set or no LLM API keys are configured.
+    Probes the real chat session-creation route
+    (POST /v1/workspaces/{id}/chat/sessions).  We expect 401 (auth
+    required) or 422 (missing payload) — anything that proves the
+    endpoint exists and the server routes to it.
+
+    Detection is server-side: the smoke harness never reads local shell
+    environment variables to decide whether copilot is enabled.  If the
+    server returns 404 the endpoint is not mounted and we SKIP.
     """
-    copilot_enabled = os.environ.get("COPILOT_ENABLED", "").lower() in (
-        "1",
-        "true",
-        "yes",
-    )
-    if not copilot_enabled:
-        return StageResult(
-            name="copilot_smoke",
-            status="SKIP",
-            detail="COPILOT_ENABLED not set -- skipping copilot smoke",
-        )
+    _DUMMY_WS = "00000000-0000-0000-0000-000000000000"
+    chat_url = f"{base_url}/v1/workspaces/{_DUMMY_WS}/chat/sessions"
 
-    # Check for at least one LLM key
-    has_llm_key = any(
-        os.environ.get(k)
-        for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY")
-    )
-    if not has_llm_key:
-        return StageResult(
-            name="copilot_smoke",
-            status="SKIP",
-            detail="No LLM API keys configured -- skipping copilot smoke",
-        )
-
-    # Try to hit a workshop session creation endpoint to verify basic connectivity.
-    # We expect a 401 (auth required) or 422 (missing payload) -- anything
-    # that shows the endpoint exists and the server routes to it.
     try:
-        resp = client.post(
-            f"{base_url}/v1/workspaces/00000000-0000-0000-0000-000000000000/workshop/sessions",
-            json={},
-            timeout=5.0,
-        )
-        # 401 or 422 both indicate the endpoint is wired up
+        resp = client.post(chat_url, json={}, timeout=5.0)
+
+        # 401 / 403 / 422 — endpoint exists and rejects as expected
         if resp.status_code in (401, 403, 422):
             return StageResult(
                 name="copilot_smoke",
                 status="PASS",
                 detail=(
-                    f"Chat/workshop endpoint responding "
+                    f"Chat endpoint responding "
                     f"(status={resp.status_code})"
                 ),
             )
+
+        # 404 — chat router not mounted (copilot disabled server-side)
+        if resp.status_code == 404:
+            return StageResult(
+                name="copilot_smoke",
+                status="SKIP",
+                detail="Chat endpoint not mounted (404) -- copilot disabled on server",
+            )
+
+        # 200 with no auth — auth bypass
         if resp.status_code == 200:
             return StageResult(
                 name="copilot_smoke",
@@ -272,22 +261,26 @@ def stage_copilot_smoke(client: httpx.Client, base_url: str) -> StageResult:
                     "possible auth bypass"
                 ),
             )
+
+        # 5xx — server error
         if resp.status_code >= 500:
             return StageResult(
                 name="copilot_smoke",
                 status="FAIL",
-                detail=f"Server error {resp.status_code} from workshop endpoint",
+                detail=f"Server error {resp.status_code} from chat endpoint",
             )
+
+        # Any other status is unexpected — FAIL, not WARN
         return StageResult(
             name="copilot_smoke",
-            status="WARN",
-            detail=f"Unexpected status {resp.status_code} from workshop endpoint",
+            status="FAIL",
+            detail=f"Unexpected status {resp.status_code} from chat endpoint",
         )
     except Exception as exc:
         return StageResult(
             name="copilot_smoke",
             status="FAIL",
-            detail=f"Error reaching workshop endpoint: {exc}",
+            detail=f"Error reaching chat endpoint: {exc}",
         )
 
 

@@ -168,11 +168,11 @@ class TestRedactApiKey:
 class TestCheckEnvironment:
     """check_environment correctly identifies DEV vs non-dev."""
 
-    def test_config_check_dev_environment_warns(self) -> None:
-        """DEV environment -> WARN status."""
+    def test_config_check_dev_environment_fails(self) -> None:
+        """DEV environment -> FAIL status (must block deployment)."""
         settings = _make_settings(ENVIRONMENT=Environment.DEV)
         result = check_environment(settings)
-        assert result.status == "WARN"
+        assert result.status == "FAIL"
         assert "dev" in result.detail.lower()
 
     def test_config_check_staging_passes(self) -> None:
