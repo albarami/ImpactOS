@@ -33,7 +33,7 @@ Based on merged work on `main`:
 | 27 | S27 | Copilot Tool Execution (Operationalization) | 4852 + 336 FE | ec3dca8 | sprint-27-complete | 2026-03-06 |
 | 28 | S28 | Copilot Real Execution + Post-Execution Narrative | 4958 + 350 FE | bcd9c10 | sprint-28-complete | 2026-03-06 |
 | 29 | S29 | Staging Activation + Release Candidate Closeout | 5016 + 350 FE | 0e1d33e | sprint-29-complete | 2026-03-06 |
-| 30 | S30 | Staging Deployment Execution + Live Environment Proof | 5064 + 350 FE | — | — | 2026-03-06 |
+| 30 | S30 | Staging Deployment Execution + Live Environment Proof | 5066 + 350 FE | — | — | 2026-03-06 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
@@ -145,7 +145,7 @@ The system is only considered fully complete when all are true:
 - Sprint 29 (Staging Activation) merged: PR #34 → `0e1d33e`, tag `sprint-29-complete`. Preflight/smoke automation, copilot runtime probe, fail-closed audit, evidence refresh.
 - Sprint 30 (Staging Deployment Execution) in progress: deployment runbook, staging overlay, prerequisite checker, live stack verification.
 - All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprints 25-29 merged.
-- Post-Sprint 30 verification: 5064 backend passed (29 skipped), 350 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
+- Post-Sprint 30 verification: 5066 backend passed (29 skipped), 350 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
 - Staging deployment: code-ready, blocked only by infrastructure provisioning (7 blockers documented).
 - See `docs/evidence/sprint30-staging-deployment.md` for deployment evidence.
 - See `docs/evidence/sprint30-infrastructure-blockers.md` for blocker matrix.

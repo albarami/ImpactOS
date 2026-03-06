@@ -179,9 +179,9 @@ Documented in `docs/runbooks/staging-deployment.md`:
 
 | Suite | Count | Result |
 |-------|-------|--------|
-| Backend (pytest) | 5,064 passed, 29 skipped | 0 failures |
+| Backend (pytest) | 5,066 passed, 29 skipped | 0 failures |
 | Frontend (vitest) | 350 passed | 0 failures |
-| Deploy tests | 48 passed | 0 failures |
+| Deploy tests | 50 passed | 0 failures |
 | Preflight tests | 25 passed | 0 failures |
 | Smoke tests | 25 passed | 0 failures |
 | Copilot status tests | 4 passed | 0 failures |
