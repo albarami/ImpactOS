@@ -556,6 +556,10 @@ class TestToolExecution:
             model_id="claude-sonnet-4-20250514",
             token_usage=TokenUsage(input_tokens=100, output_tokens=50),
         ))
+        # enrich_narrative pass-through for narrative wiring
+        copilot.enrich_narrative = AsyncMock(
+            side_effect=lambda baseline, context=None: baseline,
+        )
 
         svc = ChatService(
             ChatSessionRepository(session),
@@ -658,6 +662,10 @@ class TestToolExecution:
             model_id="claude-sonnet-4-20250514",
             token_usage=TokenUsage(input_tokens=100, output_tokens=50),
         ))
+        # enrich_narrative pass-through for narrative wiring
+        copilot.enrich_narrative = AsyncMock(
+            side_effect=lambda baseline, context=None: baseline,
+        )
 
         svc = ChatService(
             ChatSessionRepository(session),
@@ -778,6 +786,10 @@ class TestPostExecutionNarrative:
             model_id="claude-sonnet-4-20250514",
             token_usage=TokenUsage(input_tokens=100, output_tokens=50),
         ))
+        # enrich_narrative pass-through: return baseline unchanged
+        copilot.enrich_narrative = AsyncMock(
+            side_effect=lambda baseline, context=None: baseline,
+        )
 
         svc = ChatService(
             ChatSessionRepository(session),
@@ -791,6 +803,109 @@ class TestPostExecutionNarrative:
             result = await svc.send_message(ws_id, sid, "Run the engine")
 
         # Content should be replaced with narrative, NOT the original copilot text
+        assert "Engine run completed" in result.content
+        assert "run_id:" in result.content
+        assert "I'll run the analysis now." not in result.content
+        # enrich_narrative should have been called
+        copilot.enrich_narrative.assert_called_once()
+
+    async def test_content_enriched_by_copilot(self, db_session_with_model):
+        """When enrichment succeeds, content = enriched narrative (not baseline)."""
+        session, ws_id, mv_id = db_session_with_model
+
+        from src.repositories.scenarios import ScenarioVersionRepository
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="Enrichment Test",
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(return_value=CopilotResponse(
+            content="I'll run the analysis now.",
+            tool_calls=[
+                ToolCall(
+                    tool_name="run_engine",
+                    arguments={
+                        "scenario_spec_id": str(spec_id),
+                        "scenario_spec_version": 1,
+                    },
+                ),
+            ],
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=100, output_tokens=50),
+        ))
+        # enrich_narrative returns enriched text
+        copilot.enrich_narrative = AsyncMock(
+            return_value="The analysis demonstrates a significant economic uplift.",
+        )
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+        with _mock_satellite_coefficients():
+            result = await svc.send_message(ws_id, sid, "Run the engine")
+
+        # Content should be the enriched text, not the baseline
+        assert result.content == "The analysis demonstrates a significant economic uplift."
+        assert "I'll run the analysis now." not in result.content
+
+    async def test_content_fallback_to_baseline_when_enrichment_fails(self, db_session_with_model):
+        """When enrichment LLM fails, content = deterministic baseline."""
+        session, ws_id, mv_id = db_session_with_model
+
+        from src.repositories.scenarios import ScenarioVersionRepository
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="Fallback Test",
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(return_value=CopilotResponse(
+            content="I'll run the analysis now.",
+            tool_calls=[
+                ToolCall(
+                    tool_name="run_engine",
+                    arguments={
+                        "scenario_spec_id": str(spec_id),
+                        "scenario_spec_version": 1,
+                    },
+                ),
+            ],
+            prompt_version="copilot_v1",
+            model_provider="anthropic",
+            model_id="claude-sonnet-4-20250514",
+            token_usage=TokenUsage(input_tokens=100, output_tokens=50),
+        ))
+        # enrich_narrative raises an exception (LLM unavailable)
+        copilot.enrich_narrative = AsyncMock(
+            side_effect=RuntimeError("LLM provider unavailable"),
+        )
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+        with _mock_satellite_coefficients():
+            result = await svc.send_message(ws_id, sid, "Run the engine")
+
+        # Should fall back to deterministic baseline, NOT the original copilot text
         assert "Engine run completed" in result.content
         assert "run_id:" in result.content
         assert "I'll run the analysis now." not in result.content

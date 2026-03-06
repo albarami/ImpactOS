@@ -269,7 +269,26 @@ class ChatService:
                     # Replace pre-execution LLM content with post-execution narrative
                     baseline = narrative_svc.build_baseline_narrative(facts)
                     if baseline:
-                        copilot_response.content = baseline
+                        # Optional LLM enrichment (S28-3c): if copilot is available,
+                        # enrich the deterministic baseline into economist prose.
+                        # Falls back to baseline on LLM failure or if copilot is None.
+                        if self._copilot is not None:
+                            try:
+                                enriched = await self._copilot.enrich_narrative(
+                                    baseline=baseline,
+                                    context={
+                                        "scenario_name": facts.scenario_name or "N/A",
+                                    },
+                                )
+                                copilot_response.content = enriched
+                            except Exception:
+                                _logger.warning(
+                                    "Narrative enrichment failed, using baseline",
+                                    exc_info=True,
+                                )
+                                copilot_response.content = baseline
+                        else:
+                            copilot_response.content = baseline
                 elif facts.errors:
                     # All failed: preserve original + append failure summary
                     failure_summary = narrative_svc.build_baseline_narrative(facts)
