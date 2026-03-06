@@ -31,7 +31,7 @@ from src.api.taxonomy import router as taxonomy_router
 from src.api.workforce import router as workforce_router
 from src.api.workshop import router as workshop_router
 from src.api.workspaces import router as workspaces_router
-from src.config.settings import Settings, get_settings, validate_settings_for_env
+from src.config.settings import Environment, Settings, get_settings, validate_settings_for_env
 
 APP_VERSION = "0.1.0"
 
@@ -258,3 +258,31 @@ async def get_version() -> dict[str, str]:
         "version": APP_VERSION,
         "environment": settings.ENVIRONMENT.value,
     }
+
+
+@app.get("/api/copilot/status")
+async def copilot_status() -> dict:
+    """Report copilot runtime readiness (unauthenticated probe).
+
+    Exercises the same provider-availability logic used by
+    ``_build_copilot`` in chat.py so staging smoke tests can verify
+    copilot runtime without needing authentication credentials.
+    """
+    from src.agents.llm_client import LLMClient, LLMProvider
+
+    if not settings.COPILOT_ENABLED:
+        return {"enabled": False, "ready": False, "providers": [], "detail": "COPILOT_ENABLED=false"}
+
+    # Build the LLM client exactly as _build_copilot does
+    llm = LLMClient(
+        anthropic_key=settings.ANTHROPIC_API_KEY,
+        openai_key=settings.OPENAI_API_KEY,
+        openrouter_key=settings.OPENROUTER_API_KEY,
+    )
+    real_providers = [p for p in llm.available_providers() if p != LLMProvider.LOCAL]
+
+    if settings.ENVIRONMENT != Environment.DEV and not real_providers:
+        return {"enabled": True, "ready": False, "providers": [], "detail": "No LLM providers available"}
+
+    providers = [p.value for p in llm.available_providers()]
+    return {"enabled": True, "ready": True, "providers": providers, "detail": "Copilot runtime ready"}

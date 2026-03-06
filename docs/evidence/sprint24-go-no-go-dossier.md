@@ -1,8 +1,8 @@
 # Sprint 24: Go/No-Go Dossier
 
-**Date:** 2026-03-05
+**Date:** 2026-03-06 (updated post-Sprint 29)
 **Prepared by:** Engineering
-**Status:** CONDITIONAL GO (see unresolved risks)
+**Status:** GO (conditional on infrastructure prerequisites only — see Section 7)
 
 ---
 
@@ -14,11 +14,14 @@
 | 2 | No planned build tracker entries remain | ✅ GO | Master Build Plan v2 shows all rows filled. Sprint 24 carryovers I-2 and I-4 closed. |
 | 3 | Methodology parity gate: SG benchmark within 0.1% | ✅ GO | Golden-run benchmark tests pass (Sprint 18 evidence). |
 | 4 | Sprint 23 carryovers closed | ✅ GO | I-2: ScenarioSpec wired to bridge engine (8bece0c). I-4: RunSelector populated (d9829c6). |
-| 5 | Full test suite green | ✅ GO | Backend 4625 passed, Frontend 307 passed. 0 failures. |
-| 6 | OpenAPI spec current | ✅ GO | Regenerated at 1146f70 with all endpoints including list-runs. |
-| 7 | Alembic migrations chain correctly | ✅ GO | Head at 019, all migrations chain from 001. |
+| 5 | Full test suite green | ✅ GO | Backend 5,016 passed (29 skipped), Frontend 350 passed. 0 failures. (Updated post-S29) |
+| 6 | OpenAPI spec current | ✅ GO | Regenerated and validated at Sprint 29. |
+| 7 | Alembic migrations chain correctly | ✅ GO | Head at 020_chat_sessions_messages, all migrations chain from 001. |
+| 8 | Staging preflight automation | ✅ GO | `scripts/staging_preflight.py` — repeatable, structured output. (Sprint 29) |
+| 9 | Staging smoke harness | ✅ GO | `scripts/staging_smoke.py` — one-command deployment verification. (Sprint 29) |
+| 10 | Non-dev fail-closed paths verified | ✅ GO | All 14 fail-closed paths tested. (Sprint 29 audit) |
 
-**Go criteria: 7/7 met.**
+**Go criteria: 10/10 met.**
 
 ---
 
@@ -132,7 +135,7 @@ python -m alembic check               # Must report no drift
 
 ---
 
-## 6. Recommendation
+## 6. Recommendation (Original Sprint 24)
 
 **CONDITIONAL GO.** All build criteria are met. The system is functionally complete with 4932 tests passing across all layers. The remaining risks are infrastructure/configuration items that can be resolved during staging deployment without code changes.
 
@@ -141,3 +144,65 @@ python -m alembic check               # Must report no drift
 2. LLM API keys set (or fail-closed behavior accepted for initial deployment)
 3. Object storage endpoint configured
 4. `alembic upgrade head` succeeds on staging database
+
+---
+
+## 7. Post-Sprint 29 Update
+
+**Date:** 2026-03-06
+**Status:** GO
+
+### What Changed Since Sprint 24
+
+| Sprint | What It Added | Tests Added |
+|--------|---------------|-------------|
+| S25 | Economist Copilot v1 (chat, agent, confirmation gate) | +53 BE, +13 FE |
+| S26 | Copilot hardening (all 5 backlog items resolved) | +30 BE, +8 FE |
+| S27 | Tool execution (workspace-scoped handlers, safety caps) | +124 BE, +8 FE |
+| S28 | Real execution (engine runs, governance exports, narrative) | +106 BE, +14 FE |
+| S29 | Staging activation (preflight, smoke, copilot status, fail-closed audit) | +58 BE |
+
+### Current State
+
+- **Backend tests:** 5,016 passed, 29 skipped, 0 failures
+- **Frontend tests:** 350 passed (39 files), 0 failures
+- **Alembic:** `020_chat_sessions_messages (head)`, no pending migrations
+- **OpenAPI:** Regenerated and validated
+- **Tags:** `sprint-25-complete` through `sprint-28-complete` on main
+
+### Risk Resolution
+
+| Original Risk | Current Status |
+|---------------|---------------|
+| Risk 1: External IdP | **Mitigated.** Preflight script validates JWT config. Fail-closed tests verify 401 on missing IdP. |
+| Risk 2: Real Provider Keys | **Mitigated.** Fail-closed tests for compiler, depth, copilot all verified. System degrades gracefully. |
+| Risk 3: Object Storage | **Mitigated.** Preflight rejects relative paths in non-dev. Health check monitors storage. |
+| Risk 4: Load Testing | **Accepted.** Internal tool with 5-10 concurrent users. Not blocking. |
+| Risk 5: PostgreSQL Migration | **Closed.** Migration 020 added (chat tables). All additive, no data loss risk. |
+
+### Remaining Prerequisites
+
+These are **infrastructure configuration** items, not code changes:
+
+1. Set `ENVIRONMENT=staging` or `ENVIRONMENT=prod`
+2. Configure external IdP: `JWT_ISSUER`, `JWT_AUDIENCE`, `JWKS_URL`
+3. Set strong `SECRET_KEY` (not dev default)
+4. Configure `DATABASE_URL` with real credentials
+5. Configure `OBJECT_STORAGE_PATH` to absolute or S3 path
+6. Set `REDIS_URL` for async job queue
+7. Optionally set LLM API keys for AI-assisted features
+8. Run `alembic upgrade head` on staging database
+
+### Deployment Verification
+
+```bash
+# Preflight (before starting server)
+python scripts/staging_preflight.py --json
+
+# Start server, then run smoke
+python scripts/staging_smoke.py --json --url http://localhost:8000
+```
+
+### Recommendation
+
+**GO.** The system is functionally complete with 5,016 backend tests (29 skipped) and 350 frontend tests. All non-dev fail-closed paths are verified. Staging preflight and smoke automation are in place. The only remaining items are infrastructure configuration — no further code changes are required for deployment.
