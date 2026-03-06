@@ -48,7 +48,7 @@ python scripts/staging_preflight.py --json --url http://localhost:8000
 `tests/scripts/test_staging_preflight.py` — 25 tests:
 - CheckResult/PreflightReport dataclass validation
 - Secret redaction (database URL, secret key, API keys)
-- Config check mapping (DEV → WARN, STAGING valid → PASS, STAGING invalid → FAIL)
+- Config check mapping (DEV → FAIL, STAGING valid → PASS, STAGING invalid → FAIL)
 - Alembic check (at-head PASS, behind-head FAIL, hex revisions, command failure)
 - Secret leak detection (clean report, leaked DB password, leaked SECRET_KEY)
 - Short key guard (keys ≤ 4 chars fully redacted)
@@ -106,22 +106,29 @@ python -m pytest tests/integration/test_path_doc_to_export.py tests/integration/
 | 3 | `auth_enforcement` | Unauthenticated GET /v1/workspaces returns 401 | PASS/FAIL |
 | 4 | `health_components` | GET /health includes all 4 component keys | PASS/FAIL |
 | 5 | `api_schema` | GET /openapi.json returns valid JSON with paths | PASS/FAIL |
-| 6 | `copilot_smoke` | POST /v1/workspaces/{id}/chat/sessions probed server-side | PASS/FAIL/SKIP |
+| 6 | `copilot_smoke` | GET /api/copilot/status exercises runtime construction | PASS/FAIL/SKIP |
 
-Server-side detection: copilot_smoke never reads local shell env vars. It probes the real
-chat endpoint on the server. 404 = copilot not mounted (SKIP). 401/403/422 = endpoint
-wired up (PASS). 200 = auth bypass (FAIL). 5xx/other = FAIL.
+Copilot smoke exercises the server's copilot runtime construction path (LLMClient
+instantiation + provider availability check) via GET /api/copilot/status.  Decision:
+enabled=false → SKIP, enabled+ready → PASS, enabled+!ready → FAIL, 404 → SKIP, 5xx/other → FAIL.
+No local shell env vars are read; detection is entirely server-side.
 
 ### Tests
 
 `tests/scripts/test_staging_smoke.py` — 25 tests:
 - StageResult/SmokeReport dataclass validation
 - Per-stage response mapping (startup, readiness, auth, health, schema, copilot)
-- Copilot probes real /chat/sessions (not /workshop/sessions)
+- Copilot probes /api/copilot/status (runtime check, not route-mount check)
 - Copilot has no local env gating (always probes server)
 - Unexpected statuses are FAIL (never WARN)
 - run_smoke cascade-skip on startup failure
 - run_smoke all-pass overall-pass
+
+`tests/api/test_copilot_status.py` — 4 tests:
+- Endpoint exists and returns 200
+- Response has required fields (enabled, ready, providers, detail)
+- COPILOT_ENABLED=false returns enabled=false
+- Provider availability reflected in response
 
 ### CLI
 
@@ -141,10 +148,11 @@ python scripts/staging_smoke.py --json --url http://localhost:8000
 
 | Suite | Count | Result |
 |-------|-------|--------|
-| Backend (pytest) | 5008 passed, 29 skipped | 0 failures |
+| Backend (pytest) | 5016 passed, 29 skipped | 0 failures |
 | Frontend (vitest) | 350 passed | 0 failures |
 | Preflight tests | 25 passed | 0 failures |
 | Smoke tests | 25 passed | 0 failures |
+| Copilot status API tests | 4 passed | 0 failures |
 | Alembic current | `020_chat_sessions_messages (head)` | Clean |
 | Alembic check | No new upgrade operations | Clean |
 | OpenAPI | Regenerated, validated | Valid |
@@ -156,9 +164,11 @@ python scripts/staging_smoke.py --json --url http://localhost:8000
 - `scripts/staging_smoke.py` — One-command staging smoke harness
 - `tests/scripts/test_staging_preflight.py` — 25 preflight helper tests
 - `tests/scripts/test_staging_smoke.py` — 25 smoke harness tests
+- `tests/api/test_copilot_status.py` — 4 copilot status endpoint tests
 - `docs/evidence/sprint29-staging-activation.md` — This file
 
 **Updated:**
+- `src/api/main.py` — Added GET /api/copilot/status endpoint (copilot runtime probe)
 - `docs/evidence/sprint24-go-no-go-dossier.md` — Refreshed to post-Sprint-28 reality
 - `docs/plans/2026-03-03-full-system-completion-master-plan.md` — Sprint 28 marked complete, Sprint 29 added
 - `docs/ImpactOS_Master_Build_Plan_v2.md` — Sprint 29 row added
@@ -183,6 +193,6 @@ All planned product MVPs (1-23) are complete with test evidence. Sprints 24-28 a
 ### What Sprint 29 Proves
 
 - Preflight script catches all misconfiguration before startup
-- Smoke harness validates the deployed system end-to-end
+- Smoke harness validates infrastructure readiness: server reachability, database connectivity, auth enforcement, health components, API schema, and copilot runtime construction
 - All non-dev fail-closed paths are tested and verified
 - No code changes needed for deployment — only infrastructure configuration

@@ -264,47 +264,63 @@ class TestStageApiSchema:
 
 
 class TestStageCopilotSmoke:
-    """stage_copilot_smoke probes the real chat endpoint, server-side."""
+    """stage_copilot_smoke probes /api/copilot/status for runtime readiness."""
 
-    def test_copilot_401_passes(self) -> None:
-        """401 from chat endpoint proves it is wired up."""
+    def test_copilot_ready_passes(self) -> None:
+        """enabled=true, ready=true → PASS with providers listed."""
         client = _mock_client(
-            chat=_mock_response(401, None),
+            copilot=_mock_response(200, {
+                "enabled": True,
+                "ready": True,
+                "providers": ["LOCAL", "ANTHROPIC"],
+                "detail": "Copilot runtime ready",
+            }),
         )
         result = stage_copilot_smoke(client, "http://localhost:8000")
         assert result.status == "PASS"
-        assert "401" in result.detail
+        assert "ANTHROPIC" in result.detail
 
-    def test_copilot_422_passes(self) -> None:
-        """422 from chat endpoint proves it is wired up."""
+    def test_copilot_disabled_skips(self) -> None:
+        """enabled=false → SKIP (copilot intentionally off)."""
         client = _mock_client(
-            chat=_mock_response(422, None),
-        )
-        result = stage_copilot_smoke(client, "http://localhost:8000")
-        assert result.status == "PASS"
-
-    def test_copilot_404_skips(self) -> None:
-        """404 means chat router not mounted — copilot disabled server-side."""
-        client = _mock_client(
-            chat=_mock_response(404, None),
+            copilot=_mock_response(200, {
+                "enabled": False,
+                "ready": False,
+                "providers": [],
+                "detail": "COPILOT_ENABLED=false",
+            }),
         )
         result = stage_copilot_smoke(client, "http://localhost:8000")
         assert result.status == "SKIP"
-        assert "not mounted" in result.detail.lower()
+        assert "disabled" in result.detail.lower()
 
-    def test_copilot_200_fails(self) -> None:
-        """200 without auth is a possible auth bypass — must FAIL."""
+    def test_copilot_enabled_not_ready_fails(self) -> None:
+        """enabled=true, ready=false → FAIL (no LLM providers)."""
         client = _mock_client(
-            chat=_mock_response(200, None),
+            copilot=_mock_response(200, {
+                "enabled": True,
+                "ready": False,
+                "providers": [],
+                "detail": "No LLM providers available",
+            }),
         )
         result = stage_copilot_smoke(client, "http://localhost:8000")
         assert result.status == "FAIL"
-        assert "auth bypass" in result.detail.lower()
+        assert "not ready" in result.detail.lower()
+
+    def test_copilot_404_skips(self) -> None:
+        """404 means endpoint not deployed — SKIP gracefully."""
+        client = _mock_client(
+            copilot=_mock_response(404, None),
+        )
+        result = stage_copilot_smoke(client, "http://localhost:8000")
+        assert result.status == "SKIP"
+        assert "404" in result.detail
 
     def test_copilot_500_fails(self) -> None:
         """Server error must FAIL."""
         client = _mock_client(
-            chat=_mock_response(500, None),
+            copilot=_mock_response(500, None),
         )
         result = stage_copilot_smoke(client, "http://localhost:8000")
         assert result.status == "FAIL"
@@ -313,7 +329,7 @@ class TestStageCopilotSmoke:
     def test_copilot_unexpected_status_fails(self) -> None:
         """Any unexpected status (e.g. 301) must FAIL, not WARN."""
         client = _mock_client(
-            chat=_mock_response(301, None),
+            copilot=_mock_response(301, None),
         )
         result = stage_copilot_smoke(client, "http://localhost:8000")
         assert result.status == "FAIL"
@@ -323,30 +339,36 @@ class TestStageCopilotSmoke:
         """Copilot smoke must NOT read local env vars to decide execution.
 
         Even with no COPILOT_ENABLED or LLM keys in the local env,
-        the stage must still probe the server (and get a result based
-        on the server's response, not the local env).
+        the stage must still probe the server.
         """
         client = _mock_client(
-            chat=_mock_response(401, None),
+            copilot=_mock_response(200, {
+                "enabled": True,
+                "ready": True,
+                "providers": ["LOCAL"],
+                "detail": "Copilot runtime ready",
+            }),
         )
-        # Ensure no relevant env vars are set
         with patch.dict("os.environ", {}, clear=True):
             result = stage_copilot_smoke(client, "http://localhost:8000")
-        # Must NOT be SKIP — must probe the server
         assert result.status == "PASS"
 
-    def test_copilot_probes_chat_not_workshop(self) -> None:
-        """Verify the stage hits /chat/sessions, not /workshop/sessions."""
+    def test_copilot_probes_status_not_chat(self) -> None:
+        """Verify the stage hits /api/copilot/status, not /chat/sessions."""
         client = MagicMock(spec=httpx.Client)
-        client.post = MagicMock(return_value=_mock_response(401, None))
+        client.get = MagicMock(return_value=_mock_response(200, {
+            "enabled": True,
+            "ready": True,
+            "providers": ["LOCAL"],
+            "detail": "ok",
+        }))
 
         stage_copilot_smoke(client, "http://localhost:8000")
 
-        # Inspect the URL passed to client.post
-        call_args = client.post.call_args
+        call_args = client.get.call_args
         url = call_args[0][0] if call_args[0] else call_args[1].get("url", "")
-        assert "/chat/sessions" in url
-        assert "/workshop/" not in url
+        assert "/api/copilot/status" in url
+        assert "/chat/" not in url
 
 
 # ---------------------------------------------------------------------------
@@ -393,7 +415,10 @@ class TestRunSmokeCascade:
                 },
             }),
             openapi=_mock_response(200, {"paths": {"/v1/a": {}}}),
-            chat=_mock_response(401, None),
+            copilot=_mock_response(200, {
+                "enabled": True, "ready": True,
+                "providers": ["LOCAL"], "detail": "ok",
+            }),
         )
 
         ctx_manager = MagicMock()

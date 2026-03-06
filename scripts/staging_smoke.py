@@ -215,51 +215,31 @@ def stage_api_schema(client: httpx.Client, base_url: str) -> StageResult:
 
 
 def stage_copilot_smoke(client: httpx.Client, base_url: str) -> StageResult:
-    """Stage 6: Verify the chat/copilot endpoint is wired up on the server.
+    """Stage 6: Verify copilot runtime readiness on the server.
 
-    Probes the real chat session-creation route
-    (POST /v1/workspaces/{id}/chat/sessions).  We expect 401 (auth
-    required) or 422 (missing payload) — anything that proves the
-    endpoint exists and the server routes to it.
+    Probes GET /api/copilot/status which exercises the actual copilot
+    construction path (_build_copilot) and reports whether the LLM
+    provider stack is available.  This is a server-side runtime check —
+    no local shell env vars are read.
 
-    Detection is server-side: the smoke harness never reads local shell
-    environment variables to decide whether copilot is enabled.  If the
-    server returns 404 the endpoint is not mounted and we SKIP.
+    Decision table:
+        enabled=false         → SKIP  (copilot intentionally off)
+        enabled=true, ready   → PASS  (copilot runtime constructed)
+        enabled=true, !ready  → FAIL  (enabled but no providers)
+        404                   → SKIP  (endpoint not available on server)
+        5xx / other           → FAIL
     """
-    _DUMMY_WS = "00000000-0000-0000-0000-000000000000"
-    chat_url = f"{base_url}/v1/workspaces/{_DUMMY_WS}/chat/sessions"
+    status_url = f"{base_url}/api/copilot/status"
 
     try:
-        resp = client.post(chat_url, json={}, timeout=5.0)
+        resp = client.get(status_url, timeout=5.0)
 
-        # 401 / 403 / 422 — endpoint exists and rejects as expected
-        if resp.status_code in (401, 403, 422):
-            return StageResult(
-                name="copilot_smoke",
-                status="PASS",
-                detail=(
-                    f"Chat endpoint responding "
-                    f"(status={resp.status_code})"
-                ),
-            )
-
-        # 404 — chat router not mounted (copilot disabled server-side)
+        # 404 — endpoint not deployed (older server without this route)
         if resp.status_code == 404:
             return StageResult(
                 name="copilot_smoke",
                 status="SKIP",
-                detail="Chat endpoint not mounted (404) -- copilot disabled on server",
-            )
-
-        # 200 with no auth — auth bypass
-        if resp.status_code == 200:
-            return StageResult(
-                name="copilot_smoke",
-                status="FAIL",
-                detail=(
-                    "Unauthenticated request returned 200 -- "
-                    "possible auth bypass"
-                ),
+                detail="Copilot status endpoint not available (404)",
             )
 
         # 5xx — server error
@@ -267,20 +247,49 @@ def stage_copilot_smoke(client: httpx.Client, base_url: str) -> StageResult:
             return StageResult(
                 name="copilot_smoke",
                 status="FAIL",
-                detail=f"Server error {resp.status_code} from chat endpoint",
+                detail=f"Server error {resp.status_code} from copilot status",
             )
 
-        # Any other status is unexpected — FAIL, not WARN
+        # Non-200, non-404, non-5xx
+        if resp.status_code != 200:
+            return StageResult(
+                name="copilot_smoke",
+                status="FAIL",
+                detail=f"Unexpected status {resp.status_code} from copilot status",
+            )
+
+        # 200 — parse the runtime report
+        body = resp.json()
+        enabled = body.get("enabled", False)
+        ready = body.get("ready", False)
+        providers = body.get("providers", [])
+        detail_msg = body.get("detail", "")
+
+        if not enabled:
+            return StageResult(
+                name="copilot_smoke",
+                status="SKIP",
+                detail=f"Copilot disabled on server: {detail_msg}",
+            )
+
+        if ready:
+            return StageResult(
+                name="copilot_smoke",
+                status="PASS",
+                detail=f"Copilot runtime ready, providers={providers}",
+            )
+
+        # enabled but not ready — provider misconfiguration
         return StageResult(
             name="copilot_smoke",
             status="FAIL",
-            detail=f"Unexpected status {resp.status_code} from chat endpoint",
+            detail=f"Copilot enabled but not ready: {detail_msg}",
         )
     except Exception as exc:
         return StageResult(
             name="copilot_smoke",
             status="FAIL",
-            detail=f"Error reaching chat endpoint: {exc}",
+            detail=f"Error reaching copilot status: {exc}",
         )
 
 
