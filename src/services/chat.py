@@ -235,6 +235,13 @@ class ChatService:
                         trace_dict["scenario_spec_version"] = er.result.get("version")
                     elif er.tool_name == "create_export":
                         trace_dict["export_id"] = er.result.get("export_id")
+                # Governance-blocked exports still carry an export_id for trace
+                elif (
+                    er.status == "blocked"
+                    and er.tool_name == "create_export"
+                    and er.result
+                ):
+                    trace_dict["export_id"] = er.result.get("export_id")
 
         # --- Post-execution narrative (S28) ---
         if (

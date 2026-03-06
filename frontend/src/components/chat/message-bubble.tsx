@@ -36,6 +36,7 @@ function getExportStatus(
 ): string | undefined {
   if (!toolCalls) return undefined;
   for (const tc of toolCalls) {
+    if (tc.tool_name !== 'create_export') continue;
     const result = tc.result as ToolExecutionResult | undefined;
     const inner = result?.result as Record<string, unknown> | undefined;
     if (inner?.status && typeof inner.status === 'string') {

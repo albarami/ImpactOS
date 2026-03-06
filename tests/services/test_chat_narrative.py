@@ -89,7 +89,11 @@ class TestNarrativeFacts:
         assert facts.has_meaningful_results is True
 
     def test_extract_facts_export_blocked(self):
-        """create_export BLOCKED -> export_status=BLOCKED, blocking_reasons, still meaningful."""
+        """create_export BLOCKED -> export_status=BLOCKED, blocking_reasons, still meaningful.
+
+        After Sprint 28 fix: blocked exports now have outer status="blocked"
+        with reason_code="export_blocked" (not outer status="success").
+        """
         from src.services.chat_narrative import ChatNarrativeService
 
         svc = ChatNarrativeService()
@@ -104,7 +108,8 @@ class TestNarrativeFacts:
             ),
             ToolExecutionResult(
                 tool_name="create_export",
-                status="success",
+                status="blocked",
+                reason_code="export_blocked",
                 result={
                     "export_id": "e1",
                     "status": "BLOCKED",

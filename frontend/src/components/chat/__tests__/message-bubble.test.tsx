@@ -310,6 +310,117 @@ describe('MessageBubble – deep links', () => {
   });
 });
 
+// ── Mixed-Turn Export Status Detection ───────────────────────────────
+
+describe('MessageBubble – mixed-turn export status', () => {
+  it('detects COMPLETED export status in mixed run_engine + create_export turn', () => {
+    // In a mixed turn, run_engine also has inner status: "success"
+    // but getExportStatus() should only look at create_export tool calls
+    const msg = makeMessage({
+      message_id: 'msg-mx1',
+      role: 'assistant',
+      content: 'Run + export done.',
+      trace_metadata: {
+        run_id: 'run-01',
+        export_id: 'exp-001',
+      },
+      tool_calls: [
+        {
+          tool_name: 'run_engine',
+          arguments: { scenario_spec_id: 'sc-01' },
+          result: {
+            status: 'success',
+            reason_code: 'run_completed',
+            retryable: false,
+            latency_ms: 200,
+            result: {
+              status: 'success',
+              run_id: 'run-01',
+              model_version_id: 'mv-01',
+              result_summary: { total_output: { total: 1500 } },
+            },
+          },
+        },
+        {
+          tool_name: 'create_export',
+          arguments: { run_id: 'run-01' },
+          result: {
+            status: 'success',
+            reason_code: 'ok',
+            retryable: false,
+            latency_ms: 500,
+            result: {
+              export_id: 'exp-001',
+              status: 'COMPLETED',
+              checksums: { xlsx: 'sha256-abc' },
+            },
+          },
+        },
+      ],
+    });
+    renderBubble(msg, 'ws-001');
+
+    // Export deep link should render because getExportStatus returns
+    // COMPLETED from the create_export call, not "success" from run_engine
+    const exportLink = screen.getByTestId('trace-export-link');
+    expect(exportLink).toBeInTheDocument();
+    expect(exportLink).toHaveAttribute(
+      'href',
+      '/w/ws-001/exports/exp-001'
+    );
+  });
+
+  it('detects BLOCKED export status in mixed run_engine + create_export turn', () => {
+    const msg = makeMessage({
+      message_id: 'msg-mx2',
+      role: 'assistant',
+      content: 'Run ok, export blocked.',
+      trace_metadata: {
+        run_id: 'run-01',
+        export_id: 'exp-002',
+      },
+      tool_calls: [
+        {
+          tool_name: 'run_engine',
+          arguments: { scenario_spec_id: 'sc-01' },
+          result: {
+            status: 'success',
+            reason_code: 'run_completed',
+            retryable: false,
+            latency_ms: 200,
+            result: {
+              status: 'success',
+              run_id: 'run-01',
+              result_summary: { total_output: { total: 1500 } },
+            },
+          },
+        },
+        {
+          tool_name: 'create_export',
+          arguments: { run_id: 'run-01' },
+          result: {
+            status: 'blocked',
+            reason_code: 'export_blocked',
+            retryable: false,
+            latency_ms: 10,
+            result: {
+              export_id: 'exp-002',
+              status: 'BLOCKED',
+              blocking_reasons: ['No quality assessment'],
+            },
+          },
+        },
+      ],
+    });
+    renderBubble(msg, 'ws-001');
+
+    // Export deep link should NOT render (BLOCKED, not COMPLETED)
+    expect(screen.queryByTestId('trace-export-link')).not.toBeInTheDocument();
+    // But export_id should still be shown as text
+    expect(screen.getByText('exp-002')).toBeInTheDocument();
+  });
+});
+
 // ── Conditional Download Link Tests ──────────────────────────────────
 
 describe('MessageBubble – conditional download link', () => {

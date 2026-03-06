@@ -58,10 +58,10 @@ class ChatNarrativeService:
 
         Iterates *tool_results* and extracts structured domain facts:
         - ``run_engine`` success  -> run_completed, run_id, model_version_id, result_summary
-        - ``create_export`` success -> export_id, export_status, checksums, blocking_reasons
+        - ``create_export`` success or blocked -> export_id, export_status, checksums, blocking_reasons
         - ``narrate_results`` success -> has_meaningful_results
         - Any tool with status ``error`` -> error_summary collected
-        - Tools with status ``blocked`` (safety cap) are ignored — not errors.
+        - Non-export tools with status ``blocked`` (safety cap) are ignored — not errors.
         """
         run_completed = False
         run_id: str | None = None
@@ -89,7 +89,7 @@ class ChatNarrativeService:
                 # status == "blocked" -> intentionally ignored
 
             elif tr.tool_name == "create_export":
-                if tr.status == "success" and tr.result:
+                if tr.status in ("success", "blocked") and tr.result:
                     has_meaningful = True
                     export_id = tr.result.get("export_id")
                     export_status = tr.result.get("status")
