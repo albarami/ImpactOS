@@ -126,4 +126,4 @@ All fields are optional (None by default). Existing functionality is unaffected.
 | S25 | Economist Copilot v1 (Chat + Agent + Confirmation Gate) | 4698 + 320 FE | 599ec87 | 2026-03-05 |
 | S26 | Copilot Hardening (Backlog Burn-Down) | 4728 + 328 FE | `sprint-26-complete` | 2026-03-05 |
 | S27 | Copilot Tool Execution (Operationalization) — run_engine dry-run MVP | 4852 + 336 FE | ec3dca8 | 2026-03-06 |
-| S28 | Copilot Real Execution + Post-Execution Narrative | 4938 + 348 FE | In progress | 2026-03-06 |
+| S28 | Copilot Real Execution + Post-Execution Narrative | 4958 + 350 FE | bcd9c10 | 2026-03-06 |

@@ -444,6 +444,9 @@ Sprint 27 closes the operational gap: copilot tool calls are now dispatched thro
 |-------|--------|
 | Merge commit | `bcd9c10` on `main` |
 | Tag | `sprint-28-complete` on `bcd9c10` |
+| `alembic current` | `020_chat_sessions_messages (head)` |
+| `alembic heads` | `020_chat_sessions_messages (head)` |
+| `alembic check` | No new upgrade operations detected |
 | `pytest --tb=no -q` (on main) | **4958 passed**, 29 skipped, 0 failures |
 | `vitest run` (on main) | **350 passed** (39 test files), 0 failures |
 | Backend delta | +106 tests over Sprint 27 baseline (4852 → 4958) |
