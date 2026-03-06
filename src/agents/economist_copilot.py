@@ -267,3 +267,44 @@ class EconomistCopilot:
             token_usage=usage,
         )
 
+    async def enrich_narrative(
+        self,
+        baseline: str,
+        context: dict[str, str] | None = None,
+    ) -> str:
+        """Enrich a baseline narrative into economist-quality prose.
+
+        Receives sanitized, bounded context only (scenario name, metric types).
+        If LLM fails or returns empty, returns the baseline unchanged.
+
+        Agent-to-Math Boundary: this method does NOT compute numbers. It only
+        rephrases the deterministic baseline which was built from persisted facts.
+        """
+        if not baseline:
+            return baseline
+
+        ctx = context or {}
+        scenario_name = ctx.get("scenario_name", "N/A")
+
+        enrichment_prompt = (
+            "You are an economist writing a brief results summary for a client report. "
+            "Rewrite the following into clear, professional economist prose. "
+            "Do NOT invent any numbers — use only what is provided. "
+            "Keep it concise (2-4 sentences).\n\n"
+            f"Scenario: {scenario_name}\n\n"
+            f"Raw results:\n{baseline}"
+        )
+
+        try:
+            request = LLMRequest(
+                system_prompt="You are a professional economist assistant for Strategic Gears.",
+                user_prompt=enrichment_prompt,
+                max_tokens=1024,
+            )
+            response = await self._llm.call_unstructured(request)
+            enriched = response.content.strip()
+            return enriched if enriched else baseline
+        except Exception:
+            _logger.warning("Narrative enrichment failed, using baseline", exc_info=True)
+            return baseline
+
