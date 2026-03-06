@@ -30,6 +30,7 @@ describe('auth provider configuration', () => {
 
   it('uses OIDC provider when NEXTAUTH_PROVIDER is "oidc"', async () => {
     process.env.NEXTAUTH_PROVIDER = 'oidc';
+    process.env.NEXTAUTH_SECRET = 'test-secret-for-oidc-mode';
     process.env.OIDC_ISSUER = 'https://idp.example.com';
     process.env.OIDC_CLIENT_ID = 'test-client-id';
     process.env.OIDC_CLIENT_SECRET = 'test-client-secret';
@@ -42,8 +43,10 @@ describe('auth provider configuration', () => {
 
   // buildProviders() is called at module load time via authOptions,
   // so missing OIDC env vars cause the import itself to throw (fail-fast).
+  // NEXTAUTH_SECRET must be set to get past the secret check first.
   it('fails to import when OIDC_ISSUER is missing', async () => {
     process.env.NEXTAUTH_PROVIDER = 'oidc';
+    process.env.NEXTAUTH_SECRET = 'test-secret';
     delete process.env.OIDC_ISSUER;
     process.env.OIDC_CLIENT_ID = 'test-client-id';
     process.env.OIDC_CLIENT_SECRET = 'test-client-secret';
@@ -52,6 +55,7 @@ describe('auth provider configuration', () => {
 
   it('fails to import when OIDC_CLIENT_ID is missing', async () => {
     process.env.NEXTAUTH_PROVIDER = 'oidc';
+    process.env.NEXTAUTH_SECRET = 'test-secret';
     process.env.OIDC_ISSUER = 'https://idp.example.com';
     delete process.env.OIDC_CLIENT_ID;
     process.env.OIDC_CLIENT_SECRET = 'test-client-secret';
@@ -60,6 +64,7 @@ describe('auth provider configuration', () => {
 
   it('fails to import when OIDC_CLIENT_SECRET is missing', async () => {
     process.env.NEXTAUTH_PROVIDER = 'oidc';
+    process.env.NEXTAUTH_SECRET = 'test-secret';
     process.env.OIDC_ISSUER = 'https://idp.example.com';
     process.env.OIDC_CLIENT_ID = 'test-client-id';
     delete process.env.OIDC_CLIENT_SECRET;
@@ -68,6 +73,7 @@ describe('auth provider configuration', () => {
 
   it('OIDC provider uses wellKnown discovery', async () => {
     process.env.NEXTAUTH_PROVIDER = 'oidc';
+    process.env.NEXTAUTH_SECRET = 'test-secret';
     process.env.OIDC_ISSUER = 'https://idp.example.com';
     process.env.OIDC_CLIENT_ID = 'test-client-id';
     process.env.OIDC_CLIENT_SECRET = 'test-client-secret';
@@ -87,6 +93,15 @@ describe('auth provider configuration', () => {
     process.env.OIDC_CLIENT_SECRET = 'csecret';
     const { authOptions } = await import('@/lib/auth');
     expect(authOptions.secret).toBe('real-staging-secret-value');
+  });
+
+  it('fails to import when OIDC mode but NEXTAUTH_SECRET is missing', async () => {
+    process.env.NEXTAUTH_PROVIDER = 'oidc';
+    delete process.env.NEXTAUTH_SECRET;
+    process.env.OIDC_ISSUER = 'https://idp.example.com';
+    process.env.OIDC_CLIENT_ID = 'cid';
+    process.env.OIDC_CLIENT_SECRET = 'csecret';
+    await expect(import('@/lib/auth')).rejects.toThrow('NEXTAUTH_SECRET');
   });
 
   it('DEV_USER_ID is a valid UUID', async () => {

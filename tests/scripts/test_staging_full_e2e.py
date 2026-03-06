@@ -356,6 +356,38 @@ class TestStageGovernanceCheck:
 
         assert result.status == "SKIP"
 
+    def test_governance_200_passes(self) -> None:
+        client = MagicMock(spec=httpx.Client)
+        client.get.return_value = _mock_response(200, {"items": [], "total": 0})
+        ctx = _make_ctx()
+        ctx.workspace_id = "ws-1"
+
+        result = stage_governance_check(client, ctx)
+
+        assert result.status == "PASS"
+
+    def test_governance_404_passes(self) -> None:
+        """404 = no claims yet, but governance layer is reachable."""
+        client = MagicMock(spec=httpx.Client)
+        client.get.return_value = _mock_response(404)
+        ctx = _make_ctx()
+        ctx.workspace_id = "ws-1"
+
+        result = stage_governance_check(client, ctx)
+
+        assert result.status == "PASS"
+
+    def test_governance_401_fails(self) -> None:
+        client = MagicMock(spec=httpx.Client)
+        client.get.return_value = _mock_response(401)
+        ctx = _make_ctx()
+        ctx.workspace_id = "ws-1"
+
+        result = stage_governance_check(client, ctx)
+
+        assert result.status == "FAIL"
+        assert "401" in result.detail
+
 
 # ---------------------------------------------------------------------------
 # Test: stage_export_create

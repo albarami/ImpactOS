@@ -70,6 +70,16 @@ export function buildProviders(): Provider[] {
   ];
 }
 
+// In OIDC mode, NEXTAUTH_SECRET is mandatory — fail-fast to prevent
+// silent fallback to a well-known dev secret in staging/prod.
+const isOidc = (process.env.NEXTAUTH_PROVIDER || 'credentials') === 'oidc';
+if (isOidc && !process.env.NEXTAUTH_SECRET) {
+  throw new Error(
+    'NEXTAUTH_SECRET is required when NEXTAUTH_PROVIDER=oidc. ' +
+      'Generate with: python -c "import secrets; print(secrets.token_urlsafe(64))"',
+  );
+}
+
 export const authOptions: NextAuthOptions = {
   providers: buildProviders(),
   callbacks: {

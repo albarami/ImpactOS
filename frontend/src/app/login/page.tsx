@@ -16,11 +16,14 @@ export default function LoginPage() {
   async function handleCredentialsSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
-    await signIn('credentials', {
-      email,
-      callbackUrl: '/',
-    });
-    setIsLoading(false);
+    try {
+      await signIn('credentials', {
+        email,
+        callbackUrl: '/',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   async function handleOidcSignIn() {

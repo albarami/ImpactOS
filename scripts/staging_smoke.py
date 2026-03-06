@@ -302,7 +302,7 @@ def stage_worker_health(client: httpx.Client, base_url: str) -> StageResult:
     to checking Redis connectivity as a proxy for worker readiness.
     """
     try:
-        resp = client.get(f"{base_url}/health", timeout=10)
+        resp = client.get(f"{base_url}/health", timeout=10.0)
         if resp.status_code != 200:
             return StageResult(
                 name="worker_health",

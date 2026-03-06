@@ -22,6 +22,10 @@ Each stage that produces IDs (workspace_id, document_id, run_id, export_id)
 passes them downstream via E2EContext.  If an upstream stage FAILs or SKIPs,
 dependent stages are automatically SKIPped.
 
+Note: --validate-outputs is accepted for forward-compatibility but requires
+live staging data with known expected results to function.  Without live
+staging infrastructure, output validation is not exercised.
+
 Exit code: 0 if no FAIL, 1 if any FAIL.
 """
 
@@ -785,7 +789,7 @@ def main() -> None:
     parser.add_argument(
         "--validate-outputs",
         action="store_true",
-        help="Enable output correctness validation against expected results",
+        help="Enable output correctness validation against expected results (requires live staging data)",
     )
     args = parser.parse_args()
 
