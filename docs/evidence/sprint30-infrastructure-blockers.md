@@ -32,7 +32,7 @@ All blockers above are **infrastructure-only** — no code changes are needed:
 | Relative storage path rejected | `validate_settings_for_env()` checks `./` prefix | `test_config_guardrails.py` |
 | Placeholder DB URL rejected | `validate_settings_for_env()` checks `localhost`, `changeme` | `test_config_guardrails.py` |
 | Preflight catches all above | `scripts/staging_preflight.py` → 6 executable checks | `test_staging_preflight.py` (25 tests) |
-| Deploy checker validates env file | `scripts/staging_deploy.py check` → 8 prerequisite checks | `test_staging_deploy.py` (48 tests) |
+| Deploy checker validates env file | `scripts/staging_deploy.py check` → 8 prerequisite checks | `test_staging_deploy.py` (50 tests) |
 
 ---
 
