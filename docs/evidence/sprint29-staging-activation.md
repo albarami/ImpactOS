@@ -45,10 +45,13 @@ python scripts/staging_preflight.py --json --url http://localhost:8000
 
 ### Tests
 
-`tests/scripts/test_staging_preflight.py` — 16 tests:
+`tests/scripts/test_staging_preflight.py` — 25 tests:
 - CheckResult/PreflightReport dataclass validation
 - Secret redaction (database URL, secret key, API keys)
 - Config check mapping (DEV → WARN, STAGING valid → PASS, STAGING invalid → FAIL)
+- Alembic check (at-head PASS, behind-head FAIL, hex revisions, command failure)
+- Secret leak detection (clean report, leaked DB password, leaked SECRET_KEY)
+- Short key guard (keys ≤ 4 chars fully redacted)
 
 ---
 
@@ -123,8 +126,8 @@ python scripts/staging_smoke.py --json --url http://localhost:8000
 
 | Suite | Count | Result |
 |-------|-------|--------|
-| Backend (pytest) | TBD | 0 failures |
-| Frontend (vitest) | TBD | 0 failures |
+| Backend (pytest) | 4983 passed, 29 skipped | 0 failures |
+| Frontend (vitest) | 350 passed | 0 failures |
 | Alembic current | `020_chat_sessions_messages (head)` | Clean |
 | Alembic check | No new upgrade operations | Clean |
 | OpenAPI | Regenerated, validated | Valid |
@@ -134,7 +137,7 @@ python scripts/staging_smoke.py --json --url http://localhost:8000
 **New:**
 - `scripts/staging_preflight.py` — Repeatable staging preflight runner
 - `scripts/staging_smoke.py` — One-command staging smoke harness
-- `tests/scripts/test_staging_preflight.py` — 16 preflight helper tests
+- `tests/scripts/test_staging_preflight.py` — 25 preflight helper tests
 - `docs/evidence/sprint29-staging-activation.md` — This file
 
 **Updated:**
