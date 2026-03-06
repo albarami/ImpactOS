@@ -19,7 +19,7 @@ Sprint 30 delivered backend-only staging tooling. Sprint 31 closes these gaps:
 | G1: Frontend auth | Dev-only CredentialsProvider | Configurable OIDC via `buildProviders()` |
 | G2: Frontend staging env | No frontend env template | `frontend/.env.staging.example` created |
 | G3: Frontend compose wiring | Frontend excluded from staging | docker-compose.staging.yml extended with frontend env passthrough |
-| G4: Full-system E2E harness | No acceptance harness | `scripts/staging_full_e2e.py` with 9 stages |
+| G4: Full-system E2E harness | No acceptance harness | `scripts/staging_full_e2e.py` with 14 stages + `--strict` acceptance mode |
 | G5: Deploy checker frontend | Backend-only checks (8) | Extended to 9 checks with `check_frontend_config()` |
 | G6: Worker health | Not verified in smoke | `stage_worker_health()` added as smoke stage 7 |
 | G7: Runbook coverage | Backend-only runbook | Updated for full-system deployment |
@@ -117,32 +117,44 @@ Audit performed against main at `ebd9413` (Sprint 30 merge commit):
 ### G4: Full-System E2E Acceptance Harness
 
 **Files:**
-- `scripts/staging_full_e2e.py` — 9-stage E2E harness
-- `tests/scripts/test_staging_full_e2e.py` — 27 tests
+- `scripts/staging_full_e2e.py` — 14-stage E2E harness with strict acceptance mode
+- `tests/scripts/test_staging_full_e2e.py` — 101 tests
 
-**Stages:**
+**Stages (14 — full business path):**
 
 | # | Stage | Description | Prerequisites |
 |---|-------|-------------|---------------|
 | 1 | `frontend_reachable` | GET frontend URL, expect 200 HTML | Frontend URL |
 | 2 | `api_health` | GET /health, all 4 components healthy | API URL |
 | 3 | `workspace_access` | Authenticated workspace list/create | Auth token |
-| 4 | `document_upload` | Upload test fixture to object storage | Workspace ID |
-| 5 | `copilot_reachable` | Copilot runtime status check | API URL |
-| 6 | `scenario_run` | Deterministic engine run | Workspace ID, scenarios |
-| 7 | `governance_check` | Governance layer reachable | Workspace ID |
-| 8 | `export_create` | Export generation from run results | Run ID |
-| 9 | `export_download` | Artifact download verification | Export ID |
+| 4 | `document_upload` | Upload test fixture to real object storage | Workspace ID |
+| 5 | `extraction_trigger` | POST extract, receive job_id (async worker) | Document ID |
+| 6 | `extraction_wait` | Poll job status until COMPLETED (worker proof) | Job ID |
+| 7 | `compile` | Compile scenario via real LLM provider | Workspace ID |
+| 8 | `depth_analysis` | Depth plan via real LLM provider | Workspace ID |
+| 9 | `copilot_reachable` | Copilot runtime status check | API URL |
+| 10 | `scenario_run` | Deterministic engine run with persisted outputs | Workspace ID, scenarios |
+| 11 | `governance_check` | Governance layer functional | Workspace ID |
+| 12 | `export_create` | Export generation from run results | Run ID |
+| 13 | `export_download` | Artifact download and non-empty content | Export ID |
+| 14 | `output_validation` | Compare run results against expected values | Run result_sets |
+
+**Modes:**
+- **Default:** Missing prerequisites produce SKIP.
+- **`--strict`:** ALL stages are critical-path; missing auth, empty prerequisites, or disabled providers produce FAIL instead of SKIP. Every SKIP counts as FAIL. This is the acceptance mode.
 
 **Features:**
-- `E2EContext` flows IDs (workspace_id, document_id, run_id, export_id) between stages
-- Cascade-skip: if API health fails, all downstream stages auto-SKIP
+- `E2EContext` flows IDs (workspace_id, document_id, extraction_job_id, compilation_id, depth_plan_id, scenario_id, run_id, export_id) between stages
+- `E2EContext._missing()` returns FAIL in strict mode, SKIP otherwise — no silent skips in acceptance
+- Cascade-skip (or cascade-FAIL in strict): if API health fails, all downstream stages auto-skip/fail
 - Auth token from `--auth-token` flag or `$STAGING_AUTH_TOKEN` env var
-- `--validate-outputs` flag for output correctness validation
+- `--validate-outputs` flag: fetches persisted run data and compares result_sets against in-memory copy (count, metric_type, non-zero values)
+- Output validation checks: non-empty result_sets, metric_type presence, non-zero values, persisted-vs-in-memory consistency
+- Worker execution proof: extraction job submit + poll (real Celery worker must process job)
 - Table and JSON output modes
-- Trace section captures all persisted IDs for provenance
+- Trace section captures all 8 persisted IDs for provenance
 
-**Tests:** 27 tests covering all 9 stage functions, report structure, cascade, JSON serialization, and trace capture.
+**Tests:** 101 tests covering all 14 stage functions, strict vs default mode behaviour, output validation with persisted data, extraction polling, cascade-skip/fail, report structure, JSON serialization, and trace capture.
 
 ### G7: Runbook + Evidence Updates
 
@@ -165,13 +177,13 @@ Audit performed against main at `ebd9413` (Sprint 30 merge commit):
 
 | Suite | Count | Result |
 |-------|-------|--------|
-| Backend (pytest) | 5,106 passed, 29 skipped | 0 failures |
+| Backend (pytest) | 5,180 passed, 29 skipped | 0 failures |
 | Frontend (vitest) | 360 passed (40 files) | 0 failures |
-| Staging scripts total | 176 | 0 failures |
+| Staging scripts total | 247 | 0 failures |
 | — Deploy tests | 59 | 0 failures |
 | — Preflight tests | 25 | 0 failures |
 | — Smoke tests | 29 | 0 failures |
-| — E2E harness tests | 30 | 0 failures |
+| — E2E harness tests | 101 | 0 failures |
 | — Seed tests | 33 | 0 failures |
 | Alembic current | `020_chat_sessions_messages (head)` | Clean |
 | Alembic check | No new upgrade operations | Clean |
@@ -202,7 +214,7 @@ When infrastructure is provisioned:
 3. `docker compose ... --profile frontend-staging up -d --build` → full system starts
 4. `python scripts/staging_preflight.py --url $API_URL` → all 6 PASS
 5. `python scripts/staging_smoke.py --url $API_URL` → all 7 PASS (or 6 PASS + copilot SKIP)
-6. `python scripts/staging_full_e2e.py --api-url $API_URL --frontend-url $FE_URL --auth-token $TOKEN` → all 9 PASS (or expected SKIPs)
+6. `python scripts/staging_full_e2e.py --api-url $API_URL --frontend-url $FE_URL --auth-token $TOKEN --strict --validate-outputs` → all 14 PASS
 
 ---
 
@@ -215,9 +227,12 @@ When infrastructure is provisioned:
 2. Frontend staging deployment path is wired — env templates, compose passthrough
 3. Deploy prerequisite checker validates full system (9 checks: backend + frontend)
 4. Smoke harness covers 7 stages including worker health
-5. Full-system E2E acceptance harness covers 9 stages (auth → workspace → upload → run → export → download)
-6. Runbook updated for full-system deployment
-7. All changes are test-covered (27 new E2E + 13 new staging tests)
+5. Full-system E2E acceptance harness covers 14 stages — the complete business path: auth → workspace → upload → extraction → compile → depth → copilot → run → governance → export → download → output validation
+6. `--strict` acceptance mode: all critical-path SKIPs become FAILs — no silent skips in acceptance
+7. `--validate-outputs` mode: real expected-vs-actual comparison against persisted run data
+8. Worker execution proof: extraction job submit + poll (real Celery worker must process job)
+9. Runbook updated for full-system deployment
+10. 101 E2E harness tests covering all 14 stages, strict mode, output validation, cascade behaviour
 
 **What Sprint 31 does NOT prove (requires infrastructure):**
 1. Real IdP authentication works end-to-end
@@ -229,7 +244,7 @@ When infrastructure is provisioned:
 7. Rollback execution against staging
 
 **Decision rule:**
-- If B1-B7 are resolved and the live staging path passes → **GO**
+- If B1-B7 are resolved and `staging_full_e2e.py --strict --validate-outputs` passes → **GO**
 - If G1-G7 are done but infrastructure is missing → **BLOCKED / NO-GO** for full-system acceptance ← **CURRENT STATE**
 
 ---
@@ -237,10 +252,10 @@ When infrastructure is provisioned:
 ## Sprint 31 Files Delivered
 
 **New:**
-- `scripts/staging_full_e2e.py` — 9-stage full-system E2E acceptance harness
-- `tests/scripts/test_staging_full_e2e.py` — 27 E2E harness tests
+- `scripts/staging_full_e2e.py` — 14-stage full-system E2E acceptance harness with `--strict` and `--validate-outputs`
+- `tests/scripts/test_staging_full_e2e.py` — 101 E2E harness tests
 - `frontend/.env.staging.example` — Frontend staging env template
-- `frontend/src/lib/__tests__/auth.test.ts` — 9 frontend auth tests
+- `frontend/src/lib/__tests__/auth.test.ts` — 10 frontend auth tests
 - `docs/evidence/sprint31-full-system-staging-e2e.md` — This file
 - `docs/evidence/sprint31-production-readiness-gate.md` — Production readiness gate
 

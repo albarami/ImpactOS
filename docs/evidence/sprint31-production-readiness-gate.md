@@ -83,7 +83,7 @@ Full-system production readiness requires live staging acceptance. All applicati
 | `staging_deploy.py` | 9 checks (env, environment, secret_key, database_url, object_storage, idp_config, minio_creds, postgres_creds, frontend_config) | READY |
 | `staging_preflight.py` | 6 checks (environment, config_validation, alembic, readiness, health_components, no_secrets) | READY |
 | `staging_smoke.py` | 7 stages (startup, readiness, auth_enforcement, health_components, api_schema, copilot_smoke, worker_health) | READY |
-| `staging_full_e2e.py` | 9 stages (frontend_reachable, api_health, workspace_access, document_upload, copilot_reachable, scenario_run, governance_check, export_create, export_download) | READY |
+| `staging_full_e2e.py` | 14 stages (frontend_reachable, api_health, workspace_access, document_upload, extraction_trigger, extraction_wait, compile, depth_analysis, copilot_reachable, scenario_run, governance_check, export_create, export_download, output_validation) + `--strict` + `--validate-outputs` | READY |
 
 ---
 
