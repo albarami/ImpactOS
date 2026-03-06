@@ -2,7 +2,7 @@
 # Run `make help` to see available targets.
 
 .DEFAULT_GOAL := help
-.PHONY: help up down nuke reset-db migrate seed seed-saudi20 serve test test-fast lint fmt restart-api logs logs-api build-model validate-model
+.PHONY: help up down nuke reset-db migrate seed seed-saudi20 serve test test-fast lint fmt restart-api logs logs-api build-model validate-model staging-up staging-down staging-preflight staging-smoke staging-check
 
 # ---------------------------------------------------------------------------
 # Docker Compose — Full Stack
@@ -81,6 +81,33 @@ lint: ## Run ruff check + mypy
 fmt: ## Auto-format with ruff
 	ruff check --fix src/ tests/
 	ruff format src/ tests/
+
+# ---------------------------------------------------------------------------
+# Staging Deployment
+# ---------------------------------------------------------------------------
+
+staging-check: ## Check staging prerequisites (.env.staging)
+	python scripts/staging_deploy.py check --env-file .env.staging
+
+staging-up: ## Start staging stack (docker-compose overlay)
+	docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d --build
+	@echo "Waiting for API to be healthy..."
+	@timeout=90; while [ $$timeout -gt 0 ]; do \
+		docker compose exec api python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" 2>/dev/null && break; \
+		sleep 2; timeout=$$((timeout - 2)); \
+	done
+	@docker compose exec api alembic upgrade head
+	@echo ""
+	@echo "Staging stack ready. Run 'make staging-preflight' next."
+
+staging-down: ## Stop staging stack (keep volumes)
+	docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging down
+
+staging-preflight: ## Run preflight checks against running stack
+	python scripts/staging_preflight.py --url http://localhost:8000
+
+staging-smoke: ## Run smoke tests against running stack
+	python scripts/staging_smoke.py --url http://localhost:8000
 
 # ---------------------------------------------------------------------------
 # Logs

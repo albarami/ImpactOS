@@ -1,0 +1,71 @@
+# ImpactOS — Staging Environment Overlay
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+#
+# Requires .env.staging with all staging-specific variables set.
+# See .env.staging.example for the required template.
+#
+# This overlay:
+#   1. Sets ENVIRONMENT=staging for api + celery-worker
+#   2. Removes dev-only hardcoded database credentials
+#   3. Relies entirely on .env.staging for secrets
+#   4. Disables the frontend service (not staging-ready)
+#   5. Adds restart policy for production-like behavior
+
+services:
+  postgres:
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-impactos}
+    restart: unless-stopped
+
+  redis:
+    restart: unless-stopped
+
+  minio:
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    restart: unless-stopped
+
+  minio-init:
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ACCESS_KEY} $${MINIO_SECRET_KEY} &&
+      mc mb --ignore-existing local/$${MINIO_BUCKET:-impactos-data} &&
+      echo 'Bucket ready'
+      "
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-impactos-data}
+
+  api:
+    env_file:
+      - .env.staging
+    environment:
+      ENVIRONMENT: staging
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-impactos}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+    restart: unless-stopped
+
+  celery-worker:
+    env_file:
+      - .env.staging
+    environment:
+      ENVIRONMENT: staging
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-impactos}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+    restart: unless-stopped
+
+  frontend:
+    profiles:
+      - frontend-staging
+    # Frontend is excluded from default staging profile.
+    # Include with: docker compose --profile frontend-staging up -d

@@ -31,7 +31,9 @@ Based on merged work on `main`:
 | 25 | S25 | Economist Copilot v1 (Chat + Agent) | 4698 + 320 FE | 599ec87 | sprint-25-complete | 2026-03-05 |
 | 26 | S26 | Copilot Hardening (Backlog Burn-Down) | 4728 + 328 FE | 0d0ab79 | sprint-26-complete | 2026-03-05 |
 | 27 | S27 | Copilot Tool Execution (Operationalization) | 4852 + 336 FE | ec3dca8 | sprint-27-complete | 2026-03-06 |
-| 28 | S28 | Copilot Real Execution + Post-Execution Narrative | 4938 + 348 FE | In progress | - | 2026-03-06 |
+| 28 | S28 | Copilot Real Execution + Post-Execution Narrative | 4958 + 350 FE | bcd9c10 | sprint-28-complete | 2026-03-06 |
+| 29 | S29 | Staging Activation + Release Candidate Closeout | 5016 + 350 FE | 0e1d33e | sprint-29-complete | 2026-03-06 |
+| 30 | S30 | Staging Deployment Execution + Live Environment Proof | 5066 + 350 FE | — | — | 2026-03-06 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
@@ -141,9 +143,12 @@ The system is only considered fully complete when all are true:
 - Sprint 27 (Copilot Tool Execution) merged: PR #32 → `ec3dca8`, tag `sprint-27-complete`. Executor infrastructure with workspace-scoped handlers, safety caps, version pinning. `run_engine` is dry-run MVP; full engine execution deferred.
 - Sprint 28 (Copilot Real Execution) merged: PR #33 → `bcd9c10`, tag `sprint-28-complete`. All S27 dry-run deferrals closed.
 - Sprint 29 (Staging Activation) merged: PR #34 → `0e1d33e`, tag `sprint-29-complete`. Preflight/smoke automation, copilot runtime probe, fail-closed audit, evidence refresh.
+- Sprint 30 (Staging Deployment Execution) in progress: deployment runbook, staging overlay, prerequisite checker, live stack verification.
 - All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprints 25-29 merged.
-- Post-Sprint 29 verification (on main): 5016 backend passed (29 skipped), 350 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
-- Go/No-Go dossier: GO (updated post-Sprint 29). Infrastructure prerequisites only.
+- Post-Sprint 30 verification: 5066 backend passed (29 skipped), 350 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
+- Staging deployment: code-ready, blocked only by infrastructure provisioning (7 blockers documented).
+- See `docs/evidence/sprint30-staging-deployment.md` for deployment evidence.
+- See `docs/evidence/sprint30-infrastructure-blockers.md` for blocker matrix.
 - See `docs/evidence/sprint24-go-no-go-dossier.md` for full criteria and rollback plan.
 - See `docs/evidence/sprint25-copilot-evidence.md` for copilot evidence (Sprints 25-28).
 - See `docs/evidence/sprint29-staging-activation.md` for staging activation evidence.
@@ -158,30 +163,33 @@ Set real non-dev config (staging profile):
 - Non-local object storage config
 - Non-placeholder `DATABASE_URL`, `REDIS_URL`, strong `SECRET_KEY`
 
-Bring stack up:
+Bring stack up (Sprint 30 tooling):
 
 ```powershell
-docker compose up -d postgres redis minio
-python -m alembic upgrade head
-python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000
-celery -A src.ingestion.tasks.celery_app worker -l info
-cd frontend
-pnpm install
-pnpm dev
+# Option A: Staging deployment with overlay (recommended)
+cp .env.staging.example .env.staging  # Fill in real values
+python scripts/staging_deploy.py check --env-file .env.staging
+make staging-up
+
+# Option B: Dev stack (for local development)
+make up
 ```
 
 Run preflight and smoke:
 
 ```powershell
-# Preflight (before starting server — validates config + alembic)
-python scripts/staging_preflight.py --json
+# Prerequisite check (validates .env.staging before deploy)
+make staging-check
 
-# After server is up — one-command smoke verification
-python scripts/staging_smoke.py --json --url http://localhost:8000
+# Preflight (validates running server config + alembic + health)
+make staging-preflight
+
+# Smoke tests (validates all deployment layers)
+make staging-smoke
 
 # Integration tests (optional — deeper path verification)
 python -m pytest tests/integration/test_path_doc_to_export.py -q
 python -m pytest tests/integration/test_governance_chain.py -q
 ```
 
-If this passes with real creds/config, you will see the system running live end-to-end for the currently implemented scope.
+See `docs/runbooks/staging-deployment.md` for full step-by-step instructions.

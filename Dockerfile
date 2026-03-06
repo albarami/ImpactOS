@@ -43,11 +43,12 @@ COPY --from=builder /opt/venv /opt/venv
 
 WORKDIR /app
 
-# Application code
+# Application code + data
 COPY src/ src/
 COPY alembic/ alembic/
 COPY alembic.ini .
 COPY scripts/ scripts/
+COPY data/ data/
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH="." \
