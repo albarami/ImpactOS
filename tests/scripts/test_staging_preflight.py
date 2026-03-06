@@ -17,8 +17,10 @@ import pytest
 from scripts.staging_preflight import (
     CheckResult,
     PreflightReport,
+    check_alembic,
     check_config_validation,
     check_environment,
+    check_no_secrets_in_report,
     redact_api_key,
     redact_database_url,
     redact_secret_key,
@@ -227,3 +229,137 @@ class TestCheckConfigValidation:
         settings = _make_settings(ENVIRONMENT=Environment.DEV)
         result = check_config_validation(settings)
         assert result.status == "PASS"
+
+
+# ---------------------------------------------------------------------------
+# Test: Alembic check (mocked subprocess)
+# ---------------------------------------------------------------------------
+
+
+class TestCheckAlembic:
+    """check_alembic parses named revision IDs from alembic output."""
+
+    def test_alembic_at_head_passes(self) -> None:
+        """DB at head revision -> PASS."""
+        settings = _make_settings()
+        with patch("scripts.staging_preflight._run_alembic_command") as mock_run:
+            mock_run.side_effect = [
+                (0, "020_chat_sessions_messages (head)"),  # current
+                (0, "020_chat_sessions_messages (head)"),  # heads
+                (0, "No new upgrade operations detected"),  # check
+            ]
+            result = check_alembic(settings)
+        assert result.status == "PASS"
+
+    def test_alembic_not_at_head_fails(self) -> None:
+        """DB behind head revision -> FAIL."""
+        settings = _make_settings()
+        with patch("scripts.staging_preflight._run_alembic_command") as mock_run:
+            mock_run.side_effect = [
+                (0, "018_variance_bridge_analyses (head)"),  # current
+                (0, "020_chat_sessions_messages (head)"),   # heads
+                (0, "New upgrade operations detected"),     # check
+            ]
+            result = check_alembic(settings)
+        assert result.status == "FAIL"
+
+    def test_alembic_hex_revision_parsed(self) -> None:
+        """Legacy hex revision IDs are also parsed correctly."""
+        settings = _make_settings()
+        with patch("scripts.staging_preflight._run_alembic_command") as mock_run:
+            mock_run.side_effect = [
+                (0, "fa33e2cd9dda (head)"),  # current
+                (0, "fa33e2cd9dda (head)"),  # heads
+                (0, "No new upgrade operations detected"),
+            ]
+            result = check_alembic(settings)
+        assert result.status == "PASS"
+
+    def test_alembic_command_failure(self) -> None:
+        """alembic current fails -> FAIL."""
+        settings = _make_settings()
+        with patch("scripts.staging_preflight._run_alembic_command") as mock_run:
+            mock_run.return_value = (1, "alembic not found on PATH")
+            result = check_alembic(settings)
+        assert result.status == "FAIL"
+
+
+# ---------------------------------------------------------------------------
+# Test: Secret self-verification
+# ---------------------------------------------------------------------------
+
+
+class TestCheckNoSecrets:
+    """check_no_secrets_in_report detects leaked secrets."""
+
+    def test_clean_report_passes(self) -> None:
+        """Report without secrets -> PASS."""
+        report = PreflightReport(
+            overall="PASS",
+            checks=[CheckResult(name="a", status="PASS", detail="ok")],
+        )
+        settings = _make_settings(
+            SECRET_KEY="my-production-secret-key-12345",
+            DATABASE_URL="postgresql+asyncpg://user:s3cret@host/db",
+        )
+        result = check_no_secrets_in_report(report, settings)
+        assert result.status == "PASS"
+
+    def test_leaked_db_password_fails(self) -> None:
+        """Report containing DB password -> FAIL."""
+        report = PreflightReport(
+            overall="PASS",
+            checks=[
+                CheckResult(
+                    name="a",
+                    status="FAIL",
+                    detail="DB error: s3cret leaked in output",
+                ),
+            ],
+        )
+        settings = _make_settings(
+            DATABASE_URL="postgresql+asyncpg://user:s3cret@host/db",
+        )
+        result = check_no_secrets_in_report(report, settings)
+        assert result.status == "FAIL"
+        assert "DATABASE_URL" in result.detail
+
+    def test_leaked_secret_key_fails(self) -> None:
+        """Report containing full SECRET_KEY -> FAIL."""
+        key = "my-production-secret-key-12345"
+        report = PreflightReport(
+            overall="PASS",
+            checks=[
+                CheckResult(
+                    name="a",
+                    status="PASS",
+                    detail=f"Config: {key}",
+                ),
+            ],
+        )
+        # Use a DB URL without a password to isolate the SECRET_KEY detection
+        settings = _make_settings(
+            SECRET_KEY=key,
+            DATABASE_URL="postgresql+asyncpg://host/db",
+        )
+        result = check_no_secrets_in_report(report, settings)
+        assert result.status == "FAIL"
+        assert "SECRET_KEY" in result.detail
+
+
+# ---------------------------------------------------------------------------
+# Test: redact_secret_key short key guard
+# ---------------------------------------------------------------------------
+
+
+class TestRedactSecretKeyShort:
+    """Short secret keys are fully redacted."""
+
+    def test_short_key_fully_redacted(self) -> None:
+        """Keys <= 4 chars return '***' (full key not exposed)."""
+        assert redact_secret_key("abc") == "***"
+        assert redact_secret_key("abcd") == "***"
+
+    def test_five_char_key_partial(self) -> None:
+        """Keys > 4 chars show first 4 + '***'."""
+        assert redact_secret_key("abcde") == "abcd***"

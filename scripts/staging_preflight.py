@@ -76,9 +76,15 @@ def redact_database_url(url: str) -> str:
 
 
 def redact_secret_key(key: str) -> str:
-    """Show first 4 characters followed by ``***``."""
+    """Show first 4 characters followed by ``***``.
+
+    Keys shorter than 5 characters are fully redacted to ``***``
+    since showing the entire value defeats the purpose.
+    """
     if not key:
         return "not set"
+    if len(key) <= 4:
+        return "***"
     return key[:4] + "***"
 
 
@@ -170,11 +176,11 @@ def check_alembic(settings: Settings) -> CheckResult:
             detail=f"Pending migrations detected: {out_check}",
         )
 
-    # Parse revision hashes -- alembic current prints lines like
-    # "abc123 (head)" and alembic heads prints "abc123 (head)"
+    # Parse revision IDs -- alembic current/heads prints lines like
+    # "020_chat_sessions_messages (head)" or "fa33e2cd9dda (head)"
     def _extract_revisions(text: str) -> set[str]:
-        """Pull 12-char hex revision IDs from alembic output."""
-        return set(re.findall(r"\b([0-9a-f]{12})\b", text))
+        """Pull revision IDs from alembic output lines."""
+        return set(re.findall(r"^(\S+)\s+\(", text, re.MULTILINE))
 
     current_revs = _extract_revisions(out_current)
     head_revs = _extract_revisions(out_heads)
@@ -294,11 +300,19 @@ def check_no_secrets_in_report(report: PreflightReport, settings: Settings) -> C
     if settings.SECRET_KEY and len(settings.SECRET_KEY) > 4:
         secrets_to_check.append(("SECRET_KEY", settings.SECRET_KEY))
 
-    # Check for API keys
-    for key_name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY"):
+    # Check for API keys and other secrets
+    for key_name in (
+        "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY",
+        "MINIO_SECRET_KEY", "AZURE_DI_KEY",
+    ):
         val = getattr(settings, key_name, "")
         if val and len(val) > 4:
             secrets_to_check.append((key_name, val))
+
+    # Check for REDIS_URL password
+    parsed_redis = urlparse(settings.REDIS_URL)
+    if parsed_redis.password:
+        secrets_to_check.append(("REDIS_URL password", parsed_redis.password))
 
     for label, secret in secrets_to_check:
         if secret in report_json:

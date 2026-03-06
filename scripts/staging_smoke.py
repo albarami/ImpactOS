@@ -263,6 +263,21 @@ def stage_copilot_smoke(client: httpx.Client, base_url: str) -> StageResult:
                     f"(status={resp.status_code})"
                 ),
             )
+        if resp.status_code == 200:
+            return StageResult(
+                name="copilot_smoke",
+                status="FAIL",
+                detail=(
+                    "Unauthenticated request returned 200 -- "
+                    "possible auth bypass"
+                ),
+            )
+        if resp.status_code >= 500:
+            return StageResult(
+                name="copilot_smoke",
+                status="FAIL",
+                detail=f"Server error {resp.status_code} from workshop endpoint",
+            )
         return StageResult(
             name="copilot_smoke",
             status="WARN",
