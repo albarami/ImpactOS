@@ -6,9 +6,11 @@ import { Badge } from '@/components/ui/badge';
 interface TraceMetadataProps {
   trace: TraceMetadataType;
   workspaceId?: string;
+  /** The export status derived from the tool call result (e.g. "COMPLETED", "BLOCKED"). */
+  exportStatus?: string;
 }
 
-export function TraceMetadata({ trace, workspaceId }: TraceMetadataProps) {
+export function TraceMetadata({ trace, workspaceId, exportStatus }: TraceMetadataProps) {
   const hasContent =
     trace.run_id ||
     trace.scenario_spec_id ||
@@ -31,7 +33,7 @@ export function TraceMetadata({ trace, workspaceId }: TraceMetadataProps) {
             {workspaceId ? (
               <a
                 data-testid="trace-run-link"
-                href={`/w/${workspaceId}/runs/${trace.run_id}`}
+                href={`/workspaces/${workspaceId}/engine/runs/${trace.run_id}`}
                 className="rounded bg-slate-100 px-1 py-0.5 font-mono text-blue-600 underline hover:text-blue-800"
               >
                 {trace.run_id}
@@ -67,10 +69,10 @@ export function TraceMetadata({ trace, workspaceId }: TraceMetadataProps) {
         {trace.export_id && (
           <div className="flex items-center gap-2">
             <span className="font-medium text-slate-600">Export:</span>
-            {workspaceId ? (
+            {workspaceId && exportStatus === 'COMPLETED' ? (
               <a
                 data-testid="trace-export-link"
-                href={`/w/${workspaceId}/exports/${trace.export_id}`}
+                href={`/workspaces/${workspaceId}/exports/${trace.export_id}`}
                 className="rounded bg-slate-100 px-1 py-0.5 font-mono text-blue-600 underline hover:text-blue-800"
               >
                 {trace.export_id}

@@ -23,12 +23,33 @@ function statusBadgeClass(status: string): string {
   }
 }
 
+/**
+ * Extract the effective export status from the tool call results.
+ * Returns the export_status string (e.g. "COMPLETED", "BLOCKED", "FAILED")
+ * from the inner result payload, or undefined if not present.
+ */
+function getExportStatus(
+  toolCalls?: ChatMessageResponse['tool_calls']
+): string | undefined {
+  if (!toolCalls) return undefined;
+  for (const tc of toolCalls) {
+    const result = tc.result as ToolExecutionResult | undefined;
+    const inner = result?.result as Record<string, unknown> | undefined;
+    if (inner?.export_status) {
+      return inner.export_status as string;
+    }
+  }
+  return undefined;
+}
+
 export function MessageBubble({ message, workspaceId }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   const resolvedToolCalls = message.tool_calls?.filter(
     (tc) => tc.result != null
   );
+
+  const exportStatus = getExportStatus(message.tool_calls);
 
   return (
     <div
@@ -51,6 +72,18 @@ export function MessageBubble({ message, workspaceId }: MessageBubbleProps) {
               const status = result?.status;
               const errorSummary = result?.error_summary;
               const reasonCode = result?.reason_code;
+              const innerResult = result?.result as
+                | Record<string, unknown>
+                | undefined;
+              const blockingReasons = innerResult?.blocking_reasons as
+                | string[]
+                | undefined;
+              const downloadUrl = innerResult?.download_url as
+                | string
+                | undefined;
+              const toolExportStatus = innerResult?.export_status as
+                | string
+                | undefined;
 
               return (
                 <details
@@ -94,6 +127,29 @@ export function MessageBubble({ message, workspaceId }: MessageBubbleProps) {
                     </div>
                   )}
 
+                  {blockingReasons && blockingReasons.length > 0 && (
+                    <ul
+                      data-testid="blocking-reasons-list"
+                      className="mx-2 mb-1 list-disc pl-4 text-amber-700"
+                    >
+                      {blockingReasons.map((reason, j) => (
+                        <li key={j}>{reason}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {toolExportStatus === 'COMPLETED' && downloadUrl && (
+                    <div className="px-2 py-1">
+                      <a
+                        data-testid="export-download-link"
+                        href={downloadUrl}
+                        className="inline-flex items-center gap-1 rounded bg-green-50 px-2 py-0.5 text-green-700 underline hover:text-green-900"
+                      >
+                        Download export
+                      </a>
+                    </div>
+                  )}
+
                   <pre
                     className={cn(
                       'overflow-auto px-2 py-1 font-mono',
@@ -112,6 +168,7 @@ export function MessageBubble({ message, workspaceId }: MessageBubbleProps) {
           <TraceMetadata
             trace={message.trace_metadata}
             workspaceId={workspaceId}
+            exportStatus={exportStatus}
           />
         )}
 
