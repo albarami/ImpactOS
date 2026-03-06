@@ -2,11 +2,16 @@
 
 ## Purpose
 
-Step-by-step instructions to deploy the ImpactOS **backend** (API + Celery worker) to a staging environment using Docker Compose with a staging overlay. This runbook converts "code-ready" into "staging-live."
+Step-by-step instructions to deploy the ImpactOS **full system** (frontend, API, Celery worker, data stores) to a staging environment using Docker Compose with a staging overlay. This runbook converts "code-ready" into "staging-live."
 
 ### Scope
 
-This runbook covers **backend deployment only**: API server, Celery worker, PostgreSQL, Redis, and MinIO. The frontend (Next.js) is excluded from the default staging profile — it requires separate configuration (NEXTAUTH_SECRET, NEXT_PUBLIC_API_URL) and is not yet staging-hardened.
+This runbook covers **full-system deployment**: frontend (Next.js), API server, Celery worker, PostgreSQL, Redis, and MinIO.
+
+| Profile | Command | Services |
+|---------|---------|----------|
+| Backend only | `docker compose -f ... -f docker-compose.staging.yml --env-file .env.staging up -d` | API, worker, Postgres, Redis, MinIO |
+| Full system | `docker compose -f ... -f docker-compose.staging.yml --env-file .env.staging --profile frontend-staging up -d` | All above + Next.js frontend |
 
 ---
 
@@ -22,6 +27,8 @@ This runbook covers **backend deployment only**: API server, Celery worker, Post
 | P4 | Database credentials (non-placeholder) | `POSTGRES_USER` + `POSTGRES_PASSWORD` set | DBA |
 | P5 | MinIO/S3 credentials (non-dev) | `MINIO_ACCESS_KEY` + `MINIO_SECRET_KEY` set | Infra |
 | P6 | LLM API key (optional) | `ANTHROPIC_API_KEY` or equivalent set | DevOps |
+| P7 | NEXTAUTH_SECRET (for frontend) | `python -c "import secrets; print(secrets.token_urlsafe(64))"` | DevOps |
+| P8 | OIDC IdP client credentials (for frontend) | OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET set | Security |
 
 ### Code (already satisfied)
 
@@ -47,21 +54,32 @@ cp .env.staging.example .env.staging
 #   - MINIO_ACCESS_KEY, MINIO_SECRET_KEY (non-dev)
 #   - OBJECT_STORAGE_PATH (absolute path, e.g., /data/impactos-storage)
 #   - LLM keys (optional — copilot will SKIP if absent)
+#   - NEXTAUTH_SECRET (strong random, for frontend session encryption)
+#   - NEXTAUTH_PROVIDER=oidc (for real auth, not credentials)
+#   - OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET (from IdP)
+#   - NEXT_PUBLIC_API_URL (staging API base URL)
+#   - NEXT_PUBLIC_AUTH_MODE=oidc (switches frontend login UI)
 $EDITOR .env.staging
+
+# Also prepare frontend env if deploying frontend
+cp frontend/.env.staging.example frontend/.env.staging
+$EDITOR frontend/.env.staging
 ```
 
 ### Validate Prerequisites
 
 ```bash
-# Run the prerequisite checker
+# Run the prerequisite checker (validates both backend + frontend config)
 python scripts/staging_deploy.py check --env-file .env.staging
 ```
 
-This verifies all required variables are set and not using dev defaults.
+This verifies all 9 checks: env file, environment, secret key, database, object storage, IdP config, MinIO creds, Postgres creds, and frontend config.
 
 ---
 
 ## Step 2: Build and Start Stack
+
+### Backend Only
 
 ```bash
 # Build images and start backend services with staging overlay
@@ -73,14 +91,32 @@ docker compose -f docker-compose.yml -f docker-compose.staging.yml \
     --env-file .env.staging logs -f api
 ```
 
+### Full System (Backend + Frontend)
+
+```bash
+# Build images and start ALL services including frontend
+docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+    --env-file .env.staging --profile frontend-staging up -d --build
+
+# Watch both API and frontend startup
+docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+    --env-file .env.staging --profile frontend-staging logs -f api frontend
+```
+
 The API container will:
 1. Run `_check_startup_config()` at import time
 2. Reject dev defaults for SECRET_KEY, DATABASE_URL, OBJECT_STORAGE_PATH
 3. Exit with code 1 if any staging guardrail fails
 
-Or use the Makefile shortcut:
+The frontend container will:
+1. Read `NEXTAUTH_PROVIDER` to select auth mode (oidc vs credentials)
+2. Fail-fast if OIDC is selected but `OIDC_ISSUER`, `OIDC_CLIENT_ID`, or `OIDC_CLIENT_SECRET` is missing
+3. Connect to the API at `NEXT_PUBLIC_API_URL`
+
+Or use Makefile shortcuts:
 ```bash
-make staging-up
+make staging-up              # Backend only
+make staging-up PROFILE=frontend-staging  # Full system
 ```
 
 ---
@@ -152,6 +188,7 @@ Expected stages:
 | health_components | PASS |
 | api_schema | PASS |
 | copilot_smoke | PASS or SKIP (depends on LLM keys) |
+| worker_health | PASS |
 
 ---
 
@@ -179,7 +216,46 @@ docker compose -f docker-compose.yml -f docker-compose.staging.yml \
 
 ---
 
-## Step 8: Verify Endpoints
+## Step 8: Full-System E2E Acceptance (Optional)
+
+After smoke tests pass, run the full-system E2E acceptance harness to verify the complete business path: auth → workspace → upload → extraction → compile → run → governance → export → download.
+
+```bash
+# Full-system E2E (requires auth token from IdP)
+python scripts/staging_full_e2e.py \
+    --api-url http://localhost:8000 \
+    --frontend-url http://localhost:3000 \
+    --auth-token "$STAGING_AUTH_TOKEN"
+
+# With JSON output:
+python scripts/staging_full_e2e.py --json \
+    --api-url http://localhost:8000 \
+    --frontend-url http://localhost:3000 \
+    --auth-token "$STAGING_AUTH_TOKEN"
+
+# With output correctness validation:
+python scripts/staging_full_e2e.py --validate-outputs \
+    --api-url http://localhost:8000 \
+    --frontend-url http://localhost:3000 \
+    --auth-token "$STAGING_AUTH_TOKEN"
+```
+
+Expected stages:
+| Stage | Expected |
+|-------|----------|
+| frontend_reachable | PASS |
+| api_health | PASS |
+| workspace_access | PASS |
+| document_upload | PASS |
+| copilot_reachable | PASS or SKIP |
+| scenario_run | PASS or SKIP (needs scenarios) |
+| governance_check | PASS |
+| export_create | PASS or SKIP (needs run_id) |
+| export_download | PASS or SKIP (needs export_id) |
+
+---
+
+## Step 9: Verify Endpoints
 
 ```bash
 # Health check
@@ -265,10 +341,10 @@ docker compose -f docker-compose.yml -f docker-compose.staging.yml \
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Frontend (Next.js) | Excluded | Requires NEXTAUTH_SECRET, staging NEXT_PUBLIC_API_URL; not staging-hardened |
 | Container registry / image tagging | Not implemented | Rollback uses source rebuild, not tagged images |
 | External staging database | Infrastructure | This runbook uses Docker Compose Postgres; external DB requires DATABASE_URL override |
-| TLS/HTTPS | Not configured | Add a reverse proxy (nginx/caddy) in front of the API for HTTPS |
+| TLS/HTTPS | Not configured | Add a reverse proxy (nginx/caddy) in front of the API and frontend for HTTPS |
+| External DNS / domain | Infrastructure | Requires DNS allocation for staging URLs |
 
 ---
 
