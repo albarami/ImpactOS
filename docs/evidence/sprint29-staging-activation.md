@@ -3,6 +3,7 @@
 **Date:** 2026-03-06
 **Branch:** `phase3-sprint29-staging-activation-release-candidate`
 **Baseline:** main at `1595fc1` (post-Sprint 28 merge)
+**Merge:** PR #34 → `0e1d33e`, tag `sprint-29-complete`
 
 ---
 
@@ -156,6 +157,17 @@ python scripts/staging_smoke.py --json --url http://localhost:8000
 | Alembic current | `020_chat_sessions_messages (head)` | Clean |
 | Alembic check | No new upgrade operations | Clean |
 | OpenAPI | Regenerated, validated | Valid |
+
+### Post-Merge Verification (on main at `0e1d33e`)
+
+| Check | Result |
+|-------|--------|
+| Backend (pytest) | 5016 passed, 29 skipped, 0 failures |
+| Frontend (vitest) | 350 passed, 0 failures |
+| Alembic current | `020_chat_sessions_messages (head)` |
+| Alembic heads | `020_chat_sessions_messages (head)` |
+| Alembic check | No new upgrade operations |
+| Tag | `sprint-29-complete` on `0e1d33e` |
 
 ### Sprint 29 Files Delivered
 

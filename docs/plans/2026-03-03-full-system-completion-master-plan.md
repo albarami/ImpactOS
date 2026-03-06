@@ -110,7 +110,7 @@ From `docs/ImpactOS_Master_Build_Plan_v2.md`, the remaining scope is:
     - Post-merge verification: 4958 backend passed (29 skipped), 350 frontend passed
     - Evidence: `docs/evidence/sprint25-copilot-evidence.md` (Sprint 28 section)
 
-16. Sprint 29: Staging Activation + Release Candidate Closeout — in progress
+16. Sprint 29: Staging Activation + Release Candidate Closeout — merged (PR #34 → 0e1d33e, tag sprint-29-complete)
     - Repeatable staging preflight: `scripts/staging_preflight.py` (6 checks, structured JSON, secret redaction)
     - Staging smoke harness: `scripts/staging_smoke.py` (6 ordered stages, cascade-skip)
     - Non-dev fail-closed audit: all 14 paths verified, no gaps found
@@ -140,9 +140,9 @@ The system is only considered fully complete when all are true:
 - Sprint 26 (Copilot Hardening) merged: PR #31 → `0d0ab79`, tag `sprint-26-complete`. All 5 backlog items resolved.
 - Sprint 27 (Copilot Tool Execution) merged: PR #32 → `ec3dca8`, tag `sprint-27-complete`. Executor infrastructure with workspace-scoped handlers, safety caps, version pinning. `run_engine` is dry-run MVP; full engine execution deferred.
 - Sprint 28 (Copilot Real Execution) merged: PR #33 → `bcd9c10`, tag `sprint-28-complete`. All S27 dry-run deferrals closed.
-- Sprint 29 (Staging Activation) in progress: preflight/smoke automation, fail-closed audit, evidence refresh.
-- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprints 25-28 merged.
-- Post-Sprint 28 verification (on main): 4958 backend passed (29 skipped), 350 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
+- Sprint 29 (Staging Activation) merged: PR #34 → `0e1d33e`, tag `sprint-29-complete`. Preflight/smoke automation, copilot runtime probe, fail-closed audit, evidence refresh.
+- All Phase 1-3 MVPs (1-23) complete. Sprint 24 carryovers (I-2, I-4) closed. Sprints 25-29 merged.
+- Post-Sprint 29 verification (on main): 5016 backend passed (29 skipped), 350 frontend passed, alembic head `020_chat_sessions_messages`, no drift.
 - Go/No-Go dossier: GO (updated post-Sprint 29). Infrastructure prerequisites only.
 - See `docs/evidence/sprint24-go-no-go-dossier.md` for full criteria and rollback plan.
 - See `docs/evidence/sprint25-copilot-evidence.md` for copilot evidence (Sprints 25-28).
