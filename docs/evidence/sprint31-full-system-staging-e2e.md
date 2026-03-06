@@ -165,13 +165,13 @@ Audit performed against main at `ebd9413` (Sprint 30 merge commit):
 
 | Suite | Count | Result |
 |-------|-------|--------|
-| Backend (pytest) | TBD | 0 failures |
-| Frontend (vitest) | TBD | 0 failures |
-| Staging scripts total | 173 | 0 failures |
+| Backend (pytest) | 5,106 passed, 29 skipped | 0 failures |
+| Frontend (vitest) | 360 passed (40 files) | 0 failures |
+| Staging scripts total | 176 | 0 failures |
 | — Deploy tests | 59 | 0 failures |
 | — Preflight tests | 25 | 0 failures |
 | — Smoke tests | 29 | 0 failures |
-| — E2E harness tests | 27 | 0 failures |
+| — E2E harness tests | 30 | 0 failures |
 | — Seed tests | 33 | 0 failures |
 | Alembic current | `020_chat_sessions_messages (head)` | Clean |
 | Alembic check | No new upgrade operations | Clean |
