@@ -1,7 +1,12 @@
 # ImpactOS — Staging Environment Overlay
 #
-# Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+# Usage (backend only):
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+#     --env-file .env.staging up -d
+#
+# Usage (full system including frontend):
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+#     --env-file .env.staging --profile frontend-staging up -d
 #
 # Requires .env.staging with all staging-specific variables set.
 # See .env.staging.example for the required template.
@@ -10,7 +15,7 @@
 #   1. Sets ENVIRONMENT=staging for api + celery-worker
 #   2. Removes dev-only hardcoded database credentials
 #   3. Relies entirely on .env.staging for secrets
-#   4. Disables the frontend service (not staging-ready)
+#   4. Configures frontend with staging auth (OIDC) when included via profile
 #   5. Adds restart policy for production-like behavior
 
 services:
@@ -67,5 +72,16 @@ services:
   frontend:
     profiles:
       - frontend-staging
-    # Frontend is excluded from default staging profile.
-    # Include with: docker compose --profile frontend-staging up -d
+    # Frontend is excluded from the default staging profile.
+    # Include with: --profile frontend-staging
+    # Requires frontend env vars in .env.staging (see .env.staging.example).
+    environment:
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_PROVIDER: ${NEXTAUTH_PROVIDER:-oidc}
+      OIDC_ISSUER: ${OIDC_ISSUER}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:8000}
+      NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-oidc}
+    restart: unless-stopped
