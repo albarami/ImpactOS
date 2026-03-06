@@ -121,10 +121,12 @@ If staging deployment encounters issues after a successful start:
 
 ```bash
 # Stop API + worker
-docker compose -f docker-compose.yml -f docker-compose.staging.yml stop api celery-worker
+docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+    --env-file .env.staging stop api celery-worker
 
-# Restart with previous image
-docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d api celery-worker
+# Restart with current image
+docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+    --env-file .env.staging up -d api celery-worker
 
 # Verify
 curl -f http://STAGING_URL/readiness
@@ -135,16 +137,20 @@ curl -f http://STAGING_URL/health
 
 ```bash
 # Stop services
-docker compose -f docker-compose.yml -f docker-compose.staging.yml stop api celery-worker
+docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+    --env-file .env.staging stop api celery-worker
 
 # Downgrade one migration
-docker compose exec api alembic downgrade -1
+docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+    --env-file .env.staging exec api alembic downgrade -1
 
 # Verify migration state
-docker compose exec api alembic current
+docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+    --env-file .env.staging exec api alembic current
 
 # Restart
-docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d api celery-worker
+docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+    --env-file .env.staging up -d api celery-worker
 
 # Verify
 curl -f http://STAGING_URL/readiness
@@ -154,10 +160,12 @@ curl -f http://STAGING_URL/readiness
 
 ```bash
 # Keep volumes (data preserved)
-docker compose -f docker-compose.yml -f docker-compose.staging.yml down
+docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+    --env-file .env.staging down
 
 # Destroy volumes (complete reset)
-docker compose -f docker-compose.yml -f docker-compose.staging.yml down -v
+docker compose -f docker-compose.yml -f docker-compose.staging.yml \
+    --env-file .env.staging down -v
 ```
 
 ---

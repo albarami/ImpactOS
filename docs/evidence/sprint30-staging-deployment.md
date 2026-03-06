@@ -1,4 +1,4 @@
-# Sprint 30: Staging Deployment Execution + Live Environment Proof
+# Sprint 30: Backend Staging Deployment Tooling + Infrastructure Blocker Report
 
 **Date:** 2026-03-06
 **Branch:** `phase3-sprint30-staging-deployment-execution`
@@ -8,7 +8,18 @@
 
 ## Mission
 
-Close the operational gap between "code-complete" and "staging-deployed" by creating all deployment configuration, tooling, and runbook automation needed to bring ImpactOS to a staging environment. Produce precise infrastructure blocker documentation where external dependencies prevent live deployment.
+Close the operational gap between "code-complete" and "staging-deployed" by creating backend deployment configuration, tooling, and runbook automation needed to bring the ImpactOS **backend** (API server, Celery worker, PostgreSQL, Redis, MinIO) to a staging environment. Produce precise infrastructure blocker documentation where external dependencies prevent live deployment.
+
+### Scope
+
+This sprint covers **backend deployment only**. The following are explicitly out of scope:
+
+| Item | Reason |
+|------|--------|
+| Frontend (Next.js) | Excluded from staging overlay (`profiles: [frontend-staging]`); requires separate NEXTAUTH_SECRET, NEXT_PUBLIC_API_URL configuration; not staging-hardened |
+| Container registry / image tagging | Not implemented; rollback uses source rebuild |
+| TLS/HTTPS | Requires reverse proxy (nginx/caddy) in front of the API |
+| External staging database | This sprint uses Docker Compose Postgres; external DB requires DATABASE_URL override |
 
 ---
 
@@ -84,7 +95,7 @@ Features:
 
 ### Tests
 
-`tests/scripts/test_staging_deploy.py` — 48 tests:
+`tests/scripts/test_staging_deploy.py` — 50 tests:
 - PrereqResult/DeployReport dataclass validation
 - parse_env_file: basic, comments, quotes, inline comments, empty values, missing file, URLs
 - check_env_file_exists: present, missing
@@ -100,15 +111,18 @@ Features:
 
 ---
 
-## S30-1: Real Staging Environment Bring-Up
+## S30-1: Backend Stack Verification (Dev Profile)
 
-### Docker Stack Deployment (Dev Profile)
+### Docker Stack Deployment
 
-The full Docker stack was brought up and verified:
+The backend Docker stack was brought up under the dev profile to verify the deployment path, smoke harness, and preflight tooling. **This is not a staging deployment** — it validates that the tooling works end-to-end so that a real staging deployment can proceed once infrastructure blockers (B1-B7) are resolved.
+
+**Services verified:** API server, PostgreSQL, Redis, MinIO (4 services).
+**Not verified:** Celery worker health (container exists but independent health not checked), Frontend (excluded from staging overlay).
 
 1. **Dockerfile fix discovered and applied** — `data/` directory was missing from Docker image, causing API crash on taxonomy file load
 2. **Port conflicts resolved** — other project containers (idis-redis, idis-api) were stopped to free ports 6379 and 8000
-3. **Stack started successfully** — 4 services healthy (postgres, redis, minio, api)
+3. **Backend stack started successfully** — 4 services healthy (postgres, redis, minio, api)
 4. **20 Alembic migrations applied** — from initial schema through Sprint 25 chat tables
 
 ### Smoke Test Results (Live Stack)
@@ -148,7 +162,7 @@ Overall: FAIL (correctly -- dev environment detected)
 
 ---
 
-## S30-2: Live Smoke + Rollback Proof
+## S30-2: Tooling Verification + Rollback Documentation
 
 ### Infrastructure Blocker Report
 
@@ -164,12 +178,13 @@ Overall: FAIL (correctly -- dev environment detected)
 | B6 | LLM API keys not configured | Optional (copilot SKIP) |
 | B7 | Staging DNS/URL not allocated | Infrastructure |
 
-### Rollback Path Verified
+### Rollback Path Documented
 
-Documented in `docs/runbooks/staging-deployment.md`:
+Documented in `docs/runbooks/staging-deployment.md` (not live-tested — requires staging environment):
 - Quick rollback (no schema change): stop → restart → verify
 - Migration rollback: stop → `alembic downgrade -1` → restart → verify
 - Full teardown: `docker compose down [-v]`
+- All rollback commands include `--env-file .env.staging` for correct variable interpolation
 
 ---
 
@@ -195,7 +210,7 @@ Documented in `docs/runbooks/staging-deployment.md`:
 - `.env.staging.example` — Complete staging environment template
 - `docs/runbooks/staging-deployment.md` — Step-by-step deployment + rollback runbook
 - `scripts/staging_deploy.py` — 8-check deployment prerequisite validator
-- `tests/scripts/test_staging_deploy.py` — 48 deploy prerequisite tests
+- `tests/scripts/test_staging_deploy.py` — 50 deploy prerequisite tests
 - `docs/evidence/sprint30-audit-findings.md` — Pre-implementation audit report
 - `docs/evidence/sprint30-infrastructure-blockers.md` — Infrastructure blocker matrix
 - `docs/evidence/sprint30-staging-deployment.md` — This file
@@ -210,22 +225,31 @@ Documented in `docs/runbooks/staging-deployment.md`:
 
 ## Go/No-Go Status
 
-### Status: GO (conditional on infrastructure provisioning)
+### Status: GO for backend staging (conditional on infrastructure provisioning)
 
-All code, tooling, and automation is complete. Sprint 30 proves:
+All **backend** deployment code, tooling, and automation is complete. Sprint 30 proves:
 
-1. **Deployment path is executable** — `make staging-check → staging-up → staging-preflight → staging-smoke`
+1. **Backend deployment path is executable** — `make staging-check → staging-up → staging-preflight → staging-smoke`
 2. **Fail-closed guards work** — preflight correctly rejects dev environment
-3. **Smoke harness validates all layers** — server, database, auth, health, schema, copilot
+3. **Smoke harness validates backend layers** — API server, database, auth enforcement, health, OpenAPI schema, copilot status
 4. **Prerequisite checker catches all dev defaults** — 8 checks, all correctly flag misconfig
-5. **Rollback path is documented and verified**
-6. **No code changes needed for staging** — only infrastructure configuration
+5. **Rollback path is documented** (not live-tested — requires staging infra)
+6. **No code changes needed for backend staging** — only infrastructure configuration
+
+### What This Sprint Does NOT Prove
+
+| Gap | Detail | Resolution |
+|-----|--------|------------|
+| Frontend staging | Excluded from overlay; requires NEXTAUTH_SECRET, NEXT_PUBLIC_API_URL | Separate sprint for frontend staging hardening |
+| Celery worker health | Worker container exists but independent health was not verified | Add `make staging-worker-health` check or verify via `docker compose ps celery-worker` in staging |
+| Live staging deployment | All verification was against dev profile | Resolve infrastructure blockers B1-B7, then re-run with `.env.staging` |
+| Rollback execution | Rollback commands documented but not executed | Test rollback path during first staging deployment |
 
 ### Resolution Path
 
 When infrastructure is provisioned (B1-B7):
 1. `cp .env.staging.example .env.staging` → fill in real values
-2. `python scripts/staging_deploy.py check` → all 8 PASS
+2. `python scripts/staging_deploy.py check --env-file .env.staging` → all 8 PASS
 3. `make staging-up` → build + start + migrate
 4. `make staging-preflight` → all 6 PASS
 5. `make staging-smoke` → all 6 PASS or 5 PASS + 1 SKIP (copilot)
