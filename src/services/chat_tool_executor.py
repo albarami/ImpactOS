@@ -1,11 +1,12 @@
-"""ChatToolExecutor -- dispatches copilot tool calls to handlers (Sprint 27).
+"""ChatToolExecutor -- dispatches copilot tool calls to handlers (Sprint 28).
 
 Executes tool calls proposed by the EconomistCopilot, enforcing per-turn
 safety caps and measuring latency.  Handlers interact with repositories
-to create scenarios, validate engine runs, read results, and create exports.
+to create scenarios, execute engine runs, read results, and create exports.
 
 Agent-to-Math Boundary: this executor dispatches to deterministic engine
-endpoints -- it never performs economic computations itself.
+endpoints via RunExecutionService -- it never performs economic computations
+itself.
 """
 
 from __future__ import annotations
@@ -121,14 +122,19 @@ class ChatToolExecutor:
         }
 
     async def _handle_run_engine(self, arguments: dict) -> dict:
-        """Validate scenario exists and return success with run_id.
+        """Execute engine run via RunExecutionService (Sprint 28).
 
-        Sprint 27 MVP: validates scenario, returns structured result.
-        Full engine execution (model loading, BatchRunner.run(), RunSnapshot
-        persistence) is deferred to a follow-up sprint.
-        TODO(S28+): Call BatchRunner.run() and persist RunSnapshot here.
+        Resolves scenario -> model -> satellite coefficients -> BatchRunner.run().
+        Persists RunSnapshot + ResultSet rows and returns real run_id.
         """
+        from src.repositories.engine import (
+            ModelDataRepository, ModelVersionRepository,
+            ResultSetRepository, RunSnapshotRepository,
+        )
         from src.repositories.scenarios import ScenarioVersionRepository
+        from src.services.run_execution import (
+            RunExecutionService, RunFromScenarioInput, RunRepositories,
+        )
 
         scenario_spec_id = arguments.get("scenario_spec_id")
         if not scenario_spec_id:
@@ -145,34 +151,37 @@ class ChatToolExecutor:
                 "error": f"Invalid scenario_spec_id format: {scenario_spec_id}",
             }
 
-        repo = ScenarioVersionRepository(self._session)
         version = arguments.get("scenario_spec_version")
+        svc = RunExecutionService()
+        repos = RunRepositories(
+            scenario_repo=ScenarioVersionRepository(self._session),
+            mv_repo=ModelVersionRepository(self._session),
+            md_repo=ModelDataRepository(self._session),
+            snap_repo=RunSnapshotRepository(self._session),
+            rs_repo=ResultSetRepository(self._session),
+        )
+        inp = RunFromScenarioInput(
+            workspace_id=self._workspace_id,
+            scenario_spec_id=spec_uuid,
+            scenario_spec_version=int(version) if version is not None else None,
+        )
 
-        if version is not None:
-            # Pin to requested version (provenance: validate exactly what was approved)
-            row = await repo.get_by_id_and_version(spec_uuid, int(version))
-            if row is None or row.workspace_id != self._workspace_id:
-                return {
-                    "reason_code": "scenario_not_found",
-                    "error": f"Scenario {scenario_spec_id} v{version} not found in workspace",
-                }
-        else:
-            # Fallback: latest version in workspace
-            row = await repo.get_latest_by_workspace(spec_uuid, self._workspace_id)
-            if row is None:
-                return {
-                    "reason_code": "scenario_not_found",
-                    "error": f"Scenario {scenario_spec_id} not found in workspace",
-                }
+        result = await svc.execute_from_scenario(inp, repos)
 
-        run_id = new_uuid7()
+        if result.status == "FAILED":
+            return {
+                "reason_code": "run_failed",
+                "error": result.error or "Unknown engine failure",
+            }
+
         return {
             "status": "success",
-            "reason_code": "scenario_validated_dry_run",
-            "run_id": str(run_id),
-            "scenario_spec_id": str(row.scenario_spec_id),
-            "scenario_spec_version": row.version,
-            "model_version_id": str(row.base_model_version_id),
+            "reason_code": "run_completed",
+            "run_id": str(result.run_id),
+            "scenario_spec_id": str(result.scenario_spec_id),
+            "scenario_spec_version": result.scenario_spec_version,
+            "model_version_id": str(result.model_version_id),
+            "result_summary": result.result_summary,
         }
 
     async def _handle_narrate_results(self, arguments: dict) -> dict:
@@ -229,19 +238,24 @@ class ChatToolExecutor:
         }
 
     async def _handle_create_export(self, arguments: dict) -> dict:
-        """Initiate an export request for a Decision Pack.
+        """Execute a full export via ExportExecutionService (Sprint 28).
 
         Required args: run_id, mode, export_formats, pack_data
         Guards: RunSnapshot must exist for run_id AND belong to current
         workspace (prevents orphan exports and cross-workspace access).
 
-        Note: This creates a PENDING export record only. Actual artifact
-        generation (orchestrator, NFF gates, watermarking, S3 storage) is
-        handled by the API export endpoint or a future background worker.
-        TODO(S28+): Wire to ExportOrchestrator or async export queue.
+        Delegates to ExportExecutionService.execute() for governance checks,
+        artifact generation, watermarking, and checksum computation.
         """
-        from src.db.tables import RunSnapshotRow
+        from src.services.export_execution import (
+            ExportExecutionService, ExportExecutionInput, ExportRepositories,
+        )
         from src.repositories.exports import ExportRepository
+        from src.repositories.governance import ClaimRepository
+        from src.repositories.data_quality import DataQualityRepository
+        from src.repositories.engine import RunSnapshotRepository, ModelVersionRepository
+        from src.export.artifact_storage import ExportArtifactStorage
+        from src.config.settings import get_settings
 
         run_id = arguments.get("run_id")
         mode = arguments.get("mode")
@@ -273,6 +287,8 @@ class ChatToolExecutor:
 
         # Guard: RunSnapshot must exist AND belong to this workspace
         # (prevents orphan exports from dry-run IDs and cross-workspace access)
+        from src.db.tables import RunSnapshotRow
+
         snap = await self._session.get(RunSnapshotRow, run_uuid)
         if snap is None or snap.workspace_id != self._workspace_id:
             return {
@@ -280,19 +296,45 @@ class ChatToolExecutor:
                 "error": f"RunSnapshot {run_id} not found in workspace",
             }
 
-        export_id = new_uuid7()
-        repo = ExportRepository(self._session)
-        row = await repo.create(
-            export_id=export_id,
+        settings = get_settings()
+        artifact_store = ExportArtifactStorage(storage_root=settings.OBJECT_STORAGE_PATH)
+
+        repos = ExportRepositories(
+            export_repo=ExportRepository(self._session),
+            claim_repo=ClaimRepository(self._session),
+            quality_repo=DataQualityRepository(self._session),
+            snap_repo=RunSnapshotRepository(self._session),
+            mv_repo=ModelVersionRepository(self._session),
+            artifact_store=artifact_store,
+        )
+        svc = ExportExecutionService()
+        inp = ExportExecutionInput(
+            workspace_id=self._workspace_id,
             run_id=run_uuid,
-            mode=validated_mode.value,
-            status="PENDING",
+            mode=validated_mode,
+            export_formats=export_formats,
+            pack_data=pack_data,
         )
 
-        return {
-            "export_id": str(row.export_id),
-            "status": "PENDING",
+        result = await svc.execute(inp, repos)
+
+        if result.status == "FAILED":
+            return {"reason_code": "export_failed", "error": result.error or "Export failed"}
+
+        response: dict = {
+            "export_id": str(result.export_id),
+            "status": result.status,
         }
+        if result.checksums:
+            response["checksums"] = result.checksums
+        if result.blocking_reasons:
+            response["blocking_reasons"] = result.blocking_reasons
+
+        # Signal BLOCKED to the executor so it maps to status="blocked"
+        if result.status == "BLOCKED":
+            response["reason_code"] = "export_blocked"
+
+        return response
 
     # ------------------------------------------------------------------
     # Execute single / execute all
@@ -317,6 +359,11 @@ class ChatToolExecutor:
         # Reason codes that indicate handler-level validation failures
         _ERROR_REASON_CODES = frozenset({
             "invalid_args", "scenario_not_found", "no_results", "run_not_found",
+            "run_failed", "export_failed",
+        })
+        # Reason codes that indicate a governance-blocked result (amber, not red)
+        _BLOCKED_REASON_CODES = frozenset({
+            "export_blocked",
         })
 
         start = time.monotonic()
@@ -334,6 +381,16 @@ class ChatToolExecutor:
                     latency_ms=elapsed_ms,
                     result=result,
                     error_summary=result.get("error", "")[:200] if result.get("error") else None,
+                )
+
+            # Detect governance-blocked results (BLOCKED → amber, not red)
+            if reason_code in _BLOCKED_REASON_CODES:
+                return ToolExecutionResult(
+                    tool_name=tool_call.tool_name,
+                    status="blocked",
+                    reason_code=reason_code,
+                    latency_ms=elapsed_ms,
+                    result=result,
                 )
 
             return ToolExecutionResult(
@@ -354,6 +411,14 @@ class ChatToolExecutor:
                 error_summary=str(exc)[:200],
             )
 
+    # Per-turn cap reason codes (used to distinguish cap-blocked from
+    # governance-blocked in execute_all counting).
+    _CAP_REASON_CODES = frozenset({
+        "max_tool_calls_exceeded",
+        "max_run_engine_exceeded",
+        "max_create_export_exceeded",
+    })
+
     async def execute_all(
         self, tool_calls: list[ToolCall],
     ) -> list[ToolExecutionResult]:
@@ -367,9 +432,10 @@ class ChatToolExecutor:
         per_tool_counts: dict[str, int] = {}
 
         for tool_call in tool_calls:
-            # Overall cap
+            # Overall cap — only skip cap-blocked results (not governance-blocked)
             executed_count = sum(
-                1 for r in results if r.status != "blocked"
+                1 for r in results
+                if r.reason_code not in self._CAP_REASON_CODES
             )
             if executed_count >= MAX_TOOL_CALLS_PER_TURN:
                 results.append(ToolExecutionResult(
@@ -396,8 +462,9 @@ class ChatToolExecutor:
             result = await self.execute(tool_call)
             results.append(result)
 
-            # Track per-tool count (only for executed, not blocked)
-            if result.status != "blocked":
+            # Track per-tool count — governance-blocked still counts as "executed"
+            # Only per-turn cap blocks should be excluded from the count
+            if result.reason_code not in self._CAP_REASON_CODES:
                 per_tool_counts[tool_name] = per_tool_counts.get(tool_name, 0) + 1
 
         return results

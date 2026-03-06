@@ -16,7 +16,7 @@ from src.agents.economist_copilot import (
     parse_tool_calls,
     validate_tool_call,
 )
-from src.agents.llm_client import LLMProvider, LLMResponse, TokenUsage
+from src.agents.llm_client import LLMProvider, LLMRequest, LLMResponse, ProviderUnavailableError, TokenUsage
 
 
 # ── Prompt tests ────────────────────────────────────────────────────────
@@ -413,3 +413,82 @@ class TestCreateExportTool:
                 "pack_data": {},
             },
         })
+
+
+# ── enrich_narrative tests (Sprint 28 — S28-3c) ─────────────────────────
+
+
+class TestEnrichNarrative:
+    """S28-3c: Optional LLM enrichment of baseline narratives."""
+
+    async def test_enrich_narrative_returns_enriched_text(self):
+        """enrich_narrative should call LLM and return enriched text."""
+        mock_llm = MagicMock()
+        mock_llm.call_unstructured = AsyncMock(return_value=LLMResponse(
+            content="The analysis demonstrates a significant uplift in GDP.",
+            parsed=None,
+            provider=LLMProvider.LOCAL,
+            model="local-deterministic",
+            usage=TokenUsage(input_tokens=40, output_tokens=20),
+        ))
+
+        copilot = EconomistCopilot(llm_client=mock_llm)
+
+        result = await copilot.enrich_narrative(
+            baseline="GDP up 3.2%. Jobs +12000.",
+        )
+
+        assert result == "The analysis demonstrates a significant uplift in GDP."
+        assert result != "GDP up 3.2%. Jobs +12000."
+        assert mock_llm.call_unstructured.called
+
+    async def test_enrich_narrative_falls_back_on_llm_failure(self):
+        """If LLM fails, enrich_narrative returns the baseline unchanged."""
+        mock_llm = MagicMock()
+        mock_llm.call_unstructured = AsyncMock(
+            side_effect=ProviderUnavailableError("all providers down"),
+        )
+
+        copilot = EconomistCopilot(llm_client=mock_llm)
+
+        baseline = "GDP up 3.2%. Jobs +12000."
+        result = await copilot.enrich_narrative(baseline=baseline)
+
+        assert result == baseline
+
+    async def test_enrich_narrative_empty_baseline_returns_empty(self):
+        """Empty baseline returns empty without calling LLM."""
+        mock_llm = MagicMock()
+        mock_llm.call_unstructured = AsyncMock()
+
+        copilot = EconomistCopilot(llm_client=mock_llm)
+
+        result = await copilot.enrich_narrative(baseline="")
+
+        assert result == ""
+        assert not mock_llm.call_unstructured.called
+
+    async def test_enrich_narrative_passes_context(self):
+        """Context dict (scenario_name) is passed in the enrichment prompt."""
+        mock_llm = MagicMock()
+        mock_llm.call_unstructured = AsyncMock(return_value=LLMResponse(
+            content="The Hajj Tourism Impact scenario yields positive results.",
+            parsed=None,
+            provider=LLMProvider.LOCAL,
+            model="local-deterministic",
+            usage=TokenUsage(input_tokens=50, output_tokens=25),
+        ))
+
+        copilot = EconomistCopilot(llm_client=mock_llm)
+
+        await copilot.enrich_narrative(
+            baseline="GDP up 5%.",
+            context={"scenario_name": "Hajj Tourism Impact"},
+        )
+
+        # Inspect the LLMRequest passed to call_unstructured
+        call_args = mock_llm.call_unstructured.call_args
+        request = call_args[0][0]  # first positional arg
+
+        assert isinstance(request, LLMRequest)
+        assert "Hajj Tourism Impact" in request.user_prompt

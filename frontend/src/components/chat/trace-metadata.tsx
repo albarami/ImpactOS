@@ -6,9 +6,11 @@ import { Badge } from '@/components/ui/badge';
 interface TraceMetadataProps {
   trace: TraceMetadataType;
   workspaceId?: string;
+  /** The export status derived from the tool call result (e.g. "COMPLETED", "BLOCKED"). */
+  exportStatus?: string;
 }
 
-export function TraceMetadata({ trace, workspaceId }: TraceMetadataProps) {
+export function TraceMetadata({ trace, workspaceId, exportStatus }: TraceMetadataProps) {
   const hasContent =
     trace.run_id ||
     trace.scenario_spec_id ||
@@ -67,7 +69,7 @@ export function TraceMetadata({ trace, workspaceId }: TraceMetadataProps) {
         {trace.export_id && (
           <div className="flex items-center gap-2">
             <span className="font-medium text-slate-600">Export:</span>
-            {workspaceId ? (
+            {workspaceId && exportStatus === 'COMPLETED' ? (
               <a
                 data-testid="trace-export-link"
                 href={`/w/${workspaceId}/exports/${trace.export_id}`}

@@ -1,4 +1,4 @@
-"""Chat service — orchestrates conversation turns (Sprint 25 + Sprint 27).
+"""Chat service — orchestrates conversation turns (Sprint 25 + Sprint 28).
 
 Manages session lifecycle, message persistence, copilot agent invocation,
 and tool execution.  Enforces confirmation gate at the service level.
@@ -226,12 +226,7 @@ class ChatService:
             for er in exec_results:
                 if er.status == "success" and er.result:
                     if er.tool_name == "run_engine":
-                        # Only populate run_id when engine actually ran
-                        # (dry-run produces synthetic IDs with no RunSnapshot)
-                        reason = er.result.get("reason_code", "")
-                        if reason != "scenario_validated_dry_run":
-                            trace_dict["run_id"] = er.result.get("run_id")
-                        # Scenario/model refs are always real (from DB lookup)
+                        trace_dict["run_id"] = er.result.get("run_id")
                         trace_dict["model_version_id"] = er.result.get("model_version_id")
                         trace_dict["scenario_spec_id"] = er.result.get("scenario_spec_id")
                         trace_dict["scenario_spec_version"] = er.result.get("scenario_spec_version")
@@ -240,6 +235,66 @@ class ChatService:
                         trace_dict["scenario_spec_version"] = er.result.get("version")
                     elif er.tool_name == "create_export":
                         trace_dict["export_id"] = er.result.get("export_id")
+                # Governance-blocked exports still carry an export_id for trace
+                elif (
+                    er.status == "blocked"
+                    and er.tool_name == "create_export"
+                    and er.result
+                ):
+                    trace_dict["export_id"] = er.result.get("export_id")
+
+        # --- Post-execution narrative (S28) ---
+        if (
+            copilot_response.tool_calls
+            and self._db_session is not None
+            and not copilot_response.pending_confirmation
+        ):
+            from src.services.chat_narrative import ChatNarrativeService
+            from src.models.chat import ToolExecutionResult as TER
+
+            narrative_svc = ChatNarrativeService()
+            # Build ToolExecutionResult objects from exec_results
+            ter_list: list[TER] = []
+            for tc in copilot_response.tool_calls:
+                if tc.result is not None:
+                    if isinstance(tc.result, TER):
+                        ter_list.append(tc.result)
+                    elif isinstance(tc.result, dict):
+                        ter_list.append(TER(**tc.result))
+
+            if ter_list:
+                facts = narrative_svc.extract_facts(ter_list)
+
+                if facts.has_meaningful_results:
+                    # Replace pre-execution LLM content with post-execution narrative
+                    baseline = narrative_svc.build_baseline_narrative(facts)
+                    if baseline:
+                        # Optional LLM enrichment (S28-3c): if copilot is available,
+                        # enrich the deterministic baseline into economist prose.
+                        # Falls back to baseline on LLM failure or if copilot is None.
+                        if self._copilot is not None:
+                            try:
+                                enriched = await self._copilot.enrich_narrative(
+                                    baseline=baseline,
+                                    context={
+                                        "scenario_name": facts.scenario_name or "N/A",
+                                    },
+                                )
+                                copilot_response.content = enriched
+                            except Exception:
+                                _logger.warning(
+                                    "Narrative enrichment failed, using baseline",
+                                    exc_info=True,
+                                )
+                                copilot_response.content = baseline
+                        else:
+                            copilot_response.content = baseline
+                elif facts.errors:
+                    # All failed: preserve original + append failure summary
+                    failure_summary = narrative_svc.build_baseline_narrative(facts)
+                    if failure_summary:
+                        copilot_response.content += "\n\n" + failure_summary
+                # else: no meaningful results and no errors -> content unchanged
 
         # Build tool_calls list for persistence
         tool_calls_list = None

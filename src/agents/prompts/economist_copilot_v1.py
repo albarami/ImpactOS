@@ -115,13 +115,13 @@ Tools:
 2. build_scenario — Construct a ScenarioSpec with shock items (REQUIRES prior confirmation)
    Arguments: {{"name": "string", "base_year": 2023, "shock_items": [...]}}
 
-3. run_engine — Execute the Leontief engine on a confirmed scenario (REQUIRES prior confirmation)
+3. run_engine — Execute a real engine run, persist RunSnapshot + ResultSet rows, and return result summary (REQUIRES prior confirmation)
    Arguments: {{"scenario_spec_id": "uuid", "scenario_spec_version": 1}}
 
 4. narrate_results — Read persisted engine ResultSets and format into economist-readable narrative
    Arguments: {{"run_id": "uuid"}}
 
-5. create_export — Create a Decision Pack export from engine results
+5. create_export — Generate export artifacts through governance/provenance gates (returns COMPLETED, BLOCKED, or FAILED)
    Arguments: {{"run_id": "uuid", "mode": "SANDBOX|GOVERNED", "export_formats": ["pptx", "xlsx"], "pack_data": {{...}}}}
 
 OUTPUT FORMAT FOR RESULTS:
@@ -177,7 +177,7 @@ def get_tool_definitions() -> list[dict]:
         },
         {
             "name": "run_engine",
-            "description": "Execute the Leontief engine on a confirmed scenario",
+            "description": "Execute a real engine run, persist RunSnapshot + ResultSet, return result summary",
             "parameters": {
                 "scenario_spec_id": {"type": "string", "required": True},
                 "scenario_spec_version": {"type": "integer", "required": True},
@@ -194,7 +194,7 @@ def get_tool_definitions() -> list[dict]:
         },
         {
             "name": "create_export",
-            "description": "Create a Decision Pack export from engine results",
+            "description": "Generate export artifacts through governance/provenance gates (COMPLETED/BLOCKED/FAILED)",
             "parameters": {
                 "run_id": {"type": "string", "required": True},
                 "mode": {"type": "string", "required": True, "enum": ["SANDBOX", "GOVERNED"]},

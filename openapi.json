@@ -14195,6 +14195,17 @@
             ],
             "title": "Model Version Id"
           },
+          "export_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Export Id"
+          },
           "io_table": {
             "anyOf": [
               {
