@@ -25,8 +25,11 @@ function statusBadgeClass(status: string): string {
 
 /**
  * Extract the effective export status from the tool call results.
- * Returns the export_status string (e.g. "COMPLETED", "BLOCKED", "FAILED")
+ * Returns the status string (e.g. "COMPLETED", "BLOCKED", "FAILED")
  * from the inner result payload, or undefined if not present.
+ *
+ * The backend _handle_create_export returns {status: "COMPLETED"|"BLOCKED", ...}
+ * in the inner result dict (not export_status).
  */
 function getExportStatus(
   toolCalls?: ChatMessageResponse['tool_calls']
@@ -35,8 +38,8 @@ function getExportStatus(
   for (const tc of toolCalls) {
     const result = tc.result as ToolExecutionResult | undefined;
     const inner = result?.result as Record<string, unknown> | undefined;
-    if (inner?.export_status) {
-      return inner.export_status as string;
+    if (inner?.status && typeof inner.status === 'string') {
+      return inner.status as string;
     }
   }
   return undefined;
@@ -81,7 +84,7 @@ export function MessageBubble({ message, workspaceId }: MessageBubbleProps) {
               const downloadUrl = innerResult?.download_url as
                 | string
                 | undefined;
-              const toolExportStatus = innerResult?.export_status as
+              const toolExportStatus = innerResult?.status as
                 | string
                 | undefined;
 

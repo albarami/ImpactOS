@@ -400,6 +400,6 @@ describe('ChatInterface', () => {
 
     const runLink = screen.getByTestId('trace-run-link');
     expect(runLink).toBeInTheDocument();
-    expect(runLink).toHaveAttribute('href', '/workspaces/ws-001/engine/runs/run-abc');
+    expect(runLink).toHaveAttribute('href', '/w/ws-001/runs/run-abc');
   });
 });

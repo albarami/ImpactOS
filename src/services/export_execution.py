@@ -202,26 +202,40 @@ class ExportExecutionService:
                 error=f"Export orchestration failed: {str(exc)[:200]}",
             )
 
-        # 4. Store artifacts when COMPLETED
-        artifact_refs: dict[str, str] = {}
-        if record.artifacts:
-            for fmt, data in record.artifacts.items():
-                key = ExportArtifactStorage.build_key(
-                    str(record.export_id), fmt,
-                )
-                repos.artifact_store.store(key, data)
-                artifact_refs[fmt] = key
+        # 4. Store artifacts and persist DB record
+        # Wrap in try/except so failures in artifact storage or DB
+        # persistence are returned as FAILED (not bubbled to generic
+        # handler_exception), honoring the COMPLETED/BLOCKED/FAILED contract.
+        try:
+            artifact_refs: dict[str, str] = {}
+            if record.artifacts:
+                for fmt, data in record.artifacts.items():
+                    key = ExportArtifactStorage.build_key(
+                        str(record.export_id), fmt,
+                    )
+                    repos.artifact_store.store(key, data)
+                    artifact_refs[fmt] = key
 
-        # 5. Persist export record in DB
-        await repos.export_repo.create(
-            export_id=record.export_id,
-            run_id=record.run_id,
-            mode=record.mode.value,
-            status=record.status.value,
-            checksums_json=record.checksums,
-            blocked_reasons=record.blocking_reasons,
-            artifact_refs_json=artifact_refs or None,
-        )
+            # 5. Persist export record in DB
+            await repos.export_repo.create(
+                export_id=record.export_id,
+                run_id=record.run_id,
+                mode=record.mode.value,
+                status=record.status.value,
+                checksums_json=record.checksums,
+                blocked_reasons=record.blocking_reasons,
+                artifact_refs_json=artifact_refs or None,
+            )
+        except Exception as exc:
+            _logger.exception(
+                "Failed to store artifacts or persist export record for %s",
+                record.export_id,
+            )
+            return ExportExecutionResult(
+                status="FAILED",
+                export_id=record.export_id,
+                error=f"Post-orchestration persistence failed: {str(exc)[:200]}",
+            )
 
         # 6. Map orchestrator result to service result
         if record.status == ExportStatus.COMPLETED:

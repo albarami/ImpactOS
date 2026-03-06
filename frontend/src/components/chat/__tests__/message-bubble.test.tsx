@@ -64,21 +64,25 @@ describe('MessageBubble – status badges', () => {
   });
 
   it('renders blocked badge with amber styling (not red)', () => {
+    // Backend returns outer status="blocked" with reason_code="export_blocked"
+    // and inner result.status="BLOCKED" with blocking_reasons
     const msg = makeMessage({
       message_id: 'msg-b1',
       role: 'assistant',
       content: 'Export blocked.',
       tool_calls: [
         {
-          tool_name: 'export_decision_pack',
+          tool_name: 'create_export',
           arguments: { run_id: 'run-01' },
           result: {
             status: 'blocked',
-            reason_code: 'governance_hold',
+            reason_code: 'export_blocked',
             retryable: false,
             latency_ms: 10,
             result: {
-              export_status: 'BLOCKED',
+              export_id: 'exp-001',
+              status: 'BLOCKED',
+              reason_code: 'export_blocked',
               blocking_reasons: ['No quality assessment'],
             },
           },
@@ -132,15 +136,17 @@ describe('MessageBubble – blocking reasons', () => {
       content: 'Export blocked by governance.',
       tool_calls: [
         {
-          tool_name: 'export_decision_pack',
+          tool_name: 'create_export',
           arguments: { run_id: 'run-01' },
           result: {
             status: 'blocked',
-            reason_code: 'governance_hold',
+            reason_code: 'export_blocked',
             retryable: false,
             latency_ms: 10,
             result: {
-              export_status: 'BLOCKED',
+              export_id: 'exp-001',
+              status: 'BLOCKED',
+              reason_code: 'export_blocked',
               blocking_reasons: [
                 'No quality assessment',
                 'Missing assumption sign-off',
@@ -165,7 +171,7 @@ describe('MessageBubble – blocking reasons', () => {
       content: 'Success.',
       tool_calls: [
         {
-          tool_name: 'export_decision_pack',
+          tool_name: 'create_export',
           arguments: { run_id: 'run-01' },
           result: {
             status: 'success',
@@ -173,7 +179,8 @@ describe('MessageBubble – blocking reasons', () => {
             retryable: false,
             latency_ms: 100,
             result: {
-              export_status: 'COMPLETED',
+              export_id: 'exp-001',
+              status: 'COMPLETED',
               blocking_reasons: [],
             },
           },
@@ -229,7 +236,7 @@ describe('MessageBubble – deep links', () => {
     expect(runLink).toBeInTheDocument();
     expect(runLink).toHaveAttribute(
       'href',
-      '/workspaces/ws-001/engine/runs/run-abc-123'
+      '/w/ws-001/runs/run-abc-123'
     );
   });
 
@@ -243,14 +250,17 @@ describe('MessageBubble – deep links', () => {
       },
       tool_calls: [
         {
-          tool_name: 'export_decision_pack',
+          tool_name: 'create_export',
           arguments: { run_id: 'run-01' },
           result: {
             status: 'success',
             reason_code: 'ok',
             retryable: false,
             latency_ms: 500,
-            result: { export_status: 'COMPLETED' },
+            result: {
+              export_id: 'exp-001',
+              status: 'COMPLETED',
+            },
           },
         },
       ],
@@ -261,7 +271,7 @@ describe('MessageBubble – deep links', () => {
     expect(exportLink).toBeInTheDocument();
     expect(exportLink).toHaveAttribute(
       'href',
-      '/workspaces/ws-001/exports/exp-001'
+      '/w/ws-001/exports/exp-001'
     );
   });
 
@@ -275,15 +285,17 @@ describe('MessageBubble – deep links', () => {
       },
       tool_calls: [
         {
-          tool_name: 'export_decision_pack',
+          tool_name: 'create_export',
           arguments: { run_id: 'run-01' },
           result: {
             status: 'blocked',
-            reason_code: 'governance_hold',
+            reason_code: 'export_blocked',
             retryable: false,
             latency_ms: 10,
             result: {
-              export_status: 'BLOCKED',
+              export_id: 'exp-002',
+              status: 'BLOCKED',
+              reason_code: 'export_blocked',
               blocking_reasons: ['Not ready'],
             },
           },
@@ -311,7 +323,7 @@ describe('MessageBubble – conditional download link', () => {
       },
       tool_calls: [
         {
-          tool_name: 'export_decision_pack',
+          tool_name: 'create_export',
           arguments: { run_id: 'run-01' },
           result: {
             status: 'success',
@@ -319,7 +331,8 @@ describe('MessageBubble – conditional download link', () => {
             retryable: false,
             latency_ms: 500,
             result: {
-              export_status: 'COMPLETED',
+              export_id: 'exp-001',
+              status: 'COMPLETED',
               download_url: '/api/v1/exports/exp-001/download',
             },
           },
@@ -343,15 +356,17 @@ describe('MessageBubble – conditional download link', () => {
       content: 'Export blocked.',
       tool_calls: [
         {
-          tool_name: 'export_decision_pack',
+          tool_name: 'create_export',
           arguments: { run_id: 'run-01' },
           result: {
             status: 'blocked',
-            reason_code: 'governance_hold',
+            reason_code: 'export_blocked',
             retryable: false,
             latency_ms: 10,
             result: {
-              export_status: 'BLOCKED',
+              export_id: 'exp-001',
+              status: 'BLOCKED',
+              reason_code: 'export_blocked',
               blocking_reasons: ['Not ready'],
               download_url: '/api/v1/exports/exp-001/download',
             },
@@ -371,7 +386,7 @@ describe('MessageBubble – conditional download link', () => {
       content: 'Export failed.',
       tool_calls: [
         {
-          tool_name: 'export_decision_pack',
+          tool_name: 'create_export',
           arguments: { run_id: 'run-01' },
           result: {
             status: 'error',
@@ -380,7 +395,7 @@ describe('MessageBubble – conditional download link', () => {
             latency_ms: 3000,
             error_summary: 'PDF generation error',
             result: {
-              export_status: 'FAILED',
+              status: 'FAILED',
               download_url: '/api/v1/exports/exp-001/download',
             },
           },

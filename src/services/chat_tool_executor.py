@@ -329,6 +329,11 @@ class ChatToolExecutor:
             response["checksums"] = result.checksums
         if result.blocking_reasons:
             response["blocking_reasons"] = result.blocking_reasons
+
+        # Signal BLOCKED to the executor so it maps to status="blocked"
+        if result.status == "BLOCKED":
+            response["reason_code"] = "export_blocked"
+
         return response
 
     # ------------------------------------------------------------------
@@ -356,6 +361,10 @@ class ChatToolExecutor:
             "invalid_args", "scenario_not_found", "no_results", "run_not_found",
             "run_failed", "export_failed",
         })
+        # Reason codes that indicate a governance-blocked result (amber, not red)
+        _BLOCKED_REASON_CODES = frozenset({
+            "export_blocked",
+        })
 
         start = time.monotonic()
         try:
@@ -372,6 +381,16 @@ class ChatToolExecutor:
                     latency_ms=elapsed_ms,
                     result=result,
                     error_summary=result.get("error", "")[:200] if result.get("error") else None,
+                )
+
+            # Detect governance-blocked results (BLOCKED → amber, not red)
+            if reason_code in _BLOCKED_REASON_CODES:
+                return ToolExecutionResult(
+                    tool_name=tool_call.tool_name,
+                    status="blocked",
+                    reason_code=reason_code,
+                    latency_ms=elapsed_ms,
+                    result=result,
                 )
 
             return ToolExecutionResult(
@@ -392,6 +411,14 @@ class ChatToolExecutor:
                 error_summary=str(exc)[:200],
             )
 
+    # Per-turn cap reason codes (used to distinguish cap-blocked from
+    # governance-blocked in execute_all counting).
+    _CAP_REASON_CODES = frozenset({
+        "max_tool_calls_exceeded",
+        "max_run_engine_exceeded",
+        "max_create_export_exceeded",
+    })
+
     async def execute_all(
         self, tool_calls: list[ToolCall],
     ) -> list[ToolExecutionResult]:
@@ -405,9 +432,10 @@ class ChatToolExecutor:
         per_tool_counts: dict[str, int] = {}
 
         for tool_call in tool_calls:
-            # Overall cap
+            # Overall cap — only skip cap-blocked results (not governance-blocked)
             executed_count = sum(
-                1 for r in results if r.status != "blocked"
+                1 for r in results
+                if r.reason_code not in self._CAP_REASON_CODES
             )
             if executed_count >= MAX_TOOL_CALLS_PER_TURN:
                 results.append(ToolExecutionResult(
@@ -434,8 +462,9 @@ class ChatToolExecutor:
             result = await self.execute(tool_call)
             results.append(result)
 
-            # Track per-tool count (only for executed, not blocked)
-            if result.status != "blocked":
+            # Track per-tool count — governance-blocked still counts as "executed"
+            # Only per-turn cap blocks should be excluded from the count
+            if result.reason_code not in self._CAP_REASON_CODES:
                 per_tool_counts[tool_name] = per_tool_counts.get(tool_name, 0) + 1
 
         return results

@@ -498,3 +498,155 @@ class TestExportExecutionServiceExecute:
         assert row.status == "BLOCKED"
         assert row.blocked_reasons is not None
         assert len(row.blocked_reasons) > 0
+
+
+# ------------------------------------------------------------------
+# Finding 4 regression: artifact storage / DB persistence failures
+# ------------------------------------------------------------------
+
+
+class TestExportExecutionPersistenceFailures:
+    """Finding 4: Failures in artifact storage and DB persistence
+    must return FAILED, not bubble into handler_exception."""
+
+    async def test_artifact_storage_failure_returns_failed(self, db_env):
+        """When artifact_store.store() raises, result should be FAILED."""
+        from src.services.export_execution import (
+            ExportExecutionInput,
+            ExportExecutionService,
+            ExportRepositories,
+        )
+        from src.repositories.exports import ExportRepository
+        from src.repositories.governance import ClaimRepository
+        from src.repositories.data_quality import DataQualityRepository
+        from src.repositories.engine import RunSnapshotRepository, ModelVersionRepository
+
+        env = db_env
+        session = env["session"]
+
+        # Create a mock artifact store that raises on store()
+        failing_store = MagicMock()
+        failing_store.store.side_effect = OSError("Disk full")
+
+        repos = ExportRepositories(
+            export_repo=ExportRepository(session),
+            claim_repo=ClaimRepository(session),
+            quality_repo=DataQualityRepository(session),
+            snap_repo=RunSnapshotRepository(session),
+            mv_repo=ModelVersionRepository(session),
+            artifact_store=failing_store,
+        )
+
+        # Seed quality for a COMPLETED export (so artifacts are generated)
+        from src.quality.models import RunQualityAssessment, QualityGrade
+        from src.models.common import new_uuid7
+
+        quality_payload = RunQualityAssessment(
+            assessment_id=new_uuid7(),
+            assessment_version=1,
+            run_id=env["run_id"],
+            composite_score=0.9,
+            grade=QualityGrade.A,
+            used_synthetic_fallback=False,
+        )
+        quality_repo = DataQualityRepository(session)
+        await quality_repo.save_summary(
+            summary_id=new_uuid7(),
+            run_id=env["run_id"],
+            workspace_id=env["ws_id"],
+            overall_run_score=0.9,
+            overall_run_grade="A",
+            coverage_pct=1.0,
+            publication_gate_pass=True,
+            publication_gate_mode="SANDBOX",
+            payload=quality_payload.model_dump(mode="json"),
+        )
+
+        svc = ExportExecutionService()
+        inp = ExportExecutionInput(
+            workspace_id=env["ws_id"],
+            run_id=env["run_id"],
+            mode=ExportMode.SANDBOX,
+            export_formats=["excel"],
+            pack_data={"title": "Disk Full Test"},
+        )
+
+        result = await svc.execute(inp, repos)
+
+        # Must return FAILED, not raise an exception
+        assert result.status == "FAILED"
+        assert result.export_id is not None
+        assert "persistence failed" in (result.error or "").lower()
+
+    async def test_db_persistence_failure_returns_failed(self, db_env):
+        """When export_repo.create() raises, result should be FAILED."""
+        from src.services.export_execution import (
+            ExportExecutionInput,
+            ExportExecutionService,
+            ExportRepositories,
+        )
+        from src.repositories.governance import ClaimRepository
+        from src.repositories.data_quality import DataQualityRepository
+        from src.repositories.engine import RunSnapshotRepository, ModelVersionRepository
+        from src.export.artifact_storage import ExportArtifactStorage
+
+        env = db_env
+        session = env["session"]
+
+        # Create a mock export repo that raises on create()
+        failing_export_repo = MagicMock()
+        failing_export_repo.create = AsyncMock(
+            side_effect=Exception("DB connection lost")
+        )
+
+        repos = ExportRepositories(
+            export_repo=failing_export_repo,
+            claim_repo=ClaimRepository(session),
+            quality_repo=DataQualityRepository(session),
+            snap_repo=RunSnapshotRepository(session),
+            mv_repo=ModelVersionRepository(session),
+            artifact_store=ExportArtifactStorage(
+                storage_root="/tmp/test-export-artifacts"
+            ),
+        )
+
+        # Seed quality for a COMPLETED export
+        from src.quality.models import RunQualityAssessment, QualityGrade
+        from src.models.common import new_uuid7
+
+        quality_payload = RunQualityAssessment(
+            assessment_id=new_uuid7(),
+            assessment_version=1,
+            run_id=env["run_id"],
+            composite_score=0.9,
+            grade=QualityGrade.A,
+            used_synthetic_fallback=False,
+        )
+        quality_repo = DataQualityRepository(session)
+        await quality_repo.save_summary(
+            summary_id=new_uuid7(),
+            run_id=env["run_id"],
+            workspace_id=env["ws_id"],
+            overall_run_score=0.9,
+            overall_run_grade="A",
+            coverage_pct=1.0,
+            publication_gate_pass=True,
+            publication_gate_mode="SANDBOX",
+            payload=quality_payload.model_dump(mode="json"),
+        )
+
+        svc = ExportExecutionService()
+        inp = ExportExecutionInput(
+            workspace_id=env["ws_id"],
+            run_id=env["run_id"],
+            mode=ExportMode.SANDBOX,
+            export_formats=["excel"],
+            pack_data={"title": "DB Down Test"},
+        )
+
+        result = await svc.execute(inp, repos)
+
+        # Must return FAILED, not raise an exception
+        assert result.status == "FAILED"
+        assert result.export_id is not None
+        assert "persistence failed" in (result.error or "").lower()

@@ -33,7 +33,7 @@ export function TraceMetadata({ trace, workspaceId, exportStatus }: TraceMetadat
             {workspaceId ? (
               <a
                 data-testid="trace-run-link"
-                href={`/workspaces/${workspaceId}/engine/runs/${trace.run_id}`}
+                href={`/w/${workspaceId}/runs/${trace.run_id}`}
                 className="rounded bg-slate-100 px-1 py-0.5 font-mono text-blue-600 underline hover:text-blue-800"
               >
                 {trace.run_id}
@@ -72,7 +72,7 @@ export function TraceMetadata({ trace, workspaceId, exportStatus }: TraceMetadat
             {workspaceId && exportStatus === 'COMPLETED' ? (
               <a
                 data-testid="trace-export-link"
-                href={`/workspaces/${workspaceId}/exports/${trace.export_id}`}
+                href={`/w/${workspaceId}/exports/${trace.export_id}`}
                 className="rounded bg-slate-100 px-1 py-0.5 font-mono text-blue-600 underline hover:text-blue-800"
               >
                 {trace.export_id}

@@ -204,7 +204,7 @@ class RunExecutionService:
         # 5. Build scenario input from ScenarioSpec
         shocks = row.shock_items or []
         annual_shocks = self._build_annual_shocks(
-            shocks, row.base_year, len(loaded.sector_codes),
+            shocks, row.base_year, loaded.sector_codes,
         )
 
         scenario = ScenarioInput(
@@ -273,18 +273,47 @@ class RunExecutionService:
         self,
         shock_items: list,
         base_year: int,
-        n_sectors: int,
+        sector_codes: list[str],
     ) -> dict[int, np.ndarray]:
         """Convert shock_items list into annual_shocks dict for BatchRunner.
 
-        MVP: applies all shocks to base_year as a single delta vector.
-        For S28 the point is wiring the real execution path, not shock
-        compilation. Empty shocks = zero delta (identity run).
+        Parses FINAL_DEMAND_SHOCK items into per-year numpy delta vectors
+        aligned to the model's sector order. Other shock types (IMPORT_SUBSTITUTION,
+        LOCAL_CONTENT, CONSTRAINT_OVERRIDE) are ignored for the base I-O run.
+
+        Empty shocks = zero delta at base_year (identity run).
+
+        Same logic as src/api/scenarios.py::_shock_items_to_annual_shocks().
         """
-        delta = np.zeros(n_sectors, dtype=np.float64)
-        # shock_items is a list of dicts from ScenarioSpec
-        # For now, empty shocks = zero delta (identity run)
-        return {base_year: delta}
+        sector_index = {code: i for i, code in enumerate(sector_codes)}
+        n = len(sector_codes)
+        year_shocks: dict[int, np.ndarray] = {}
+
+        for item in shock_items:
+            if item.get("type") != "FINAL_DEMAND_SHOCK":
+                continue
+            year = item.get("year", base_year)
+            code = item.get("sector_code")
+            amount = item.get("amount_real_base_year", 0.0)
+            domestic_share = item.get("domestic_share", 1.0)
+
+            if code not in sector_index:
+                _logger.warning(
+                    "Shock sector_code %r not in model sector_codes, skipping",
+                    code,
+                )
+                continue
+
+            if year not in year_shocks:
+                year_shocks[year] = np.zeros(n, dtype=np.float64)
+
+            year_shocks[year][sector_index[code]] += amount * domestic_share
+
+        # Guarantee at least one year entry (identity run if no shocks)
+        if not year_shocks:
+            year_shocks[base_year] = np.zeros(n, dtype=np.float64)
+
+        return year_shocks
 
     def _make_version_refs(self) -> dict[str, UUID]:
         """Generate placeholder version refs for engine run."""

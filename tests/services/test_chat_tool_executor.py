@@ -310,7 +310,9 @@ class TestChatToolExecutorBasics:
             ToolCall(tool_name="create_export", arguments=args),
         ]
         results = await executor.execute_all(calls)
-        assert results[0].status == "success"
+        # First export executes (may be "success" or "blocked" depending on quality)
+        assert results[0].status in ("success", "blocked")
+        # Second export is per-turn capped
         assert results[1].status == "blocked"
         assert results[1].reason_code == "max_create_export_exceeded"
 
@@ -771,7 +773,11 @@ class TestCreateExportHandler:
         assert row.status == "COMPLETED"
 
     async def test_blocked_without_quality(self, db_session_with_model):
-        """Export without quality assessment returns BLOCKED (not PENDING)."""
+        """Export without quality assessment returns BLOCKED (not PENDING).
+
+        After S28 Finding 2 fix: BLOCKED exports map to
+        ToolExecutionResult.status="blocked" (amber badge), not "success".
+        """
         session, ws_id, mv_id = db_session_with_model
 
         run_id = new_uuid7()
@@ -799,7 +805,8 @@ class TestCreateExportHandler:
             "pack_data": {"title": "Report"},
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
+        assert result.status == "blocked"
+        assert result.reason_code == "export_blocked"
         data = result.result
         assert data["status"] == "BLOCKED"
         assert data["status"] != "PENDING"
@@ -1223,7 +1230,8 @@ class TestCreateExportRealOrchestration:
             "pack_data": {"title": "No Quality"},
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
+        assert result.status == "blocked"
+        assert result.reason_code == "export_blocked"
         data = result.result
         assert data["status"] == "BLOCKED"
 
@@ -1256,7 +1264,8 @@ class TestCreateExportRealOrchestration:
             "pack_data": {"title": "Blocking Reasons"},
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
+        assert result.status == "blocked"
+        assert result.reason_code == "export_blocked"
         data = result.result
         assert data["status"] == "BLOCKED"
         assert "blocking_reasons" in data
@@ -1292,16 +1301,18 @@ class TestCreateExportRealOrchestration:
             "pack_data": {"title": "Not Pending"},
         })
         result = await executor.execute(tc)
-        assert result.status == "success"
+        # ToolExecutionResult.status is "success" (COMPLETED) or "blocked" (BLOCKED)
+        assert result.status in ("success", "blocked")
         data = result.result
         # After S28 exports are never PENDING -- they go to COMPLETED or BLOCKED
         assert data["status"] != "PENDING"
         assert data["status"] in ("COMPLETED", "BLOCKED")
 
     async def test_export_blocked_is_not_error(self, db_session_with_model):
-        """BLOCKED export should NOT have ToolExecutionResult.status='error'.
+        """BLOCKED export should have ToolExecutionResult.status='blocked' (amber).
 
-        BLOCKED is a valid governance outcome, not a handler failure.
+        BLOCKED is a valid governance outcome, not a handler failure ('error')
+        and not a success ('success'). It maps to amber in the UI.
         """
         session, ws_id, mv_id = db_session_with_model
 
@@ -1334,10 +1345,9 @@ class TestCreateExportRealOrchestration:
         # The export will be BLOCKED (no quality assessment)
         assert result.result["status"] == "BLOCKED"
 
-        # But at ToolExecutionResult level it should be "success" not "error"
-        assert result.status == "success"
+        # At ToolExecutionResult level it should be "blocked" (not "error", not "success")
+        assert result.status == "blocked"
+        assert result.reason_code == "export_blocked"
+        # Definitely not an error
         assert result.status != "error"
-        # reason_code should be empty (not an error reason code)
-        assert result.reason_code not in (
-            "export_failed", "run_not_found", "invalid_args",
-        )
+        assert result.status != "success"
