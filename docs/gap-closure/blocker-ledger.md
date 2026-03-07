@@ -60,7 +60,7 @@
 |----|---------|--------|--------------|--------|
 | P3-1 | Depth engine not in copilot flow | verified_closed | run_depth_suite added as 6th copilot tool (valid+gated); handler creates DepthPlan row and calls run_depth_plan() inline; prompt text+tool definition+confirmation gate all wired; 15 tests (7 prompt/definition + 4 handler × 2 backends) | 7dcfefd |
 | P3-2 | Suite planner default too low | verified_closed | _MAX_RUNS changed from 5 to 20; still configurable via context["max_runs"]; tests verify default=20 with override and lower tests | 35c279c |
-| P3-3 | Sensitivity sweeps not executable | reopened | Sensitivities are metadata dicts on SuiteRun, not materialized as executable scenario variants | 555de1d |
+| P3-3 | Sensitivity sweeps not executable | verified_closed | _materialize_multipliers() converts sweep range metadata to float lists; sensitivity_multipliers field on SuiteRun bridges to BatchRunner.ScenarioInput; 2 tests verify materialization and empty case | 080b83e |
 | P3-4 | Polarity guard not question-aware | reopened | polarity_warning only fires when no contrarians exist; does not prevent negative questions from producing upside-dominant scenarios | 555de1d |
 | P3-5 | Depth prompts missing denomination; no parsed-LLM tests | reopened | Prompts do not include model denomination; tests only exercise fallback paths, no tests prove structured LLM responses are parsed into output objects | 555de1d |
 | P3-6 | Suite planner emits placeholder lever values | reopened | _build_suite_from_scored emits `"value": 0` placeholder lever values; not real executable values | 555de1d |
