@@ -36,7 +36,7 @@
 | P1-1 | ModelVersion has no denomination field | verified_closed | `model_denomination` field on ModelVersion, LoadedModel, IOModelData; Alembic migration 021; 11 tests pass | 3e80d44 |
 | P1-2 | Seed defaults point to 2018 instead of 2023 | verified_closed | `scripts/seed.py` updated: year=2023, denomination propagated | 3e80d44 |
 | P1-3 | Engine unit safety not enforced end-to-end | verified_closed | OutputDenomination enum in common.py, denomination_factor() rejects UNKNOWN, re-export in unit_registry | 3e80d44 |
-| P1-4 | Import ratios default to flat 0.15 for real data | reopened | `satellite_coeff_loader.py` still falls back to flat 0.15 for curated IO import ratios; need real sector-specific ratios for Saudi model | 3e80d44 |
+| P1-4 | Import ratios default to flat 0.15 for real data | verified_closed | Curated saudi_import_ratios.json with 20 sector-specific ratios (A=0.18..T=0.03); _load_curated_import_ratios() loads before flat fallback; IO imports_vector supported if present; 4 tests | 370b1cb |
 | P1-5 | No real-model regression test proving SAR-scale output | verified_closed | `test_real_model_regression.py`: 1B SAR construction shock -> multiplier 1.0-5.0 verified | 3e80d44 |
 
 ---
