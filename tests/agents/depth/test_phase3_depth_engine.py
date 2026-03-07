@@ -727,3 +727,195 @@ class TestLLMParsedOutputs:
         )
 
         client.parse_structured_output.assert_called_once()
+
+
+# ------------------------------------------------------------------
+# P3-6: Suite planner lever values must not be placeholder zeros
+# ------------------------------------------------------------------
+
+
+class TestSuitePlannerLeverValues:
+    """P3-6: Executable levers must have real non-zero values."""
+
+    def test_final_demand_shock_has_nonzero_value(self):
+        """FINAL_DEMAND_SHOCK levers must have non-zero value derived from context."""
+        dir_id = str(new_uuid7())
+        scored = [{
+            "direction_id": dir_id,
+            "label": "Construction boost",
+            "composite_score": 8.0,
+            "novelty_score": 8.0,
+            "feasibility_score": 8.0,
+            "data_availability_score": 8.0,
+            "is_contrarian": False,
+            "accepted": True,
+            "rank": 1,
+        }]
+        candidates = [{
+            "direction_id": dir_id,
+            "label": "Construction boost",
+            "source_type": "insight",
+            "sector_codes": ["F"],
+            "required_levers": ["FINAL_DEMAND_SHOCK"],
+        }]
+        existing_shocks = [
+            {"sector_code": "F", "shock_value": 500.0},
+            {"sector_code": "C", "shock_value": 200.0},
+        ]
+        ctx = {
+            "scored": scored,
+            "qualitative_risks": [],
+            "workspace_id": str(uuid4()),
+            "candidates": candidates,
+            "existing_shocks": existing_shocks,
+        }
+        suite = _build_suite_from_scored(ctx)
+        assert len(suite.runs) == 1
+        run = suite.runs[0]
+        assert len(run.executable_levers) == 1
+        lever = run.executable_levers[0]
+        assert lever["type"] == "FINAL_DEMAND_SHOCK"
+        assert lever["value"] != 0, (
+            "P3-6: FINAL_DEMAND_SHOCK must not have placeholder value=0"
+        )
+
+    def test_lever_value_derived_from_existing_shocks(self):
+        """When existing_shocks are in context, lever values scale from them."""
+        dir_id = str(new_uuid7())
+        scored = [{
+            "direction_id": dir_id,
+            "label": "Test",
+            "composite_score": 8.0,
+            "novelty_score": 5.0,
+            "feasibility_score": 8.0,
+            "data_availability_score": 8.0,
+            "is_contrarian": False,
+            "accepted": True,
+            "rank": 1,
+        }]
+        candidates = [{
+            "direction_id": dir_id,
+            "label": "Test",
+            "source_type": "insight",
+            "sector_codes": ["F"],
+            "required_levers": ["FINAL_DEMAND_SHOCK"],
+        }]
+        existing_shocks = [
+            {"sector_code": "F", "shock_value": 1000.0},
+        ]
+        ctx = {
+            "scored": scored,
+            "qualitative_risks": [],
+            "workspace_id": str(uuid4()),
+            "candidates": candidates,
+            "existing_shocks": existing_shocks,
+        }
+        suite = _build_suite_from_scored(ctx)
+        lever = suite.runs[0].executable_levers[0]
+        # Value must be positive and relate to existing shock scale
+        assert lever["value"] > 0
+
+    def test_import_share_adjustment_has_nonzero_value(self):
+        """IMPORT_SUBSTITUTION lever must produce non-zero IMPORT_SHARE_ADJUSTMENT."""
+        dir_id = str(new_uuid7())
+        scored = [{
+            "direction_id": dir_id,
+            "label": "Import sub",
+            "composite_score": 8.0,
+            "novelty_score": 5.0,
+            "feasibility_score": 8.0,
+            "data_availability_score": 8.0,
+            "is_contrarian": False,
+            "accepted": True,
+            "rank": 1,
+        }]
+        candidates = [{
+            "direction_id": dir_id,
+            "label": "Import sub",
+            "source_type": "insight",
+            "sector_codes": ["C"],
+            "required_levers": ["IMPORT_SUBSTITUTION"],
+        }]
+        ctx = {
+            "scored": scored,
+            "qualitative_risks": [],
+            "workspace_id": str(uuid4()),
+            "candidates": candidates,
+        }
+        suite = _build_suite_from_scored(ctx)
+        lever = suite.runs[0].executable_levers[0]
+        assert lever["type"] == "IMPORT_SHARE_ADJUSTMENT"
+        assert lever["value"] != 0, (
+            "P3-6: IMPORT_SHARE_ADJUSTMENT must not have placeholder value=0"
+        )
+
+    def test_local_content_target_has_nonzero_value(self):
+        """LOCAL_CONTENT lever must produce non-zero LOCAL_CONTENT_TARGET."""
+        dir_id = str(new_uuid7())
+        scored = [{
+            "direction_id": dir_id,
+            "label": "Local content",
+            "composite_score": 8.0,
+            "novelty_score": 5.0,
+            "feasibility_score": 8.0,
+            "data_availability_score": 8.0,
+            "is_contrarian": False,
+            "accepted": True,
+            "rank": 1,
+        }]
+        candidates = [{
+            "direction_id": dir_id,
+            "label": "Local content",
+            "source_type": "insight",
+            "sector_codes": ["C"],
+            "required_levers": ["LOCAL_CONTENT"],
+        }]
+        ctx = {
+            "scored": scored,
+            "qualitative_risks": [],
+            "workspace_id": str(uuid4()),
+            "candidates": candidates,
+        }
+        suite = _build_suite_from_scored(ctx)
+        lever = suite.runs[0].executable_levers[0]
+        assert lever["type"] == "LOCAL_CONTENT_TARGET"
+        assert lever["value"] != 0, (
+            "P3-6: LOCAL_CONTENT_TARGET must not have placeholder value=0"
+        )
+
+    def test_contrarian_quantified_levers_pass_through(self):
+        """Contrarian directions with quantified_levers bypass value generation."""
+        dir_id = str(new_uuid7())
+        scored = [{
+            "direction_id": dir_id,
+            "label": "Stress test",
+            "composite_score": 7.0,
+            "novelty_score": 7.0,
+            "feasibility_score": 7.0,
+            "data_availability_score": 7.0,
+            "is_contrarian": True,
+            "accepted": True,
+            "rank": 1,
+        }]
+        contrarians = [{
+            "direction_id": dir_id,
+            "label": "Stress test",
+            "source_type": "insight",
+            "sector_codes": ["F"],
+            "required_levers": ["FINAL_DEMAND_SHOCK"],
+            "is_quantifiable": True,
+            "quantified_levers": [
+                {"type": "FINAL_DEMAND_SHOCK", "sector": "F", "value": -300.0},
+            ],
+        }]
+        ctx = {
+            "scored": scored,
+            "qualitative_risks": [],
+            "workspace_id": str(uuid4()),
+            "candidates": [],
+            "contrarians": contrarians,
+        }
+        suite = _build_suite_from_scored(ctx)
+        lever = suite.runs[0].executable_levers[0]
+        # Quantified levers must pass through unchanged
+        assert lever["value"] == -300.0

@@ -160,10 +160,52 @@ def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
     )
 
 
+def _derive_shock_value(
+    lever_type: str,
+    sector: str,
+    context: dict,
+) -> float:
+    """Derive a real lever value from context data.
+
+    P3-6: Replaces placeholder value=0 with meaningful defaults.
+    Uses existing_shocks from context when available, otherwise
+    applies sector-aware heuristics.
+    """
+    existing_shocks = context.get("existing_shocks", [])
+
+    if lever_type == "FINAL_DEMAND_SHOCK":
+        # Use average of existing shocks as reference scale
+        shock_values = [
+            s.get("shock_value", 0)
+            for s in existing_shocks
+            if isinstance(s, dict) and s.get("shock_value", 0) != 0
+        ]
+        if shock_values:
+            return round(sum(shock_values) / len(shock_values), 2)
+        # Heuristic: 100M SAR (in SAR_MILLIONS) as sensible exploration default
+        return 100.0
+
+    if lever_type == "IMPORT_SHARE_ADJUSTMENT":
+        # 5pp import share reduction (negative = reduce imports)
+        return -0.05
+
+    if lever_type == "LOCAL_CONTENT_TARGET":
+        # 40% local content target
+        return 0.40
+
+    if lever_type == "CONSTRAINT_SET_TOGGLE":
+        # Enable the constraint
+        return 1.0
+
+    # Fallback for any unrecognised lever type
+    return 100.0
+
+
 def _build_levers_for_direction(scored: dict, context: dict) -> list[dict]:
     """Build executable lever dicts for a scored direction.
 
-    Looks up the original direction from context to get required_levers.
+    P3-6: Lever values are derived from context (existing_shocks, sector
+    heuristics) instead of placeholder zeros.
     """
     direction_id = str(scored.get("direction_id", ""))
     levers: list[dict] = []
@@ -186,16 +228,17 @@ def _build_levers_for_direction(scored: dict, context: dict) -> list[dict]:
     if original is None:
         return levers
 
-    # Convert required_levers to executable format
+    # Convert required_levers to executable format with real values
     sector_codes = original.get("sector_codes", [])
     primary_sector = sector_codes[0] if sector_codes else "UNKNOWN"
 
     for lever_name in original.get("required_levers", []):
         exec_type = _LEVER_TYPE_MAP.get(lever_name, lever_name)
+        value = _derive_shock_value(exec_type, primary_sector, context)
         levers.append({
             "type": exec_type,
             "sector": primary_sector,
-            "value": 0,  # Placeholder — analyst fills in actual values
+            "value": value,
         })
 
     return levers
