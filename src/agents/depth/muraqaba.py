@@ -271,7 +271,7 @@ class MuraqabaAgent(DepthStepAgent):
 
     step_name = DepthStepName.MURAQABA
 
-    def run(
+    async def run(
         self,
         *,
         context: dict,
@@ -285,7 +285,7 @@ class MuraqabaAgent(DepthStepAgent):
         candidates = context.get("candidates", [])
 
         if self._can_use_llm(llm_client, classification):
-            return self._run_with_llm(context, llm_client, classification)
+            return await self._run_with_llm(context, llm_client, classification)
 
         logger.info("Muraqaba: using heuristic bias detection (fallback)")
         register = _detect_biases_heuristically(candidates)
@@ -300,26 +300,52 @@ class MuraqabaAgent(DepthStepAgent):
         )
         return output.model_dump(mode="json")
 
-    def _run_with_llm(
+    async def _run_with_llm(
         self,
         context: dict,
         llm_client: LLMClient,
         classification: DataClassification,
     ) -> dict:
-        """Detect biases using LLM."""
+        """Detect biases using LLM (P3-1: real wiring)."""
+        from src.agents.llm_client import LLMRequest
+
         prompt = build_prompt(context)
         logger.info("Muraqaba: LLM mode — prompt built (%d chars)", len(prompt))
 
-        # For MVP, use heuristic fallback + LLM prompt ready
-        candidates = context.get("candidates", [])
-        register = _detect_biases_heuristically(candidates)
-        assumption_drafts = _surface_assumption_drafts(register, candidates)
-        framing = _assess_framing(candidates)
-        missing = _identify_missing_perspectives(candidates)
-        output = MuraqabaOutput(
-            bias_register=register,
-            assumption_drafts=assumption_drafts,
-            framing_assessment=framing,
-            missing_perspectives=missing,
+        response = await llm_client.call(
+            LLMRequest(
+                system_prompt=(
+                    "You are the Muraqaba step of the Al-Muhasabi depth engine. "
+                    "Analyze candidate directions for cognitive biases and return "
+                    "a structured bias register as JSON."
+                ),
+                user_prompt=prompt,
+                output_schema=MuraqabaOutput,
+                max_tokens=2048,
+                temperature=0.3,
+            ),
+            classification=classification,
         )
-        return output.model_dump(mode="json")
+
+        if response.parsed is not None:
+            return response.parsed.model_dump(mode="json")
+
+        try:
+            parsed = llm_client.parse_structured_output(
+                raw=response.content, schema=MuraqabaOutput,
+            )
+            return parsed.model_dump(mode="json")
+        except ValueError:
+            logger.warning("Muraqaba: LLM output parse failed, using heuristic fallback")
+            candidates = context.get("candidates", [])
+            register = _detect_biases_heuristically(candidates)
+            assumption_drafts = _surface_assumption_drafts(register, candidates)
+            framing = _assess_framing(candidates)
+            missing = _identify_missing_perspectives(candidates)
+            output = MuraqabaOutput(
+                bias_register=register,
+                assumption_drafts=assumption_drafts,
+                framing_assessment=framing,
+                missing_perspectives=missing,
+            )
+            return output.model_dump(mode="json")

@@ -27,6 +27,8 @@ from uuid import uuid4
 
 import pytest
 
+pytestmark = pytest.mark.anyio
+
 from src.agents.depth.context import EngagementContext
 from src.agents.depth.prompts import PROMPT_PACK_VERSION, PromptPack
 from src.models.common import (
@@ -714,30 +716,30 @@ class TestMuraqabaAssumptionDrafts:
             })
         return candidates
 
-    def test_assumption_drafts_from_anchoring(self):
+    async def test_assumption_drafts_from_anchoring(self):
         from src.agents.depth.muraqaba import MuraqabaAgent
         agent = MuraqabaAgent()
         candidates = self._make_candidates(["insight"])  # Only 1 = anchoring
-        output = agent.run(context={"candidates": candidates})
+        output = await agent.run(context={"candidates": candidates})
         assert "assumption_drafts" in output
         drafts = output["assumption_drafts"]
         assert len(drafts) >= 1
         anchoring_draft = [d for d in drafts if "exploration" in d["name"].lower()]
         assert len(anchoring_draft) == 1
 
-    def test_assumption_drafts_from_status_quo(self):
+    async def test_assumption_drafts_from_status_quo(self):
         from src.agents.depth.muraqaba import MuraqabaAgent
         agent = MuraqabaAgent()
         candidates = self._make_candidates(
             ["nafs", "nafs", "nafs"],
             sectors=["SEC01", "SEC02", "SEC03"],  # Different sectors to avoid availability
         )
-        output = agent.run(context={"candidates": candidates})
+        output = await agent.run(context={"candidates": candidates})
         drafts = output["assumption_drafts"]
         status_quo_drafts = [d for d in drafts if "status quo" in d["name"].lower()]
         assert len(status_quo_drafts) == 1
 
-    def test_no_drafts_when_no_biases(self):
+    async def test_no_drafts_when_no_biases(self):
         from src.agents.depth.muraqaba import MuraqabaAgent
         agent = MuraqabaAgent()
         # Mixed source types, different sectors, different levers, includes stress
@@ -773,23 +775,23 @@ class TestMuraqabaAssumptionDrafts:
                 "test_plan": "test",
             },
         ]
-        output = agent.run(context={"candidates": candidates})
+        output = await agent.run(context={"candidates": candidates})
         drafts = output["assumption_drafts"]
         assert len(drafts) == 0
 
-    def test_assumption_draft_has_valid_type(self):
+    async def test_assumption_draft_has_valid_type(self):
         from src.agents.depth.muraqaba import MuraqabaAgent
         agent = MuraqabaAgent()
         candidates = self._make_candidates(["insight"])
-        output = agent.run(context={"candidates": candidates})
+        output = await agent.run(context={"candidates": candidates})
         for draft in output["assumption_drafts"]:
             assert draft["assumption_type"] in [at.value for at in AssumptionType]
 
-    def test_assumption_draft_default_status_draft(self):
+    async def test_assumption_draft_default_status_draft(self):
         from src.agents.depth.muraqaba import MuraqabaAgent
         agent = MuraqabaAgent()
         candidates = self._make_candidates(["insight"])
-        output = agent.run(context={"candidates": candidates})
+        output = await agent.run(context={"candidates": candidates})
         for draft in output["assumption_drafts"]:
             assert draft["status"] == AssumptionStatus.DRAFT.value
 

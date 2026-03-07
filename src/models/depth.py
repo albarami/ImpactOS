@@ -353,8 +353,20 @@ class MuhasabaOutput(ImpactOSBase):
     """Typed output for Step 4 (Muhasaba)."""
 
     scored: list[ScoredCandidate] = Field(default_factory=list)
+    # P3-4: polarity guard — flags all-upside suites
+    polarity_warning: str | None = None
     # MVP-9 enhancements
     timestamp: UTCTimestamp = Field(default_factory=utc_now)
+
+    @model_validator(mode="after")
+    def _check_polarity(self) -> "MuhasabaOutput":
+        """P3-4: Flag suites with no contrarian directions."""
+        if self.scored and not any(s.is_contrarian for s in self.scored):
+            self.polarity_warning = (
+                "All scored candidates are upside-only — no contrarian stress "
+                "tests. Consider adding contrarian directions to avoid optimism bias."
+            )
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -390,7 +402,7 @@ class SuiteRun(ImpactOSBase):
         description="Typed shock specs that BatchRunner/Compiler can consume directly.",
     )
     mode: str = Field(default="SANDBOX")
-    sensitivities: list[str] = Field(default_factory=list)
+    sensitivities: list[str | dict] = Field(default_factory=list)
     disclosure_tier: DisclosureTier = DisclosureTier.TIER1
     is_contrarian: bool = False
 

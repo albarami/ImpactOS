@@ -132,7 +132,7 @@ class MuhasabaAgent(DepthStepAgent):
 
     step_name = DepthStepName.MUHASABA
 
-    def run(
+    async def run(
         self,
         *,
         context: dict,
@@ -144,24 +144,50 @@ class MuhasabaAgent(DepthStepAgent):
         Returns MuhasabaOutput.model_dump(mode="json").
         """
         if self._can_use_llm(llm_client, classification):
-            return self._run_with_llm(context, llm_client, classification)
+            return await self._run_with_llm(context, llm_client, classification)
 
         logger.info("Muhasaba: using deterministic scoring (fallback)")
         scored = _score_all_candidates(context)
         output = MuhasabaOutput(scored=scored)
         return output.model_dump(mode="json")
 
-    def _run_with_llm(
+    async def _run_with_llm(
         self,
         context: dict,
         llm_client: LLMClient,
         classification: DataClassification,
     ) -> dict:
-        """Score candidates using LLM."""
+        """Score candidates using LLM (P3-1: real wiring)."""
+        from src.agents.llm_client import LLMRequest
+
         prompt = build_prompt(context)
         logger.info("Muhasaba: LLM mode — prompt built (%d chars)", len(prompt))
 
-        # For MVP, use deterministic scoring
-        scored = _score_all_candidates(context)
-        output = MuhasabaOutput(scored=scored)
-        return output.model_dump(mode="json")
+        response = await llm_client.call(
+            LLMRequest(
+                system_prompt=(
+                    "You are the Muhasaba step of the Al-Muhasabi depth engine. "
+                    "Score and rank all candidate directions on novelty, feasibility, "
+                    "and data availability. Return structured JSON."
+                ),
+                user_prompt=prompt,
+                output_schema=MuhasabaOutput,
+                max_tokens=2048,
+                temperature=0.2,
+            ),
+            classification=classification,
+        )
+
+        if response.parsed is not None:
+            return response.parsed.model_dump(mode="json")
+
+        try:
+            parsed = llm_client.parse_structured_output(
+                raw=response.content, schema=MuhasabaOutput,
+            )
+            return parsed.model_dump(mode="json")
+        except ValueError:
+            logger.warning("Muhasaba: LLM output parse failed, using deterministic fallback")
+            scored = _score_all_candidates(context)
+            output = MuhasabaOutput(scored=scored)
+            return output.model_dump(mode="json")

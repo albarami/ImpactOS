@@ -8,6 +8,8 @@ from src.agents.depth.muhasaba import MuhasabaAgent, _score_all_candidates
 from src.models.common import DataClassification
 from src.models.depth import DepthStepName, MuhasabaOutput, ScoredCandidate
 
+pytestmark = pytest.mark.anyio
+
 
 class TestMuhasabaAgent:
     @pytest.fixture
@@ -49,14 +51,14 @@ class TestMuhasabaAgent:
     def test_step_name(self, agent):
         assert agent.step_name == DepthStepName.MUHASABA
 
-    def test_produces_scored_candidates(self, agent, context):
-        result = agent.run(context=context)
+    async def test_produces_scored_candidates(self, agent, context):
+        result = await agent.run(context=context)
         assert "scored" in result
         # 2 regular + 1 contrarian = 3 scored
         assert len(result["scored"]) == 3
 
-    def test_scored_have_all_scores(self, agent, context):
-        result = agent.run(context=context)
+    async def test_scored_have_all_scores(self, agent, context):
+        result = await agent.run(context=context)
         for s in result["scored"]:
             assert "composite_score" in s
             assert "novelty_score" in s
@@ -67,18 +69,18 @@ class TestMuhasabaAgent:
             assert 0.0 <= s["feasibility_score"] <= 10.0
             assert 0.0 <= s["data_availability_score"] <= 10.0
 
-    def test_scored_are_ranked(self, agent, context):
-        result = agent.run(context=context)
+    async def test_scored_are_ranked(self, agent, context):
+        result = await agent.run(context=context)
         ranks = [s["rank"] for s in result["scored"]]
         assert sorted(ranks) == list(range(1, len(ranks) + 1))
 
-    def test_scored_by_composite_descending(self, agent, context):
-        result = agent.run(context=context)
+    async def test_scored_by_composite_descending(self, agent, context):
+        result = await agent.run(context=context)
         scores = [s["composite_score"] for s in result["scored"]]
         assert scores == sorted(scores, reverse=True)
 
-    def test_accepted_and_rejected(self, agent, context):
-        result = agent.run(context=context)
+    async def test_accepted_and_rejected(self, agent, context):
+        result = await agent.run(context=context)
         for s in result["scored"]:
             assert "accepted" in s
             assert isinstance(s["accepted"], bool)
@@ -86,19 +88,19 @@ class TestMuhasabaAgent:
                 assert s.get("rejection_reason") is not None
                 assert len(s["rejection_reason"]) > 0
 
-    def test_contrarian_flag_preserved(self, agent, context):
-        result = agent.run(context=context)
+    async def test_contrarian_flag_preserved(self, agent, context):
+        result = await agent.run(context=context)
         contrarian_count = sum(1 for s in result["scored"] if s["is_contrarian"])
         assert contrarian_count == 1  # 1 contrarian from context
 
-    def test_output_validates(self, agent, context):
-        result = agent.run(context=context)
+    async def test_output_validates(self, agent, context):
+        result = await agent.run(context=context)
         output = MuhasabaOutput.model_validate(result)
         for sc in output.scored:
             assert isinstance(sc, ScoredCandidate)
 
-    def test_restricted_uses_fallback(self, agent, context):
-        result = agent.run(
+    async def test_restricted_uses_fallback(self, agent, context):
+        result = await agent.run(
             context=context,
             classification=DataClassification.RESTRICTED,
         )

@@ -6,6 +6,8 @@ from src.agents.depth.khawatir import KhawatirAgent, _generate_fallback_candidat
 from src.models.common import DataClassification
 from src.models.depth import CandidateDirection, DepthStepName, KhawatirOutput
 
+pytestmark = pytest.mark.anyio
+
 
 class TestKhawatirAgent:
     @pytest.fixture
@@ -24,13 +26,13 @@ class TestKhawatirAgent:
     def test_step_name(self, agent):
         assert agent.step_name == DepthStepName.KHAWATIR
 
-    def test_fallback_produces_candidates(self, agent, context):
-        result = agent.run(context=context)
+    async def test_fallback_produces_candidates(self, agent, context):
+        result = await agent.run(context=context)
         assert "candidates" in result
         assert len(result["candidates"]) >= 3
 
-    def test_fallback_candidates_have_required_fields(self, agent, context):
-        result = agent.run(context=context)
+    async def test_fallback_candidates_have_required_fields(self, agent, context):
+        result = await agent.run(context=context)
         for c in result["candidates"]:
             assert "label" in c
             assert "description" in c
@@ -40,14 +42,14 @@ class TestKhawatirAgent:
             assert "required_levers" in c
             assert "direction_id" in c
 
-    def test_fallback_includes_nafs_and_insight(self, agent, context):
-        result = agent.run(context=context)
+    async def test_fallback_includes_nafs_and_insight(self, agent, context):
+        result = await agent.run(context=context)
         source_types = {c["source_type"] for c in result["candidates"]}
         assert "nafs" in source_types
         assert "insight" in source_types
 
-    def test_fallback_assigns_sector_codes(self, agent, context):
-        result = agent.run(context=context)
+    async def test_fallback_assigns_sector_codes(self, agent, context):
+        result = await agent.run(context=context)
         # At least some candidates should have sector codes from context
         has_sectors = any(
             len(c.get("sector_codes", [])) > 0
@@ -55,27 +57,27 @@ class TestKhawatirAgent:
         )
         assert has_sectors
 
-    def test_output_validates_as_khawatir_output(self, agent, context):
-        result = agent.run(context=context)
+    async def test_output_validates_as_khawatir_output(self, agent, context):
+        result = await agent.run(context=context)
         output = KhawatirOutput.model_validate(result)
         assert len(output.candidates) >= 3
         for c in output.candidates:
             assert isinstance(c, CandidateDirection)
 
-    def test_restricted_classification_uses_fallback(self, agent, context):
+    async def test_restricted_classification_uses_fallback(self, agent, context):
         """RESTRICTED workspaces use deterministic fallback."""
-        result = agent.run(
+        result = await agent.run(
             context=context,
             classification=DataClassification.RESTRICTED,
         )
         assert len(result["candidates"]) >= 3
 
-    def test_empty_context_still_produces_candidates(self, agent):
-        result = agent.run(context={})
+    async def test_empty_context_still_produces_candidates(self, agent):
+        result = await agent.run(context={})
         assert len(result["candidates"]) >= 3
 
-    def test_no_llm_client_uses_fallback(self, agent, context):
-        result = agent.run(context=context, llm_client=None)
+    async def test_no_llm_client_uses_fallback(self, agent, context):
+        result = await agent.run(context=context, llm_client=None)
         assert len(result["candidates"]) >= 3
 
 

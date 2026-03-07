@@ -156,7 +156,7 @@ class MujahadaAgent(DepthStepAgent):
 
     step_name = DepthStepName.MUJAHADA
 
-    def run(
+    async def run(
         self,
         *,
         context: dict,
@@ -168,24 +168,50 @@ class MujahadaAgent(DepthStepAgent):
         Returns MujahadaOutput.model_dump(mode="json").
         """
         if self._can_use_llm(llm_client, classification):
-            return self._run_with_llm(context, llm_client, classification)
+            return await self._run_with_llm(context, llm_client, classification)
 
         logger.info("Mujahada: using deterministic contrarian templates (fallback)")
         contrarians, risks = _generate_fallback_contrarians(context)
         output = MujahadaOutput(contrarians=contrarians, qualitative_risks=risks)
         return output.model_dump(mode="json")
 
-    def _run_with_llm(
+    async def _run_with_llm(
         self,
         context: dict,
         llm_client: LLMClient,
         classification: DataClassification,
     ) -> dict:
-        """Generate contrarians using LLM."""
+        """Generate contrarians using LLM (P3-1: real wiring)."""
+        from src.agents.llm_client import LLMRequest
+
         prompt = build_prompt(context)
         logger.info("Mujahada: LLM mode — prompt built (%d chars)", len(prompt))
 
-        # For MVP, use deterministic templates
-        contrarians, risks = _generate_fallback_contrarians(context)
-        output = MujahadaOutput(contrarians=contrarians, qualitative_risks=risks)
-        return output.model_dump(mode="json")
+        response = await llm_client.call(
+            LLMRequest(
+                system_prompt=(
+                    "You are the Mujahada step of the Al-Muhasabi depth engine. "
+                    "Generate contrarian scenario directions that challenge base "
+                    "assumptions. Return structured JSON."
+                ),
+                user_prompt=prompt,
+                output_schema=MujahadaOutput,
+                max_tokens=2048,
+                temperature=0.7,
+            ),
+            classification=classification,
+        )
+
+        if response.parsed is not None:
+            return response.parsed.model_dump(mode="json")
+
+        try:
+            parsed = llm_client.parse_structured_output(
+                raw=response.content, schema=MujahadaOutput,
+            )
+            return parsed.model_dump(mode="json")
+        except ValueError:
+            logger.warning("Mujahada: LLM output parse failed, using fallback")
+            contrarians, risks = _generate_fallback_contrarians(context)
+            output = MujahadaOutput(contrarians=contrarians, qualitative_risks=risks)
+            return output.model_dump(mode="json")

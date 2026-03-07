@@ -44,6 +44,9 @@ def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
     if isinstance(workspace_id, str):
         workspace_id = UUID(workspace_id)
 
+    # P3-2: configurable max_runs from context (default: _MAX_RUNS)
+    max_runs = context.get("max_runs", _MAX_RUNS)
+
     # Rebuild QualitativeRisk objects from dicts
     risks: list[QualitativeRisk] = []
     for r in qualitative_risks_raw:
@@ -57,8 +60,8 @@ def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
     accepted = [s for s in scored if s.get("accepted", False)]
     # Sort by composite score descending
     accepted.sort(key=lambda s: s.get("composite_score", 0), reverse=True)
-    # Take top N
-    selected = accepted[:_MAX_RUNS]
+    # Take top N (P3-2: configurable)
+    selected = accepted[:max_runs]
 
     runs: list[SuiteRun] = []
     has_contrarian = False
@@ -76,13 +79,22 @@ def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
         # Build executable levers from the context's original direction data
         executable_levers = _build_levers_for_direction(s, context)
 
-        # Determine sensitivities
-        sensitivities = []
+        # P3-3: Sensitivity sweeps with parameter ranges (not just strings)
+        sensitivities: list[str | dict] = []
         if s.get("novelty_score", 0) >= 7.0:
-            sensitivities.append("sensitivity_sweep")
+            sensitivities.append({
+                "type": "sensitivity_sweep",
+                "range": {"min": 0.8, "max": 1.2, "steps": 5},
+            })
         if is_contrarian:
-            sensitivities.append("import_share")
-            sensitivities.append("phasing")
+            sensitivities.append({
+                "type": "import_share",
+                "range": {"min": -0.30, "max": 0.0, "steps": 3},
+            })
+            sensitivities.append({
+                "type": "phasing",
+                "values": [0, 1, 2, 3],
+            })
 
         tier = DisclosureTier.TIER0 if is_contrarian else DisclosureTier.TIER1
 
@@ -161,7 +173,7 @@ class SuitePlannerAgent(DepthStepAgent):
 
     step_name = DepthStepName.SUITE_PLANNING
 
-    def run(
+    async def run(
         self,
         *,
         context: dict,
@@ -173,24 +185,50 @@ class SuitePlannerAgent(DepthStepAgent):
         Returns SuitePlanningOutput.model_dump(mode="json").
         """
         if self._can_use_llm(llm_client, classification):
-            return self._run_with_llm(context, llm_client, classification)
+            return await self._run_with_llm(context, llm_client, classification)
 
         logger.info("SuitePlanner: using deterministic assembly (fallback)")
         suite = _build_suite_from_scored(context)
         output = SuitePlanningOutput(suite_plan=suite)
         return output.model_dump(mode="json")
 
-    def _run_with_llm(
+    async def _run_with_llm(
         self,
         context: dict,
         llm_client: LLMClient,
         classification: DataClassification,
     ) -> dict:
-        """Assemble suite using LLM."""
+        """Assemble suite using LLM (P3-1: real wiring)."""
+        from src.agents.llm_client import LLMRequest
+
         prompt = build_prompt(context)
         logger.info("SuitePlanner: LLM mode — prompt built (%d chars)", len(prompt))
 
-        # For MVP, use deterministic assembly
-        suite = _build_suite_from_scored(context)
-        output = SuitePlanningOutput(suite_plan=suite)
-        return output.model_dump(mode="json")
+        response = await llm_client.call(
+            LLMRequest(
+                system_prompt=(
+                    "You are the Suite Planner of the Al-Muhasabi depth engine. "
+                    "Assemble an executable scenario suite from scored candidates. "
+                    "Return structured JSON."
+                ),
+                user_prompt=prompt,
+                output_schema=SuitePlanningOutput,
+                max_tokens=2048,
+                temperature=0.3,
+            ),
+            classification=classification,
+        )
+
+        if response.parsed is not None:
+            return response.parsed.model_dump(mode="json")
+
+        try:
+            parsed = llm_client.parse_structured_output(
+                raw=response.content, schema=SuitePlanningOutput,
+            )
+            return parsed.model_dump(mode="json")
+        except ValueError:
+            logger.warning("SuitePlanner: LLM output parse failed, using deterministic fallback")
+            suite = _build_suite_from_scored(context)
+            output = SuitePlanningOutput(suite_plan=suite)
+            return output.model_dump(mode="json")

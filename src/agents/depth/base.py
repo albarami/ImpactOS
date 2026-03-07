@@ -23,7 +23,7 @@ class DepthStepAgent(ABC):
     step_name: DepthStepName
 
     @abstractmethod
-    def run(
+    async def run(
         self,
         *,
         context: dict,

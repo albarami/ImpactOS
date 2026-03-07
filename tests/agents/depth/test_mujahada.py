@@ -13,6 +13,8 @@ from src.models.depth import (
     QualitativeRisk,
 )
 
+pytestmark = pytest.mark.anyio
+
 
 class TestMujahadaAgent:
     @pytest.fixture
@@ -33,39 +35,39 @@ class TestMujahadaAgent:
     def test_step_name(self, agent):
         assert agent.step_name == DepthStepName.MUJAHADA
 
-    def test_produces_contrarians_and_risks(self, agent, context):
-        result = agent.run(context=context)
+    async def test_produces_contrarians_and_risks(self, agent, context):
+        result = await agent.run(context=context)
         assert "contrarians" in result
         assert "qualitative_risks" in result
         assert len(result["contrarians"]) >= 2
         assert len(result["qualitative_risks"]) >= 1
 
-    def test_contrarians_have_broken_assumption(self, agent, context):
-        result = agent.run(context=context)
+    async def test_contrarians_have_broken_assumption(self, agent, context):
+        result = await agent.run(context=context)
         for c in result["contrarians"]:
             assert "broken_assumption" in c
             assert len(c["broken_assumption"]) > 0
 
-    def test_contrarians_have_quantifiability(self, agent, context):
-        result = agent.run(context=context)
+    async def test_contrarians_have_quantifiability(self, agent, context):
+        result = await agent.run(context=context)
         for c in result["contrarians"]:
             assert "is_quantifiable" in c
             assert isinstance(c["is_quantifiable"], bool)
 
-    def test_quantifiable_contrarians_have_levers(self, agent, context):
-        result = agent.run(context=context)
+    async def test_quantifiable_contrarians_have_levers(self, agent, context):
+        result = await agent.run(context=context)
         for c in result["contrarians"]:
             if c["is_quantifiable"]:
                 assert c.get("quantified_levers") is not None
                 assert len(c["quantified_levers"]) > 0
 
-    def test_qualitative_risks_not_modeled(self, agent, context):
-        result = agent.run(context=context)
+    async def test_qualitative_risks_not_modeled(self, agent, context):
+        result = await agent.run(context=context)
         for r in result["qualitative_risks"]:
             assert r["not_modeled"] is True
 
-    def test_output_validates(self, agent, context):
-        result = agent.run(context=context)
+    async def test_output_validates(self, agent, context):
+        result = await agent.run(context=context)
         output = MujahadaOutput.model_validate(result)
         for c in output.contrarians:
             assert isinstance(c, ContrarianDirection)
@@ -73,8 +75,8 @@ class TestMujahadaAgent:
             assert isinstance(r, QualitativeRisk)
             assert r.not_modeled is True
 
-    def test_restricted_uses_fallback(self, agent, context):
-        result = agent.run(
+    async def test_restricted_uses_fallback(self, agent, context):
+        result = await agent.run(
             context=context,
             classification=DataClassification.RESTRICTED,
         )

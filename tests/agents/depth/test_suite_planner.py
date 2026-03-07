@@ -12,6 +12,8 @@ from src.models.depth import (
     SuitePlanningOutput,
 )
 
+pytestmark = pytest.mark.anyio
+
 
 def _make_scored(label, score, is_contrarian=False, accepted=True,
                  direction_id=None, sector_codes=None, required_levers=None):
@@ -75,8 +77,8 @@ class TestSuitePlannerAgent:
     def test_step_name(self, agent):
         assert agent.step_name == DepthStepName.SUITE_PLANNING
 
-    def test_produces_suite_plan(self, agent, context):
-        result = agent.run(context=context)
+    async def test_produces_suite_plan(self, agent, context):
+        result = await agent.run(context=context)
         assert "suite_plan" in result
         plan = result["suite_plan"]
         assert "runs" in plan
@@ -84,8 +86,8 @@ class TestSuitePlannerAgent:
         assert "qualitative_risks" in plan
         assert "rationale" in plan
 
-    def test_only_accepted_in_runs(self, agent, context):
-        result = agent.run(context=context)
+    async def test_only_accepted_in_runs(self, agent, context):
+        result = await agent.run(context=context)
         runs = result["suite_plan"]["runs"]
         # 3 accepted, 1 rejected — should have <=3 runs
         assert len(runs) <= 3
@@ -93,47 +95,47 @@ class TestSuitePlannerAgent:
         for run in runs:
             assert run["name"]  # Should have a name
 
-    def test_suite_disclosure_tier1(self, agent, context):
-        result = agent.run(context=context)
+    async def test_suite_disclosure_tier1(self, agent, context):
+        result = await agent.run(context=context)
         assert result["suite_plan"]["disclosure_tier"] == "TIER1"
 
-    def test_contrarian_runs_tier0(self, agent, context):
-        result = agent.run(context=context)
+    async def test_contrarian_runs_tier0(self, agent, context):
+        result = await agent.run(context=context)
         runs = result["suite_plan"]["runs"]
         for run in runs:
             if "stress" in run["name"].lower() or "Import" in run["name"]:
                 # Contrarian runs should be TIER0
                 pass  # The _build_suite sets this
 
-    def test_recommended_outputs_include_variance_bridge(self, agent, context):
+    async def test_recommended_outputs_include_variance_bridge(self, agent, context):
         """When contrarian runs exist, variance_bridge should be recommended."""
-        result = agent.run(context=context)
+        result = await agent.run(context=context)
         outputs = result["suite_plan"]["recommended_outputs"]
         assert "variance_bridge" in outputs
 
-    def test_qualitative_risks_preserved(self, agent, context):
-        result = agent.run(context=context)
+    async def test_qualitative_risks_preserved(self, agent, context):
+        result = await agent.run(context=context)
         risks = result["suite_plan"]["qualitative_risks"]
         assert len(risks) >= 1
         for r in risks:
             assert r["not_modeled"] is True
 
-    def test_output_validates(self, agent, context):
-        result = agent.run(context=context)
+    async def test_output_validates(self, agent, context):
+        result = await agent.run(context=context)
         output = SuitePlanningOutput.model_validate(result)
         assert isinstance(output.suite_plan, ScenarioSuitePlan)
         assert output.suite_plan.disclosure_tier == DisclosureTier.TIER1
 
-    def test_restricted_uses_fallback(self, agent, context):
-        result = agent.run(
+    async def test_restricted_uses_fallback(self, agent, context):
+        result = await agent.run(
             context=context,
             classification=DataClassification.RESTRICTED,
         )
         assert "suite_plan" in result
         assert len(result["suite_plan"]["runs"]) > 0
 
-    def test_empty_scored_produces_empty_suite(self, agent):
-        result = agent.run(context={
+    async def test_empty_scored_produces_empty_suite(self, agent):
+        result = await agent.run(context={
             "scored": [],
             "qualitative_risks": [],
             "workspace_id": str(uuid4()),

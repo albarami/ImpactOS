@@ -87,14 +87,22 @@ _TEMPLATE_DIRECTIONS = [
 def _generate_fallback_candidates(context: dict) -> list[CandidateDirection]:
     """Generate deterministic candidates from template library.
 
-    Uses sector codes and time horizon from context to customize templates.
+    Uses sector codes, time horizon, and key_questions from context
+    to customize templates (P3-5: question-calibrated).
     """
     sector_codes = context.get("sector_codes", [])
+    key_questions = context.get("key_questions", [])
     candidates: list[CandidateDirection] = []
 
     for tmpl in _TEMPLATE_DIRECTIONS:
         # Assign sector codes from context if available
         assigned_sectors = sector_codes[:3] if sector_codes else []
+
+        rationale = (
+            f"Template-based direction for sectors {assigned_sectors}"
+            if assigned_sectors
+            else "Generic template direction"
+        )
 
         candidates.append(
             CandidateDirection(
@@ -102,16 +110,31 @@ def _generate_fallback_candidates(context: dict) -> list[CandidateDirection]:
                 label=tmpl["label"],
                 description=tmpl["description"],
                 sector_codes=assigned_sectors,
-                rationale=(
-                    f"Template-based direction for sectors {assigned_sectors}"
-                    if assigned_sectors
-                    else "Generic template direction"
-                ),
+                rationale=rationale,
                 source_type=tmpl["source_type"],
                 test_plan=tmpl["test_plan"],
                 required_levers=tmpl["required_levers"],
             )
         )
+
+    # P3-5: Generate question-calibrated candidates from key_questions
+    if key_questions:
+        for question in key_questions[:2]:
+            q_sectors = sector_codes[:2] if sector_codes else []
+            candidates.append(
+                CandidateDirection(
+                    direction_id=new_uuid7(),
+                    label=f"Question-driven: {question[:50]}",
+                    description=(
+                        f"Scenario direction calibrated to key_question: {question}"
+                    ),
+                    sector_codes=q_sectors,
+                    rationale=f"Derived from key_question: {question}",
+                    source_type="insight",
+                    test_plan=f"Run analysis addressing: {question[:80]}",
+                    required_levers=["FINAL_DEMAND_SHOCK"],
+                )
+            )
 
     return candidates
 
@@ -121,7 +144,7 @@ class KhawatirAgent(DepthStepAgent):
 
     step_name = DepthStepName.KHAWATIR
 
-    def run(
+    async def run(
         self,
         *,
         context: dict,
@@ -133,29 +156,48 @@ class KhawatirAgent(DepthStepAgent):
         Returns KhawatirOutput.model_dump(mode="json").
         """
         if self._can_use_llm(llm_client, classification):
-            return self._run_with_llm(context, llm_client, classification)
+            return await self._run_with_llm(context, llm_client, classification)
 
         logger.info("Khawatir: using deterministic fallback (RESTRICTED or no LLM)")
         candidates = _generate_fallback_candidates(context)
         output = KhawatirOutput(candidates=candidates)
         return output.model_dump(mode="json")
 
-    def _run_with_llm(
+    async def _run_with_llm(
         self,
         context: dict,
         llm_client: LLMClient,
         classification: DataClassification,
     ) -> dict:
-        """Generate candidates using LLM."""
+        """Generate candidates using LLM (P3-1: real wiring)."""
+        from src.agents.llm_client import LLMRequest
+
         prompt = build_prompt(context)
-        # Parse raw LLM output as KhawatirOutput
-        # In real deployment, this would call the LLM API.
-        # For now, we build the prompt and use parse_structured_output
-        # when actual LLM responses arrive.
         logger.info("Khawatir: LLM mode — prompt built (%d chars)", len(prompt))
 
-        # For the MVP, we still use the deterministic fallback
-        # but mark it as LLM-requested for future wiring
-        candidates = _generate_fallback_candidates(context)
-        output = KhawatirOutput(candidates=candidates)
-        return output.model_dump(mode="json")
+        response = await llm_client.call(
+            LLMRequest(
+                system_prompt=(
+                    "You are the Khawatir step of the Al-Muhasabi depth engine. "
+                    "Generate 5-7 candidate scenario directions as structured JSON."
+                ),
+                user_prompt=prompt,
+                output_schema=KhawatirOutput,
+                max_tokens=2048,
+                temperature=0.7,
+            ),
+            classification=classification,
+        )
+
+        if response.parsed is not None:
+            return response.parsed.model_dump(mode="json")
+
+        try:
+            parsed = llm_client.parse_structured_output(
+                raw=response.content, schema=KhawatirOutput,
+            )
+            return parsed.model_dump(mode="json")
+        except ValueError:
+            logger.warning("Khawatir: LLM output parse failed, using fallback")
+            candidates = _generate_fallback_candidates(context)
+            return KhawatirOutput(candidates=candidates).model_dump(mode="json")
