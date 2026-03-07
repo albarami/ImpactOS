@@ -63,7 +63,7 @@
 | P3-3 | Sensitivity sweeps not executable | verified_closed | _materialize_multipliers() converts sweep range metadata to float lists; sensitivity_multipliers field on SuiteRun bridges to BatchRunner.ScenarioInput; 2 tests verify materialization and empty case | 080b83e |
 | P3-4 | Polarity guard not question-aware | verified_closed | _has_negative_polarity() keyword detector + _check_polarity validator warns when contrarian ratio < 30% for negative questions; key_questions field on MuhasabaOutput; MuhasabaAgent wires key_questions in both fallback+LLM paths; 4 tests | 1d76f83 |
 | P3-5 | Depth prompts missing denomination; no parsed-LLM tests | verified_closed | Khawatir/Mujahada/Suite prompts include denomination (SAR_MILLIONS) + key_questions; 7 LLM parse tests (parsed, fallback, ValueError) + 4 prompt content tests; 18 new test instances | d651cf8 |
-| P3-6 | Suite planner emits placeholder lever values | reopened | _build_suite_from_scored emits `"value": 0` placeholder lever values; not real executable values | 555de1d |
+| P3-6 | Suite planner emits placeholder lever values | verified_closed | _derive_shock_value() produces real values from existing_shocks or heuristics (FD=avg shock/100M, IS=-0.05, LC=0.40, CST=1.0); quantified_levers pass through; 5 tests | 6fb7957 |
 
 ---
 
