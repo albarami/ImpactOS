@@ -205,12 +205,22 @@ class ChatService:
             and str(m.message_id) != str(user_msg_id)  # exclude current user msg
         ]
 
+        # ------------------------------------------------------------------
+        # P2-3: Server-side context injection
+        #
+        # Extract IDs from prior assistant trace_metadata so the copilot
+        # prompt can reference them — no more relying on the LLM to infer
+        # scenario_spec_id, run_id, etc. from plain text.
+        # ------------------------------------------------------------------
+        prior_ids = self._extract_prior_ids(message_rows)
+
         # Call copilot
         context = {
             "user_confirmed": confirm_scenario is True,
             "workspace_id": str(workspace_id),
             "max_tokens": self._max_tokens,
             "model": self._model,
+            **prior_ids,
         }
 
         copilot_response: CopilotResponse = await self._copilot.process_turn(
@@ -299,6 +309,45 @@ class ChatService:
             if isinstance(trace, dict) and trace.get("pending_confirmation"):
                 return trace["pending_confirmation"]
         return None
+
+    @staticmethod
+    def _extract_prior_ids(message_rows: list) -> dict:
+        """P2-3: Extract persisted IDs from prior assistant trace_metadata.
+
+        Scans assistant messages from newest to oldest and collects the
+        most recent scenario_spec_id, run_id, model_version_id, and
+        export_id from their trace_metadata. These are injected into the
+        copilot context so the LLM doesn't have to infer them from text.
+
+        Returns:
+            Dict with prior_scenario_spec_id, prior_run_id, etc.
+            Only includes keys whose values are non-None.
+        """
+        prior: dict = {}
+        # Keys we want to extract and their context key names
+        _TRACE_TO_CONTEXT = {
+            "scenario_spec_id": "prior_scenario_spec_id",
+            "scenario_spec_version": "prior_scenario_spec_version",
+            "run_id": "prior_run_id",
+            "model_version_id": "prior_model_version_id",
+            "export_id": "prior_export_id",
+        }
+
+        for row in reversed(message_rows):
+            if row.role != "assistant":
+                continue
+            trace = row.trace_metadata
+            if not isinstance(trace, dict):
+                continue
+            for trace_key, ctx_key in _TRACE_TO_CONTEXT.items():
+                if ctx_key not in prior and trace.get(trace_key):
+                    prior[ctx_key] = trace[trace_key]
+
+            # Stop scanning once all keys are found
+            if len(prior) >= len(_TRACE_TO_CONTEXT):
+                break
+
+        return prior
 
     async def _replay_stored_intent(
         self,

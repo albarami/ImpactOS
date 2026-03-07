@@ -389,6 +389,183 @@ class TestLookupEmploymentCoefficients:
 # ------------------------------------------------------------------
 
 
+class TestServerSideContextInjection:
+    """P2-3: Server-side context injection for prior persisted IDs.
+
+    After a scenario is built or engine run completes, the service must
+    inject the resulting IDs (scenario_spec_id, run_id, model_version_id)
+    into the copilot context for subsequent turns — so the LLM doesn't
+    have to infer them from plain text conversation.
+    """
+
+    async def test_context_includes_prior_scenario_spec_id(self, db_session_with_model):
+        """After build_scenario succeeds, next turn's context includes scenario_spec_id."""
+        session, ws_id, mv_id = db_session_with_model
+
+        # Track context dicts passed to process_turn
+        captured_contexts: list[dict] = []
+
+        # Turn 1: copilot returns a plain message (no tool call)
+        # Turn 2: copilot returns a tool call that builds a scenario
+        # Turn 3: copilot is called with context containing scenario_spec_id
+
+        call_count = 0
+
+        async def mock_process_turn(*, messages, user_message, context=None):
+            nonlocal call_count
+            call_count += 1
+            captured_contexts.append(context or {})
+            if call_count == 1:
+                # Turn 1: copilot calls build_scenario
+                return CopilotResponse(
+                    content="Building scenario.",
+                    tool_calls=[
+                        ToolCall(
+                            tool_name="build_scenario",
+                            arguments={
+                                "name": "Context Test",
+                                "base_year": 2023,
+                                "base_model_version_id": str(mv_id),
+                                "shock_items": [],
+                            },
+                        ),
+                    ],
+                    prompt_version="copilot_v1",
+                    model_provider="test",
+                    model_id="test-model",
+                    token_usage=TokenUsage(input_tokens=10, output_tokens=10),
+                )
+            # Turn 2: just echo
+            return CopilotResponse(
+                content="Ready for next step.",
+                prompt_version="copilot_v1",
+                model_provider="test",
+                model_id="test-model",
+                token_usage=TokenUsage(input_tokens=10, output_tokens=10),
+            )
+
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(side_effect=mock_process_turn)
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+
+        # Turn 1: build scenario → creates scenario_spec_id in trace
+        result1 = await svc.send_message(ws_id, sid, "Build a test scenario")
+        assert result1.trace_metadata is not None
+        assert result1.trace_metadata.scenario_spec_id is not None
+        scenario_spec_id = result1.trace_metadata.scenario_spec_id
+
+        # Turn 2: follow-up question → context should include prior scenario_spec_id
+        await svc.send_message(ws_id, sid, "What is the scenario?")
+
+        # The second call to process_turn should have scenario_spec_id in context
+        assert len(captured_contexts) == 2
+        ctx2 = captured_contexts[1]
+        assert "prior_scenario_spec_id" in ctx2, (
+            f"Context for turn 2 must include prior_scenario_spec_id; "
+            f"got keys: {list(ctx2.keys())}"
+        )
+        assert ctx2["prior_scenario_spec_id"] == scenario_spec_id
+
+    async def test_context_includes_prior_run_id(self, db_session_with_model):
+        """After run_engine succeeds, next turn's context includes run_id and model_version_id."""
+        session, ws_id, mv_id = db_session_with_model
+
+        # Create a scenario first
+        from src.repositories.scenarios import ScenarioVersionRepository
+        repo = ScenarioVersionRepository(session)
+        spec_id = new_uuid7()
+        await repo.create(
+            scenario_spec_id=spec_id, version=1, name="Context Run Test",
+            workspace_id=ws_id, base_model_version_id=mv_id,
+            base_year=2023, time_horizon={"start_year": 2023, "end_year": 2023},
+        )
+
+        captured_contexts: list[dict] = []
+        call_count = 0
+
+        async def mock_process_turn(*, messages, user_message, context=None):
+            nonlocal call_count
+            call_count += 1
+            captured_contexts.append(context or {})
+            if call_count == 1:
+                # Turn 1: run_engine
+                return CopilotResponse(
+                    content="Running engine.",
+                    tool_calls=[
+                        ToolCall(
+                            tool_name="run_engine",
+                            arguments={
+                                "scenario_spec_id": str(spec_id),
+                                "scenario_spec_version": 1,
+                            },
+                        ),
+                    ],
+                    prompt_version="copilot_v1",
+                    model_provider="test",
+                    model_id="test-model",
+                    token_usage=TokenUsage(input_tokens=10, output_tokens=10),
+                )
+            return CopilotResponse(
+                content="Results available.",
+                prompt_version="copilot_v1",
+                model_provider="test",
+                model_id="test-model",
+                token_usage=TokenUsage(input_tokens=10, output_tokens=10),
+            )
+
+        copilot = AsyncMock()
+        copilot.process_turn = AsyncMock(side_effect=mock_process_turn)
+        copilot.enrich_narrative = AsyncMock(
+            side_effect=lambda baseline, context=None: baseline,
+        )
+
+        svc = ChatService(
+            ChatSessionRepository(session),
+            ChatMessageRepository(session),
+            copilot=copilot,
+            db_session=session,
+        )
+        created = await svc.create_session(ws_id)
+        sid = UUID(created.session_id)
+
+        # Turn 1: run engine → creates run_id in trace
+        with _mock_satellite_coefficients():
+            result1 = await svc.send_message(ws_id, sid, "Run the engine")
+
+        assert result1.trace_metadata is not None
+        assert result1.trace_metadata.run_id is not None
+        run_id = result1.trace_metadata.run_id
+
+        # Turn 2: follow-up → context should include prior run_id
+        await svc.send_message(ws_id, sid, "Narrate the results")
+
+        assert len(captured_contexts) == 2
+        ctx2 = captured_contexts[1]
+        assert "prior_run_id" in ctx2, (
+            f"Context for turn 2 must include prior_run_id; "
+            f"got keys: {list(ctx2.keys())}"
+        )
+        assert ctx2["prior_run_id"] == run_id
+
+    async def test_prompt_includes_prior_context_section(self, db_session_with_model):
+        """System prompt includes PRIOR CONTEXT when IDs are in context."""
+        from src.agents.prompts.economist_copilot_v1 import build_system_prompt
+        prompt = build_system_prompt({
+            "prior_scenario_spec_id": "test-uuid-123",
+            "prior_run_id": "test-run-456",
+        })
+        assert "test-uuid-123" in prompt, "Prompt must include prior scenario_spec_id"
+        assert "test-run-456" in prompt, "Prompt must include prior run_id"
+
+
 class TestStoredIntentReplay:
     """P2-3/P2-4: Confirmation must replay stored tool intent, not re-parse."""
 

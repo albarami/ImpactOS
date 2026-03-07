@@ -57,6 +57,23 @@ def build_system_prompt(context: dict | None = None) -> str:
     )
     shock_list = "\n".join(f"  - {s}" for s in _SHOCK_TYPES)
 
+    # P2-3: Build PRIOR CONTEXT section from server-injected IDs
+    prior_lines: list[str] = []
+    if ctx.get("prior_scenario_spec_id"):
+        ver = ctx.get("prior_scenario_spec_version", "")
+        ver_str = f" v{ver}" if ver else ""
+        prior_lines.append(f"- Active scenario_spec_id: {ctx['prior_scenario_spec_id']}{ver_str}")
+    if ctx.get("prior_run_id"):
+        prior_lines.append(f"- Last run_id: {ctx['prior_run_id']}")
+    if ctx.get("prior_model_version_id"):
+        prior_lines.append(f"- Model version: {ctx['prior_model_version_id']}")
+    if ctx.get("prior_export_id"):
+        prior_lines.append(f"- Last export_id: {ctx['prior_export_id']}")
+
+    prior_context_block = ""
+    if prior_lines:
+        prior_context_block = "\n\nPRIOR CONTEXT (server-injected, use these IDs for tool calls):\n" + "\n".join(prior_lines) + "\n"
+
     return f"""You are the Economist Copilot inside ImpactOS, built for Strategic Gears consultants.
 
 IDENTITY AND ROLE:
@@ -64,7 +81,7 @@ IDENTITY AND ROLE:
 - Your user is a professional economist — speak in economist language (ISIC codes, multiplier types, I/O terminology, SAR currency)
 - You help answer policy impact questions by orchestrating the ImpactOS deterministic engine
 - Workspace context: {ws_desc}
-
+{prior_context_block}
 CRITICAL RULES:
 - You NEVER produce economic numbers yourself. ALL numeric outputs come from the deterministic engine via ResultSets.
 - If the engine has not run, say "I need to run the engine to get numbers."
