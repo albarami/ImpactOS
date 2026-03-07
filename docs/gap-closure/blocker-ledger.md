@@ -84,8 +84,8 @@
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
 | P5-1 | Sector breakdowns not fully populated | verified_closed | BatchRunner populates sector_breakdowns on total_output; 5 tests | d5a5b91 |
-| P5-2 | Workforce satellite not on main run path | reopened | Chat path loads curated coefficients but API path accepts from request body — workforce is not auto-loaded and persisted on the main run path | d5a5b91 |
-| P5-3 | Feasibility layer not on main run path | reopened | ClippingSolver exists as standalone API; not integrated into the main run path; must be invoked and results persisted | — |
+| P5-2 | Workforce satellite not on main run path | verified_closed | satellite_coefficients optional in RunRequest/BatchRunRequest; auto-loads curated coefficients via load_satellite_coefficients() when not provided; API path now consistent with chat path; 3 tests | 57d342c |
+| P5-3 | Feasibility layer not on main run path | verified_closed | BatchRequest accepts optional constraints; ClippingSolver runs after unconstrained Leontief solve; emits feasible_output + constraint_gap ResultSets; backward compatible; 4 tests | 57d342c |
 | P5-4 | Report data not packaged for UI consumption | verified_closed | ResultPackager converts ResultSet rows -> pack_data; 6 tests | d5a5b91 |
 
 ---
