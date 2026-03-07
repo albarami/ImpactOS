@@ -95,8 +95,9 @@ describe('ResultsDisplay', () => {
     };
     renderDisplay();
     // Total impact = sum of all values across all result sets
-    // 1500000 + 750000 = 2250000
-    expect(screen.getByText(/2,250,000/)).toBeInTheDocument();
+    // 1500000 + 750000 = 2250000 (may appear in headline and executive summary)
+    const totalImpactEl = screen.getByTestId('total-impact-value');
+    expect(totalImpactEl).toHaveTextContent(/2,250,000/);
   });
 
   it('shows result sets table with metric types', () => {
@@ -148,5 +149,152 @@ describe('ResultsDisplay', () => {
     };
     renderDisplay();
     expect(screen.getByText(/mv-001/)).toBeInTheDocument();
+  });
+
+  // ── P6-3: Currency Label ────────────────────────────────────────────
+
+  it('shows SAR currency label with total impact (P6-3)', () => {
+    mockRunData = {
+      run_id: 'run-001',
+      result_sets: [
+        {
+          result_id: 'rs-001',
+          metric_type: 'gross_output',
+          values: { S01: 1500000 },
+        },
+      ],
+      snapshot: { run_id: 'run-001', model_version_id: 'mv-001' },
+    };
+    renderDisplay();
+    const impactEl = screen.getByTestId('total-impact-value');
+    expect(impactEl).toBeInTheDocument();
+    expect(impactEl).toHaveTextContent(/SAR/);
+  });
+
+  // ── P6-2: Executive Summary ─────────────────────────────────────────
+
+  it('shows executive summary section when multiple metric types present (P6-2)', () => {
+    mockRunData = {
+      run_id: 'run-001',
+      result_sets: [
+        {
+          result_id: 'rs-001',
+          metric_type: 'total_output',
+          values: { S01: 1500000, S02: 750000 },
+        },
+        {
+          result_id: 'rs-002',
+          metric_type: 'value_added',
+          values: { S01: 900000, S02: 450000 },
+        },
+        {
+          result_id: 'rs-003',
+          metric_type: 'employment',
+          values: { S01: 500, S02: 300 },
+        },
+      ],
+      snapshot: { run_id: 'run-001', model_version_id: 'mv-001' },
+    };
+    renderDisplay();
+    const summary = screen.getByTestId('executive-summary');
+    expect(summary).toBeInTheDocument();
+  });
+
+  it('shows GDP impact in executive summary (P6-2)', () => {
+    mockRunData = {
+      run_id: 'run-001',
+      result_sets: [
+        {
+          result_id: 'rs-001',
+          metric_type: 'value_added',
+          values: { S01: 900000, S02: 450000 },
+        },
+      ],
+      snapshot: { run_id: 'run-001', model_version_id: 'mv-001' },
+    };
+    renderDisplay();
+    // GDP Impact label should appear
+    expect(screen.getByText(/GDP Impact/i)).toBeInTheDocument();
+    // 900000 + 450000 = 1350000 (appears in both headline and executive summary)
+    const matches = screen.getAllByText(/1,350,000/);
+    expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows total jobs in executive summary (P6-2)', () => {
+    mockRunData = {
+      run_id: 'run-001',
+      result_sets: [
+        {
+          result_id: 'rs-001',
+          metric_type: 'employment',
+          values: { S01: 500, S02: 300 },
+        },
+      ],
+      snapshot: { run_id: 'run-001', model_version_id: 'mv-001' },
+    };
+    renderDisplay();
+    // Jobs Created label should appear (in executive summary and/or workforce panel)
+    const jobsLabels = screen.getAllByText(/Jobs Created/i);
+    expect(jobsLabels.length).toBeGreaterThanOrEqual(1);
+    // 500 + 300 = 800 (appears in headline and executive summary)
+    const matches = screen.getAllByText('800');
+    expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // ── P6-3: Denomination from snapshot ──────────────────────────────
+
+  it('shows denomination scale from snapshot (P6-3)', () => {
+    mockRunData = {
+      run_id: 'run-001',
+      result_sets: [
+        {
+          result_id: 'rs-001',
+          metric_type: 'total_output',
+          values: { S01: 1500000 },
+        },
+      ],
+      snapshot: {
+        run_id: 'run-001',
+        model_version_id: 'mv-001',
+        model_denomination: 'SAR_MILLIONS',
+      },
+    };
+    renderDisplay();
+    // Should show denomination scale info, not just "SAR"
+    const impactEl = screen.getByTestId('total-impact-value');
+    expect(impactEl).toHaveTextContent(/Millions/i);
+  });
+
+  it('total impact only sums total_output, not employment or imports (P6-3)', () => {
+    mockRunData = {
+      run_id: 'run-001',
+      result_sets: [
+        {
+          result_id: 'rs-001',
+          metric_type: 'total_output',
+          values: { S01: 1000000, S02: 500000 },
+        },
+        {
+          result_id: 'rs-002',
+          metric_type: 'employment',
+          values: { S01: 500, S02: 300 },
+        },
+        {
+          result_id: 'rs-003',
+          metric_type: 'imports',
+          values: { S01: 200000, S02: 100000 },
+        },
+      ],
+      snapshot: {
+        run_id: 'run-001',
+        model_version_id: 'mv-001',
+        model_denomination: 'SAR_MILLIONS',
+      },
+    };
+    renderDisplay();
+    const impactEl = screen.getByTestId('total-impact-value');
+    // Total impact = 1,000,000 + 500,000 = 1,500,000 (only total_output)
+    // NOT 1,000,000 + 500,000 + 500 + 300 + 200,000 + 100,000
+    expect(impactEl).toHaveTextContent(/1,500,000/);
   });
 });

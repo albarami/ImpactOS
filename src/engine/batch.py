@@ -7,18 +7,45 @@ all version refs for reproducibility.
 Pure deterministic — no LLM calls, no side effects.
 """
 
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
 import numpy as np
 
+from src.engine.feasibility import ClippingSolver, ConstraintSpec
 from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import LoadedModel, ModelStore
-from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
+from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients, SatelliteResult
 from src.engine.value_measures import ValueMeasuresComputer
 from src.engine.value_measures_validation import ValueMeasuresValidationError
 from src.models.common import new_uuid7
 from src.models.run import ResultSet, RunSnapshot
+
+_logger = logging.getLogger(__name__)
+
+
+def load_workforce_data(sector_codes: list[str]):
+    """Load D-4 workforce data (occupation bridge + nationality classification).
+
+    Builds data in-memory from expert-judgment patterns.
+    Returns (WorkforceSatellite, occupation_bridge, nationality_classifications)
+    or raises if D-4 modules unavailable.
+    """
+    from src.data.workforce.build_occupation_bridge import build_occupation_bridge
+    from src.data.workforce.build_nationality_classification import (
+        build_nationality_classification,
+    )
+    from src.engine.workforce_satellite.satellite import WorkforceSatellite
+
+    bridge = build_occupation_bridge(year=2022)
+    classifications = build_nationality_classification(year=2022)
+
+    satellite = WorkforceSatellite(
+        occupation_bridge=bridge,
+        nationality_classifications=classifications,
+    )
+    return satellite
 
 
 @dataclass
@@ -65,6 +92,7 @@ class BatchRequest:
     model_version_id: UUID
     satellite_coefficients: SatelliteCoefficients
     version_refs: dict[str, UUID]
+    constraints: list[ConstraintSpec] | None = None  # P5-3: optional feasibility constraints
 
 
 class BatchRunner:
@@ -97,6 +125,7 @@ class BatchRunner:
                     multiplier=multiplier,
                     coefficients=request.satellite_coefficients,
                     version_refs=request.version_refs,
+                    constraints=request.constraints,
                 )
                 results.append(run_result)
 
@@ -110,6 +139,7 @@ class BatchRunner:
         multiplier: float,
         coefficients: SatelliteCoefficients,
         version_refs: dict[str, UUID],
+        constraints: list[ConstraintSpec] | None = None,
     ) -> SingleRunResult:
         """Execute a single scenario at a given sensitivity multiplier."""
         run_id = new_uuid7()
@@ -138,19 +168,31 @@ class BatchRunner:
         # Build result sets
         result_sets: list[ResultSet] = []
 
-        # Total output
-        result_sets.append(ResultSet(
-            run_id=run_id,
-            metric_type="total_output",
-            values=self._vec_to_dict(phased.cumulative_delta_x, sector_codes),
-        ))
-
         # Direct effect (sum of annual directs)
         cumulative_direct = np.zeros(loaded.n)
         cumulative_indirect = np.zeros(loaded.n)
         for year_result in phased.annual_results.values():
             cumulative_direct += year_result.delta_x_direct
             cumulative_indirect += year_result.delta_x_indirect
+
+        # P5-1: Build sector_breakdowns for total_output (direct, indirect,
+        # employment, imports, value_added per sector)
+        sector_breakdowns: dict[str, dict[str, float]] = {
+            "direct": self._vec_to_dict(cumulative_direct, sector_codes),
+            "indirect": self._vec_to_dict(cumulative_indirect, sector_codes),
+            "employment": self._vec_to_dict(sat_result.delta_jobs, sector_codes),
+            "imports": self._vec_to_dict(sat_result.delta_imports, sector_codes),
+            "value_added": self._vec_to_dict(sat_result.delta_va, sector_codes),
+            "domestic_output": self._vec_to_dict(sat_result.delta_domestic_output, sector_codes),
+        }
+
+        # Total output (with sector breakdowns)
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="total_output",
+            values=self._vec_to_dict(phased.cumulative_delta_x, sector_codes),
+            sector_breakdowns=sector_breakdowns,
+        ))
 
         result_sets.append(ResultSet(
             run_id=run_id,
@@ -243,6 +285,14 @@ class BatchRunner:
             metric_type="domestic_output",
             values=self._vec_to_dict(sat_result.delta_domestic_output, sector_codes),
         ))
+
+        # P5-2: Workforce/saudization ResultSets from WorkforceSatellite
+        self._emit_saudization_results(
+            result_sets=result_sets,
+            run_id=run_id,
+            sat_result=sat_result,
+            sector_codes=sector_codes,
+        )
 
         # Value measures (fail-closed in non-dev: always attempt validation)
         _attempt_vm = (
@@ -397,6 +447,34 @@ class BatchRunner:
                     "Type II validation failed in dev -- continuing with Type I only"
                 )
 
+        # P5-3: Feasibility — ALWAYS emit feasible_output and constraint_gap
+        if constraints:
+            feasibility_solver = ClippingSolver()
+            feas_result = feasibility_solver.solve(
+                unconstrained_delta_x=phased.cumulative_delta_x,
+                constraints=constraints,
+                satellite_coefficients=coefficients,
+                sector_codes=sector_codes,
+            )
+            feasible_delta_x = feas_result.feasible_delta_x
+            gap_per_sector = feas_result.gap_per_sector
+        else:
+            # No constraints: feasible = unconstrained, gap = 0
+            feasible_delta_x = phased.cumulative_delta_x
+            gap_per_sector = np.zeros(len(sector_codes))
+
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="feasible_output",
+            values=self._vec_to_dict(feasible_delta_x, sector_codes),
+        ))
+
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="constraint_gap",
+            values=self._vec_to_dict(gap_per_sector, sector_codes),
+        ))
+
         # Build RunSnapshot
         snapshot = RunSnapshot(
             run_id=run_id,
@@ -409,6 +487,74 @@ class BatchRunner:
         )
 
         return SingleRunResult(snapshot=snapshot, result_sets=result_sets)
+
+    def _emit_saudization_results(
+        self,
+        *,
+        result_sets: list[ResultSet],
+        run_id: UUID,
+        sat_result: SatelliteResult,
+        sector_codes: list[str],
+    ) -> None:
+        """P5-2: Compute and emit saudization ResultSets via WorkforceSatellite.
+
+        Graceful degradation: if D-4 data loading fails, logs a warning
+        and skips saudization (basic employment still emitted).
+        """
+        try:
+            workforce_satellite = load_workforce_data(sector_codes)
+        except Exception:
+            _logger.warning(
+                "Workforce D-4 data unavailable — skipping saudization ResultSets",
+                exc_info=True,
+            )
+            return
+
+        try:
+            wf_result = workforce_satellite.analyze(
+                satellite_result=sat_result,
+                sector_codes=sector_codes,
+            )
+        except Exception:
+            _logger.warning(
+                "WorkforceSatellite.analyze() failed — skipping saudization",
+                exc_info=True,
+            )
+            return
+
+        # Emit per-sector saudization ResultSets from sector_summaries
+        saudi_ready: dict[str, float] = {}
+        saudi_trainable: dict[str, float] = {}
+        expat_reliant: dict[str, float] = {}
+
+        for ss in wf_result.sector_summaries:
+            saudi_ready[ss.sector_code] = ss.saudi_ready_jobs
+            saudi_trainable[ss.sector_code] = ss.saudi_trainable_jobs
+            expat_reliant[ss.sector_code] = ss.expat_reliant_jobs
+
+        # Fill any missing sectors with 0.0
+        for code in sector_codes:
+            saudi_ready.setdefault(code, 0.0)
+            saudi_trainable.setdefault(code, 0.0)
+            expat_reliant.setdefault(code, 0.0)
+
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="saudization_saudi_ready",
+            values=saudi_ready,
+        ))
+
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="saudization_saudi_trainable",
+            values=saudi_trainable,
+        ))
+
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="saudization_expat_reliant",
+            values=expat_reliant,
+        ))
 
     @staticmethod
     def _vec_to_dict(vec: np.ndarray, sector_codes: list[str]) -> dict[str, float]:

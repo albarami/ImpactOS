@@ -160,9 +160,23 @@ export function ExportStatusDisplay({
                 No checksums available.
               </p>
             )}
-            <p className="mt-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-              Download not yet available (Phase 3B — B-12)
-            </p>
+            {checksumEntries.length > 0 && (
+              <div
+                className="mt-4 flex flex-wrap gap-2"
+                data-testid="export-download-buttons"
+              >
+                {checksumEntries.map(([format]) => (
+                  <a
+                    key={format}
+                    href={`/api/v1/workspaces/${workspaceId}/exports/${data.export_id}/download/${format}`}
+                    data-testid={`download-${format}`}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                  >
+                    Download {format.toUpperCase()}
+                  </a>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

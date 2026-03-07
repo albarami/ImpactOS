@@ -17,6 +17,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.agents.depth.tasks import run_depth_plan
 from src.models.chat import ToolCall, ToolExecutionResult
 from src.models.common import ExportMode, new_uuid7
 
@@ -35,12 +36,14 @@ _PER_TOOL_CAPS: dict[str, int] = {
     "create_export": _MAX_CREATE_EXPORT_PER_TURN,
 }
 
-# Available dataset types for lookup_data MVP stub
+# Available dataset types for lookup_data
+# Only list datasets with real handlers — do not advertise unimplemented stubs.
+# P2-1: removed multipliers, macro_indicators (no handler exists)
+# P2-2: employment_coefficients handler implemented (queries EmploymentCoefficientsRepository)
 _AVAILABLE_DATASETS = [
     {"dataset_id": "io_tables", "description": "Input-Output tables (KAPSARC)"},
-    {"dataset_id": "multipliers", "description": "Output, income, and employment multipliers"},
-    {"dataset_id": "employment_coefficients", "description": "Employment coefficients by sector"},
-    {"dataset_id": "macro_indicators", "description": "GDP, trade, and fiscal indicators"},
+    {"dataset_id": "models", "description": "Available model versions"},
+    {"dataset_id": "employment_coefficients", "description": "Employment coefficients by sector (jobs per million SAR)"},
 ]
 
 
@@ -64,6 +67,7 @@ class ChatToolExecutor:
             "run_engine": self._handle_run_engine,
             "narrate_results": self._handle_narrate_results,
             "create_export": self._handle_create_export,
+            "run_depth_suite": self._handle_run_depth_suite,
         }
 
     def _get_handler(self, tool_name: str):
@@ -75,7 +79,134 @@ class ChatToolExecutor:
     # ------------------------------------------------------------------
 
     async def _handle_lookup_data(self, arguments: dict) -> dict:
-        """MVP stub: return available dataset metadata list."""
+        """Query curated datasets (P2-2: real data, not stubs).
+
+        Dispatches on dataset_id:
+          - (none)    → list available dataset types
+          - "models"  → list available model versions
+          - "io_tables" → return sector codes, output vector, denomination
+                          (requires model_version_id)
+        """
+        from src.repositories.engine import ModelDataRepository, ModelVersionRepository
+
+        dataset_id = arguments.get("dataset_id")
+
+        # No dataset_id → list available dataset types
+        if not dataset_id:
+            return {
+                "reason_code": "datasets_listed",
+                "datasets": _AVAILABLE_DATASETS,
+            }
+
+        # "models" → list available model versions
+        if dataset_id == "models":
+            mv_repo = ModelVersionRepository(self._session)
+            rows = await mv_repo.list_all()
+            models = [
+                {
+                    "model_version_id": str(r.model_version_id),
+                    "base_year": r.base_year,
+                    "source": r.source,
+                    "sector_count": r.sector_count,
+                    "denomination": getattr(r, "model_denomination", "UNKNOWN"),
+                }
+                for r in rows
+            ]
+            return {"reason_code": "models_listed", "models": models}
+
+        # All other datasets require model_version_id
+        model_version_id_str = arguments.get("model_version_id")
+        if not model_version_id_str:
+            return {
+                "reason_code": "invalid_args",
+                "error": f"dataset_id='{dataset_id}' requires model_version_id",
+            }
+
+        try:
+            mv_uuid = UUID(str(model_version_id_str))
+        except (ValueError, AttributeError):
+            return {
+                "reason_code": "invalid_args",
+                "error": f"Invalid model_version_id format: {model_version_id_str}",
+            }
+
+        # Load model data
+        mv_repo = ModelVersionRepository(self._session)
+        mv_row = await mv_repo.get(mv_uuid)
+        if mv_row is None:
+            return {
+                "reason_code": "model_not_found",
+                "error": f"Model version {model_version_id_str} not found",
+            }
+
+        md_repo = ModelDataRepository(self._session)
+        md_row = await md_repo.get(mv_uuid)
+        if md_row is None:
+            return {
+                "reason_code": "model_not_found",
+                "error": f"Model data for {model_version_id_str} not found",
+            }
+
+        sector_codes: list[str] = md_row.sector_codes
+        x_vector: list[float] = md_row.x_vector_json
+        sector_filter = arguments.get("sector_codes")
+
+        if dataset_id == "io_tables":
+            # Build sector → output mapping
+            output_map: dict[str, float] = {}
+            for code, val in zip(sector_codes, x_vector):
+                if sector_filter and code not in sector_filter:
+                    continue
+                output_map[code] = val
+
+            filtered_codes = (
+                [c for c in sector_codes if c in sector_filter]
+                if sector_filter
+                else sector_codes
+            )
+
+            return {
+                "reason_code": "io_tables_found",
+                "model_version_id": str(mv_uuid),
+                "base_year": mv_row.base_year,
+                "denomination": getattr(mv_row, "model_denomination", "UNKNOWN"),
+                "sector_codes": filtered_codes,
+                "total_output": output_map,
+            }
+
+        if dataset_id == "employment_coefficients":
+            # P2-2: Query real employment coefficients from DB
+            from src.repositories.workforce import EmploymentCoefficientsRepository
+
+            ec_repo = EmploymentCoefficientsRepository(self._session)
+            ec_rows = await ec_repo.get_by_model_version(mv_uuid)
+
+            if not ec_rows:
+                return {
+                    "reason_code": "employment_coefficients_not_found",
+                    "error": f"No employment coefficients found for model {model_version_id_str}",
+                }
+
+            # Use the latest version
+            latest = ec_rows[0]  # already sorted newest-first by repository
+            coefficients: list[dict] = latest.coefficients
+
+            # Apply sector filter if provided
+            if sector_filter:
+                coefficients = [
+                    c for c in coefficients
+                    if c.get("sector_code") in sector_filter
+                ]
+
+            return {
+                "reason_code": "employment_coefficients_found",
+                "model_version_id": str(mv_uuid),
+                "base_year": latest.base_year,
+                "output_unit": latest.output_unit,
+                "coefficients": coefficients,
+            }
+
+        # Fallback: unknown dataset_id → list available
         return {
             "reason_code": "datasets_listed",
             "datasets": _AVAILABLE_DATASETS,
@@ -84,9 +215,18 @@ class ChatToolExecutor:
     async def _handle_build_scenario(self, arguments: dict) -> dict:
         """Create a ScenarioSpec via ScenarioVersionRepository.
 
+        P4-2: Also auto-drafts compilation assumptions (import share, phasing,
+        deflators) so NFF governance can track implicit parameters.
+
         Required args: name, base_year, base_model_version_id
         Optional: start_year, end_year (used for time_horizon)
         """
+        from src.compiler.scenario_compiler import (
+            CompilationInput,
+            draft_compilation_assumptions,
+        )
+        from src.models.scenario import TimeHorizon
+        from src.repositories.governance import AssumptionRepository
         from src.repositories.scenarios import ScenarioVersionRepository
 
         name = arguments.get("name")
@@ -115,6 +255,50 @@ class ChatToolExecutor:
             shock_items=arguments.get("shock_items", []),
         )
 
+        # P4-2: Auto-draft compilation assumptions
+        try:
+            compilation_inp = CompilationInput(
+                workspace_id=self._workspace_id,
+                scenario_name=name,
+                base_model_version_id=UUID(str(base_model_version_id)),
+                base_year=int(base_year),
+                time_horizon=TimeHorizon(
+                    start_year=int(start_year), end_year=int(end_year),
+                ),
+                line_items=[],
+                decisions=[],
+                default_domestic_share=0.65,
+                default_import_share=0.35,
+            )
+            assumptions = draft_compilation_assumptions(compilation_inp)
+            assumption_repo = AssumptionRepository(self._session)
+            for assumption in assumptions:
+                await assumption_repo.create(
+                    assumption_id=assumption.assumption_id,
+                    type=assumption.type.value,
+                    value=assumption.value,
+                    units=assumption.units,
+                    justification=assumption.justification,
+                    status=assumption.status.value,
+                    workspace_id=self._workspace_id,
+                )
+                # Step 1: Link assumption to scenario so exports can scope correctly
+                await assumption_repo.link(
+                    assumption.assumption_id,
+                    scenario_spec_id,
+                    link_type="scenario",
+                )
+            _logger.info(
+                "P4-2: Auto-drafted %d assumptions for scenario %s (linked)",
+                len(assumptions), scenario_spec_id,
+            )
+        except Exception:
+            _logger.warning(
+                "P4-2: Failed to auto-draft assumptions for scenario %s",
+                scenario_spec_id,
+                exc_info=True,
+            )
+
         return {
             "scenario_spec_id": str(row.scenario_spec_id),
             "version": row.version,
@@ -131,6 +315,7 @@ class ChatToolExecutor:
             ModelDataRepository, ModelVersionRepository,
             ResultSetRepository, RunSnapshotRepository,
         )
+        from src.repositories.governance import ClaimRepository
         from src.repositories.scenarios import ScenarioVersionRepository
         from src.services.run_execution import (
             RunExecutionService, RunFromScenarioInput, RunRepositories,
@@ -159,6 +344,7 @@ class ChatToolExecutor:
             md_repo=ModelDataRepository(self._session),
             snap_repo=RunSnapshotRepository(self._session),
             rs_repo=ResultSetRepository(self._session),
+            claim_repo=ClaimRepository(self._session),  # P4-1: auto-create claims
         )
         inp = RunFromScenarioInput(
             workspace_id=self._workspace_id,
@@ -251,7 +437,7 @@ class ChatToolExecutor:
             ExportExecutionService, ExportExecutionInput, ExportRepositories,
         )
         from src.repositories.exports import ExportRepository
-        from src.repositories.governance import ClaimRepository
+        from src.repositories.governance import AssumptionRepository, ClaimRepository
         from src.repositories.data_quality import DataQualityRepository
         from src.repositories.engine import RunSnapshotRepository, ModelVersionRepository
         from src.export.artifact_storage import ExportArtifactStorage
@@ -306,6 +492,7 @@ class ChatToolExecutor:
             snap_repo=RunSnapshotRepository(self._session),
             mv_repo=ModelVersionRepository(self._session),
             artifact_store=artifact_store,
+            assumption_repo=AssumptionRepository(self._session),  # P4-3
         )
         svc = ExportExecutionService()
         inp = ExportExecutionInput(
@@ -336,6 +523,149 @@ class ChatToolExecutor:
 
         return response
 
+    async def _handle_run_depth_suite(self, arguments: dict) -> dict:
+        """Launch Al-Muhāsibī depth engine for deep-dive analysis (P3-1 + Step 2).
+
+        Creates a DepthPlan row, runs the 5-step depth pipeline inline,
+        then executes the resulting ScenarioSuitePlan runs via BatchRunner.
+
+        Step 2: After plan completion, loads the suite_planning artifact,
+        converts SuiteRun entries to ScenarioInputs, and executes them.
+        Returns real run_ids, not just plan status.
+
+        Required args: key_questions (list[str])
+        Optional: target_sectors (list[str]), base_year (int),
+                  model_version_id (str), scenario_spec_id (str)
+        """
+        from src.repositories.depth import DepthPlanRepository
+
+        key_questions = arguments.get("key_questions")
+        if not key_questions or not isinstance(key_questions, list):
+            return {
+                "reason_code": "invalid_args",
+                "error": "Missing required field: key_questions (must be a non-empty list)",
+            }
+
+        target_sectors = arguments.get("target_sectors", [])
+        base_year = arguments.get("base_year")
+
+        # Create a DepthPlan row
+        plan_repo = DepthPlanRepository(self._session)
+        plan_id = new_uuid7()
+        await plan_repo.create(
+            plan_id=plan_id,
+            workspace_id=self._workspace_id,
+            status="PENDING",
+        )
+
+        # Build context for the depth engine
+        depth_context: dict = {
+            "key_questions": key_questions,
+            "target_sectors": target_sectors,
+        }
+        if base_year is not None:
+            depth_context["base_year"] = base_year
+
+        # Run the depth pipeline inline (5-step: Khawatir→Suite Planning)
+        final_status = await run_depth_plan(
+            plan_id=plan_id,
+            workspace_id=self._workspace_id,
+            context=depth_context,
+            classification="INTERNAL",
+        )
+
+        result: dict = {
+            "plan_id": str(plan_id),
+            "status": final_status,
+        }
+
+        # Step 2: Execute the ScenarioSuitePlan if the pipeline succeeded
+        if final_status == "COMPLETED":
+            suite_result = await self._execute_depth_suite_runs(
+                plan_id=plan_id,
+                base_year=base_year or 2023,
+                model_version_id=arguments.get("model_version_id"),
+                scenario_spec_id=arguments.get("scenario_spec_id"),
+            )
+            if suite_result:
+                result.update(suite_result)
+
+        return result
+
+    async def _execute_depth_suite_runs(
+        self,
+        plan_id: UUID,
+        base_year: int,
+        model_version_id: str | None = None,
+        scenario_spec_id: str | None = None,
+    ) -> dict | None:
+        """Step 2: Load ScenarioSuitePlan artifact and execute runs.
+
+        Returns dict with suite_id, run_ids, run_count on success.
+        Returns None on failure (graceful degradation).
+        """
+        from src.repositories.depth import DepthArtifactRepository
+        from src.models.depth import ScenarioSuitePlan
+        from src.services.depth_suite_execution import (
+            DepthSuiteExecutionService,
+            DepthSuiteExecutionInput,
+        )
+
+        try:
+            artifact_repo = DepthArtifactRepository(self._session)
+            suite_artifact = await artifact_repo.get_by_plan_and_step(
+                plan_id, "SUITE_PLANNING",
+            )
+            if suite_artifact is None:
+                _logger.warning(
+                    "Step 2: No suite_planning artifact for plan %s", plan_id,
+                )
+                return None
+
+            plan = ScenarioSuitePlan.model_validate(suite_artifact.payload)
+
+            # Resolve model_version_id (from argument or first available)
+            mv_id: UUID
+            if model_version_id:
+                mv_id = UUID(str(model_version_id))
+            else:
+                from src.repositories.engine import ModelVersionRepository
+                mv_repo = ModelVersionRepository(self._session)
+                rows = await mv_repo.list_all()
+                if not rows:
+                    _logger.warning("Step 2: No model versions available")
+                    return None
+                mv_id = rows[0].model_version_id
+
+            inp = DepthSuiteExecutionInput(
+                workspace_id=self._workspace_id,
+                model_version_id=mv_id,
+                base_year=base_year,
+                scenario_spec_id=UUID(str(scenario_spec_id)) if scenario_spec_id else None,
+            )
+
+            svc = DepthSuiteExecutionService()
+            exec_result = await svc.execute_plan(plan, inp)
+
+            if exec_result.status == "COMPLETED":
+                return {
+                    "suite_id": str(exec_result.suite_id),
+                    "run_ids": [str(r) for r in exec_result.run_ids],
+                    "run_count": exec_result.run_count,
+                }
+            else:
+                _logger.warning(
+                    "Step 2: Suite execution failed: %s", exec_result.error,
+                )
+                return None
+
+        except Exception:
+            _logger.warning(
+                "Step 2: Failed to execute depth suite runs for plan %s",
+                plan_id, exc_info=True,
+            )
+            return None
+
     # ------------------------------------------------------------------
     # Execute single / execute all
     # ------------------------------------------------------------------
@@ -359,7 +689,8 @@ class ChatToolExecutor:
         # Reason codes that indicate handler-level validation failures
         _ERROR_REASON_CODES = frozenset({
             "invalid_args", "scenario_not_found", "no_results", "run_not_found",
-            "run_failed", "export_failed",
+            "run_failed", "export_failed", "model_not_found",
+            "employment_coefficients_not_found",
         })
         # Reason codes that indicate a governance-blocked result (amber, not red)
         _BLOCKED_REASON_CODES = frozenset({

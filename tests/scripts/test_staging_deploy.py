@@ -24,6 +24,7 @@ from scripts.staging_deploy import (
     check_database_url,
     check_env_file_exists,
     check_environment_value,
+    check_frontend_config,
     check_idp_config,
     check_minio_credentials,
     check_object_storage,
@@ -409,6 +410,93 @@ class TestCheckPostgresCredentials:
 
 
 # ---------------------------------------------------------------------------
+# Test: check_frontend_config
+# ---------------------------------------------------------------------------
+
+
+class TestCheckFrontendConfig:
+    """check_frontend_config validates frontend staging prerequisites."""
+
+    def test_all_set_passes(self) -> None:
+        result = check_frontend_config({
+            "NEXTAUTH_SECRET": "a-real-strong-secret-for-staging",
+            "NEXTAUTH_URL": "https://staging.impactos.example.com",
+            "NEXTAUTH_PROVIDER": "oidc",
+            "OIDC_ISSUER": "https://idp.example.com",
+            "OIDC_CLIENT_ID": "impactos-frontend",
+            "OIDC_CLIENT_SECRET": "real-client-secret",
+        })
+        assert result.status == "PASS"
+
+    def test_credentials_provider_passes(self) -> None:
+        """credentials mode only needs NEXTAUTH_SECRET."""
+        result = check_frontend_config({
+            "NEXTAUTH_SECRET": "a-real-strong-secret-for-staging",
+            "NEXTAUTH_PROVIDER": "credentials",
+        })
+        assert result.status == "PASS"
+
+    def test_missing_nextauth_secret_fails(self) -> None:
+        result = check_frontend_config({
+            "NEXTAUTH_PROVIDER": "oidc",
+            "OIDC_ISSUER": "https://idp.example.com",
+            "OIDC_CLIENT_ID": "cid",
+            "OIDC_CLIENT_SECRET": "csecret",
+        })
+        assert result.status == "FAIL"
+        assert "NEXTAUTH_SECRET" in result.detail
+
+    def test_dev_default_secret_fails(self) -> None:
+        result = check_frontend_config({
+            "NEXTAUTH_SECRET": "dev-secret-do-not-use-in-production",
+            "NEXTAUTH_PROVIDER": "oidc",
+        })
+        assert result.status == "FAIL"
+        assert "dev default" in result.detail.lower()
+
+    def test_placeholder_secret_fails(self) -> None:
+        result = check_frontend_config({
+            "NEXTAUTH_SECRET": "REPLACE_WITH_STRONG_NEXTAUTH_SECRET",
+        })
+        assert result.status == "FAIL"
+
+    def test_oidc_missing_issuer_fails(self) -> None:
+        result = check_frontend_config({
+            "NEXTAUTH_SECRET": "real-secret-value",
+            "NEXTAUTH_PROVIDER": "oidc",
+            "OIDC_CLIENT_ID": "cid",
+            "OIDC_CLIENT_SECRET": "csecret",
+        })
+        assert result.status == "FAIL"
+        assert "OIDC_ISSUER" in result.detail
+
+    def test_oidc_missing_client_id_fails(self) -> None:
+        result = check_frontend_config({
+            "NEXTAUTH_SECRET": "real-secret-value",
+            "NEXTAUTH_PROVIDER": "oidc",
+            "OIDC_ISSUER": "https://idp.example.com",
+            "OIDC_CLIENT_SECRET": "csecret",
+        })
+        assert result.status == "FAIL"
+        assert "OIDC_CLIENT_ID" in result.detail
+
+    def test_oidc_placeholder_values_fail(self) -> None:
+        result = check_frontend_config({
+            "NEXTAUTH_SECRET": "real-secret-value",
+            "NEXTAUTH_PROVIDER": "oidc",
+            "OIDC_ISSUER": "https://your-idp.example.com",
+            "OIDC_CLIENT_ID": "REPLACE_WITH_OIDC_CLIENT_ID",
+            "OIDC_CLIENT_SECRET": "csecret",
+        })
+        assert result.status == "FAIL"
+
+    def test_not_included_returns_skip(self) -> None:
+        """When no frontend vars at all, return SKIP (frontend not deployed)."""
+        result = check_frontend_config({})
+        assert result.status == "SKIP"
+
+
+# ---------------------------------------------------------------------------
 # Test: run_checks integration
 # ---------------------------------------------------------------------------
 
@@ -443,7 +531,7 @@ class TestRunChecks:
         report = run_checks(str(env_file))
         assert report.overall == "PASS"
         assert report.has_failures() is False
-        assert len(report.checks) == 8  # file + 7 checks
+        assert len(report.checks) == 9  # file + 7 backend + 1 frontend (SKIP)
 
     def test_dev_defaults_all_fail(self, tmp_path: Path) -> None:
         """An env file with all dev defaults fails."""

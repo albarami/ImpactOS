@@ -26,6 +26,7 @@ from scripts.staging_smoke import (
     stage_health_components,
     stage_readiness,
     stage_startup,
+    stage_worker_health,
 )
 
 
@@ -372,6 +373,53 @@ class TestStageCopilotSmoke:
 
 
 # ---------------------------------------------------------------------------
+# Test: stage_worker_health
+# ---------------------------------------------------------------------------
+
+
+class TestStageWorkerHealth:
+    """stage_worker_health checks worker readiness via /health Redis status."""
+
+    def test_redis_healthy_passes(self) -> None:
+        client = _mock_client(
+            health=_mock_response(200, {
+                "checks": {
+                    "api": "ok", "database": "ok",
+                    "redis": "ok", "object_storage": "ok",
+                },
+            }),
+        )
+        result = stage_worker_health(client, "http://localhost:8000")
+        assert result.status == "PASS"
+
+    def test_redis_unhealthy_fails(self) -> None:
+        client = _mock_client(
+            health=_mock_response(200, {
+                "checks": {
+                    "api": "ok", "database": "ok",
+                    "redis": "unhealthy", "object_storage": "ok",
+                },
+            }),
+        )
+        result = stage_worker_health(client, "http://localhost:8000")
+        assert result.status == "FAIL"
+        assert "Redis" in result.detail
+
+    def test_health_endpoint_error_fails(self) -> None:
+        client = _mock_client(
+            health=_mock_response(503, None),
+        )
+        result = stage_worker_health(client, "http://localhost:8000")
+        assert result.status == "FAIL"
+
+    def test_connection_error_fails(self) -> None:
+        client = MagicMock(spec=httpx.Client)
+        client.get = MagicMock(side_effect=httpx.ConnectError("refused"))
+        result = stage_worker_health(client, "http://localhost:8000")
+        assert result.status == "FAIL"
+
+
+# ---------------------------------------------------------------------------
 # Test: run_smoke cascade-skip
 # ---------------------------------------------------------------------------
 
@@ -400,7 +448,7 @@ class TestRunSmokeCascade:
         # All remaining stages should be SKIP
         for stage in report.stages[1:]:
             assert stage.status == "SKIP", f"{stage.name} should be SKIP"
-        assert len(report.stages) == 6  # all 6 stages present
+        assert len(report.stages) == 7  # all 7 stages present
 
     def test_all_pass_overall_pass(self) -> None:
         """If all stages pass, overall is PASS."""

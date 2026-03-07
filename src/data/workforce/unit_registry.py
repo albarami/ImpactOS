@@ -14,7 +14,7 @@ from enum import StrEnum
 
 import numpy as np
 
-from src.models.common import ConstraintConfidence
+from src.models.common import ConstraintConfidence, OutputDenomination  # noqa: F401 — re-export
 
 
 class QualityConfidence(StrEnum):
@@ -28,13 +28,9 @@ class QualityConfidence(StrEnum):
     LOW = "low"
 
 
-class OutputDenomination(StrEnum):
-    """Unit denomination for monetary values."""
-
-    SAR = "SAR"
-    SAR_THOUSANDS = "SAR_THOUSANDS"
-    SAR_MILLIONS = "SAR_MILLIONS"
-
+# OutputDenomination is now canonical in src.models.common.
+# Re-exported above for backward compatibility. All new code should import
+# from src.models.common directly.
 
 # Conversion factors to base unit (SAR)
 _TO_SAR: dict[OutputDenomination, float] = {
@@ -52,7 +48,17 @@ def denomination_factor(
 
     Example: denomination_factor(SAR_THOUSANDS, SAR_MILLIONS) = 0.001
     (1 thousand SAR = 0.001 million SAR)
+
+    Raises:
+        ValueError: If either denomination is UNKNOWN.
     """
+    if from_denom == OutputDenomination.UNKNOWN or to_denom == OutputDenomination.UNKNOWN:
+        msg = (
+            f"Cannot convert between denominations when one is UNKNOWN "
+            f"(from={from_denom}, to={to_denom}). "
+            f"Set model_denomination explicitly on ModelVersion."
+        )
+        raise ValueError(msg)
     return _TO_SAR[from_denom] / _TO_SAR[to_denom]
 
 

@@ -280,6 +280,71 @@ def check_minio_credentials(env: dict[str, str]) -> PrereqResult:
     )
 
 
+def check_frontend_config(env: dict[str, str]) -> PrereqResult:
+    """Check frontend staging prerequisites (NEXTAUTH_SECRET, OIDC vars).
+
+    Returns SKIP if no frontend vars are present (frontend not deployed).
+    Returns PASS if all required vars are set and non-placeholder.
+    Returns FAIL if any required var is missing, dev default, or placeholder.
+    """
+    _DEV_NEXTAUTH_SECRET = "dev-secret-do-not-use-in-production"
+    _FRONTEND_VARS = ("NEXTAUTH_SECRET", "NEXTAUTH_PROVIDER", "NEXTAUTH_URL",
+                      "OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET")
+
+    # If no frontend vars at all, frontend is not being deployed
+    has_any = any(env.get(v) for v in _FRONTEND_VARS)
+    if not has_any:
+        return PrereqResult(
+            name="frontend_config",
+            status="SKIP",
+            detail="No frontend env vars present — frontend not included in deployment",
+        )
+
+    # NEXTAUTH_SECRET is always required
+    secret = env.get("NEXTAUTH_SECRET", "")
+    if not secret:
+        return PrereqResult(
+            name="frontend_config",
+            status="FAIL",
+            detail="NEXTAUTH_SECRET is empty — required for session encryption",
+        )
+    if secret == _DEV_NEXTAUTH_SECRET:
+        return PrereqResult(
+            name="frontend_config",
+            status="FAIL",
+            detail="NEXTAUTH_SECRET is dev default — set a real secret",
+        )
+    if _is_placeholder(secret):
+        return PrereqResult(
+            name="frontend_config",
+            status="FAIL",
+            detail="NEXTAUTH_SECRET contains placeholder text",
+        )
+
+    # If provider is OIDC, check OIDC vars
+    provider = env.get("NEXTAUTH_PROVIDER", "credentials")
+    if provider == "oidc":
+        missing = []
+        for var in ("OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET"):
+            val = env.get(var, "")
+            if not val:
+                missing.append(var)
+            elif _is_placeholder(val):
+                missing.append(f"{var} (placeholder)")
+        if missing:
+            return PrereqResult(
+                name="frontend_config",
+                status="FAIL",
+                detail=f"Missing or placeholder OIDC config: {', '.join(missing)}",
+            )
+
+    return PrereqResult(
+        name="frontend_config",
+        status="PASS",
+        detail=f"Frontend config valid (provider={provider})",
+    )
+
+
 def check_postgres_credentials(env: dict[str, str]) -> PrereqResult:
     """Check POSTGRES_USER/PASSWORD are non-dev."""
     user = env.get("POSTGRES_USER", "")
@@ -329,7 +394,7 @@ def run_checks(env_file: str) -> DeployReport:
     # Parse the env file
     env = parse_env_file(env_file)
 
-    # Check 2-8: individual prerequisites
+    # Check 2-8: backend prerequisites
     checks.append(check_environment_value(env))
     checks.append(check_secret_key(env))
     checks.append(check_database_url(env))
@@ -337,6 +402,9 @@ def run_checks(env_file: str) -> DeployReport:
     checks.append(check_idp_config(env))
     checks.append(check_minio_credentials(env))
     checks.append(check_postgres_credentials(env))
+
+    # Check 9: frontend prerequisites (SKIP if not deploying frontend)
+    checks.append(check_frontend_config(env))
 
     has_fail = any(c.status == "FAIL" for c in checks)
     return DeployReport(

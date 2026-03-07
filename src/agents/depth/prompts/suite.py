@@ -17,6 +17,7 @@ def build_prompt(context: dict) -> str:
     scored = context.get("scored", [])
     risks = context.get("qualitative_risks", [])
     workspace_id = context.get("workspace_id", "unknown")
+    denomination = context.get("denomination", "SAR_MILLIONS")
 
     accepted = [s for s in scored if s.get("accepted", False)]
     rejected = [s for s in scored if not s.get("accepted", False)]
@@ -36,6 +37,11 @@ def build_prompt(context: dict) -> str:
         "  (multipliers, jobs, imports, variance_bridge, etc.)",
         "- Suite plan disclosure_tier defaults to TIER1",
         "- Qualitative risks carry over (not_modeled=true always)",
+        "",
+        f"\nMODEL DENOMINATION: {denomination}",
+        "All lever values (e.g. FINAL_DEMAND_SHOCK value) MUST be expressed "
+        f"in {denomination}. For example, a 500M SAR shock = "
+        '{"value": 500.0} (in SAR_MILLIONS).',
         "",
         f"ACCEPTED DIRECTIONS ({len(accepted)}):",
     ]

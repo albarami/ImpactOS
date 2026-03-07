@@ -642,3 +642,131 @@ class TestRunSeriesAPI:
         for rs in delta_rows:
             assert rs["confidence_class"] == "ESTIMATED"
             assert rs["baseline_run_id"] == baseline_id
+
+
+# ===================================================================
+# P6-3: Denomination wired through snapshot
+# ===================================================================
+
+
+class TestDenominationInSnapshot:
+    """P6-3: model_denomination flows from ModelVersion through snapshot to API response."""
+
+    @pytest.mark.anyio
+    async def test_create_run_snapshot_has_denomination(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """POST run response includes model_denomination in snapshot."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2026": [100.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        assert run_resp.status_code == 200
+        data = run_resp.json()
+        assert "model_denomination" in data["snapshot"]
+
+    @pytest.mark.anyio
+    async def test_get_run_snapshot_has_denomination(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """GET run results includes model_denomination in snapshot (DB round-trip)."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2026": [100.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        run_id = run_resp.json()["run_id"]
+
+        get_resp = await client.get(f"/v1/workspaces/{WS_ID}/engine/runs/{run_id}")
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        assert "model_denomination" in data["snapshot"]
+        # DB-persisted denomination must not be empty/None
+        assert data["snapshot"]["model_denomination"] not in (None, "")
+
+    @pytest.mark.anyio
+    async def test_batch_run_snapshot_has_denomination(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """Batch run results include model_denomination in each run snapshot."""
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        batch_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/batch",
+            json={
+                "model_version_id": mvid,
+                "scenarios": [
+                    {"name": "A", "annual_shocks": {"2026": [100.0, 0.0]}, "base_year": 2023},
+                ],
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        assert batch_resp.status_code == 200
+        data = batch_resp.json()
+        for run in data["results"]:
+            assert "model_denomination" in run["snapshot"]
+
+    @pytest.mark.anyio
+    async def test_denomination_persists_through_db_round_trip(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        """model_denomination survives persist→read DB round-trip (not just default).
+
+        Uses SAR_THOUSANDS (non-default) to prove the value actually comes
+        from the DB rather than falling back to the SnapshotResponse default.
+        Evicts the model from the in-memory cache to force DB rehydration.
+        """
+        from src.api.runs import _model_store
+
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        mvid = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, mvid)
+
+        # Set a NON-DEFAULT denomination on the model version row
+        await db_session.execute(
+            update(ModelVersionRow)
+            .where(ModelVersionRow.model_version_id == UUID(mvid))
+            .values(model_denomination="SAR_THOUSANDS")
+        )
+        await db_session.flush()
+
+        # Evict from cache to force DB reload with updated denomination
+        _model_store._models.pop(UUID(mvid), None)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": mvid,
+                "annual_shocks": {"2026": [100.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        run_id = run_resp.json()["run_id"]
+
+        # Read back from DB — must show SAR_THOUSANDS, not default SAR_MILLIONS
+        get_resp = await client.get(f"/v1/workspaces/{WS_ID}/engine/runs/{run_id}")
+        data = get_resp.json()
+        assert data["snapshot"]["model_denomination"] == "SAR_THOUSANDS", (
+            f"Expected SAR_THOUSANDS from DB, got {data['snapshot']['model_denomination']}. "
+            "This means _load_run_response() is not reading denomination from the DB row."
+        )

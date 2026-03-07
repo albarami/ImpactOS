@@ -216,6 +216,73 @@ def _find_curated_io(base: Path, year: int) -> tuple[Path, int] | None:
     return None
 
 
+def _load_curated_import_ratios(
+    base: Path,
+    sector_codes: list[str],
+    fallback_flags: list[str],
+) -> np.ndarray:
+    """P1-4: Load sector-specific import ratios from curated data file.
+
+    Tries to load from saudi_import_ratios.json in the curated directory.
+    Falls back to the default curated data path if not found locally.
+    Returns flat 0.15 (with fallback flag) only as last resort.
+    """
+    import json
+
+    n = len(sector_codes)
+
+    # Try curated import ratios file (in provided dir first, then default)
+    candidates = [
+        base / "saudi_import_ratios.json",
+        _CURATED_DIR / "saudi_import_ratios.json",
+    ]
+
+    for ratios_path in candidates:
+        if not ratios_path.exists():
+            continue
+        try:
+            with open(ratios_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            ratios_map = data.get("import_ratios", {})
+
+            # Build import ratio vector aligned to sector_codes
+            import_ratio = np.zeros(n, dtype=np.float64)
+            matched = 0
+            for i, code in enumerate(sector_codes):
+                entry = ratios_map.get(code)
+                if entry is not None:
+                    if isinstance(entry, dict):
+                        import_ratio[i] = entry.get("value", 0.15)
+                    else:
+                        import_ratio[i] = float(entry)
+                    matched += 1
+                else:
+                    import_ratio[i] = 0.15  # per-sector fallback
+                    fallback_flags.append(
+                        f"import_ratio: sector {code} not in curated file, using 0.15",
+                    )
+
+            logger.info(
+                "P1-4: Loaded sector-specific import ratios from %s "
+                "(%d/%d sectors matched)",
+                ratios_path.name, matched, n,
+            )
+            return import_ratio
+        except Exception:
+            logger.warning(
+                "Failed to load curated import ratios from %s",
+                ratios_path,
+                exc_info=True,
+            )
+
+    # Last resort: flat 0.15 with fallback flag
+    fallback_flags.append("import_ratio: flat 0.15 fallback (no curated import data)")
+    logger.warning(
+        "P1-4: No curated import ratios file found, using flat 0.15 fallback"
+    )
+    return np.full(n, 0.15, dtype=np.float64)
+
+
 def _load_io_ratios(
     base: Path,
     year: int,
@@ -242,14 +309,25 @@ def _load_io_ratios(
             a_mat = io_data.Z / x_safe[np.newaxis, :]
             va_ratio = 1.0 - a_mat.sum(axis=0)
             va_ratio = np.clip(va_ratio, 0.0, 1.0)
-            # Import ratio: default 0.15 (curated IO doesn't include imports)
-            import_ratio = np.full(n, 0.15, dtype=np.float64)
             codes = io_data.sector_codes
+
+            # P1-4: Import ratio from IO data or curated import ratios file
+            if io_data.imports_vector is not None:
+                # Best case: IO model includes import vector directly
+                import_ratio = io_data.imports_vector / np.maximum(io_data.x, 1.0)
+                import_ratio = np.clip(import_ratio, 0.0, 1.0)
+                logger.info("Import ratios derived from IO model imports_vector")
+            else:
+                # Load from curated import ratios file (P1-4)
+                import_ratio = _load_curated_import_ratios(
+                    base, codes, fallback_flags,
+                )
+
             logger.info(
                 "IO ratios from curated real IO: %s (year %d)",
                 curated_path.name, resolved_year,
             )
-            # No fallback flag — curated data is the preferred source
+            # No fallback flag for VA (curated IO is the preferred source)
             return io_data.base_year, import_ratio, va_ratio, codes
         except Exception:
             logger.warning(

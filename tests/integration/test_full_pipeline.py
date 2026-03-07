@@ -28,10 +28,10 @@ class TestRegisterToRun:
         client: AsyncClient,
         seeded_run: dict,
     ) -> None:
-        """Model + single run → 7 cumulative result sets (series rows filtered by default)."""
+        """Model + single run → 12 cumulative result sets (7 basic + 3 saudization + 2 feasibility; series rows filtered by default)."""
         result_sets = seeded_run["result_sets"]
         metric_types = {rs["metric_type"] for rs in result_sets}
-        assert len(result_sets) == 7
+        assert len(result_sets) == 12
         assert "total_output" in metric_types
         assert "direct_effect" in metric_types
         assert "indirect_effect" in metric_types
@@ -61,7 +61,7 @@ class TestRegisterToRun:
         assert resp.status_code == 200
         data = resp.json()
         assert data["run_id"] == run_id
-        assert len(data["result_sets"]) == 7
+        assert len(data["result_sets"]) == 12
 
 
 # ---------------------------------------------------------------------------

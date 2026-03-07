@@ -33,7 +33,36 @@ _LEVER_TYPE_MAP = {
 }
 
 _DEFAULT_OUTPUTS = ["multipliers", "jobs", "imports"]
-_MAX_RUNS = 5
+_MAX_RUNS = 20
+
+
+def _materialize_multipliers(sensitivities: list[str | dict]) -> list[float]:
+    """Convert sensitivity sweep metadata into executable multiplier values.
+
+    P3-3: Bridges depth engine metadata to BatchRunner.sensitivity_multipliers.
+    Only processes "sensitivity_sweep" type entries with "range" containing
+    min, max, steps. Other sensitivity types (import_share, phasing) are
+    metadata-only and don't produce uniform multipliers.
+    """
+    multipliers: list[float] = []
+    for entry in sensitivities:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("type") != "sensitivity_sweep":
+            continue
+        sweep_range = entry.get("range")
+        if not isinstance(sweep_range, dict):
+            continue
+        lo = sweep_range.get("min", 0.8)
+        hi = sweep_range.get("max", 1.2)
+        steps = sweep_range.get("steps", 5)
+        if steps < 2:
+            multipliers.append(lo)
+            continue
+        step_size = (hi - lo) / (steps - 1)
+        for i in range(steps):
+            multipliers.append(round(lo + i * step_size, 6))
+    return multipliers
 
 
 def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
@@ -43,6 +72,9 @@ def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
     workspace_id = context.get("workspace_id")
     if isinstance(workspace_id, str):
         workspace_id = UUID(workspace_id)
+
+    # P3-2: configurable max_runs from context (default: _MAX_RUNS)
+    max_runs = context.get("max_runs", _MAX_RUNS)
 
     # Rebuild QualitativeRisk objects from dicts
     risks: list[QualitativeRisk] = []
@@ -57,8 +89,8 @@ def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
     accepted = [s for s in scored if s.get("accepted", False)]
     # Sort by composite score descending
     accepted.sort(key=lambda s: s.get("composite_score", 0), reverse=True)
-    # Take top N
-    selected = accepted[:_MAX_RUNS]
+    # Take top N (P3-2: configurable)
+    selected = accepted[:max_runs]
 
     runs: list[SuiteRun] = []
     has_contrarian = False
@@ -76,15 +108,27 @@ def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
         # Build executable levers from the context's original direction data
         executable_levers = _build_levers_for_direction(s, context)
 
-        # Determine sensitivities
-        sensitivities = []
+        # P3-3: Sensitivity sweeps with parameter ranges (not just strings)
+        sensitivities: list[str | dict] = []
         if s.get("novelty_score", 0) >= 7.0:
-            sensitivities.append("sensitivity_sweep")
+            sensitivities.append({
+                "type": "sensitivity_sweep",
+                "range": {"min": 0.8, "max": 1.2, "steps": 5},
+            })
         if is_contrarian:
-            sensitivities.append("import_share")
-            sensitivities.append("phasing")
+            sensitivities.append({
+                "type": "import_share",
+                "range": {"min": -0.30, "max": 0.0, "steps": 3},
+            })
+            sensitivities.append({
+                "type": "phasing",
+                "values": [0, 1, 2, 3],
+            })
 
         tier = DisclosureTier.TIER0 if is_contrarian else DisclosureTier.TIER1
+
+        # P3-3: materialize multipliers from sweep metadata
+        materialized = _materialize_multipliers(sensitivities)
 
         runs.append(SuiteRun(
             name=f"Run: {label}",
@@ -92,6 +136,7 @@ def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
             executable_levers=executable_levers,
             mode="SANDBOX",
             sensitivities=sensitivities,
+            sensitivity_multipliers=materialized,
             disclosure_tier=tier,
         ))
 
@@ -115,10 +160,52 @@ def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
     )
 
 
+def _derive_shock_value(
+    lever_type: str,
+    sector: str,
+    context: dict,
+) -> float:
+    """Derive a real lever value from context data.
+
+    P3-6: Replaces placeholder value=0 with meaningful defaults.
+    Uses existing_shocks from context when available, otherwise
+    applies sector-aware heuristics.
+    """
+    existing_shocks = context.get("existing_shocks", [])
+
+    if lever_type == "FINAL_DEMAND_SHOCK":
+        # Use average of existing shocks as reference scale
+        shock_values = [
+            s.get("shock_value", 0)
+            for s in existing_shocks
+            if isinstance(s, dict) and s.get("shock_value", 0) != 0
+        ]
+        if shock_values:
+            return round(sum(shock_values) / len(shock_values), 2)
+        # Heuristic: 100M SAR (in SAR_MILLIONS) as sensible exploration default
+        return 100.0
+
+    if lever_type == "IMPORT_SHARE_ADJUSTMENT":
+        # 5pp import share reduction (negative = reduce imports)
+        return -0.05
+
+    if lever_type == "LOCAL_CONTENT_TARGET":
+        # 40% local content target
+        return 0.40
+
+    if lever_type == "CONSTRAINT_SET_TOGGLE":
+        # Enable the constraint
+        return 1.0
+
+    # Fallback for any unrecognised lever type
+    return 100.0
+
+
 def _build_levers_for_direction(scored: dict, context: dict) -> list[dict]:
     """Build executable lever dicts for a scored direction.
 
-    Looks up the original direction from context to get required_levers.
+    P3-6: Lever values are derived from context (existing_shocks, sector
+    heuristics) instead of placeholder zeros.
     """
     direction_id = str(scored.get("direction_id", ""))
     levers: list[dict] = []
@@ -141,16 +228,17 @@ def _build_levers_for_direction(scored: dict, context: dict) -> list[dict]:
     if original is None:
         return levers
 
-    # Convert required_levers to executable format
+    # Convert required_levers to executable format with real values
     sector_codes = original.get("sector_codes", [])
     primary_sector = sector_codes[0] if sector_codes else "UNKNOWN"
 
     for lever_name in original.get("required_levers", []):
         exec_type = _LEVER_TYPE_MAP.get(lever_name, lever_name)
+        value = _derive_shock_value(exec_type, primary_sector, context)
         levers.append({
             "type": exec_type,
             "sector": primary_sector,
-            "value": 0,  # Placeholder — analyst fills in actual values
+            "value": value,
         })
 
     return levers
@@ -161,7 +249,7 @@ class SuitePlannerAgent(DepthStepAgent):
 
     step_name = DepthStepName.SUITE_PLANNING
 
-    def run(
+    async def run(
         self,
         *,
         context: dict,
@@ -173,24 +261,50 @@ class SuitePlannerAgent(DepthStepAgent):
         Returns SuitePlanningOutput.model_dump(mode="json").
         """
         if self._can_use_llm(llm_client, classification):
-            return self._run_with_llm(context, llm_client, classification)
+            return await self._run_with_llm(context, llm_client, classification)
 
         logger.info("SuitePlanner: using deterministic assembly (fallback)")
         suite = _build_suite_from_scored(context)
         output = SuitePlanningOutput(suite_plan=suite)
         return output.model_dump(mode="json")
 
-    def _run_with_llm(
+    async def _run_with_llm(
         self,
         context: dict,
         llm_client: LLMClient,
         classification: DataClassification,
     ) -> dict:
-        """Assemble suite using LLM."""
+        """Assemble suite using LLM (P3-1: real wiring)."""
+        from src.agents.llm_client import LLMRequest
+
         prompt = build_prompt(context)
         logger.info("SuitePlanner: LLM mode — prompt built (%d chars)", len(prompt))
 
-        # For MVP, use deterministic assembly
-        suite = _build_suite_from_scored(context)
-        output = SuitePlanningOutput(suite_plan=suite)
-        return output.model_dump(mode="json")
+        response = await llm_client.call(
+            LLMRequest(
+                system_prompt=(
+                    "You are the Suite Planner of the Al-Muhasabi depth engine. "
+                    "Assemble an executable scenario suite from scored candidates. "
+                    "Return structured JSON."
+                ),
+                user_prompt=prompt,
+                output_schema=SuitePlanningOutput,
+                max_tokens=2048,
+                temperature=0.3,
+            ),
+            classification=classification,
+        )
+
+        if response.parsed is not None:
+            return response.parsed.model_dump(mode="json")
+
+        try:
+            parsed = llm_client.parse_structured_output(
+                raw=response.content, schema=SuitePlanningOutput,
+            )
+            return parsed.model_dump(mode="json")
+        except ValueError:
+            logger.warning("SuitePlanner: LLM output parse failed, using deterministic fallback")
+            suite = _build_suite_from_scored(context)
+            output = SuitePlanningOutput(suite_plan=suite)
+            return output.model_dump(mode="json")

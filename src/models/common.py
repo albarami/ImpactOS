@@ -109,6 +109,19 @@ class MappingConfidenceBand(StrEnum):
     LOW = "LOW"
 
 
+class OutputDenomination(StrEnum):
+    """Unit denomination for monetary values in IO models.
+
+    Every ModelVersion must carry an explicit denomination so that
+    the engine, export, and UI layers can scale numbers correctly.
+    """
+
+    SAR = "SAR"
+    SAR_THOUSANDS = "SAR_THOUSANDS"
+    SAR_MILLIONS = "SAR_MILLIONS"
+    UNKNOWN = "UNKNOWN"
+
+
 # --- Base model ---
 
 

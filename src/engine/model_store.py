@@ -96,6 +96,11 @@ class LoadedModel:
         return list(self._sector_codes)
 
     @property
+    def model_denomination(self) -> str:
+        """Unit denomination of monetary values (SAR, SAR_THOUSANDS, SAR_MILLIONS)."""
+        return self._model_version.model_denomination
+
+    @property
     def n(self) -> int:
         return len(self._x)
 
@@ -218,6 +223,7 @@ class ModelStore:
         sector_codes: list[str],
         base_year: int,
         source: str,
+        model_denomination: str = "UNKNOWN",
         artifact_payload: dict[str, object] | None = None,
     ) -> ModelVersion:
         """Validate, store, and return an immutable ModelVersion.
@@ -292,6 +298,7 @@ class ModelStore:
             source=source,
             sector_count=n,
             checksum=checksum,
+            model_denomination=model_denomination,
             **model_kwargs,
         )
 

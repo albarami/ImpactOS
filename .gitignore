@@ -3,6 +3,9 @@
 .env.local
 .env.staging
 .env.production
+# Allow .example templates to be committed
+!.env.staging.example
+!**/.env.staging.example
 .venv/
 venv/
 env/

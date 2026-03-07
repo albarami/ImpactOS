@@ -106,6 +106,30 @@ class AssumptionRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_linked_to(
+        self, target_id: UUID, *,
+        link_type: str = "scenario",
+    ) -> list[AssumptionRow]:
+        """List assumptions linked to a target (e.g., scenario_spec_id) via
+        AssumptionLinkRow. Returns all linked assumptions regardless of status.
+
+        Step 1: Used by ExportExecutionService to scope assumptions to
+        the run's scenario instead of the entire workspace.
+        """
+        result = await self._session.execute(
+            select(AssumptionRow)
+            .join(
+                AssumptionLinkRow,
+                AssumptionRow.assumption_id == AssumptionLinkRow.assumption_id,
+            )
+            .where(
+                AssumptionLinkRow.target_id == target_id,
+                AssumptionLinkRow.link_type == link_type,
+            )
+            .order_by(AssumptionRow.created_at.desc())
+        )
+        return list(result.scalars().all())
+
     async def list_by_workspace(
         self, workspace_id: UUID, *,
         status: str | None = None,
@@ -234,6 +258,39 @@ class ClaimRepository:
             row.updated_at = utc_now()
             await self._session.flush()
         return row
+
+    async def list_by_workspace(
+        self, workspace_id: UUID, *,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[ClaimRow], int]:
+        """List claims scoped to workspace with optional status filter.
+
+        P4-5: Claims are linked to workspaces via their RunSnapshot's
+        workspace_id. Returns (page_rows, total_count).
+        Orders by created_at DESC, claim_id DESC.
+        """
+        base = (
+            select(ClaimRow)
+            .join(RunSnapshotRow, ClaimRow.run_id == RunSnapshotRow.run_id)
+            .where(RunSnapshotRow.workspace_id == workspace_id)
+        )
+        if status is not None:
+            base = base.where(ClaimRow.status == status)
+
+        count_result = await self._session.execute(
+            select(func.count()).select_from(base.subquery())
+        )
+        total = count_result.scalar_one()
+
+        rows_result = await self._session.execute(
+            base.order_by(
+                ClaimRow.created_at.desc(),
+                ClaimRow.claim_id.desc(),
+            ).limit(limit).offset(offset)
+        )
+        return list(rows_result.scalars().all()), total
 
 
 class EvidenceSnippetRepository:

@@ -57,6 +57,23 @@ def build_system_prompt(context: dict | None = None) -> str:
     )
     shock_list = "\n".join(f"  - {s}" for s in _SHOCK_TYPES)
 
+    # P2-3: Build PRIOR CONTEXT section from server-injected IDs
+    prior_lines: list[str] = []
+    if ctx.get("prior_scenario_spec_id"):
+        ver = ctx.get("prior_scenario_spec_version", "")
+        ver_str = f" v{ver}" if ver else ""
+        prior_lines.append(f"- Active scenario_spec_id: {ctx['prior_scenario_spec_id']}{ver_str}")
+    if ctx.get("prior_run_id"):
+        prior_lines.append(f"- Last run_id: {ctx['prior_run_id']}")
+    if ctx.get("prior_model_version_id"):
+        prior_lines.append(f"- Model version: {ctx['prior_model_version_id']}")
+    if ctx.get("prior_export_id"):
+        prior_lines.append(f"- Last export_id: {ctx['prior_export_id']}")
+
+    prior_context_block = ""
+    if prior_lines:
+        prior_context_block = "\n\nPRIOR CONTEXT (server-injected, use these IDs for tool calls):\n" + "\n".join(prior_lines) + "\n"
+
     return f"""You are the Economist Copilot inside ImpactOS, built for Strategic Gears consultants.
 
 IDENTITY AND ROLE:
@@ -64,7 +81,7 @@ IDENTITY AND ROLE:
 - Your user is a professional economist — speak in economist language (ISIC codes, multiplier types, I/O terminology, SAR currency)
 - You help answer policy impact questions by orchestrating the ImpactOS deterministic engine
 - Workspace context: {ws_desc}
-
+{prior_context_block}
 CRITICAL RULES:
 - You NEVER produce economic numbers yourself. ALL numeric outputs come from the deterministic engine via ResultSets.
 - If the engine has not run, say "I need to run the engine to get numbers."
@@ -105,15 +122,15 @@ CONVERSATION PROTOCOL:
 7. After results — narrate with trace metadata block
 
 TOOL CALLING:
-You have 5 tools. Call them by outputting JSON in this format:
+You have 6 tools. Call them by outputting JSON in this format:
 {{"tool": "<tool_name>", "arguments": {{...}}}}
 
 Tools:
-1. lookup_data — Query curated datasets (I/O tables, multipliers, employment, macro indicators)
-   Arguments: {{"dataset_id": "string", "sector_codes": ["A", "B"], "year": 2023}}
+1. lookup_data — Query curated datasets (I/O tables, model versions, employment coefficients)
+   Arguments: {{"dataset_id": "string", "model_version_id": "uuid", "sector_codes": ["A", "B"]}}
 
 2. build_scenario — Construct a ScenarioSpec with shock items (REQUIRES prior confirmation)
-   Arguments: {{"name": "string", "base_year": 2023, "shock_items": [...]}}
+   Arguments: {{"name": "string", "base_year": 2023, "base_model_version_id": "uuid", "shock_items": [...]}}
 
 3. run_engine — Execute a real engine run, persist RunSnapshot + ResultSet rows, and return result summary (REQUIRES prior confirmation)
    Arguments: {{"scenario_spec_id": "uuid", "scenario_spec_version": 1}}
@@ -122,7 +139,10 @@ Tools:
    Arguments: {{"run_id": "uuid"}}
 
 5. create_export — Generate export artifacts through governance/provenance gates (returns COMPLETED, BLOCKED, or FAILED)
-   Arguments: {{"run_id": "uuid", "mode": "SANDBOX|GOVERNED", "export_formats": ["pptx", "xlsx"], "pack_data": {{...}}}}
+   Arguments: {{"run_id": "uuid", "mode": "SANDBOX|GOVERNED", "export_formats": ["pptx", "excel"], "pack_data": {{...}}}}
+
+6. run_depth_suite — Launch the Al-Muhāsibī depth engine for deep-dive analysis on key policy questions (REQUIRES prior confirmation)
+   Arguments: {{"key_questions": ["What is the GDP impact of tourism?"], "target_sectors": ["I", "G"], "base_year": 2023}}
 
 OUTPUT FORMAT FOR RESULTS:
 - Always include: Direct, Indirect, Total impacts (and Induced if Type II)
@@ -157,11 +177,11 @@ def get_tool_definitions() -> list[dict]:
     return [
         {
             "name": "lookup_data",
-            "description": "Query curated datasets (I/O tables, multipliers, employment coefficients, macro indicators)",
+            "description": "Query curated datasets (I/O tables, model versions, employment coefficients)",
             "parameters": {
                 "dataset_id": {"type": "string", "required": True},
+                "model_version_id": {"type": "string", "required": False},
                 "sector_codes": {"type": "array", "items": "string", "required": False},
-                "year": {"type": "integer", "required": False},
             },
             "requires_confirmation": False,
         },
@@ -171,6 +191,7 @@ def get_tool_definitions() -> list[dict]:
             "parameters": {
                 "name": {"type": "string", "required": True},
                 "base_year": {"type": "integer", "required": True},
+                "base_model_version_id": {"type": "string", "required": True},
                 "shock_items": {"type": "array", "required": True},
             },
             "requires_confirmation": True,
@@ -202,5 +223,15 @@ def get_tool_definitions() -> list[dict]:
                 "pack_data": {"type": "object", "required": True},
             },
             "requires_confirmation": False,
+        },
+        {
+            "name": "run_depth_suite",
+            "description": "Launch Al-Muhāsibī depth engine for deep-dive analysis on key policy questions",
+            "parameters": {
+                "key_questions": {"type": "array", "items": "string", "required": True},
+                "target_sectors": {"type": "array", "items": "string", "required": False},
+                "base_year": {"type": "integer", "required": False},
+            },
+            "requires_confirmation": True,
         },
     ]

@@ -23,6 +23,10 @@ class ModelVersion(ImpactOSBase, frozen=True):
         pattern=r"^sha256:[a-f0-9]{64}$",
         description="SHA-256 hash of the serialised model data.",
     )
+    model_denomination: str = Field(
+        default="UNKNOWN",
+        description="Unit denomination of monetary values (SAR, SAR_THOUSANDS, SAR_MILLIONS).",
+    )
     final_demand_f: list[list[float]] | None = Field(
         default=None,
         alias="final_demand_F",

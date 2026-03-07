@@ -91,6 +91,9 @@ class ModelVersionRow(Base):
         nullable=False,
         server_default="unknown",
     )
+    model_denomination: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="UNKNOWN",
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     sg_provenance: Mapped[dict | None] = mapped_column(FlexJSON, nullable=True)
 
@@ -135,6 +138,9 @@ class RunSnapshotRow(Base):
     workspace_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)  # S0-1 Amendment 3
     scenario_spec_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)
     scenario_spec_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    model_denomination: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="UNKNOWN",
+    )
     source_checksums = mapped_column(FlexJSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

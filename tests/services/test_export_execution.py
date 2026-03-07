@@ -3,6 +3,10 @@
 TDD: tests written first, then implementation.
 Covers dataclass contracts, execute() success/blocked/failed paths,
 cross-workspace rejection, and persistence of export records.
+
+Step 1 addition: Tests for assumption scope fix — governed export must
+only consider assumptions linked to the exported run's scenario, not all
+assumptions in the workspace.
 """
 
 import pytest
@@ -14,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from src.db.session import Base
 import src.db.tables  # noqa: F401 -- ensure all tables registered
 from src.db.tables import (
+    AssumptionRow,
     ModelVersionRow,
     RunSnapshotRow,
     WorkspaceRow,
@@ -650,3 +655,338 @@ class TestExportExecutionPersistenceFailures:
         assert result.status == "FAILED"
         assert result.export_id is not None
         assert "persistence failed" in (result.error or "").lower()
+
+
+# ------------------------------------------------------------------
+# Step 1: Assumption scope fix — governed export must only consider
+# assumptions linked to the exported run's scenario, not all
+# assumptions in the workspace.
+# ------------------------------------------------------------------
+
+
+@pytest.fixture
+async def scoped_env():
+    """DB with workspace, two scenarios, assumptions linked to each.
+
+    Scenario A: 3 APPROVED assumptions linked via AssumptionLinkRow.
+    Scenario B: 10 DRAFT assumptions linked via AssumptionLinkRow.
+    Run belongs to scenario A.
+
+    Current buggy code loads ALL assumptions by workspace → blocked.
+    After fix, export should load only scenario A's assumptions → COMPLETED.
+    """
+    from src.db.tables import AssumptionLinkRow, ScenarioSpecRow
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
+        ws_id = uuid4()
+        now = utc_now()
+
+        # Workspace
+        session.add(WorkspaceRow(
+            workspace_id=ws_id,
+            client_name="Scope Test Client",
+            engagement_code="SCOPE-001",
+            classification="INTERNAL",
+            description="test workspace for assumption scope",
+            created_by=uuid4(),
+            created_at=now, updated_at=now,
+        ))
+
+        # Model version (curated_real so provenance check passes)
+        mv_id = new_uuid7()
+        session.add(ModelVersionRow(
+            model_version_id=mv_id,
+            base_year=2023, source="test", sector_count=3,
+            checksum="sha256:scope_test",
+            provenance_class="curated_real",
+            created_at=now,
+        ))
+
+        # ── Scenario A ──
+        scenario_a_id = new_uuid7()
+        session.add(ScenarioSpecRow(
+            scenario_spec_id=scenario_a_id, version=1,
+            name="Scenario A", workspace_id=ws_id,
+            disclosure_tier="TIER1",
+            base_model_version_id=mv_id, base_year=2023,
+            time_horizon={"start_year": 2023, "end_year": 2023},
+            shock_items=[], assumption_ids=[],
+            created_at=now, updated_at=now,
+        ))
+
+        # 3 APPROVED assumptions for scenario A (with valid range_json)
+        approved_ids = []
+        for i in range(3):
+            aid = new_uuid7()
+            approved_ids.append(aid)
+            session.add(AssumptionRow(
+                assumption_id=aid,
+                type="IMPORT_SHARE",
+                value=0.35 + i * 0.01,
+                range_json={"min": 0.30, "max": 0.40 + i * 0.01},
+                units="ratio",
+                justification=f"Approved assumption {i} for scenario A",
+                evidence_refs=[],
+                workspace_id=ws_id,
+                status="APPROVED",
+                approved_by=uuid4(),
+                approved_at=now,
+                created_at=now, updated_at=now,
+            ))
+            # Link to scenario A
+            session.add(AssumptionLinkRow(
+                assumption_id=aid,
+                target_id=scenario_a_id,
+                link_type="scenario",
+            ))
+
+        # ── Scenario B ──
+        scenario_b_id = new_uuid7()
+        session.add(ScenarioSpecRow(
+            scenario_spec_id=scenario_b_id, version=1,
+            name="Scenario B", workspace_id=ws_id,
+            disclosure_tier="TIER1",
+            base_model_version_id=mv_id, base_year=2023,
+            time_horizon={"start_year": 2023, "end_year": 2023},
+            shock_items=[], assumption_ids=[],
+            created_at=now, updated_at=now,
+        ))
+
+        # 10 DRAFT assumptions for scenario B
+        for i in range(10):
+            aid = new_uuid7()
+            session.add(AssumptionRow(
+                assumption_id=aid,
+                type="PHASING",
+                value=0.1 * (i + 1),
+                units="years",
+                justification=f"Draft assumption {i} for scenario B",
+                evidence_refs=[],
+                workspace_id=ws_id,
+                status="DRAFT",
+                created_at=now, updated_at=now,
+            ))
+            # Link to scenario B
+            session.add(AssumptionLinkRow(
+                assumption_id=aid,
+                target_id=scenario_b_id,
+                link_type="scenario",
+            ))
+
+        # ── Run linked to scenario A ──
+        run_id = new_uuid7()
+        session.add(RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=mv_id,
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            workspace_id=ws_id,
+            scenario_spec_id=scenario_a_id,
+            source_checksums=[],
+            created_at=now,
+        ))
+
+        # ── Quality assessment (passing) ──
+        from src.quality.models import RunQualityAssessment, QualityGrade
+        from src.repositories.data_quality import DataQualityRepository
+
+        quality_payload = RunQualityAssessment(
+            assessment_id=new_uuid7(),
+            assessment_version=1,
+            run_id=run_id,
+            composite_score=0.9,
+            grade=QualityGrade.A,
+            used_synthetic_fallback=False,
+        )
+        quality_repo = DataQualityRepository(session)
+        await quality_repo.save_summary(
+            summary_id=new_uuid7(),
+            run_id=run_id,
+            workspace_id=ws_id,
+            overall_run_score=0.9,
+            overall_run_grade="A",
+            coverage_pct=1.0,
+            publication_gate_pass=True,
+            publication_gate_mode="GOVERNED",
+            payload=quality_payload.model_dump(mode="json"),
+        )
+
+        await session.flush()
+
+        yield {
+            "session": session,
+            "ws_id": ws_id,
+            "mv_id": mv_id,
+            "run_id": run_id,
+            "scenario_a_id": scenario_a_id,
+            "scenario_b_id": scenario_b_id,
+            "approved_ids": approved_ids,
+        }
+    await engine.dispose()
+
+
+def _make_repos_with_assumptions(session: AsyncSession) -> "ExportRepositories":
+    """Build ExportRepositories with assumption_repo included."""
+    from src.services.export_execution import ExportRepositories
+    from src.repositories.exports import ExportRepository
+    from src.repositories.governance import AssumptionRepository, ClaimRepository
+    from src.repositories.data_quality import DataQualityRepository
+    from src.repositories.engine import RunSnapshotRepository, ModelVersionRepository
+    from src.export.artifact_storage import ExportArtifactStorage
+
+    return ExportRepositories(
+        export_repo=ExportRepository(session),
+        claim_repo=ClaimRepository(session),
+        quality_repo=DataQualityRepository(session),
+        snap_repo=RunSnapshotRepository(session),
+        mv_repo=ModelVersionRepository(session),
+        artifact_store=ExportArtifactStorage(storage_root="/tmp/test-export-artifacts"),
+        assumption_repo=AssumptionRepository(session),
+    )
+
+
+class TestExportAssumptionScope:
+    """Step 1: Governed export must scope assumptions to scenario/run,
+    not pull all assumptions from the workspace.
+
+    Bug: list_by_workspace loads 13 assumptions (3 approved + 10 draft),
+    causing publication gate to BLOCK on the 10 unrelated drafts.
+
+    Fix: Load only assumptions linked to the run's scenario_spec_id.
+    """
+
+    async def test_governed_export_not_blocked_by_unrelated_draft_assumptions(
+        self, scoped_env,
+    ):
+        """Core bug: governed export for run A should not be blocked by
+        scenario B's DRAFT assumptions."""
+        from src.services.export_execution import (
+            ExportExecutionInput,
+            ExportExecutionService,
+        )
+
+        env = scoped_env
+        session = env["session"]
+        repos = _make_repos_with_assumptions(session)
+        svc = ExportExecutionService()
+
+        inp = ExportExecutionInput(
+            workspace_id=env["ws_id"],
+            run_id=env["run_id"],
+            mode=ExportMode.GOVERNED,
+            export_formats=["excel"],
+            pack_data={"title": "Scoped Export"},
+        )
+
+        result = await svc.execute(inp, repos)
+
+        # With correct scoping, only 3 APPROVED assumptions are loaded.
+        # The 10 DRAFT assumptions from scenario B should be excluded.
+        assert result.status == "COMPLETED", (
+            f"Expected COMPLETED but got {result.status}. "
+            f"Blocking reasons: {result.blocking_reasons}. "
+            "This means unrelated DRAFT assumptions from another scenario "
+            "incorrectly blocked the export."
+        )
+        assert result.export_id is not None
+        assert result.checksums  # should have checksums for excel
+
+    async def test_governed_export_blocked_by_own_draft_assumptions(
+        self, scoped_env,
+    ):
+        """Sanity check: if run's OWN scenario has DRAFT assumptions,
+        the export SHOULD still be blocked."""
+        from src.services.export_execution import (
+            ExportExecutionInput,
+            ExportExecutionService,
+        )
+
+        env = scoped_env
+        session = env["session"]
+
+        # Downgrade one of scenario A's assumptions back to DRAFT
+        a_row = await session.get(AssumptionRow, env["approved_ids"][0])
+        assert a_row is not None
+        a_row.status = "DRAFT"
+        a_row.approved_by = None
+        a_row.approved_at = None
+        await session.flush()
+
+        repos = _make_repos_with_assumptions(session)
+        svc = ExportExecutionService()
+
+        inp = ExportExecutionInput(
+            workspace_id=env["ws_id"],
+            run_id=env["run_id"],
+            mode=ExportMode.GOVERNED,
+            export_formats=["excel"],
+            pack_data={"title": "Scoped Export with Own Drafts"},
+        )
+
+        result = await svc.execute(inp, repos)
+
+        # The run's own scenario has a DRAFT assumption → must be BLOCKED
+        assert result.status == "BLOCKED", (
+            f"Expected BLOCKED but got {result.status}. "
+            "Own scenario's DRAFT assumption should block the export."
+        )
+        assert any("DRAFT" in r for r in result.blocking_reasons)
+
+    async def test_governed_export_passes_when_no_scenario_link(self, db_env):
+        """Backward compat: if run has no scenario_spec_id, falls back to
+        workspace-scoped assumptions (legacy behavior). With no assumptions
+        in workspace, should pass."""
+        from src.services.export_execution import (
+            ExportExecutionInput,
+            ExportExecutionService,
+        )
+
+        env = db_env
+        session = env["session"]
+        repos = _make_repos_with_assumptions(session)
+        svc = ExportExecutionService()
+
+        # Seed quality for passing export
+        from src.quality.models import RunQualityAssessment, QualityGrade
+        from src.repositories.data_quality import DataQualityRepository
+
+        quality_payload = RunQualityAssessment(
+            assessment_id=new_uuid7(),
+            assessment_version=1,
+            run_id=env["run_id"],
+            composite_score=0.9,
+            grade=QualityGrade.A,
+            used_synthetic_fallback=False,
+        )
+        quality_repo = DataQualityRepository(session)
+        await quality_repo.save_summary(
+            summary_id=new_uuid7(),
+            run_id=env["run_id"],
+            workspace_id=env["ws_id"],
+            overall_run_score=0.9,
+            overall_run_grade="A",
+            coverage_pct=1.0,
+            publication_gate_pass=True,
+            publication_gate_mode="GOVERNED",
+            payload=quality_payload.model_dump(mode="json"),
+        )
+
+        inp = ExportExecutionInput(
+            workspace_id=env["ws_id"],
+            run_id=env["run_id"],
+            mode=ExportMode.GOVERNED,
+            export_formats=["excel"],
+            pack_data={"title": "Legacy Export"},
+        )
+
+        result = await svc.execute(inp, repos)
+
+        # No assumptions in workspace at all → passes
+        assert result.status == "COMPLETED"

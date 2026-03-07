@@ -174,7 +174,7 @@ class DepthOrchestrator:
 
                 # Run the step with timing (Amendment 9)
                 start_time = time.monotonic()
-                payload = agent.run(
+                payload = await agent.run(
                     context=accumulated_context,
                     llm_client=llm_client,
                     classification=classification,

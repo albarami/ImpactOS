@@ -8,6 +8,8 @@ from src.agents.depth.muraqaba import MuraqabaAgent, _detect_biases_heuristicall
 from src.models.common import DataClassification
 from src.models.depth import BiasRegister, DepthStepName, MuraqabaOutput
 
+pytestmark = pytest.mark.anyio
+
 
 class TestMuraqabaAgent:
     @pytest.fixture
@@ -45,24 +47,24 @@ class TestMuraqabaAgent:
     def test_step_name(self, agent):
         assert agent.step_name == DepthStepName.MURAQABA
 
-    def test_produces_bias_register(self, agent, candidates_context):
-        result = agent.run(context=candidates_context)
+    async def test_produces_bias_register(self, agent, candidates_context):
+        result = await agent.run(context=candidates_context)
         assert "bias_register" in result
         br = result["bias_register"]
         assert "entries" in br
         assert "overall_bias_risk" in br
 
-    def test_output_validates(self, agent, candidates_context):
-        result = agent.run(context=candidates_context)
+    async def test_output_validates(self, agent, candidates_context):
+        result = await agent.run(context=candidates_context)
         output = MuraqabaOutput.model_validate(result)
         assert isinstance(output.bias_register, BiasRegister)
 
-    def test_empty_candidates_returns_empty_register(self, agent):
-        result = agent.run(context={"candidates": []})
+    async def test_empty_candidates_returns_empty_register(self, agent):
+        result = await agent.run(context={"candidates": []})
         assert result["bias_register"]["overall_bias_risk"] == 0.0
 
-    def test_restricted_uses_fallback(self, agent, candidates_context):
-        result = agent.run(
+    async def test_restricted_uses_fallback(self, agent, candidates_context):
+        result = await agent.run(
             context=candidates_context,
             classification=DataClassification.RESTRICTED,
         )

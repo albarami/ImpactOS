@@ -248,3 +248,111 @@ class TestSatellitePrefersCuratedIO:
         )
 
         assert result.provenance.io_base_year == 2018
+
+
+# ---------------------------------------------------------------------------
+# P1-4: Sector-specific import ratios (not flat 0.15)
+# ---------------------------------------------------------------------------
+
+
+def _write_curated_import_ratios(curated_dir, sector_codes=None):
+    """Write a curated import ratios file with sector-specific values."""
+    codes = sector_codes or ["F", "C", "G"]
+    ratios = {
+        "F": {"value": 0.25, "confidence": "medium"},
+        "C": {"value": 0.38, "confidence": "medium"},
+        "G": {"value": 0.14, "confidence": "medium"},
+        "A": {"value": 0.18, "confidence": "medium"},
+        "B": {"value": 0.06, "confidence": "high"},
+    }
+    data = {
+        "sector_codes": list(ratios.keys()),
+        "import_ratios": ratios,
+        "base_year": 2019,
+        "source": "test fixture",
+    }
+    (curated_dir / "saudi_import_ratios.json").write_text(
+        json.dumps(data), encoding="utf-8",
+    )
+
+
+class TestSectorSpecificImportRatios:
+    """P1-4: Import ratios should be sector-specific, not flat 0.15."""
+
+    def test_import_ratios_not_flat_when_curated_file_exists(self, tmp_path):
+        """With curated import ratios file, ratios should vary by sector."""
+        curated_dir = tmp_path / "curated"
+        curated_dir.mkdir()
+        _write_curated_io(curated_dir, 2018)
+        _write_curated_import_ratios(curated_dir)
+
+        result = load_satellite_coefficients(
+            year=2018,
+            sector_codes=["F", "C", "G"],
+            curated_dir=str(curated_dir),
+            data_mode=DataMode.PREFER_REAL,
+        )
+
+        import_r = result.coefficients.import_ratio
+        # Ratios should NOT all be 0.15 (the old flat default)
+        assert not np.allclose(import_r, 0.15), (
+            f"Import ratios should be sector-specific, not flat 0.15: {import_r}"
+        )
+
+    def test_import_ratios_match_curated_values(self, tmp_path):
+        """Import ratios should match the curated file's sector values."""
+        curated_dir = tmp_path / "curated"
+        curated_dir.mkdir()
+        _write_curated_io(curated_dir, 2018)
+        _write_curated_import_ratios(curated_dir)
+
+        result = load_satellite_coefficients(
+            year=2018,
+            sector_codes=["F", "C", "G"],
+            curated_dir=str(curated_dir),
+            data_mode=DataMode.PREFER_REAL,
+        )
+
+        import_r = result.coefficients.import_ratio
+        # F=0.25, C=0.38, G=0.14 from the curated file
+        np.testing.assert_allclose(
+            import_r, [0.25, 0.38, 0.14], atol=0.01,
+        )
+
+    def test_import_ratios_vary_by_sector(self, tmp_path):
+        """Different sectors should have different import ratios."""
+        curated_dir = tmp_path / "curated"
+        curated_dir.mkdir()
+        _write_curated_io(curated_dir, 2018)
+        _write_curated_import_ratios(curated_dir)
+
+        result = load_satellite_coefficients(
+            year=2018,
+            sector_codes=["F", "C", "G"],
+            curated_dir=str(curated_dir),
+            data_mode=DataMode.PREFER_REAL,
+        )
+
+        import_r = result.coefficients.import_ratio
+        # Not all identical
+        assert len(set(import_r.tolist())) > 1, (
+            f"Import ratios should differ by sector: {import_r}"
+        )
+
+    def test_falls_back_gracefully_without_curated_imports(self, tmp_path):
+        """Without curated import ratios file, should still work (flagged)."""
+        curated_dir = tmp_path / "curated"
+        curated_dir.mkdir()
+        _write_curated_io(curated_dir, 2018)
+        # No import ratios file written
+
+        result = load_satellite_coefficients(
+            year=2018,
+            sector_codes=["F", "C", "G"],
+            curated_dir=str(curated_dir),
+            data_mode=DataMode.PREFER_REAL,
+        )
+
+        # Should still load without error
+        assert result.coefficients.import_ratio is not None
+        assert len(result.coefficients.import_ratio) == 3
