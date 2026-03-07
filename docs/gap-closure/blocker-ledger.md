@@ -31,11 +31,11 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P1-1 | ModelVersion has no denomination field | open | — | — |
-| P1-2 | Seed defaults point to 2018 instead of 2023 | open | — | — |
-| P1-3 | Engine unit safety not enforced end-to-end | open | — | — |
-| P1-4 | Import ratios default to flat 0.15 for real data | open | — | — |
-| P1-5 | No real-model regression test proving SAR-scale output | open | — | — |
+| P1-1 | ModelVersion has no denomination field | verified_closed | `model_denomination` field on ModelVersion, LoadedModel, IOModelData; Alembic migration 021; 11 tests pass | 3e80d44 |
+| P1-2 | Seed defaults point to 2018 instead of 2023 | verified_closed | `scripts/seed.py` updated: year=2023, denomination propagated | 3e80d44 |
+| P1-3 | Engine unit safety not enforced end-to-end | verified_closed | OutputDenomination enum in common.py, denomination_factor() rejects UNKNOWN, re-export in unit_registry | 3e80d44 |
+| P1-4 | Import ratios default to flat 0.15 for real data | verified_closed | Real KAPSARC 2023 data loaded with correct denomination; import ratios come from curated JSON | 3e80d44 |
+| P1-5 | No real-model regression test proving SAR-scale output | verified_closed | `test_real_model_regression.py`: 1B SAR construction shock → multiplier 1.0-5.0 verified | 3e80d44 |
 
 ---
 
