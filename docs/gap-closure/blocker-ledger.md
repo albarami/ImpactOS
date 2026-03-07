@@ -58,7 +58,7 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P3-1 | Depth engine not in copilot flow | reopened | No depth-suite tool in chat flow; economist_copilot_v1.py and chat_tool_executor.py expose only 5 tools (lookup_data, build_scenario, run_engine, narrate_results, create_export); depth engine only reachable via standalone /depth/plans API | 555de1d |
+| P3-1 | Depth engine not in copilot flow | verified_closed | run_depth_suite added as 6th copilot tool (valid+gated); handler creates DepthPlan row and calls run_depth_plan() inline; prompt text+tool definition+confirmation gate all wired; 15 tests (7 prompt/definition + 4 handler × 2 backends) | 7dcfefd |
 | P3-2 | Suite planner default too low | reopened | _MAX_RUNS = 5; configurable but product requirement is 20+ default scenarios | 555de1d |
 | P3-3 | Sensitivity sweeps not executable | reopened | Sensitivities are metadata dicts on SuiteRun, not materialized as executable scenario variants | 555de1d |
 | P3-4 | Polarity guard not question-aware | reopened | polarity_warning only fires when no contrarians exist; does not prevent negative questions from producing upside-dominant scenarios | 555de1d |
