@@ -349,23 +349,67 @@ class ScoredCandidate(ImpactOSBase):
     evidence_refs: list[UUID] | None = None
 
 
+_NEGATIVE_KEYWORDS = frozenset({
+    "risk", "risks", "threat", "threats", "decline", "declining",
+    "loss", "losses", "downside", "negative", "harm", "damage",
+    "vulnerability", "vulnerabilities", "stress", "shock", "crisis",
+    "recession", "contraction", "displacement", "disruption",
+    "barrier", "barriers", "constraint", "constraints",
+})
+
+
+def _has_negative_polarity(questions: list[str]) -> bool:
+    """Detect whether key_questions have negative/risk polarity."""
+    for q in questions:
+        words = set(q.lower().split())
+        if words & _NEGATIVE_KEYWORDS:
+            return True
+    return False
+
+
 class MuhasabaOutput(ImpactOSBase):
     """Typed output for Step 4 (Muhasaba)."""
 
     scored: list[ScoredCandidate] = Field(default_factory=list)
     # P3-4: polarity guard — flags all-upside suites
     polarity_warning: str | None = None
+    # P3-4: key_questions for question-aware polarity check
+    key_questions: list[str] = Field(default_factory=list)
     # MVP-9 enhancements
     timestamp: UTCTimestamp = Field(default_factory=utc_now)
 
     @model_validator(mode="after")
     def _check_polarity(self) -> "MuhasabaOutput":
-        """P3-4: Flag suites with no contrarian directions."""
-        if self.scored and not any(s.is_contrarian for s in self.scored):
+        """P3-4: Question-aware polarity guard.
+
+        Fires when:
+        1. Zero contrarian candidates exist (original guard), OR
+        2. Questions have negative polarity AND contrarian ratio < 30%
+        """
+        if not self.scored:
+            return self
+
+        contrarian_count = sum(1 for s in self.scored if s.is_contrarian)
+        total = len(self.scored)
+
+        # Case 1: no contrarians at all — always warn
+        if contrarian_count == 0:
             self.polarity_warning = (
                 "All scored candidates are upside-only — no contrarian stress "
                 "tests. Consider adding contrarian directions to avoid optimism bias."
             )
+            return self
+
+        # Case 2: negative question with low contrarian ratio
+        if self.key_questions and _has_negative_polarity(self.key_questions):
+            ratio = contrarian_count / total
+            if ratio < 0.30:
+                self.polarity_warning = (
+                    f"Questions have negative/risk polarity but only "
+                    f"{contrarian_count}/{total} candidates are contrarian "
+                    f"({ratio:.0%}). Consider increasing stress-test coverage."
+                )
+
         return self
 
 

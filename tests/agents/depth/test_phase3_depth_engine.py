@@ -385,6 +385,55 @@ class TestPolarityGuard:
         output = MuhasabaOutput(scored=scored)
         assert output.polarity_warning is None
 
+    def test_negative_question_with_contrarians_gets_warning(self):
+        """P3-4: Negative/risk questions with mixed (but mostly upside) candidates
+        should still trigger polarity warning when contrarian ratio is too low."""
+        context = {
+            "candidates": [
+                {"direction_id": str(new_uuid7()), "label": f"Upside {i}",
+                 "source_type": "insight", "sector_codes": ["A"],
+                 "required_levers": ["FINAL_DEMAND_SHOCK"]}
+                for i in range(5)
+            ],
+            "contrarians": [
+                {"direction_id": str(new_uuid7()), "label": "Minor stress",
+                 "source_type": "insight", "sector_codes": ["A"],
+                 "is_quantifiable": True,
+                 "required_levers": ["IMPORT_SUBSTITUTION"]},
+            ],
+        }
+        scored = _score_all_candidates(context)
+        # 1 contrarian out of 6 — should warn for negative questions
+        output = MuhasabaOutput(
+            scored=scored,
+            key_questions=["What are the risks to employment from this project?"],
+        )
+        assert output.polarity_warning is not None, (
+            "Negative/risk question with only 1/6 contrarian should trigger polarity warning"
+        )
+
+    def test_positive_question_with_one_contrarian_no_warning(self):
+        """P3-4: Positive questions with at least one contrarian should NOT warn."""
+        context = {
+            "candidates": [
+                {"direction_id": str(new_uuid7()), "label": "Growth",
+                 "source_type": "insight", "sector_codes": ["A"],
+                 "required_levers": ["FINAL_DEMAND_SHOCK"]},
+            ],
+            "contrarians": [
+                {"direction_id": str(new_uuid7()), "label": "Stress",
+                 "source_type": "insight", "sector_codes": ["A"],
+                 "is_quantifiable": True,
+                 "required_levers": ["IMPORT_SUBSTITUTION"]},
+            ],
+        }
+        scored = _score_all_candidates(context)
+        output = MuhasabaOutput(
+            scored=scored,
+            key_questions=["What is the GDP impact of tourism investment?"],
+        )
+        assert output.polarity_warning is None
+
 
 # ------------------------------------------------------------------
 # P3-5: Question-calibrated candidates

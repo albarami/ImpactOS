@@ -148,7 +148,8 @@ class MuhasabaAgent(DepthStepAgent):
 
         logger.info("Muhasaba: using deterministic scoring (fallback)")
         scored = _score_all_candidates(context)
-        output = MuhasabaOutput(scored=scored)
+        key_questions = context.get("key_questions", [])
+        output = MuhasabaOutput(scored=scored, key_questions=key_questions)
         return output.model_dump(mode="json")
 
     async def _run_with_llm(
@@ -189,5 +190,6 @@ class MuhasabaAgent(DepthStepAgent):
         except ValueError:
             logger.warning("Muhasaba: LLM output parse failed, using deterministic fallback")
             scored = _score_all_candidates(context)
-            output = MuhasabaOutput(scored=scored)
+            key_questions = context.get("key_questions", [])
+            output = MuhasabaOutput(scored=scored, key_questions=key_questions)
             return output.model_dump(mode="json")
