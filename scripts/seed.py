@@ -396,7 +396,7 @@ async def seed_curated_real_model(
     from src.data.real_io_loader import DataMode, load_real_saudi_io_strict
 
     provenance_result = load_real_saudi_io_strict(
-        mode=DataMode.STRICT_REAL, year=2018,
+        mode=DataMode.STRICT_REAL, year=2023,
     )
     io_data = provenance_result.io_data
 
@@ -407,6 +407,7 @@ async def seed_curated_real_model(
         sector_codes=io_data.sector_codes,
         base_year=io_data.base_year,
         source=f"KAPSARC curated real ({provenance_result.provenance.resolved_source})",
+        model_denomination=io_data.model_denomination,
     )
 
     mv_repo = ModelVersionRepository(session)
@@ -415,6 +416,7 @@ async def seed_curated_real_model(
         model_version_id=mv.model_version_id, base_year=mv.base_year,
         source=mv.source, sector_count=mv.sector_count, checksum=mv.checksum,
         provenance_class="curated_real",
+        model_denomination=mv.model_denomination,
     )
     md_row = await md_repo.create(
         model_version_id=mv.model_version_id,

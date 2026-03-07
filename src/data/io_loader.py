@@ -35,6 +35,7 @@ class IOModelData:
     base_year: int
     source: str
     metadata: dict[str, object]
+    model_denomination: str = "UNKNOWN"
     final_demand_F: np.ndarray | None = None
     imports_vector: np.ndarray | None = None
     compensation_of_employees: np.ndarray | None = None
@@ -306,6 +307,8 @@ def load_from_json(path: str | Path) -> IOModelData:
         if k not in {"Z", "z_matrix", "x", "x_vector", "sector_codes", "sector_names"}
     }
 
+    model_denomination = data.get("denomination", "UNKNOWN")
+
     return IOModelData(
         Z=z_arr,
         x=x_arr,
@@ -314,6 +317,7 @@ def load_from_json(path: str | Path) -> IOModelData:
         base_year=base_year,
         source=source,
         metadata=metadata,
+        model_denomination=model_denomination,
         final_demand_F=validated_artifacts.get("final_demand_F"),
         imports_vector=validated_artifacts.get("imports_vector"),
         compensation_of_employees=validated_artifacts.get("compensation_of_employees"),

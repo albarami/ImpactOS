@@ -23,12 +23,14 @@ class ModelVersionRepository:
         self, *, model_version_id: UUID, base_year: int,
         source: str, sector_count: int, checksum: str,
         provenance_class: str = "unknown",
+        model_denomination: str = "UNKNOWN",
         sg_provenance: dict | None = None,
     ) -> ModelVersionRow:
         row = ModelVersionRow(
             model_version_id=model_version_id, base_year=base_year,
             source=source, sector_count=sector_count, checksum=checksum,
             provenance_class=provenance_class,
+            model_denomination=model_denomination,
             sg_provenance=sg_provenance,
             created_at=utc_now(),
         )
@@ -99,7 +101,8 @@ class RunSnapshotRepository:
                      source_checksums: list | None = None,
                      workspace_id: UUID | None = None,
                      scenario_spec_id: UUID | None = None,
-                     scenario_spec_version: int | None = None) -> RunSnapshotRow:
+                     scenario_spec_version: int | None = None,
+                     model_denomination: str = "UNKNOWN") -> RunSnapshotRow:
         row = RunSnapshotRow(
             run_id=run_id, model_version_id=model_version_id,
             taxonomy_version_id=taxonomy_version_id,
@@ -108,6 +111,7 @@ class RunSnapshotRepository:
             assumption_library_version_id=assumption_library_version_id,
             prompt_pack_version_id=prompt_pack_version_id,
             constraint_set_version_id=constraint_set_version_id,
+            model_denomination=model_denomination,
             source_checksums=source_checksums or [],
             workspace_id=workspace_id,
             scenario_spec_id=scenario_spec_id,
