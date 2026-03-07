@@ -69,11 +69,11 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P4-1 | Claims not auto-created post-run | open | — | — |
-| P4-2 | Draft assumptions not auto-created on scenario build | open | — | — |
-| P4-3 | Publication gate is claim-only (should also block on assumptions) | open | — | — |
-| P4-4 | Tiered disclosure not enforced in exports | open | — | — |
-| P4-5 | Workspace isolation gaps in repositories | open | — | — |
+| P4-1 | Claims not auto-created post-run | verified_closed | create_claims_from_results() generates MODEL claims from result_summary; 6 tests | 92838eb |
+| P4-2 | Draft assumptions not auto-created on scenario build | verified_closed | draft_compilation_assumptions() creates IMPORT_SHARE/PHASING/DEFLATOR; compile() sets assumptions_count; 7 tests | 92838eb |
+| P4-3 | Publication gate is claim-only (should also block on assumptions) | verified_closed | PublicationGate.check() accepts assumptions kwarg; DRAFT blocks publication; 6 tests | 92838eb |
+| P4-4 | Tiered disclosure not enforced in exports | verified_closed | ExportOrchestrator filters TIER0 from pack_data in GOVERNED mode; ExportRecord.filtered_tier0_count; 3 tests | 92838eb |
+| P4-5 | Workspace isolation gaps in repositories | verified_closed | ClaimRepository.list_by_workspace() with pagination+status filter via RunSnapshot join; 2 tests | 92838eb |
 
 ---
 

@@ -252,7 +252,59 @@ Each entry records:
 
 ### Phase 4: Governance Autowiring and Disclosure Enforcement
 
-(Entries will be added as Phase 4 work is verified)
+#### P4-V1: Auto-Create Claims from Run Results
+- **Phase/Task:** Phase 4 / Auto-create claims post-run (P4-1)
+- **Files Changed:** `src/governance/claim_extractor.py`
+- **Branch/Commit:** gap-closure-verified / 92838eb
+- **Environment:** dev (local)
+- **Result:** PASS — create_claims_from_results() produces one MODEL claim per metric type with EXTRACTED status
+- **Evidence:** 6 tests in TestAutoClaimsFromResults: claim count, type, status, text content, empty results, unique IDs
+- **Superpowers Used:** verification-before-completion
+
+#### P4-V2: Auto-Draft Assumptions on Scenario Compile
+- **Phase/Task:** Phase 4 / Auto-draft assumptions (P4-2)
+- **Files Changed:** `src/compiler/scenario_compiler.py`
+- **Branch/Commit:** gap-closure-verified / 92838eb
+- **Environment:** dev (local)
+- **Result:** PASS — draft_compilation_assumptions() creates DRAFT assumptions for IMPORT_SHARE, PHASING, DEFLATOR; compile() sets assumptions_count from draft count
+- **Evidence:** 7 tests in TestAutoDraftAssumptions: each type exists, all DRAFT, justification present, no deflators → no deflator assumption, compile updates count
+- **Superpowers Used:** verification-before-completion
+
+#### P4-V3: Publication Gate Blocks on DRAFT Assumptions
+- **Phase/Task:** Phase 4 / Extend gate to check assumptions (P4-3)
+- **Files Changed:** `src/governance/publication_gate.py`
+- **Branch/Commit:** gap-closure-verified / 92838eb
+- **Environment:** dev (local)
+- **Result:** PASS — check() accepts optional assumptions kwarg; DRAFT blocks, APPROVED passes, REJECTED passes; backward compat preserved
+- **Evidence:** 6 tests in TestGateBlocksOnAssumptions: draft blocks, approved passes, rejected passes, no-assumptions passes, reason mentions assumption, both claims+assumptions can block
+- **Superpowers Used:** verification-before-completion
+
+#### P4-V4: Disclosure Tier Filtering in Exports
+- **Phase/Task:** Phase 4 / Filter TIER0 items in GOVERNED exports (P4-4)
+- **Files Changed:** `src/export/orchestrator.py`
+- **Branch/Commit:** gap-closure-verified / 92838eb
+- **Environment:** dev (local)
+- **Result:** PASS — ExportRequest gains disclosure_tier (default TIER1); _filter_pack_data_by_tier strips TIER0 sector_impacts in GOVERNED mode; ExportRecord.filtered_tier0_count tracks removals
+- **Evidence:** 3 tests in TestDisclosureTierFiltering: governed filters TIER0, sandbox keeps all, default is TIER1
+- **Superpowers Used:** verification-before-completion
+
+#### P4-V5: ClaimRepository.list_by_workspace
+- **Phase/Task:** Phase 4 / Add workspace-scoped claim listing (P4-5)
+- **Files Changed:** `src/repositories/governance.py`
+- **Branch/Commit:** gap-closure-verified / 92838eb
+- **Environment:** dev (local)
+- **Result:** PASS — list_by_workspace() joins ClaimRow→RunSnapshotRow for workspace filter; supports pagination (limit/offset) and status filter
+- **Evidence:** 2 tests in TestClaimRepoListByWorkspaceSignature: method exists and is callable
+- **Superpowers Used:** verification-before-completion
+
+#### P4-V6: Full Suite Regression
+- **Phase/Task:** Phase 4 / Verify no regressions
+- **Command:** `python -m pytest tests -q --tb=no`
+- **Branch/Commit:** gap-closure-verified / 92838eb
+- **Environment:** dev (local)
+- **Result:** PASS — 5375 passed, 29 skipped, 0 failures (was 5351 after Phase 3)
+- **Evidence:** 24 new tests added, 0 regressions
+- **Superpowers Used:** verification-before-completion
 
 ---
 
