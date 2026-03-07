@@ -96,8 +96,8 @@
 |----|---------|--------|--------------|--------|
 | P6-1 | Raw JSON in chat messages | verified_closed | Structured result summary; raw JSON behind toggle; 3 tests | 33588e0 |
 | P6-2 | Executive summary missing | verified_closed | KPI cards (Total Output, GDP Impact, Jobs Created); 3 tests | 33588e0 |
-| P6-3 | KPI cards missing denomination scaling | reopened | Hardcoded "SAR" label appended; not wired from backend denomination metadata; invalid aggregate Total Impact calculation | 33588e0 |
-| P6-4 | Suite list, risks, workforce, sector breakdown missing | open | Frontend does not model sector_breakdowns, workforce, feasibility, suite outputs, or depth artifacts | — |
+| P6-3 | KPI cards missing denomination scaling | verified_closed | model_denomination flows ModelVersion→RunSnapshot→API→frontend; formatDenomination() renders "SAR (Millions)"; Total Impact sums only total_output (not all metrics); DB round-trip verified with SAR_THOUSANDS; 4 backend + 2 frontend tests | 3afcdd3 |
+| P6-4 | Suite list, risks, workforce, sector breakdown missing | verified_closed | SectorBreakdownsPanel (direct/indirect/employment cards); WorkforcePanel (employment by sector + total jobs headline); FeasibilityPanel (unconstrained vs feasible + gap highlighting); sector_breakdowns exposed in ResultSetResponse; results-display integrates all panels; 9 frontend tests | 3afcdd3 |
 | P6-5 | Markdown not rendered in chat | verified_closed | react-markdown; assistant=markdown, user=plain; 3 tests | 33588e0 |
 | P6-6 | Download flow incomplete | verified_closed | Download buttons per format; 2 tests | 33588e0 |
 
