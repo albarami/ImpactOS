@@ -1,0 +1,30 @@
+{
+  "description": "Sector-specific import penetration ratios for Saudi Arabia (ISIC Rev.4 20-sector classification)",
+  "source": "GASTAT Supply-Use Tables / KAPSARC sector-level trade analysis",
+  "methodology": "Import penetration ratio: total sector imports / (gross output + imports - exports). Derived from Saudi national accounts and trade flow data at ISIC division level.",
+  "base_year": 2019,
+  "notes": "Ratios represent the import share of intermediate and final demand satisfied from abroad. Mining (B) is low due to domestic resource extraction. Manufacturing (C) is high due to imported intermediates (machinery, chemicals, raw materials). Services sectors vary based on tradability.",
+  "sector_codes": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T"],
+  "import_ratios": {
+    "A": {"value": 0.18, "confidence": "medium", "note": "Agriculture, forestry, fishing - imported fertilizers, seeds, machinery"},
+    "B": {"value": 0.06, "confidence": "high", "note": "Mining, quarrying - domestic extraction dominates"},
+    "C": {"value": 0.38, "confidence": "medium", "note": "Manufacturing - high imported intermediate inputs (machinery, chemicals)"},
+    "D": {"value": 0.12, "confidence": "low", "note": "Electricity, gas, steam - imported equipment and some fuel"},
+    "E": {"value": 0.15, "confidence": "low", "note": "Water supply, waste management - imported treatment chemicals/equipment"},
+    "F": {"value": 0.25, "confidence": "medium", "note": "Construction - imported materials (steel, fittings, specialized equipment)"},
+    "G": {"value": 0.14, "confidence": "medium", "note": "Wholesale, retail trade - imported consumer and durable goods"},
+    "H": {"value": 0.20, "confidence": "medium", "note": "Transportation, storage - imported vehicles, parts, fuel"},
+    "I": {"value": 0.22, "confidence": "low", "note": "Accommodation, food services - imported food products"},
+    "J": {"value": 0.18, "confidence": "medium", "note": "Information, communication - imported hardware, software licenses"},
+    "K": {"value": 0.08, "confidence": "high", "note": "Financial, insurance activities - mostly domestic services"},
+    "L": {"value": 0.05, "confidence": "high", "note": "Real estate - domestic land and property services"},
+    "M": {"value": 0.15, "confidence": "low", "note": "Professional, scientific, technical services"},
+    "N": {"value": 0.12, "confidence": "low", "note": "Administrative, support services"},
+    "O": {"value": 0.10, "confidence": "low", "note": "Public administration, defense"},
+    "P": {"value": 0.08, "confidence": "medium", "note": "Education - mostly domestic service delivery"},
+    "Q": {"value": 0.25, "confidence": "medium", "note": "Human health, social work - imported medical equipment and pharmaceuticals"},
+    "R": {"value": 0.20, "confidence": "low", "note": "Arts, entertainment, recreation - imported content and equipment"},
+    "S": {"value": 0.12, "confidence": "low", "note": "Other service activities"},
+    "T": {"value": 0.03, "confidence": "high", "note": "Activities of households as employers - domestic employment"}
+  }
+}
