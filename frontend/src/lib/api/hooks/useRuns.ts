@@ -20,11 +20,13 @@ export interface ResultSet {
   result_id: string;
   metric_type: string;
   values: Record<string, number>;
+  sector_breakdowns?: Record<string, Record<string, number>>; // P6-4
 }
 
 export interface RunSnapshot {
   run_id: string;
   model_version_id: string;
+  model_denomination?: string; // P6-3: e.g. "SAR_MILLIONS", "SAR_THOUSANDS"
 }
 
 export interface RunResponse {

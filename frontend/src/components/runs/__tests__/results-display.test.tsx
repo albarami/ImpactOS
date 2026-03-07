@@ -233,10 +233,68 @@ describe('ResultsDisplay', () => {
       snapshot: { run_id: 'run-001', model_version_id: 'mv-001' },
     };
     renderDisplay();
-    // Jobs Created label should appear
-    expect(screen.getByText(/Jobs Created/i)).toBeInTheDocument();
+    // Jobs Created label should appear (in executive summary and/or workforce panel)
+    const jobsLabels = screen.getAllByText(/Jobs Created/i);
+    expect(jobsLabels.length).toBeGreaterThanOrEqual(1);
     // 500 + 300 = 800 (appears in headline and executive summary)
     const matches = screen.getAllByText('800');
     expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // ── P6-3: Denomination from snapshot ──────────────────────────────
+
+  it('shows denomination scale from snapshot (P6-3)', () => {
+    mockRunData = {
+      run_id: 'run-001',
+      result_sets: [
+        {
+          result_id: 'rs-001',
+          metric_type: 'total_output',
+          values: { S01: 1500000 },
+        },
+      ],
+      snapshot: {
+        run_id: 'run-001',
+        model_version_id: 'mv-001',
+        model_denomination: 'SAR_MILLIONS',
+      },
+    };
+    renderDisplay();
+    // Should show denomination scale info, not just "SAR"
+    const impactEl = screen.getByTestId('total-impact-value');
+    expect(impactEl).toHaveTextContent(/Millions/i);
+  });
+
+  it('total impact only sums total_output, not employment or imports (P6-3)', () => {
+    mockRunData = {
+      run_id: 'run-001',
+      result_sets: [
+        {
+          result_id: 'rs-001',
+          metric_type: 'total_output',
+          values: { S01: 1000000, S02: 500000 },
+        },
+        {
+          result_id: 'rs-002',
+          metric_type: 'employment',
+          values: { S01: 500, S02: 300 },
+        },
+        {
+          result_id: 'rs-003',
+          metric_type: 'imports',
+          values: { S01: 200000, S02: 100000 },
+        },
+      ],
+      snapshot: {
+        run_id: 'run-001',
+        model_version_id: 'mv-001',
+        model_denomination: 'SAR_MILLIONS',
+      },
+    };
+    renderDisplay();
+    const impactEl = screen.getByTestId('total-impact-value');
+    // Total impact = 1,000,000 + 500,000 = 1,500,000 (only total_output)
+    // NOT 1,000,000 + 500,000 + 500 + 300 + 200,000 + 100,000
+    expect(impactEl).toHaveTextContent(/1,500,000/);
   });
 });

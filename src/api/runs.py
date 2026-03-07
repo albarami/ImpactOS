@@ -159,6 +159,7 @@ class ResultSetResponse(BaseModel):
     metric_type: str
     values: dict[str, float]
     confidence_class: str = "COMPUTED"
+    sector_breakdowns: dict[str, dict[str, float]] | None = None  # P6-4
     # Sprint 17: RunSeries fields
     year: int | None = None
     series_kind: str | None = None
@@ -168,6 +169,7 @@ class ResultSetResponse(BaseModel):
 class SnapshotResponse(BaseModel):
     run_id: str
     model_version_id: str
+    model_denomination: str = "SAR_MILLIONS"  # P6-3: from ModelVersion metadata
 
 
 class RunResponse(BaseModel):
@@ -288,6 +290,9 @@ async def _ensure_model_loaded(
             source=mv_row.source,
             sector_count=mv_row.sector_count,
             checksum=mv_row.checksum,
+            model_denomination=getattr(
+                mv_row, "model_denomination", "UNKNOWN",
+            ),
             **artifact_kwargs,
         )
         loaded = LoadedModel(
@@ -387,7 +392,12 @@ def _register_model_error_detail(exc: Exception) -> dict[str, str]:
     }
 
 
-def _single_run_to_response(sr: SingleRunResult, *, include_series: bool = False) -> RunResponse:
+def _single_run_to_response(
+    sr: SingleRunResult,
+    *,
+    include_series: bool = False,
+    model_denomination: str = "SAR_MILLIONS",
+) -> RunResponse:
     rows = sr.result_sets
     if not include_series:
         rows = [r for r in rows if r.series_kind is None]
@@ -404,6 +414,7 @@ def _single_run_to_response(sr: SingleRunResult, *, include_series: bool = False
                         or rs.series_kind == "delta"
                     ) else "COMPUTED"
                 ),
+                sector_breakdowns=rs.sector_breakdowns or None,  # P6-4
                 year=rs.year,
                 series_kind=rs.series_kind,
                 baseline_run_id=str(rs.baseline_run_id) if rs.baseline_run_id else None,
@@ -413,6 +424,7 @@ def _single_run_to_response(sr: SingleRunResult, *, include_series: bool = False
         snapshot=SnapshotResponse(
             run_id=str(sr.snapshot.run_id),
             model_version_id=str(sr.snapshot.model_version_id),
+            model_denomination=model_denomination,
         ),
     )
 
@@ -424,8 +436,13 @@ async def _persist_run_result(
     workspace_id: UUID | None = None,
     scenario_spec_id: UUID | None = None,
     scenario_spec_version: int | None = None,
+    model_denomination: str = "UNKNOWN",
 ) -> None:
-    """Persist a SingleRunResult to DB (snapshot + result sets)."""
+    """Persist a SingleRunResult to DB (snapshot + result sets).
+
+    P6-3: model_denomination is persisted on the RunSnapshot row so that
+    GET endpoints can return it without re-querying the ModelVersion.
+    """
     snap = sr.snapshot
     await snap_repo.create(
         run_id=snap.run_id,
@@ -438,6 +455,7 @@ async def _persist_run_result(
         workspace_id=workspace_id,
         scenario_spec_id=scenario_spec_id,
         scenario_spec_version=scenario_spec_version,
+        model_denomination=model_denomination,
     )
     for rs in sr.result_sets:
         await rs_repo.create(
@@ -488,6 +506,7 @@ async def _load_run_response(
                         or getattr(r, "series_kind", None) == "delta"
                     ) else "COMPUTED"
                 ),
+                sector_breakdowns=getattr(r, "sector_breakdowns", None) or None,  # P6-4
                 year=getattr(r, "year", None),
                 series_kind=getattr(r, "series_kind", None),
                 baseline_run_id=(
@@ -499,6 +518,9 @@ async def _load_run_response(
         snapshot=SnapshotResponse(
             run_id=str(snap_row.run_id),
             model_version_id=str(snap_row.model_version_id),
+            model_denomination=getattr(
+                snap_row, "model_denomination", "SAR_MILLIONS",
+            ),
         ),
     )
 
@@ -692,10 +714,17 @@ async def create_run(
         ) from exc
     sr = result.run_results[0]
 
-    # Persist to DB (with workspace scoping — Amendment 3)
-    await _persist_run_result(sr, snap_repo, rs_repo, workspace_id=workspace_id)
+    # P6-3: Get model denomination for persistence + response
+    model_denom = getattr(loaded.model_version, "model_denomination", "SAR_MILLIONS")
 
-    return _single_run_to_response(sr)
+    # Persist to DB (with workspace scoping — Amendment 3)
+    await _persist_run_result(
+        sr, snap_repo, rs_repo,
+        workspace_id=workspace_id,
+        model_denomination=model_denom,
+    )
+
+    return _single_run_to_response(sr, model_denomination=model_denom)
 
 
 @router.get("/{workspace_id}/engine/runs", response_model=ListRunsResponse)
@@ -843,13 +872,20 @@ async def create_batch_run(
     try:
         batch_result = runner.run(request)
 
+        # P6-3: Get model denomination for persistence + response
+        batch_denom = getattr(loaded.model_version, "model_denomination", "SAR_MILLIONS")
+
         # Persist results
         run_ids: list[str] = []
         responses: list[RunResponse] = []
         for sr in batch_result.run_results:
-            await _persist_run_result(sr, snap_repo, rs_repo, workspace_id=workspace_id)
+            await _persist_run_result(
+                sr, snap_repo, rs_repo,
+                workspace_id=workspace_id,
+                model_denomination=batch_denom,
+            )
             run_ids.append(str(sr.snapshot.run_id))
-            responses.append(_single_run_to_response(sr))
+            responses.append(_single_run_to_response(sr, model_denomination=batch_denom))
 
         # Update batch to COMPLETED with run IDs
         batch_row = await batch_repo.get(batch_id)
