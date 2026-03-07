@@ -35,12 +35,13 @@ _PER_TOOL_CAPS: dict[str, int] = {
     "create_export": _MAX_CREATE_EXPORT_PER_TURN,
 }
 
-# Available dataset types for lookup_data MVP stub
+# Available dataset types for lookup_data
+# Only list datasets with real handlers — do not advertise unimplemented stubs.
+# P2-1: removed multipliers, employment_coefficients, macro_indicators
+# (no handler exists; they fell through to the default dataset listing)
 _AVAILABLE_DATASETS = [
     {"dataset_id": "io_tables", "description": "Input-Output tables (KAPSARC)"},
-    {"dataset_id": "multipliers", "description": "Output, income, and employment multipliers"},
-    {"dataset_id": "employment_coefficients", "description": "Employment coefficients by sector"},
-    {"dataset_id": "macro_indicators", "description": "GDP, trade, and fiscal indicators"},
+    {"dataset_id": "models", "description": "Available model versions"},
 ]
 
 

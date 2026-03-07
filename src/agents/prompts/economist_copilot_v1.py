@@ -109,11 +109,11 @@ You have 5 tools. Call them by outputting JSON in this format:
 {{"tool": "<tool_name>", "arguments": {{...}}}}
 
 Tools:
-1. lookup_data — Query curated datasets (I/O tables, multipliers, employment, macro indicators)
-   Arguments: {{"dataset_id": "string", "sector_codes": ["A", "B"], "year": 2023}}
+1. lookup_data — Query curated datasets (I/O tables, model versions)
+   Arguments: {{"dataset_id": "string", "model_version_id": "uuid", "sector_codes": ["A", "B"]}}
 
 2. build_scenario — Construct a ScenarioSpec with shock items (REQUIRES prior confirmation)
-   Arguments: {{"name": "string", "base_year": 2023, "shock_items": [...]}}
+   Arguments: {{"name": "string", "base_year": 2023, "base_model_version_id": "uuid", "shock_items": [...]}}
 
 3. run_engine — Execute a real engine run, persist RunSnapshot + ResultSet rows, and return result summary (REQUIRES prior confirmation)
    Arguments: {{"scenario_spec_id": "uuid", "scenario_spec_version": 1}}
@@ -122,7 +122,7 @@ Tools:
    Arguments: {{"run_id": "uuid"}}
 
 5. create_export — Generate export artifacts through governance/provenance gates (returns COMPLETED, BLOCKED, or FAILED)
-   Arguments: {{"run_id": "uuid", "mode": "SANDBOX|GOVERNED", "export_formats": ["pptx", "xlsx"], "pack_data": {{...}}}}
+   Arguments: {{"run_id": "uuid", "mode": "SANDBOX|GOVERNED", "export_formats": ["pptx", "excel"], "pack_data": {{...}}}}
 
 OUTPUT FORMAT FOR RESULTS:
 - Always include: Direct, Indirect, Total impacts (and Induced if Type II)
@@ -157,11 +157,11 @@ def get_tool_definitions() -> list[dict]:
     return [
         {
             "name": "lookup_data",
-            "description": "Query curated datasets (I/O tables, multipliers, employment coefficients, macro indicators)",
+            "description": "Query curated datasets (I/O tables, model versions)",
             "parameters": {
                 "dataset_id": {"type": "string", "required": True},
+                "model_version_id": {"type": "string", "required": False},
                 "sector_codes": {"type": "array", "items": "string", "required": False},
-                "year": {"type": "integer", "required": False},
             },
             "requires_confirmation": False,
         },
@@ -171,6 +171,7 @@ def get_tool_definitions() -> list[dict]:
             "parameters": {
                 "name": {"type": "string", "required": True},
                 "base_year": {"type": "integer", "required": True},
+                "base_model_version_id": {"type": "string", "required": True},
                 "shock_items": {"type": "array", "required": True},
             },
             "requires_confirmation": True,
