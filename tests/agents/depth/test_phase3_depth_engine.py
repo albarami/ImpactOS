@@ -468,3 +468,262 @@ class TestQuestionCalibratedCandidates:
             c.rationale and "key_question" in c.rationale.lower()
             for c in candidates
         ), "At least one candidate should address key_questions from context"
+
+
+# ------------------------------------------------------------------
+# P3-5: Denomination in depth prompts
+# ------------------------------------------------------------------
+
+
+class TestDenominationInPrompts:
+    """P3-5: Depth prompts must include model denomination context."""
+
+    def test_khawatir_prompt_includes_denomination(self):
+        """Khawatir prompt must tell LLM about denomination (SAR_MILLIONS)."""
+        from src.agents.depth.prompts.khawatir import build_prompt
+        ctx = {**_base_context(), "denomination": "SAR_MILLIONS"}
+        prompt = build_prompt(ctx)
+        assert "SAR_MILLIONS" in prompt, (
+            "Khawatir prompt must include denomination when context provides it"
+        )
+
+    def test_mujahada_prompt_includes_denomination(self):
+        """Mujahada prompt must tell LLM about denomination for ProposedShockSpec."""
+        from src.agents.depth.prompts.mujahada import build_prompt
+        ctx = {
+            **_base_context(),
+            "denomination": "SAR_MILLIONS",
+            "candidates": [
+                {"direction_id": str(new_uuid7()), "label": "Test",
+                 "source_type": "insight"},
+            ],
+            "bias_register": {"entries": [], "overall_bias_risk": 0},
+        }
+        prompt = build_prompt(ctx)
+        assert "SAR_MILLIONS" in prompt, (
+            "Mujahada prompt must include denomination for shock spec guidance"
+        )
+
+    def test_suite_prompt_includes_denomination(self):
+        """Suite planner prompt must include denomination for lever values."""
+        from src.agents.depth.prompts.suite import build_prompt
+        ctx = {
+            **_base_context(),
+            "denomination": "SAR_MILLIONS",
+            "scored": [_make_scored("Test", 8.0)],
+            "qualitative_risks": [],
+        }
+        prompt = build_prompt(ctx)
+        assert "SAR_MILLIONS" in prompt, (
+            "Suite planner prompt must include denomination for executable lever values"
+        )
+
+    def test_khawatir_prompt_includes_key_questions(self):
+        """Khawatir prompt must relay key_questions to LLM."""
+        from src.agents.depth.prompts.khawatir import build_prompt
+        ctx = {
+            **_base_context(),
+            "key_questions": ["What is the GDP impact of tourism?"],
+        }
+        prompt = build_prompt(ctx)
+        assert "GDP impact of tourism" in prompt, (
+            "Khawatir prompt must include key_questions from context"
+        )
+
+
+# ------------------------------------------------------------------
+# P3-5: LLM response parsing tests (structured output + fallback)
+# ------------------------------------------------------------------
+
+
+class TestLLMParsedOutputs:
+    """P3-5: Tests proving LLM responses are parsed into output objects.
+
+    Each test exercises the actual code path where response.parsed is used
+    (structured output) or parse_structured_output is called (raw JSON fallback).
+    """
+
+    async def test_khawatir_uses_parsed_response(self):
+        """Khawatir returns structured output when response.parsed is set."""
+        client = _make_llm_client(available=True)
+        fallback = _generate_fallback_candidates(_base_context())
+        output = KhawatirOutput(candidates=fallback)
+
+        client.call = AsyncMock(return_value=LLMResponse(
+            content=output.model_dump_json(),
+            parsed=output,
+            provider=LLMProvider.ANTHROPIC,
+            model="claude-sonnet-4-20250514",
+            usage=TokenUsage(input_tokens=100, output_tokens=200),
+        ))
+
+        agent = KhawatirAgent()
+        result = await agent.run(
+            context=_base_context(),
+            llm_client=client,
+            classification=DataClassification.INTERNAL,
+        )
+
+        # parse_structured_output must NOT have been called (parsed was set)
+        client.parse_structured_output.assert_not_called()
+        assert len(result["candidates"]) == len(fallback)
+
+    async def test_khawatir_falls_back_to_parse_structured_output(self):
+        """When parsed=None, Khawatir uses parse_structured_output on raw content."""
+        client = _make_llm_client(available=True)
+        fallback = _generate_fallback_candidates(_base_context())
+        output = KhawatirOutput(candidates=fallback)
+
+        client.call = AsyncMock(return_value=LLMResponse(
+            content=output.model_dump_json(),
+            parsed=None,  # Structured output not available
+            provider=LLMProvider.ANTHROPIC,
+            model="claude-sonnet-4-20250514",
+            usage=TokenUsage(input_tokens=100, output_tokens=200),
+        ))
+        client.parse_structured_output = MagicMock(return_value=output)
+
+        agent = KhawatirAgent()
+        result = await agent.run(
+            context=_base_context(),
+            llm_client=client,
+            classification=DataClassification.INTERNAL,
+        )
+
+        # parse_structured_output MUST have been called
+        client.parse_structured_output.assert_called_once()
+        call_kwargs = client.parse_structured_output.call_args
+        assert call_kwargs.kwargs["schema"] is KhawatirOutput
+        assert len(result["candidates"]) == len(fallback)
+
+    async def test_khawatir_deterministic_fallback_on_parse_error(self):
+        """When parse_structured_output raises ValueError, Khawatir uses deterministic fallback."""
+        client = _make_llm_client(available=True)
+
+        client.call = AsyncMock(return_value=LLMResponse(
+            content="not valid json at all",
+            parsed=None,
+            provider=LLMProvider.ANTHROPIC,
+            model="claude-sonnet-4-20250514",
+            usage=TokenUsage(input_tokens=100, output_tokens=200),
+        ))
+        client.parse_structured_output = MagicMock(
+            side_effect=ValueError("Invalid JSON from LLM"),
+        )
+
+        agent = KhawatirAgent()
+        result = await agent.run(
+            context=_base_context(),
+            llm_client=client,
+            classification=DataClassification.INTERNAL,
+        )
+
+        # Must still return valid candidates from deterministic fallback
+        assert "candidates" in result
+        assert len(result["candidates"]) >= 5
+
+    async def test_muhasaba_uses_parsed_response(self):
+        """Muhasaba returns structured output when response.parsed is set."""
+        client = _make_llm_client(available=True)
+        output = MuhasabaOutput(scored=[], key_questions=["test"])
+
+        client.call = AsyncMock(return_value=LLMResponse(
+            content=output.model_dump_json(),
+            parsed=output,
+            provider=LLMProvider.ANTHROPIC,
+            model="claude-sonnet-4-20250514",
+            usage=TokenUsage(input_tokens=100, output_tokens=200),
+        ))
+
+        ctx = {**_base_context(), "candidates": [], "contrarians": []}
+        agent = MuhasabaAgent()
+        result = await agent.run(
+            context=ctx,
+            llm_client=client,
+            classification=DataClassification.INTERNAL,
+        )
+
+        client.parse_structured_output.assert_not_called()
+        assert "scored" in result
+
+    async def test_muhasaba_falls_back_to_parse_structured_output(self):
+        """When parsed=None, Muhasaba uses parse_structured_output."""
+        client = _make_llm_client(available=True)
+        output = MuhasabaOutput(scored=[], key_questions=["test"])
+
+        client.call = AsyncMock(return_value=LLMResponse(
+            content=output.model_dump_json(),
+            parsed=None,
+            provider=LLMProvider.ANTHROPIC,
+            model="claude-sonnet-4-20250514",
+            usage=TokenUsage(input_tokens=100, output_tokens=200),
+        ))
+        client.parse_structured_output = MagicMock(return_value=output)
+
+        ctx = {**_base_context(), "candidates": [], "contrarians": []}
+        agent = MuhasabaAgent()
+        result = await agent.run(
+            context=ctx,
+            llm_client=client,
+            classification=DataClassification.INTERNAL,
+        )
+
+        client.parse_structured_output.assert_called_once()
+        call_kwargs = client.parse_structured_output.call_args
+        assert call_kwargs.kwargs["schema"] is MuhasabaOutput
+
+    async def test_mujahada_falls_back_to_parse_structured_output(self):
+        """When parsed=None, Mujahada uses parse_structured_output."""
+        client = _make_llm_client(available=True)
+        from src.models.depth import MujahadaOutput
+        output = MujahadaOutput(contrarians=[], qualitative_risks=[])
+
+        client.call = AsyncMock(return_value=LLMResponse(
+            content=output.model_dump_json(),
+            parsed=None,
+            provider=LLMProvider.ANTHROPIC,
+            model="claude-sonnet-4-20250514",
+            usage=TokenUsage(input_tokens=100, output_tokens=200),
+        ))
+        client.parse_structured_output = MagicMock(return_value=output)
+
+        agent = MujahadaAgent()
+        result = await agent.run(
+            context=_base_context(),
+            llm_client=client,
+            classification=DataClassification.INTERNAL,
+        )
+
+        client.parse_structured_output.assert_called_once()
+
+    async def test_suite_planner_falls_back_to_parse_structured_output(self):
+        """When parsed=None, SuitePlanner uses parse_structured_output."""
+        client = _make_llm_client(available=True)
+        from src.models.depth import SuitePlanningOutput, ScenarioSuitePlan
+        output = SuitePlanningOutput(
+            suite_plan=ScenarioSuitePlan(
+                workspace_id=uuid4(),
+                runs=[],
+                recommended_outputs=["multipliers"],
+                rationale="Test",
+            ),
+        )
+
+        client.call = AsyncMock(return_value=LLMResponse(
+            content=output.model_dump_json(),
+            parsed=None,
+            provider=LLMProvider.ANTHROPIC,
+            model="claude-sonnet-4-20250514",
+            usage=TokenUsage(input_tokens=100, output_tokens=200),
+        ))
+        client.parse_structured_output = MagicMock(return_value=output)
+
+        ctx = {**_base_context(), "scored": [], "qualitative_risks": []}
+        agent = SuitePlannerAgent()
+        result = await agent.run(
+            context=ctx,
+            llm_client=client,
+            classification=DataClassification.INTERNAL,
+        )
+
+        client.parse_structured_output.assert_called_once()

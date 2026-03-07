@@ -17,6 +17,7 @@ def build_prompt(context: dict) -> str:
     candidates = context.get("candidates", [])
     bias = context.get("bias_register", {})
     ws_desc = context.get("workspace_description", "Economic impact assessment")
+    denomination = context.get("denomination", "SAR_MILLIONS")
 
     lines = [
         "You are the Mujahada module of the Al-Muhasabi Depth Engine.",
@@ -44,6 +45,13 @@ def build_prompt(context: dict) -> str:
     bias_risk = bias.get("overall_bias_risk", 0)
     bias_entries = bias.get("entries", [])
     lines.append(f"\nBIAS REGISTER: risk={bias_risk}, {len(bias_entries)} biases detected")
+
+    lines.append(f"\nMODEL DENOMINATION: {denomination}")
+    lines.append(
+        "All shock values in proposed_shock_specs MUST use denomination "
+        f'"{denomination}". For example, a 500M SAR shock = '
+        '{"shock_value": 500.0, "denomination": "SAR_MILLIONS"}.'
+    )
 
     lines.extend([
         "",

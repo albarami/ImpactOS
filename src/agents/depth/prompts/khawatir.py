@@ -20,6 +20,8 @@ def build_prompt(context: dict) -> str:
     sectors = context.get("sector_codes", [])
     shocks = context.get("existing_shocks", [])
     horizon = context.get("time_horizon", {})
+    denomination = context.get("denomination", "SAR_MILLIONS")
+    key_questions = context.get("key_questions", [])
 
     lines = [
         "You are the Khawatir module of the Al-Muhasabi Depth Engine.",
@@ -50,6 +52,22 @@ def build_prompt(context: dict) -> str:
         lines.append(
             f"TIME HORIZON: {horizon.get('start_year', '?')}"
             f" - {horizon.get('end_year', '?')}"
+        )
+
+    lines.append(f"\nMODEL DENOMINATION: {denomination}")
+    lines.append(
+        "All monetary values (shock sizes, investment amounts) are expressed "
+        f"in {denomination}. Ensure any numerical references in test_plan "
+        "or rationale use this denomination."
+    )
+
+    if key_questions:
+        lines.append("\nKEY QUESTIONS (from engagement brief):")
+        for i, q in enumerate(key_questions, 1):
+            lines.append(f"  {i}. {q}")
+        lines.append(
+            "Generate at least one candidate direction that directly addresses "
+            "each key question above."
         )
 
     lines.extend([
