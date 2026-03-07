@@ -551,5 +551,23 @@ Each entry records:
   4. Updated test_no_constraints_no_feasibility_results → test_no_constraints_feasibility_equals_unconstrained
   5. Updated count tests: batch (17→19), pipeline (10→12)
 - **Tests:** 4 new tests + 1 updated; 5502 passed, 0 failures
+- **Commit:** b31a803
+- **Superpowers Used:** test-driven-development, executing-plans
+
+---
+
+### Step 5: Complete Real Decision Pack Surfaces
+
+#### S5-V1: All 7 Decision Pack Panels Implemented and Tested
+- **Phase/Task:** Step 5 / Complete P6-4 — all Decision Pack panels for suite, risks, sensitivity, trace
+- **Plan:** Create 4 missing frontend panels (ScenarioSuitePanel, QualitativeRisksPanel, SensitivityEnvelopePanel, DepthEngineTracePanel), write tests for all 4, wire all panels into results-display.tsx with data extraction from depth_engine response object.
+- **Implementation:**
+  1. Created `frontend/src/components/runs/scenario-suite-panel.tsx` — table of depth engine scenario runs with mode (GOVERNED/SANDBOX), type (Contrarian/Standard), sensitivity count
+  2. Created `frontend/src/components/runs/qualitative-risks-panel.tsx` — risk cards with label, description, affected sectors, trigger conditions, expected direction; "Not modeled in engine" orange badge per agent-to-math boundary
+  3. Created `frontend/src/components/runs/sensitivity-envelope-panel.tsx` — sorted sweep runs with multiplier, total_output, employment; envelope summary (low/high estimate range)
+  4. Created `frontend/src/components/runs/depth-engine-trace-panel.tsx` — 5-step pipeline trace with step badges, LLM/FALLBACK mode indicators, token usage, duration
+  5. Added 12 new tests to decision-pack-panels.test.tsx (3 per panel: renders content, shows key feature, renders nothing when empty)
+  6. Wired all 4 panels into results-display.tsx with useMemo hooks extracting depth_engine.suite_runs, qualitative_risks, sensitivity_runs, trace_steps
+- **Tests:** 12 new panel tests; 21 total decision-pack panel tests pass; 394 total frontend tests pass; 5502 backend tests pass
 - **Commit:** pending
 - **Superpowers Used:** test-driven-development, executing-plans

@@ -106,7 +106,7 @@
 | P6-1 | Raw JSON in chat messages | verified_closed | Structured result summary; raw JSON behind toggle; 3 tests | 33588e0 |
 | P6-2 | Executive summary missing | verified_closed | KPI cards (Total Output, GDP Impact, Jobs Created); 3 tests | 33588e0 |
 | P6-3 | KPI cards missing denomination scaling | verified_closed | model_denomination flows ModelVersion→RunSnapshot→API→frontend; formatDenomination() renders "SAR (Millions)"; Total Impact sums only total_output (not all metrics); DB round-trip verified with SAR_THOUSANDS; 4 backend + 2 frontend tests | 3afcdd3 |
-| P6-4 | Suite list, risks, workforce, sector breakdown missing | reopened | SectorBreakdownsPanel (direct/indirect/employment cards); WorkforcePanel (employment by sector + total jobs headline); FeasibilityPanel (unconstrained vs feasible + gap highlighting); sector_breakdowns exposed in ResultSetResponse; results-display integrates all panels; 9 frontend tests — REOPENED: suite list, qualitative risks, sensitivity envelope, and depth trace panels not yet implemented in UI | 3afcdd3 |
+| P6-4 | Suite list, risks, workforce, sector breakdown missing | verified_closed | All 7 panels implemented: SectorBreakdownsPanel, WorkforcePanel, FeasibilityPanel, ScenarioSuitePanel, QualitativeRisksPanel, SensitivityEnvelopePanel, DepthEngineTracePanel; results-display.tsx wires depth_engine data (suite_runs, qualitative_risks, sensitivity_runs, trace_steps); 21 frontend panel tests pass; 394 total frontend tests pass | pending |
 | P6-5 | Markdown not rendered in chat | verified_closed | react-markdown; assistant=markdown, user=plain; 3 tests | 33588e0 |
 | P6-6 | Download flow incomplete | verified_closed | Download buttons per format; 2 tests | 33588e0 |
 

@@ -15,6 +15,10 @@ import { useRunResults, type ResultSet } from '@/lib/api/hooks/useRuns';
 import { SectorBreakdownsPanel } from './sector-breakdowns-panel';
 import { WorkforcePanel } from './workforce-panel';
 import { FeasibilityPanel } from './feasibility-panel';
+import { ScenarioSuitePanel } from './scenario-suite-panel';
+import { QualitativeRisksPanel } from './qualitative-risks-panel';
+import { SensitivityEnvelopePanel } from './sensitivity-envelope-panel';
+import { DepthEngineTracePanel } from './depth-engine-trace-panel';
 
 interface ResultsDisplayProps {
   workspaceId: string;
@@ -129,6 +133,32 @@ export function ResultsDisplay({ workspaceId, runId }: ResultsDisplayProps) {
       gap: gapRS.values,
     };
   }, [data]);
+
+  // P6-4: Extract depth engine data (suite runs, risks, sensitivity, trace)
+  const depthData = useMemo(() => {
+    if (!data?.depth_engine) return null;
+    return data.depth_engine;
+  }, [data]);
+
+  // P6-4: Suite runs from depth engine
+  const suiteRuns = useMemo(() => {
+    return depthData?.suite_runs ?? [];
+  }, [depthData]);
+
+  // P6-4: Qualitative risks from depth engine
+  const qualitativeRisks = useMemo(() => {
+    return depthData?.qualitative_risks ?? [];
+  }, [depthData]);
+
+  // P6-4: Sensitivity runs from depth engine
+  const sensitivityRuns = useMemo(() => {
+    return depthData?.sensitivity_runs ?? [];
+  }, [depthData]);
+
+  // P6-4: Depth trace steps from depth engine
+  const depthTrace = useMemo(() => {
+    return depthData?.trace_steps ?? [];
+  }, [depthData]);
 
   if (isLoading) {
     return (
@@ -247,6 +277,33 @@ export function ResultsDisplay({ workspaceId, runId }: ResultsDisplayProps) {
           unconstrained={feasibilityData.unconstrained}
           feasible={feasibilityData.feasible}
           gap={feasibilityData.gap}
+        />
+      )}
+
+      {/* P6-4: Scenario Suite Panel */}
+      {suiteRuns.length > 0 && (
+        <ScenarioSuitePanel
+          runs={suiteRuns}
+          suiteId={depthData?.suite_id}
+          rationale={depthData?.suite_rationale}
+        />
+      )}
+
+      {/* P6-4: Qualitative Risks Panel */}
+      {qualitativeRisks.length > 0 && (
+        <QualitativeRisksPanel risks={qualitativeRisks} />
+      )}
+
+      {/* P6-4: Sensitivity Envelope Panel */}
+      {sensitivityRuns.length > 0 && (
+        <SensitivityEnvelopePanel runs={sensitivityRuns} />
+      )}
+
+      {/* P6-4: Depth Engine Trace Panel */}
+      {depthTrace.length > 0 && (
+        <DepthEngineTracePanel
+          steps={depthTrace}
+          planId={depthData?.plan_id}
         />
       )}
 
