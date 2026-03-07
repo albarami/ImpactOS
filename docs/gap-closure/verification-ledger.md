@@ -500,5 +500,22 @@ Each entry records:
   3. Fixed _handle_build_scenario — links created assumptions to scenario via assumption_repo.link()
   4. Updated TestAssumptionsOnExportPath to test scoped path
 - **Tests:** 3 new tests (scope, own-draft blocking, backward compat) + 1 updated; 5483 passed, 0 failures
-- **Commit:** pending
+- **Commit:** 46a267a
 - **Superpowers Used:** test-driven-development, writing-plans, executing-plans, systematic-debugging, requesting-code-review, receiving-code-review, using-superpowers
+
+---
+
+### Step 2: Build Real Depth-Suite Execution on Chat Path
+
+#### S2-V1: Failing Test — Depth suite produces run_ids
+- **Phase/Task:** Step 2 / Build DepthSuiteExecutionService and wire into chat handler
+- **Plan:** After run_depth_plan() completes with COMPLETED status, load the SUITE_PLANNING artifact, parse it as ScenarioSuitePlan, convert each SuiteRun's executable_levers to annual_shocks, execute via BatchRunner, and return real run_ids.
+- **Implementation:**
+  1. Created `src/services/depth_suite_execution.py` — DepthSuiteExecutionService with execute_plan() converting SuiteRun→ScenarioInput→BatchRequest
+  2. _build_annual_shocks() converts FINAL_DEMAND_SHOCK levers to per-year numpy delta vectors (same logic as RunExecutionService)
+  3. Fallback SatelliteCoefficients (jobs_coeff, import_ratio, va_ratio) when load_satellite_coefficients() fails
+  4. Added _execute_depth_suite_runs() to ChatToolExecutor — loads SUITE_PLANNING artifact, resolves model_version_id, calls DepthSuiteExecutionService
+  5. _handle_run_depth_suite() now returns real run_ids after plan completion
+- **Tests:** 10 tests (service importable, execute_plan returns run_ids, converts levers to shocks, empty suite, handler returns run_ids); 5493 passed, 0 failures
+- **Commit:** pending
+- **Superpowers Used:** test-driven-development, executing-plans, systematic-debugging

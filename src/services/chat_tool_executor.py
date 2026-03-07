@@ -524,13 +524,18 @@ class ChatToolExecutor:
         return response
 
     async def _handle_run_depth_suite(self, arguments: dict) -> dict:
-        """Launch Al-Muhāsibī depth engine for deep-dive analysis (P3-1).
+        """Launch Al-Muhāsibī depth engine for deep-dive analysis (P3-1 + Step 2).
 
-        Creates a DepthPlan row and runs the full depth pipeline inline.
-        Mocked in tests via patch("src.services.chat_tool_executor.run_depth_plan").
+        Creates a DepthPlan row, runs the 5-step depth pipeline inline,
+        then executes the resulting ScenarioSuitePlan runs via BatchRunner.
+
+        Step 2: After plan completion, loads the suite_planning artifact,
+        converts SuiteRun entries to ScenarioInputs, and executes them.
+        Returns real run_ids, not just plan status.
 
         Required args: key_questions (list[str])
-        Optional: target_sectors (list[str]), base_year (int)
+        Optional: target_sectors (list[str]), base_year (int),
+                  model_version_id (str), scenario_spec_id (str)
         """
         from src.repositories.depth import DepthPlanRepository
 
@@ -561,7 +566,7 @@ class ChatToolExecutor:
         if base_year is not None:
             depth_context["base_year"] = base_year
 
-        # Run the depth pipeline inline
+        # Run the depth pipeline inline (5-step: Khawatir→Suite Planning)
         final_status = await run_depth_plan(
             plan_id=plan_id,
             workspace_id=self._workspace_id,
@@ -569,10 +574,97 @@ class ChatToolExecutor:
             classification="INTERNAL",
         )
 
-        return {
+        result: dict = {
             "plan_id": str(plan_id),
             "status": final_status,
         }
+
+        # Step 2: Execute the ScenarioSuitePlan if the pipeline succeeded
+        if final_status == "COMPLETED":
+            suite_result = await self._execute_depth_suite_runs(
+                plan_id=plan_id,
+                base_year=base_year or 2023,
+                model_version_id=arguments.get("model_version_id"),
+                scenario_spec_id=arguments.get("scenario_spec_id"),
+            )
+            if suite_result:
+                result.update(suite_result)
+
+        return result
+
+    async def _execute_depth_suite_runs(
+        self,
+        plan_id: UUID,
+        base_year: int,
+        model_version_id: str | None = None,
+        scenario_spec_id: str | None = None,
+    ) -> dict | None:
+        """Step 2: Load ScenarioSuitePlan artifact and execute runs.
+
+        Returns dict with suite_id, run_ids, run_count on success.
+        Returns None on failure (graceful degradation).
+        """
+        from src.repositories.depth import DepthArtifactRepository
+        from src.models.depth import ScenarioSuitePlan
+        from src.services.depth_suite_execution import (
+            DepthSuiteExecutionService,
+            DepthSuiteExecutionInput,
+        )
+
+        try:
+            artifact_repo = DepthArtifactRepository(self._session)
+            suite_artifact = await artifact_repo.get_by_plan_and_step(
+                plan_id, "SUITE_PLANNING",
+            )
+            if suite_artifact is None:
+                _logger.warning(
+                    "Step 2: No suite_planning artifact for plan %s", plan_id,
+                )
+                return None
+
+            plan = ScenarioSuitePlan.model_validate(suite_artifact.payload)
+
+            # Resolve model_version_id (from argument or first available)
+            mv_id: UUID
+            if model_version_id:
+                mv_id = UUID(str(model_version_id))
+            else:
+                from src.repositories.engine import ModelVersionRepository
+                mv_repo = ModelVersionRepository(self._session)
+                rows = await mv_repo.list_all()
+                if not rows:
+                    _logger.warning("Step 2: No model versions available")
+                    return None
+                mv_id = rows[0].model_version_id
+
+            inp = DepthSuiteExecutionInput(
+                workspace_id=self._workspace_id,
+                model_version_id=mv_id,
+                base_year=base_year,
+                scenario_spec_id=UUID(str(scenario_spec_id)) if scenario_spec_id else None,
+            )
+
+            svc = DepthSuiteExecutionService()
+            exec_result = await svc.execute_plan(plan, inp)
+
+            if exec_result.status == "COMPLETED":
+                return {
+                    "suite_id": str(exec_result.suite_id),
+                    "run_ids": [str(r) for r in exec_result.run_ids],
+                    "run_count": exec_result.run_count,
+                }
+            else:
+                _logger.warning(
+                    "Step 2: Suite execution failed: %s", exec_result.error,
+                )
+                return None
+
+        except Exception:
+            _logger.warning(
+                "Step 2: Failed to execute depth suite runs for plan %s",
+                plan_id, exc_info=True,
+            )
+            return None
 
     # ------------------------------------------------------------------
     # Execute single / execute all
