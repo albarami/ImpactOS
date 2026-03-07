@@ -215,9 +215,18 @@ class ChatToolExecutor:
     async def _handle_build_scenario(self, arguments: dict) -> dict:
         """Create a ScenarioSpec via ScenarioVersionRepository.
 
+        P4-2: Also auto-drafts compilation assumptions (import share, phasing,
+        deflators) so NFF governance can track implicit parameters.
+
         Required args: name, base_year, base_model_version_id
         Optional: start_year, end_year (used for time_horizon)
         """
+        from src.compiler.scenario_compiler import (
+            CompilationInput,
+            draft_compilation_assumptions,
+        )
+        from src.models.scenario import TimeHorizon
+        from src.repositories.governance import AssumptionRepository
         from src.repositories.scenarios import ScenarioVersionRepository
 
         name = arguments.get("name")
@@ -246,6 +255,44 @@ class ChatToolExecutor:
             shock_items=arguments.get("shock_items", []),
         )
 
+        # P4-2: Auto-draft compilation assumptions
+        try:
+            compilation_inp = CompilationInput(
+                workspace_id=self._workspace_id,
+                scenario_name=name,
+                base_model_version_id=UUID(str(base_model_version_id)),
+                base_year=int(base_year),
+                time_horizon=TimeHorizon(
+                    start_year=int(start_year), end_year=int(end_year),
+                ),
+                line_items=[],
+                decisions=[],
+                default_domestic_share=0.65,
+                default_import_share=0.35,
+            )
+            assumptions = draft_compilation_assumptions(compilation_inp)
+            assumption_repo = AssumptionRepository(self._session)
+            for assumption in assumptions:
+                await assumption_repo.create(
+                    assumption_id=assumption.assumption_id,
+                    type=assumption.type.value,
+                    value=assumption.value,
+                    units=assumption.units,
+                    justification=assumption.justification,
+                    status=assumption.status.value,
+                    workspace_id=self._workspace_id,
+                )
+            _logger.info(
+                "P4-2: Auto-drafted %d assumptions for scenario %s",
+                len(assumptions), scenario_spec_id,
+            )
+        except Exception:
+            _logger.warning(
+                "P4-2: Failed to auto-draft assumptions for scenario %s",
+                scenario_spec_id,
+                exc_info=True,
+            )
+
         return {
             "scenario_spec_id": str(row.scenario_spec_id),
             "version": row.version,
@@ -262,6 +309,7 @@ class ChatToolExecutor:
             ModelDataRepository, ModelVersionRepository,
             ResultSetRepository, RunSnapshotRepository,
         )
+        from src.repositories.governance import ClaimRepository
         from src.repositories.scenarios import ScenarioVersionRepository
         from src.services.run_execution import (
             RunExecutionService, RunFromScenarioInput, RunRepositories,
@@ -290,6 +338,7 @@ class ChatToolExecutor:
             md_repo=ModelDataRepository(self._session),
             snap_repo=RunSnapshotRepository(self._session),
             rs_repo=ResultSetRepository(self._session),
+            claim_repo=ClaimRepository(self._session),  # P4-1: auto-create claims
         )
         inp = RunFromScenarioInput(
             workspace_id=self._workspace_id,
@@ -382,7 +431,7 @@ class ChatToolExecutor:
             ExportExecutionService, ExportExecutionInput, ExportRepositories,
         )
         from src.repositories.exports import ExportRepository
-        from src.repositories.governance import ClaimRepository
+        from src.repositories.governance import AssumptionRepository, ClaimRepository
         from src.repositories.data_quality import DataQualityRepository
         from src.repositories.engine import RunSnapshotRepository, ModelVersionRepository
         from src.export.artifact_storage import ExportArtifactStorage
@@ -437,6 +486,7 @@ class ChatToolExecutor:
             snap_repo=RunSnapshotRepository(self._session),
             mv_repo=ModelVersionRepository(self._session),
             artifact_store=artifact_store,
+            assumption_repo=AssumptionRepository(self._session),  # P4-3
         )
         svc = ExportExecutionService()
         inp = ExportExecutionInput(

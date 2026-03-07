@@ -5,8 +5,11 @@ P4-2: Auto-draft assumptions on scenario compile (scenario_compiler)
 P4-3: Publication gate blocks on DRAFT assumptions
 P4-4: Disclosure tier filtering in export orchestrator
 P4-5: ClaimRepository.list_by_workspace (tested separately in repositories)
+P4-1/2/3 autowiring: Tests proving governance is wired on real service paths.
 """
 
+import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 from uuid_extensions import uuid7
@@ -367,3 +370,284 @@ class TestClaimRepoListByWorkspaceSignature:
         from src.repositories.governance import ClaimRepository
 
         assert callable(getattr(ClaimRepository, "list_by_workspace"))
+
+
+# ===================================================================
+# P4-1 autowiring: Claims auto-created on real run path
+# ===================================================================
+
+pytestmark_anyio = pytest.mark.anyio
+
+
+class TestAutoClaimsOnRunPath:
+    """P4-1: RunExecutionService.execute_from_scenario must auto-create claims."""
+
+    @pytest.mark.anyio
+    async def test_execute_from_scenario_creates_claims(self) -> None:
+        """After a successful engine run, claims are persisted via claim_repo."""
+        from src.services.run_execution import (
+            RunExecutionService, RunFromScenarioInput, RunRepositories,
+        )
+
+        ws_id = uuid7()
+        spec_id = uuid7()
+        run_id = uuid7()
+        mv_id = uuid7()
+
+        # Mock scenario row
+        scenario_row = MagicMock()
+        scenario_row.scenario_spec_id = spec_id
+        scenario_row.version = 1
+        scenario_row.workspace_id = ws_id
+        scenario_row.base_model_version_id = mv_id
+        scenario_row.base_year = 2023
+        scenario_row.name = "Test"
+        scenario_row.shock_items = []
+
+        # Mock model version row (curated_real provenance)
+        mv_row = MagicMock()
+        mv_row.provenance_class = "curated_real"
+
+        # Mock repos
+        scenario_repo = AsyncMock()
+        scenario_repo.get_latest_by_workspace = AsyncMock(return_value=scenario_row)
+        mv_repo = AsyncMock()
+        mv_repo.get = AsyncMock(return_value=mv_row)
+        md_repo = AsyncMock()
+        snap_repo = AsyncMock()
+        snap_repo.create = AsyncMock()
+        rs_repo = AsyncMock()
+        rs_repo.create = AsyncMock()
+
+        # Mock result set rows from DB
+        rs_row1 = MagicMock()
+        rs_row1.metric_type = "total_output"
+        rs_row1.values = {"2023": 5000.0}
+        rs_row1.series_kind = None
+        rs_row2 = MagicMock()
+        rs_row2.metric_type = "jobs"
+        rs_row2.values = {"2023": 200}
+        rs_row2.series_kind = None
+        rs_repo.get_by_run = AsyncMock(return_value=[rs_row1, rs_row2])
+
+        # Mock claim_repo to capture creates
+        claim_repo = AsyncMock()
+        claim_repo.create = AsyncMock()
+
+        repos = RunRepositories(
+            scenario_repo=scenario_repo,
+            mv_repo=mv_repo,
+            md_repo=md_repo,
+            snap_repo=snap_repo,
+            rs_repo=rs_repo,
+        )
+        repos.claim_repo = claim_repo  # P4-1: new repo
+
+        svc = RunExecutionService()
+
+        # Mock _ensure_model_loaded and BatchRunner
+        import numpy as np
+        from src.engine.batch import SingleRunResult
+        from src.models.common import new_uuid7
+        from src.engine.model_store import LoadedModel
+
+        mock_loaded = MagicMock(spec=LoadedModel)
+        mock_loaded.sector_codes = ["A", "B", "C"]
+
+        mock_snapshot = MagicMock()
+        mock_snapshot.run_id = run_id
+        mock_snapshot.model_version_id = mv_id
+        mock_sr = MagicMock(spec=SingleRunResult)
+        mock_sr.snapshot = mock_snapshot
+        mock_sr.result_sets = []
+
+        mock_batch_result = MagicMock()
+        mock_batch_result.run_results = [mock_sr]
+
+        with (
+            patch.object(svc, "_ensure_model_loaded", return_value=mock_loaded),
+            patch("src.services.run_execution.load_satellite_coefficients") as mock_sat,
+            patch("src.services.run_execution.BatchRunner") as MockRunner,
+        ):
+            mock_sat_result = MagicMock()
+            mock_sat_result.coefficients = MagicMock()
+            mock_sat.return_value = mock_sat_result
+            MockRunner.return_value.run.return_value = mock_batch_result
+
+            inp = RunFromScenarioInput(
+                workspace_id=ws_id,
+                scenario_spec_id=spec_id,
+            )
+            result = await svc.execute_from_scenario(inp, repos)
+
+        assert result.status == "COMPLETED"
+        # P4-1: claim_repo.create must have been called (once per metric)
+        assert claim_repo.create.call_count == 2, (
+            f"Expected 2 claim creates (one per metric), got {claim_repo.create.call_count}"
+        )
+
+
+# ===================================================================
+# P4-2 autowiring: Assumptions auto-created on real build path
+# ===================================================================
+
+
+class TestAutoDraftAssumptionsOnBuildPath:
+    """P4-2: _handle_build_scenario must auto-draft assumptions."""
+
+    @pytest.mark.anyio
+    async def test_build_scenario_creates_assumptions(self) -> None:
+        """After building a scenario, DRAFT assumptions are persisted."""
+        from src.services.chat_tool_executor import ChatToolExecutor
+
+        ws_id = uuid7()
+        session = AsyncMock()
+
+        # Mock ScenarioVersionRepository.create
+        scenario_row = MagicMock()
+        scenario_row.scenario_spec_id = uuid7()
+        scenario_row.version = 1
+        scenario_row.name = "Test"
+        scenario_row.base_year = 2023
+
+        assumption_repo = AsyncMock()
+        assumption_repo.create = AsyncMock()
+
+        mock_svr_class = MagicMock()
+        mock_svr_class.return_value.create = AsyncMock(return_value=scenario_row)
+
+        mock_ar_class = MagicMock()
+        mock_ar_class.return_value = assumption_repo
+
+        with (
+            patch(
+                "src.repositories.scenarios.ScenarioVersionRepository",
+                mock_svr_class,
+            ),
+            patch(
+                "src.repositories.governance.AssumptionRepository",
+                mock_ar_class,
+            ),
+        ):
+            executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+            result = await executor._handle_build_scenario({
+                "name": "Test Scenario",
+                "base_year": 2023,
+                "base_model_version_id": str(uuid7()),
+            })
+
+        assert "scenario_spec_id" in result
+        # P4-2: assumption_repo.create must have been called for DRAFT assumptions
+        assert assumption_repo.create.call_count >= 1, (
+            f"Expected assumption creates for import share, got {assumption_repo.create.call_count}"
+        )
+
+
+# ===================================================================
+# P4-3 autowiring: Assumptions loaded and passed on export path
+# ===================================================================
+
+
+class TestAssumptionsOnExportPath:
+    """P4-3: Export path must load and pass assumptions to orchestrator."""
+
+    @pytest.mark.anyio
+    async def test_export_loads_and_passes_assumptions(self) -> None:
+        """ExportExecutionService.execute must load assumptions and pass to orchestrator."""
+        from src.services.export_execution import (
+            ExportExecutionService, ExportExecutionInput, ExportRepositories,
+        )
+
+        ws_id = uuid7()
+        run_id = uuid7()
+
+        # Mock snapshot row
+        snap_row = MagicMock()
+        snap_row.workspace_id = ws_id
+        snap_row.model_version_id = uuid7()
+
+        snap_repo = AsyncMock()
+        snap_repo.get = AsyncMock(return_value=snap_row)
+
+        claim_repo = AsyncMock()
+        claim_repo.get_by_run = AsyncMock(return_value=[])
+
+        quality_repo = AsyncMock()
+        quality_repo.get_by_run = AsyncMock(return_value=None)
+
+        mv_row = MagicMock()
+        mv_row.provenance_class = "curated_real"
+        mv_repo = AsyncMock()
+        mv_repo.get = AsyncMock(return_value=mv_row)
+
+        export_repo = AsyncMock()
+        export_repo.create = AsyncMock()
+
+        artifact_store = MagicMock()
+
+        # Mock assumption_repo with DRAFT assumptions
+        from src.db.tables import AssumptionRow
+        assumption_row = MagicMock()
+        assumption_row.assumption_id = uuid7()
+        assumption_row.type = "IMPORT_SHARE"
+        assumption_row.value = 0.35
+        assumption_row.range_json = None
+        assumption_row.units = "ratio"
+        assumption_row.justification = "Default import share"
+        assumption_row.evidence_refs = []
+        assumption_row.status = "DRAFT"
+        assumption_row.approved_by = None
+        assumption_row.approved_at = None
+        assumption_row.created_at = MagicMock()
+        assumption_row.updated_at = MagicMock()
+
+        assumption_repo = AsyncMock()
+        assumption_repo.list_by_workspace = AsyncMock(
+            return_value=([assumption_row], 1),
+        )
+
+        repos = ExportRepositories(
+            export_repo=export_repo,
+            claim_repo=claim_repo,
+            quality_repo=quality_repo,
+            snap_repo=snap_repo,
+            mv_repo=mv_repo,
+            artifact_store=artifact_store,
+        )
+        repos.assumption_repo = assumption_repo  # P4-3: new repo
+
+        svc = ExportExecutionService()
+        inp = ExportExecutionInput(
+            workspace_id=ws_id,
+            run_id=run_id,
+            mode=ExportMode.GOVERNED,
+            export_formats=["excel"],
+            pack_data={"sector_impacts": []},
+        )
+
+        with patch(
+            "src.services.export_execution._orchestrator"
+        ) as mock_orch:
+            # Make orchestrator return BLOCKED (since DRAFT assumption)
+            from src.export.orchestrator import ExportRecord, ExportStatus
+            mock_record = MagicMock(spec=ExportRecord)
+            mock_record.export_id = uuid7()
+            mock_record.run_id = run_id
+            mock_record.mode = ExportMode.GOVERNED
+            mock_record.status = ExportStatus.BLOCKED
+            mock_record.blocking_reasons = ["DRAFT assumptions present"]
+            mock_record.checksums = {}
+            mock_record.artifacts = {}
+            mock_orch.execute.return_value = mock_record
+
+            result = await svc.execute(inp, repos)
+
+            # Verify assumptions were loaded
+            assumption_repo.list_by_workspace.assert_called_once()
+
+            # Verify assumptions were passed to orchestrator
+            call_kwargs = mock_orch.execute.call_args.kwargs
+            assert "assumptions" in call_kwargs, (
+                "P4-3: assumptions must be passed to orchestrator.execute()"
+            )
+            assert call_kwargs["assumptions"] is not None

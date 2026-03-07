@@ -23,12 +23,12 @@ from src.models.common import (
     DisclosureTier,
     ExportMode,
 )
-from src.models.governance import Claim
+from src.models.governance import Assumption, AssumptionRange, Claim
 from src.quality.models import RunQualityAssessment
 from src.repositories.data_quality import DataQualityRepository
 from src.repositories.engine import ModelVersionRepository, RunSnapshotRepository
 from src.repositories.exports import ExportRepository
-from src.repositories.governance import ClaimRepository
+from src.repositories.governance import AssumptionRepository, ClaimRepository
 
 _logger = logging.getLogger(__name__)
 
@@ -71,11 +71,39 @@ class ExportRepositories:
     snap_repo: RunSnapshotRepository
     mv_repo: ModelVersionRepository
     artifact_store: ExportArtifactStorage
+    assumption_repo: AssumptionRepository | None = None  # P4-3: optional for backward compat
 
 
 # ------------------------------------------------------------------
 # Helpers (reused from src/api/exports.py)
 # ------------------------------------------------------------------
+
+
+def _assumption_row_to_model(row) -> Assumption:
+    """Convert AssumptionRow to Assumption Pydantic model for gate checks."""
+    from src.models.common import AssumptionStatus, AssumptionType
+
+    range_obj = None
+    if row.range_json and isinstance(row.range_json, dict):
+        range_obj = AssumptionRange(
+            min=row.range_json.get("min", 0),
+            max=row.range_json.get("max", 0),
+        )
+
+    return Assumption(
+        assumption_id=row.assumption_id,
+        type=AssumptionType(row.type),
+        value=row.value,
+        range=range_obj,
+        units=row.units,
+        justification=row.justification,
+        evidence_refs=row.evidence_refs or [],
+        status=AssumptionStatus(row.status),
+        approved_by=getattr(row, "approved_by", None),
+        approved_at=getattr(row, "approved_at", None),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
 
 
 def _claim_row_to_model(row) -> Claim:
@@ -166,6 +194,28 @@ class ExportExecutionService:
         claim_rows = await repos.claim_repo.get_by_run(input.run_id)
         claims = [_claim_row_to_model(r) for r in claim_rows]
 
+        # P4-3: Load assumptions from workspace for publication gate
+        assumptions: list[Assumption] | None = None
+        if repos.assumption_repo is not None:
+            try:
+                assumption_rows, _ = await repos.assumption_repo.list_by_workspace(
+                    input.workspace_id,
+                )
+                if assumption_rows:
+                    assumptions = [
+                        _assumption_row_to_model(r) for r in assumption_rows
+                    ]
+                    _logger.info(
+                        "P4-3: Loaded %d assumptions for workspace %s",
+                        len(assumptions), input.workspace_id,
+                    )
+            except Exception:
+                _logger.warning(
+                    "P4-3: Failed to load assumptions for workspace %s",
+                    input.workspace_id,
+                    exc_info=True,
+                )
+
         quality_assessment: RunQualityAssessment | None = None
         quality_row = await repos.quality_repo.get_by_run(input.run_id)
         if quality_row is not None and quality_row.payload:
@@ -193,6 +243,7 @@ class ExportExecutionService:
             record = _orchestrator.execute(
                 request=request,
                 claims=claims,
+                assumptions=assumptions,  # P4-3: pass assumptions to gate
                 quality_assessment=quality_assessment,
                 model_provenance_disallowed=model_provenance_disallowed,
             )

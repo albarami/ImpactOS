@@ -31,6 +31,7 @@ from src.repositories.engine import (
     ResultSetRepository,
     RunSnapshotRepository,
 )
+from src.repositories.governance import ClaimRepository
 from src.repositories.scenarios import ScenarioVersionRepository
 
 _logger = logging.getLogger(__name__)
@@ -87,6 +88,7 @@ class RunRepositories:
     md_repo: ModelDataRepository
     snap_repo: RunSnapshotRepository
     rs_repo: ResultSetRepository
+    claim_repo: ClaimRepository | None = None  # P4-1: optional for backward compat
 
 
 # ------------------------------------------------------------------
@@ -255,6 +257,26 @@ class RunExecutionService:
         for rs_row in rs_rows:
             if getattr(rs_row, "series_kind", None) is None:
                 result_summary[rs_row.metric_type] = rs_row.values
+
+        # 9. P4-1: Auto-create claims from results (NFF governance)
+        if repos.claim_repo is not None and result_summary:
+            from src.governance.claim_extractor import create_claims_from_results
+
+            claims = create_claims_from_results(
+                result_summary, run_id=sr.snapshot.run_id,
+            )
+            for claim in claims:
+                await repos.claim_repo.create(
+                    claim_id=claim.claim_id,
+                    text=claim.text,
+                    claim_type=claim.claim_type.value,
+                    status=claim.status.value,
+                    run_id=sr.snapshot.run_id,
+                )
+            _logger.info(
+                "P4-1: Auto-created %d claims from run %s",
+                len(claims), sr.snapshot.run_id,
+            )
 
         return RunExecutionResult(
             status="COMPLETED",
