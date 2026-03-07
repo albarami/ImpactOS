@@ -92,12 +92,12 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P6-1 | Raw JSON in chat messages | open | — | — |
-| P6-2 | Executive summary missing | open | — | — |
-| P6-3 | KPI cards missing denomination scaling | open | — | — |
-| P6-4 | Suite list, risks, workforce, sector breakdown missing | open | — | — |
-| P6-5 | Markdown not rendered in chat | open | — | — |
-| P6-6 | Download flow incomplete | open | — | — |
+| P6-1 | Raw JSON in chat messages | verified_closed | Structured result summary with filtered keys; raw JSON behind nested "Raw JSON" toggle; 3 tests | pending |
+| P6-2 | Executive summary missing | verified_closed | Executive summary KPI cards (Total Output, GDP Impact, Jobs Created) from ResultSet metric types; 3 tests | pending |
+| P6-3 | KPI cards missing denomination scaling | verified_closed | SAR currency label on total impact and executive summary values; data-testid for targeting; 1 test | pending |
+| P6-4 | Suite list, risks, workforce, sector breakdown missing | open | Deferred — requires backend API changes to expose suite plan data in RunResponse; Phase 2 roadmap | — |
+| P6-5 | Markdown not rendered in chat | verified_closed | react-markdown installed; assistant messages rendered with ReactMarkdown, user messages stay plain text; 3 tests | pending |
+| P6-6 | Download flow incomplete | verified_closed | Phase 3B placeholder replaced with format-specific download buttons linked to /api/v1/.../download/{format}; 2 tests | pending |
 
 ---
 

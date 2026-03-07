@@ -358,7 +358,61 @@ Each entry records:
 
 ### Phase 6: Frontend Decision Pack and Product Surface
 
-(Entries will be added as Phase 6 work is verified)
+#### P6-V1: Structured Tool Result Display (P6-1)
+- **Phase/Task:** Phase 6 / Hide raw JSON in tool call results
+- **Files Changed:** `frontend/src/components/chat/message-bubble.tsx`
+- **Branch/Commit:** gap-closure-verified / pending
+- **Environment:** dev (local)
+- **Result:** PASS — Raw JSON hidden behind nested "Raw JSON" toggle; structured summary shows inner result keys with human-readable labels; metadata keys (status, export_id, run_id, etc.) filtered out
+- **Evidence:** 3 tests: raw JSON toggle exists, tool-result-summary testid present, inner result keys shown
+- **Superpowers Used:** verification-before-completion
+
+#### P6-V2: Executive Summary KPI Cards (P6-2)
+- **Phase/Task:** Phase 6 / Add executive summary to results display
+- **Files Changed:** `frontend/src/components/runs/results-display.tsx`
+- **Branch/Commit:** gap-closure-verified / pending
+- **Environment:** dev (local)
+- **Result:** PASS — Executive summary section with KPI cards for Total Output, GDP Impact (value_added), and Jobs Created (employment); auto-detected from result set metric types
+- **Evidence:** 3 tests: executive-summary testid present, GDP impact label+value shown, Jobs Created label+value shown
+- **Superpowers Used:** verification-before-completion
+
+#### P6-V3: Currency Label on KPI Cards (P6-3)
+- **Phase/Task:** Phase 6 / Add denomination/currency labels
+- **Files Changed:** `frontend/src/components/runs/results-display.tsx`
+- **Branch/Commit:** gap-closure-verified / pending
+- **Environment:** dev (local)
+- **Result:** PASS — Total impact value now shows "SAR" currency label; total-impact-value data-testid for targeting
+- **Evidence:** 1 test: total-impact-value element contains "SAR"
+- **Superpowers Used:** verification-before-completion
+
+#### P6-V4: Markdown Rendering in Chat (P6-5)
+- **Phase/Task:** Phase 6 / Render markdown in assistant messages
+- **Files Changed:** `frontend/src/components/chat/message-bubble.tsx`, `frontend/package.json`
+- **Branch/Commit:** gap-closure-verified / pending
+- **Environment:** dev (local)
+- **Result:** PASS — react-markdown installed; assistant messages rendered with ReactMarkdown (bold, lists, etc.); user messages stay plain text for visual distinction
+- **Evidence:** 3 tests: bold renders as <strong>, bullet list items rendered, user messages have no <strong>
+- **Superpowers Used:** verification-before-completion
+
+#### P6-V5: Download Buttons Replace Phase 3B Placeholder (P6-6)
+- **Phase/Task:** Phase 6 / Replace placeholder with functional download links
+- **Files Changed:** `frontend/src/components/exports/export-status.tsx`
+- **Branch/Commit:** gap-closure-verified / pending
+- **Environment:** dev (local)
+- **Result:** PASS — "Phase 3B" placeholder removed; format-specific download buttons for each checksum entry with correct API paths (/api/v1/workspaces/{ws}/exports/{id}/download/{format})
+- **Evidence:** 2 tests: download buttons with correct hrefs per format, no Phase 3B text present
+- **Superpowers Used:** verification-before-completion
+
+#### P6-V6: Full Suite Regression
+- **Phase/Task:** Phase 6 / Verify no regressions
+- **Commands:**
+  - `npx vitest run` → 40 files, 371 passed (was 368 baseline)
+  - `python -m pytest tests -q --tb=no` → 5386 passed, 29 skipped, 0 failures
+- **Branch/Commit:** gap-closure-verified / pending
+- **Environment:** dev (local)
+- **Result:** PASS — 3 new frontend tests added, 0 regressions in backend or frontend
+- **Evidence:** Inline above
+- **Superpowers Used:** verification-before-completion
 
 ---
 
