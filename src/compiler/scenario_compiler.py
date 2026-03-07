@@ -11,7 +11,9 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from src.models.common import AssumptionStatus, AssumptionType
 from src.models.document import BoQLineItem
+from src.models.governance import Assumption
 from src.models.mapping import DecisionType, MappingDecision
 from src.models.scenario import (
     DataQualitySummary,
@@ -111,12 +113,15 @@ class ScenarioCompiler:
         coverage = mapped_spend / total_spend if total_spend > 0 else 0.0
         confidence_summary = self._compute_confidence_histogram(confidence_values)
 
+        # P4-2: Count auto-drafted assumptions
+        draft_assumptions = draft_compilation_assumptions(inp)
+
         dqs = DataQualitySummary(
             base_table_vintage_years=0,
             boq_coverage_pct=coverage,
             mapping_confidence=confidence_summary,
             unresolved_items_count=unresolved_count,
-            assumptions_count=0,
+            assumptions_count=len(draft_assumptions),
         )
 
         return ScenarioSpec(
@@ -147,3 +152,71 @@ class ScenarioCompiler:
             medium_pct=medium / total,
             low_pct=low / total,
         )
+
+
+# ---------------------------------------------------------------------------
+# P4-2: Auto-draft assumptions from compilation inputs
+# ---------------------------------------------------------------------------
+
+
+def draft_compilation_assumptions(inp: CompilationInput) -> list[Assumption]:
+    """Generate DRAFT assumptions from compilation inputs.
+
+    Creates one assumption per implicit parameter:
+    - IMPORT_SHARE: domestic/import split ratio
+    - PHASING: spending distribution across years
+    - DEFLATOR: each deflator year entry
+
+    All assumptions start as DRAFT — analyst must APPROVE with a
+    sensitivity range before governed export is permitted.
+
+    Args:
+        inp: CompilationInput with default parameters.
+
+    Returns:
+        List of DRAFT Assumption objects.
+    """
+    assumptions: list[Assumption] = []
+
+    # Import share assumption
+    if inp.default_import_share > 0:
+        assumptions.append(Assumption(
+            type=AssumptionType.IMPORT_SHARE,
+            value=inp.default_import_share,
+            units="ratio",
+            justification=(
+                f"Default import share of {inp.default_import_share:.0%} applied "
+                f"to all sectors. Domestic share: {inp.default_domestic_share:.0%}."
+            ),
+            status=AssumptionStatus.DRAFT,
+        ))
+
+    # Phasing assumptions
+    if inp.phasing:
+        years_str = ", ".join(
+            f"{y}: {s:.0%}" for y, s in sorted(inp.phasing.items())
+        )
+        assumptions.append(Assumption(
+            type=AssumptionType.PHASING,
+            value=len(inp.phasing),
+            units="years",
+            justification=(
+                f"Spending phased across {len(inp.phasing)} years: {years_str}."
+            ),
+            status=AssumptionStatus.DRAFT,
+        ))
+
+    # Deflator assumptions (one per deflator year)
+    for year, deflator in sorted(inp.deflators.items()):
+        assumptions.append(Assumption(
+            type=AssumptionType.DEFLATOR,
+            value=deflator,
+            units="index",
+            justification=(
+                f"Deflator of {deflator} applied for year {year} "
+                f"to convert nominal to real base-year values."
+            ),
+            status=AssumptionStatus.DRAFT,
+        ))
+
+    return assumptions

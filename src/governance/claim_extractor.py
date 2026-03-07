@@ -160,3 +160,50 @@ class ClaimExtractor:
             claims.append(claim)
 
         return ExtractionResult(claims=claims)
+
+
+# ---------------------------------------------------------------------------
+# P4-1: Auto-create claims from engine run results
+# ---------------------------------------------------------------------------
+
+
+def create_claims_from_results(
+    result_summary: dict,
+    *,
+    run_id: UUID,
+) -> list[Claim]:
+    """Create one MODEL claim per metric type from engine run results.
+
+    Each metric in result_summary becomes a draft claim so that NFF
+    governance can track every quantitative output. Claims start as
+    EXTRACTED and must be resolved before governed export.
+
+    Args:
+        result_summary: dict[metric_type, values_dict] from engine run.
+        run_id: UUID of the engine run that produced these results.
+
+    Returns:
+        List of Claim objects, one per metric type.
+    """
+    claims: list[Claim] = []
+
+    for metric_type, values in result_summary.items():
+        # Build human-readable summary of the metric values
+        if isinstance(values, dict):
+            parts = [f"{k}: {v}" for k, v in values.items()]
+            value_str = ", ".join(parts)
+        else:
+            value_str = str(values)
+
+        text = (
+            f"Model output '{metric_type}' produced values: {value_str}."
+        )
+
+        claim = Claim(
+            text=text,
+            claim_type=ClaimType.MODEL,
+            status=ClaimStatus.EXTRACTED,
+        )
+        claims.append(claim)
+
+    return claims
