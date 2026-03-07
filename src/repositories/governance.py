@@ -106,6 +106,30 @@ class AssumptionRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_linked_to(
+        self, target_id: UUID, *,
+        link_type: str = "scenario",
+    ) -> list[AssumptionRow]:
+        """List assumptions linked to a target (e.g., scenario_spec_id) via
+        AssumptionLinkRow. Returns all linked assumptions regardless of status.
+
+        Step 1: Used by ExportExecutionService to scope assumptions to
+        the run's scenario instead of the entire workspace.
+        """
+        result = await self._session.execute(
+            select(AssumptionRow)
+            .join(
+                AssumptionLinkRow,
+                AssumptionRow.assumption_id == AssumptionLinkRow.assumption_id,
+            )
+            .where(
+                AssumptionLinkRow.target_id == target_id,
+                AssumptionLinkRow.link_type == link_type,
+            )
+            .order_by(AssumptionRow.created_at.desc())
+        )
+        return list(result.scalars().all())
+
     async def list_by_workspace(
         self, workspace_id: UUID, *,
         status: str | None = None,

@@ -282,8 +282,14 @@ class ChatToolExecutor:
                     status=assumption.status.value,
                     workspace_id=self._workspace_id,
                 )
+                # Step 1: Link assumption to scenario so exports can scope correctly
+                await assumption_repo.link(
+                    assumption.assumption_id,
+                    scenario_spec_id,
+                    link_type="scenario",
+                )
             _logger.info(
-                "P4-2: Auto-drafted %d assumptions for scenario %s",
+                "P4-2: Auto-drafted %d assumptions for scenario %s (linked)",
                 len(assumptions), scenario_spec_id,
             )
         except Exception:

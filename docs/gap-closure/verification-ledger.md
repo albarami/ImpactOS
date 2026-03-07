@@ -473,3 +473,32 @@ Each entry records:
   6. **QA:** Execute `python scripts/staging_full_e2e.py --strict --validate-outputs`
 - **Evidence:** All 8 blockers marked `code_complete` in blocker-ledger.md
 - **Superpowers Used:** verification-before-completion
+
+---
+
+### Gap Closure Correction: Reopen Overclaimed Blockers
+
+#### GC-V1: Reopen P5-2, P5-3, P6-4
+- **Phase/Task:** Gap Closure / Honest ledger correction
+- **Action:** Reopened P5-2 (workforce not on main run path as ResultSet), P5-3 (feasibility not always present), P6-4 (suite list/risks/depth trace missing from UI). Fixed P3-1 description to "depth suite reachable from chat" only. Added P4b-1 for export assumption scope bug.
+- **Branch/Commit:** gap-closure-verified / pending
+- **Environment:** dev (local)
+- **Result:** DONE — Ledger now honest
+- **Superpowers Used:** verification-before-completion, using-superpowers
+
+---
+
+### Step 1: Fix Export Assumption Scope
+
+#### S1-V1: Failing Test — Unrelated DRAFT assumptions block export
+- **Phase/Task:** Step 1 / Write failing test proving the bug
+- **Plan:** Create a governed export test where the workspace has (a) 3 APPROVED assumptions linked to the run's scenario via AssumptionLinkRow, and (b) 10 unrelated DRAFT assumptions from another scenario. Current code loads all by workspace and is incorrectly blocked. After fix, export should pass.
+- **Failing test:** CONFIRMED — test_governed_export_not_blocked_by_unrelated_draft_assumptions FAILED with 10 DRAFT PHASING assumptions blocking the export
+- **Implementation:**
+  1. Added `list_linked_to()` to AssumptionRepository — joins via AssumptionLinkRow
+  2. Fixed ExportExecutionService.execute() — scopes to scenario_spec_id when available, falls back to workspace for legacy
+  3. Fixed _handle_build_scenario — links created assumptions to scenario via assumption_repo.link()
+  4. Updated TestAssumptionsOnExportPath to test scoped path
+- **Tests:** 3 new tests (scope, own-draft blocking, backward compat) + 1 updated; 5483 passed, 0 failures
+- **Commit:** pending
+- **Superpowers Used:** test-driven-development, writing-plans, executing-plans, systematic-debugging, requesting-code-review, receiving-code-review, using-superpowers

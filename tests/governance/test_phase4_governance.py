@@ -549,22 +549,32 @@ class TestAutoDraftAssumptionsOnBuildPath:
 
 
 class TestAssumptionsOnExportPath:
-    """P4-3: Export path must load and pass assumptions to orchestrator."""
+    """P4-3: Export path must load and pass assumptions to orchestrator.
+
+    Step 1 update: When run has scenario_spec_id, assumptions are loaded
+    via list_linked_to (scoped to scenario), not list_by_workspace.
+    Legacy runs without scenario_spec_id fall back to workspace scope.
+    """
 
     @pytest.mark.anyio
     async def test_export_loads_and_passes_assumptions(self) -> None:
-        """ExportExecutionService.execute must load assumptions and pass to orchestrator."""
+        """ExportExecutionService.execute must load assumptions and pass to orchestrator.
+
+        Step 1: Now uses list_linked_to when scenario_spec_id is set.
+        """
         from src.services.export_execution import (
             ExportExecutionService, ExportExecutionInput, ExportRepositories,
         )
 
         ws_id = uuid7()
         run_id = uuid7()
+        scenario_id = uuid7()
 
-        # Mock snapshot row
+        # Mock snapshot row — Step 1: has scenario_spec_id
         snap_row = MagicMock()
         snap_row.workspace_id = ws_id
         snap_row.model_version_id = uuid7()
+        snap_row.scenario_spec_id = scenario_id
 
         snap_repo = AsyncMock()
         snap_repo.get = AsyncMock(return_value=snap_row)
@@ -602,6 +612,11 @@ class TestAssumptionsOnExportPath:
         assumption_row.updated_at = MagicMock()
 
         assumption_repo = AsyncMock()
+        # Step 1: list_linked_to used when scenario_spec_id is present
+        assumption_repo.list_linked_to = AsyncMock(
+            return_value=[assumption_row],
+        )
+        # Legacy fallback still available
         assumption_repo.list_by_workspace = AsyncMock(
             return_value=([assumption_row], 1),
         )
@@ -642,8 +657,12 @@ class TestAssumptionsOnExportPath:
 
             result = await svc.execute(inp, repos)
 
-            # Verify assumptions were loaded
-            assumption_repo.list_by_workspace.assert_called_once()
+            # Step 1: Verify scoped loading was used (not workspace-wide)
+            assumption_repo.list_linked_to.assert_called_once_with(
+                scenario_id, link_type="scenario",
+            )
+            # Workspace-wide should NOT have been called
+            assumption_repo.list_by_workspace.assert_not_called()
 
             # Verify assumptions were passed to orchestrator
             call_kwargs = mock_orch.execute.call_args.kwargs

@@ -58,7 +58,7 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P3-1 | Depth engine not in copilot flow | verified_closed | run_depth_suite added as 6th copilot tool (valid+gated); handler creates DepthPlan row and calls run_depth_plan() inline; prompt text+tool definition+confirmation gate all wired; 15 tests (7 prompt/definition + 4 handler × 2 backends) | 7dcfefd |
+| P3-1 | Depth engine not in copilot flow | verified_closed | Depth suite reachable from chat: run_depth_suite added as 6th copilot tool (valid+gated); handler creates DepthPlan row and calls run_depth_plan() inline; prompt text+tool definition+confirmation gate all wired; 15 tests (7 prompt/definition + 4 handler × 2 backends). NOTE: chat handler creates plan row but does not yet execute real runs — see P3-1b | 7dcfefd |
 | P3-2 | Suite planner default too low | verified_closed | _MAX_RUNS changed from 5 to 20; still configurable via context["max_runs"]; tests verify default=20 with override and lower tests | 35c279c |
 | P3-3 | Sensitivity sweeps not executable | verified_closed | _materialize_multipliers() converts sweep range metadata to float lists; sensitivity_multipliers field on SuiteRun bridges to BatchRunner.ScenarioInput; 2 tests verify materialization and empty case | 080b83e |
 | P3-4 | Polarity guard not question-aware | verified_closed | _has_negative_polarity() keyword detector + _check_polarity validator warns when contrarian ratio < 30% for negative questions; key_questions field on MuhasabaOutput; MuhasabaAgent wires key_questions in both fallback+LLM paths; 4 tests | 1d76f83 |
@@ -79,13 +79,21 @@
 
 ---
 
+## Phase 4b: Export Governance Correctness
+
+| ID | Blocker | Status | Verification | Commit |
+|----|---------|--------|--------------|--------|
+| P4b-1 | Export assumption scope too broad (workspace instead of scenario/run) | verified_closed | list_linked_to() on AssumptionRepository; ExportExecutionService scopes to scenario_spec_id via AssumptionLinkRow; _handle_build_scenario links assumptions; legacy fallback to workspace scope; 3 new tests + 1 updated | pending |
+
+---
+
 ## Phase 5: Main Run Path Completeness
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
 | P5-1 | Sector breakdowns not fully populated | verified_closed | BatchRunner populates sector_breakdowns on total_output; 5 tests | d5a5b91 |
-| P5-2 | Workforce satellite not on main run path | verified_closed | satellite_coefficients optional in RunRequest/BatchRunRequest; auto-loads curated coefficients via load_satellite_coefficients() when not provided; API path now consistent with chat path; 3 tests | 57d342c |
-| P5-3 | Feasibility layer not on main run path | verified_closed | BatchRequest accepts optional constraints; ClippingSolver runs after unconstrained Leontief solve; emits feasible_output + constraint_gap ResultSets; backward compatible; 4 tests | 57d342c |
+| P5-2 | Workforce satellite not on main run path | reopened | satellite_coefficients optional in RunRequest/BatchRunRequest; auto-loads curated coefficients via load_satellite_coefficients() when not provided; API path now consistent with chat path; 3 tests — REOPENED: workforce/saudization ResultSets not emitted on main run path; only computed inside BatchRunner but not surfaced as ResultSet rows | 57d342c |
+| P5-3 | Feasibility layer not on main run path | reopened | BatchRequest accepts optional constraints; ClippingSolver runs after unconstrained Leontief solve; emits feasible_output + constraint_gap ResultSets; backward compatible; 4 tests — REOPENED: feasible_output and constraint_gap not always present on main run path; only emitted when constraints explicitly provided | 57d342c |
 | P5-4 | Report data not packaged for UI consumption | verified_closed | ResultPackager converts ResultSet rows -> pack_data; 6 tests | d5a5b91 |
 
 ---
@@ -97,7 +105,7 @@
 | P6-1 | Raw JSON in chat messages | verified_closed | Structured result summary; raw JSON behind toggle; 3 tests | 33588e0 |
 | P6-2 | Executive summary missing | verified_closed | KPI cards (Total Output, GDP Impact, Jobs Created); 3 tests | 33588e0 |
 | P6-3 | KPI cards missing denomination scaling | verified_closed | model_denomination flows ModelVersion→RunSnapshot→API→frontend; formatDenomination() renders "SAR (Millions)"; Total Impact sums only total_output (not all metrics); DB round-trip verified with SAR_THOUSANDS; 4 backend + 2 frontend tests | 3afcdd3 |
-| P6-4 | Suite list, risks, workforce, sector breakdown missing | verified_closed | SectorBreakdownsPanel (direct/indirect/employment cards); WorkforcePanel (employment by sector + total jobs headline); FeasibilityPanel (unconstrained vs feasible + gap highlighting); sector_breakdowns exposed in ResultSetResponse; results-display integrates all panels; 9 frontend tests | 3afcdd3 |
+| P6-4 | Suite list, risks, workforce, sector breakdown missing | reopened | SectorBreakdownsPanel (direct/indirect/employment cards); WorkforcePanel (employment by sector + total jobs headline); FeasibilityPanel (unconstrained vs feasible + gap highlighting); sector_breakdowns exposed in ResultSetResponse; results-display integrates all panels; 9 frontend tests — REOPENED: suite list, qualitative risks, sensitivity envelope, and depth trace panels not yet implemented in UI | 3afcdd3 |
 | P6-5 | Markdown not rendered in chat | verified_closed | react-markdown; assistant=markdown, user=plain; 3 tests | 33588e0 |
 | P6-6 | Download flow incomplete | verified_closed | Download buttons per format; 2 tests | 33588e0 |
 

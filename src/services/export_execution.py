@@ -194,25 +194,41 @@ class ExportExecutionService:
         claim_rows = await repos.claim_repo.get_by_run(input.run_id)
         claims = [_claim_row_to_model(r) for r in claim_rows]
 
-        # P4-3: Load assumptions from workspace for publication gate
+        # Step 1 fix: Load assumptions scoped to scenario, not workspace.
+        # If the run has a scenario_spec_id, load only assumptions linked
+        # to that scenario via AssumptionLinkRow. Falls back to workspace
+        # scope for legacy runs without scenario_spec_id.
         assumptions: list[Assumption] | None = None
         if repos.assumption_repo is not None:
             try:
-                assumption_rows, _ = await repos.assumption_repo.list_by_workspace(
-                    input.workspace_id,
-                )
+                assumption_rows: list = []
+                scenario_spec_id = getattr(snap_row, "scenario_spec_id", None)
+                if scenario_spec_id is not None:
+                    # Scoped: only assumptions linked to this run's scenario
+                    assumption_rows = await repos.assumption_repo.list_linked_to(
+                        scenario_spec_id, link_type="scenario",
+                    )
+                    _logger.info(
+                        "Step 1: Loaded %d assumptions scoped to scenario %s",
+                        len(assumption_rows), scenario_spec_id,
+                    )
+                else:
+                    # Legacy fallback: workspace-wide
+                    assumption_rows, _ = await repos.assumption_repo.list_by_workspace(
+                        input.workspace_id,
+                    )
+                    _logger.info(
+                        "P4-3: Loaded %d assumptions for workspace %s (legacy fallback)",
+                        len(assumption_rows), input.workspace_id,
+                    )
                 if assumption_rows:
                     assumptions = [
                         _assumption_row_to_model(r) for r in assumption_rows
                     ]
-                    _logger.info(
-                        "P4-3: Loaded %d assumptions for workspace %s",
-                        len(assumptions), input.workspace_id,
-                    )
             except Exception:
                 _logger.warning(
-                    "P4-3: Failed to load assumptions for workspace %s",
-                    input.workspace_id,
+                    "Failed to load assumptions for run %s",
+                    input.run_id,
                     exc_info=True,
                 )
 
