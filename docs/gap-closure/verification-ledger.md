@@ -596,5 +596,35 @@ Each entry records:
   14. Test 12: Full chain model-to-export (single test proving all 11 stages)
   15. Test 13: Batch run with 2 scenarios produces independent results with complete metrics
 - **Tests:** 13 new tests; 5515 total backend tests pass; 394 frontend tests pass; 0 failures
-- **Commit:** pending
+- **Commit:** 967b5ca
 - **Superpowers Used:** test-driven-development, executing-plans, verification-before-completion
+
+---
+
+### Audit Fix: depth_engine Data Pipeline Wiring
+
+#### AF-V1: depth_engine Field Missing from RunResponse API → Frontend
+- **Phase/Task:** Audit / Fix P6-4 data pipeline gap discovered on "are you 100% sure?" review
+- **Problem:** Frontend results-display.tsx reads `data.depth_engine` but this field did not exist on:
+  1. Backend `RunResponse` Pydantic model — no `depth_engine` field
+  2. Frontend `RunResponse` TypeScript interface — no `depth_engine` field
+  3. No API endpoint loaded depth plan data linked to runs
+  4. `create_run()` and `create_batch_run()` did not persist `scenario_spec_id` on RunSnapshotRow
+  Result: All 4 depth panels (ScenarioSuitePanel, QualitativeRisksPanel, SensitivityEnvelopePanel, DepthEngineTracePanel) could never render with real data.
+- **Root Cause:** `_persist_run_result()` accepts `scenario_spec_id` parameter but `create_run()` never passed it. The `ScenarioInput` has `scenario_spec_id=new_uuid7()` but it was discarded at persistence time, leaving RunSnapshotRow.scenario_spec_id=None. `_load_run_response()` then correctly skips depth loading when scenario_spec_id is None.
+- **Implementation:**
+  1. Added `DepthEngineData` Pydantic model to `src/api/runs.py` with fields: plan_id, suite_id, suite_rationale, suite_runs, qualitative_risks, sensitivity_runs, trace_steps
+  2. Added `depth_engine: DepthEngineData | None = None` to `RunResponse`
+  3. Added `_load_depth_engine_data()` function — queries DepthPlanRow by scenario_spec_id, loads artifacts (SUITE_PLANNING→suite_runs, MUJAHADA→qualitative_risks), builds trace_steps from step_metadata
+  4. Updated `_load_run_response()` to accept plan_repo/artifact_repo and call `_load_depth_engine_data()` when scenario_spec_id present
+  5. Updated `get_run_results()` endpoint to inject DepthPlanRepository + DepthArtifactRepository
+  6. **Critical fix:** `create_run()` now passes `scenario_spec_id=scenario.scenario_spec_id` to `_persist_run_result()`
+  7. **Critical fix:** `create_batch_run()` now builds flat spec_map and passes scenario_spec_id for each run variant
+  8. Added `DepthEngineData` TypeScript interface to `frontend/src/lib/api/hooks/useRuns.ts`
+  9. Added `depth_engine?: DepthEngineData` to frontend `RunResponse` interface
+- **Tests:** 2 integration tests in `test_depth_engine_on_run_response.py`:
+  - `test_run_response_has_depth_engine_when_plan_exists` — creates DepthPlan + MUJAHADA + SUITE_PLANNING artifacts linked via scenario_spec_id; verifies suite_runs (2), qualitative_risks (1), trace_steps (2), plan_id, suite_rationale
+  - `test_run_response_depth_engine_null_without_plan` — verifies null response when no depth plan linked
+- **Suite Results:** 5519 backend tests pass; 394 frontend tests pass; 0 failures
+- **Commit:** pending
+- **Superpowers Used:** systematic-debugging, verification-before-completion, test-driven-development

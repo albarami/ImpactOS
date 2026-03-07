@@ -29,10 +29,50 @@ export interface RunSnapshot {
   model_denomination?: string; // P6-3: e.g. "SAR_MILLIONS", "SAR_THOUSANDS"
 }
 
+// P6-4: Depth engine data from Al-Muhasabi pipeline
+export interface DepthEngineData {
+  plan_id?: string;
+  suite_id?: string;
+  suite_rationale?: string;
+  suite_runs: Array<{
+    name: string;
+    mode?: string;
+    is_contrarian?: boolean;
+    sensitivities?: Array<string | Record<string, unknown>>;
+    executable_levers?: Record<string, unknown>[];
+  }>;
+  qualitative_risks: Array<{
+    risk_id?: string;
+    label: string;
+    description: string;
+    not_modeled?: boolean;
+    affected_sectors?: string[];
+    trigger_conditions?: string[];
+    expected_direction?: string;
+  }>;
+  sensitivity_runs: Array<{
+    name: string;
+    multiplier: number;
+    total_output?: number;
+    employment?: number;
+  }>;
+  trace_steps: Array<{
+    step: number;
+    step_name: string;
+    provider?: string;
+    model?: string;
+    generation_mode?: string;
+    duration_ms?: number;
+    input_tokens?: number;
+    output_tokens?: number;
+  }>;
+}
+
 export interface RunResponse {
   run_id: string;
   result_sets: ResultSet[];
   snapshot: RunSnapshot;
+  depth_engine?: DepthEngineData; // P6-4: present when linked depth plan exists
 }
 
 // ── Run listing types (Sprint 24 — I-4) ──────────────────────────────

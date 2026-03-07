@@ -35,6 +35,8 @@ from src.api.auth_deps import (
 )
 from src.api.dependencies import (
     get_batch_repo,
+    get_depth_artifact_repo,
+    get_depth_plan_repo,
     get_model_data_repo,
     get_model_version_repo,
     get_result_set_repo,
@@ -59,6 +61,7 @@ from src.engine.type_ii_validation import TypeIIValidationError
 from src.engine.value_measures_validation import ValueMeasuresValidationError
 from src.models.common import new_uuid7
 from src.models.model_version import ModelVersion
+from src.repositories.depth import DepthArtifactRepository, DepthPlanRepository
 from src.repositories.engine import (
     BatchRepository,
     ModelDataRepository,
@@ -172,10 +175,22 @@ class SnapshotResponse(BaseModel):
     model_denomination: str = "SAR_MILLIONS"  # P6-3: from ModelVersion metadata
 
 
+class DepthEngineData(BaseModel):
+    """P6-4: Depth engine data attached to run response when available."""
+    plan_id: str | None = None
+    suite_id: str | None = None
+    suite_rationale: str | None = None
+    suite_runs: list[dict] = Field(default_factory=list)
+    qualitative_risks: list[dict] = Field(default_factory=list)
+    sensitivity_runs: list[dict] = Field(default_factory=list)
+    trace_steps: list[dict] = Field(default_factory=list)
+
+
 class RunResponse(BaseModel):
     run_id: str
     result_sets: list[ResultSetResponse]
     snapshot: SnapshotResponse
+    depth_engine: DepthEngineData | None = None  # P6-4: populated when depth plan exists
 
 
 class RunSummary(BaseModel):
@@ -476,12 +491,15 @@ async def _load_run_response(
     rs_repo: ResultSetRepository,
     workspace_id: UUID | None = None,
     include_series: bool = False,
+    plan_repo: "DepthPlanRepository | None" = None,
+    artifact_repo: "DepthArtifactRepository | None" = None,
 ) -> RunResponse | None:
     """Load a RunResponse from DB.
 
     Amendment 3: If workspace_id is provided, verifies the snapshot belongs
     to that workspace (returns None if mismatched).
     Sprint 17: include_series=False filters out series rows for backward compat.
+    P6-4: If plan_repo+artifact_repo provided, loads linked depth engine data.
     """
     snap_row = await snap_repo.get(run_id)
     if snap_row is None:
@@ -493,6 +511,15 @@ async def _load_run_response(
     rs_rows = await rs_repo.get_by_run(run_id)
     if not include_series:
         rs_rows = [r for r in rs_rows if r.series_kind is None]
+
+    # P6-4: Load depth engine data if repos available and scenario_spec_id exists
+    depth_data = None
+    scenario_spec_id = getattr(snap_row, "scenario_spec_id", None)
+    if plan_repo is not None and artifact_repo is not None and scenario_spec_id is not None:
+        depth_data = await _load_depth_engine_data(
+            scenario_spec_id, plan_repo, artifact_repo,
+        )
+
     return RunResponse(
         run_id=str(snap_row.run_id),
         result_sets=[
@@ -522,6 +549,69 @@ async def _load_run_response(
                 snap_row, "model_denomination", "SAR_MILLIONS",
             ),
         ),
+        depth_engine=depth_data,
+    )
+
+
+async def _load_depth_engine_data(
+    scenario_spec_id: UUID,
+    plan_repo: "DepthPlanRepository",
+    artifact_repo: "DepthArtifactRepository",
+) -> DepthEngineData | None:
+    """P6-4: Load depth engine data linked to a scenario via scenario_spec_id."""
+    from src.db.tables import DepthPlanRow
+    from sqlalchemy import select
+
+    # Find depth plan by scenario_spec_id
+    result = await plan_repo._session.execute(
+        select(DepthPlanRow).where(
+            DepthPlanRow.scenario_spec_id == scenario_spec_id,
+        ).order_by(DepthPlanRow.created_at.desc()).limit(1)
+    )
+    plan_row = result.scalar_one_or_none()
+    if plan_row is None:
+        return None
+
+    # Load artifacts
+    artifacts = await artifact_repo.get_by_plan(plan_row.plan_id)
+
+    suite_runs: list[dict] = []
+    qualitative_risks: list[dict] = []
+    suite_id: str | None = None
+    suite_rationale: str | None = None
+
+    for art in artifacts:
+        payload = art.payload or {}
+        if art.step == "SUITE_PLANNING":
+            suite_plan = payload.get("suite_plan", payload)
+            suite_runs = suite_plan.get("runs", [])
+            suite_id = str(suite_plan.get("suite_id", ""))
+            suite_rationale = suite_plan.get("rationale")
+        elif art.step == "MUJAHADA":
+            qualitative_risks = payload.get("qualitative_risks", [])
+
+    # Build trace from step_metadata
+    trace_steps: list[dict] = []
+    for sm in (plan_row.step_metadata or []):
+        trace_steps.append({
+            "step": sm.get("step", 0),
+            "step_name": sm.get("step_name", ""),
+            "provider": sm.get("provider"),
+            "model": sm.get("model"),
+            "generation_mode": sm.get("generation_mode"),
+            "duration_ms": sm.get("duration_ms"),
+            "input_tokens": sm.get("input_tokens", 0),
+            "output_tokens": sm.get("output_tokens", 0),
+        })
+
+    return DepthEngineData(
+        plan_id=str(plan_row.plan_id),
+        suite_id=suite_id,
+        suite_rationale=suite_rationale,
+        suite_runs=suite_runs,
+        qualitative_risks=qualitative_risks,
+        sensitivity_runs=[],  # Populated from BatchRunner results when sensitivity sweeps present
+        trace_steps=trace_steps,
     )
 
 
@@ -718,9 +808,12 @@ async def create_run(
     model_denom = getattr(loaded.model_version, "model_denomination", "SAR_MILLIONS")
 
     # Persist to DB (with workspace scoping — Amendment 3)
+    # P6-4: Pass scenario_spec_id so depth engine data can be linked later
     await _persist_run_result(
         sr, snap_repo, rs_repo,
         workspace_id=workspace_id,
+        scenario_spec_id=scenario.scenario_spec_id,
+        scenario_spec_version=scenario.scenario_spec_version,
         model_denomination=model_denom,
     )
 
@@ -759,15 +852,20 @@ async def get_run_results(
     member: WorkspaceMember = Depends(require_workspace_member),
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+    plan_repo: "DepthPlanRepository" = Depends(get_depth_plan_repo),        # P6-4
+    artifact_repo: "DepthArtifactRepository" = Depends(get_depth_artifact_repo),  # P6-4
 ) -> RunResponse:
     """Get results for a completed run (workspace-scoped — Amendment 3).
 
     Sprint 17: include_series=true returns annual/peak/delta rows.
+    P6-4: Includes depth_engine data when a linked depth plan exists.
     """
     resp = await _load_run_response(
         run_id, snap_repo, rs_repo,
         workspace_id=workspace_id,
         include_series=include_series,
+        plan_repo=plan_repo,
+        artifact_repo=artifact_repo,
     )
     if resp is None:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found.")
@@ -875,13 +973,23 @@ async def create_batch_run(
         # P6-3: Get model denomination for persistence + response
         batch_denom = getattr(loaded.model_version, "model_denomination", "SAR_MILLIONS")
 
+        # P6-4: Build flat spec mapping (scenario → runs, expanded by sensitivity multipliers)
+        spec_map: list[tuple[UUID, int]] = []
+        for sc in scenarios:
+            n_variants = len(sc.sensitivity_multipliers or [1.0])
+            for _ in range(n_variants):
+                spec_map.append((sc.scenario_spec_id, sc.scenario_spec_version))
+
         # Persist results
         run_ids: list[str] = []
         responses: list[RunResponse] = []
-        for sr in batch_result.run_results:
+        for idx, sr in enumerate(batch_result.run_results):
+            s_id, s_ver = spec_map[idx] if idx < len(spec_map) else (None, None)
             await _persist_run_result(
                 sr, snap_repo, rs_repo,
                 workspace_id=workspace_id,
+                scenario_spec_id=s_id,
+                scenario_spec_version=s_ver,
                 model_denomination=batch_denom,
             )
             run_ids.append(str(sr.snapshot.run_id))
