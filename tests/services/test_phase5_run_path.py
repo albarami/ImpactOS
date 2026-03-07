@@ -335,8 +335,8 @@ class TestWorkforceAutoLoad:
 class TestFeasibilityIntegration:
     """P5-3: ClippingSolver runs within BatchRunner when constraints provided."""
 
-    def test_no_constraints_no_feasibility_results(self) -> None:
-        """Without constraints, no feasible_output ResultSet emitted."""
+    def test_no_constraints_feasibility_equals_unconstrained(self) -> None:
+        """Without constraints, feasible_output equals total_output (P5-3 fix)."""
         store = ModelStore()
         _, mv_id = _make_3sector_model(store)
         result_sets = _run_basic_scenario(store, mv_id)
@@ -345,7 +345,15 @@ class TestFeasibilityIntegration:
             rs for rs in result_sets
             if rs.metric_type == "feasible_output"
         ]
-        assert len(feasible_rs) == 0
+        assert len(feasible_rs) == 1  # Always present now
+
+        gap_rs = [
+            rs for rs in result_sets
+            if rs.metric_type == "constraint_gap"
+        ]
+        assert len(gap_rs) == 1
+        # Gap should be zero without constraints
+        assert all(v == 0.0 for v in gap_rs[0].values.values())
 
     def test_capacity_cap_produces_feasible_output(self) -> None:
         """With CAPACITY_CAP, feasible_output ResultSet is emitted."""

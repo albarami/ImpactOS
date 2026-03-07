@@ -447,7 +447,7 @@ class BatchRunner:
                     "Type II validation failed in dev -- continuing with Type I only"
                 )
 
-        # P5-3: Optional feasibility solve after unconstrained computation
+        # P5-3: Feasibility — ALWAYS emit feasible_output and constraint_gap
         if constraints:
             feasibility_solver = ClippingSolver()
             feas_result = feasibility_solver.solve(
@@ -456,24 +456,24 @@ class BatchRunner:
                 satellite_coefficients=coefficients,
                 sector_codes=sector_codes,
             )
+            feasible_delta_x = feas_result.feasible_delta_x
+            gap_per_sector = feas_result.gap_per_sector
+        else:
+            # No constraints: feasible = unconstrained, gap = 0
+            feasible_delta_x = phased.cumulative_delta_x
+            gap_per_sector = np.zeros(len(sector_codes))
 
-            # Emit feasible_output ResultSet
-            result_sets.append(ResultSet(
-                run_id=run_id,
-                metric_type="feasible_output",
-                values=self._vec_to_dict(
-                    feas_result.feasible_delta_x, sector_codes,
-                ),
-            ))
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="feasible_output",
+            values=self._vec_to_dict(feasible_delta_x, sector_codes),
+        ))
 
-            # Emit constraint_gap ResultSet (unconstrained - feasible, >= 0)
-            result_sets.append(ResultSet(
-                run_id=run_id,
-                metric_type="constraint_gap",
-                values=self._vec_to_dict(
-                    feas_result.gap_per_sector, sector_codes,
-                ),
-            ))
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="constraint_gap",
+            values=self._vec_to_dict(gap_per_sector, sector_codes),
+        ))
 
         # Build RunSnapshot
         snapshot = RunSnapshot(

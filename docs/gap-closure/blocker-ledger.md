@@ -94,7 +94,7 @@
 |----|---------|--------|--------------|--------|
 | P5-1 | Sector breakdowns not fully populated | verified_closed | BatchRunner populates sector_breakdowns on total_output; 5 tests | d5a5b91 |
 | P5-2 | Workforce satellite not on main run path | verified_closed | WorkforceSatellite wired into BatchRunner._emit_saudization_results(); emits saudization_saudi_ready, saudization_saudi_trainable, saudization_expat_reliant ResultSets; graceful degradation when D-4 data unavailable; load_workforce_data() builds D-4 in-memory from expert patterns; 5 tests | pending |
-| P5-3 | Feasibility layer not on main run path | reopened | BatchRequest accepts optional constraints; ClippingSolver runs after unconstrained Leontief solve; emits feasible_output + constraint_gap ResultSets; backward compatible; 4 tests — REOPENED: feasible_output and constraint_gap not always present on main run path; only emitted when constraints explicitly provided | 57d342c |
+| P5-3 | Feasibility layer not on main run path | verified_closed | feasible_output and constraint_gap ALWAYS emitted; when no constraints: feasible=unconstrained, gap=0; ClippingSolver still runs when constraints provided; 4 new tests + 1 updated; 5502 passed | pending |
 | P5-4 | Report data not packaged for UI consumption | verified_closed | ResultPackager converts ResultSet rows -> pack_data; 6 tests | d5a5b91 |
 
 ---

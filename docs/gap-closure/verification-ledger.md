@@ -533,5 +533,23 @@ Each entry records:
   2. Added `_emit_saudization_results()` to BatchRunner — calls load_workforce_data() + WorkforceSatellite.analyze(); converts WorkforceResult.sector_summaries to 3 ResultSet rows; graceful degradation on D-4 failure
   3. Updated existing count tests: test_existing_metrics_unchanged_count (14→17), test_register_model_and_run (7→10), test_run_results_retrievable (7→10)
 - **Tests:** 5 new tests (saudization emitted, values sum to employment, basic still works, degradation without D-4, sector keys match); 5498 passed, 0 failures
-- **Commit:** pending
+- **Commit:** 91b606e
 - **Superpowers Used:** test-driven-development, executing-plans, systematic-debugging
+
+---
+
+### Step 4: Wire Feasibility into Main Run Path Every Time
+
+#### S4-V1: Failing Tests — feasible_output missing without constraints
+- **Phase/Task:** Step 4 / Always emit feasible_output and constraint_gap
+- **Plan:** Currently feasible_output and constraint_gap only emitted when explicit constraints provided. Fix: always emit these ResultSets. When no constraints: feasible=unconstrained, gap=0.
+- **Failing tests:** 3 of 4 failed — feasible_output/constraint_gap missing when constraints=None
+- **Implementation:**
+  1. Changed `if constraints:` block to always emit feasible_output and constraint_gap
+  2. When constraints provided: run ClippingSolver as before
+  3. When no constraints: feasible_delta_x = cumulative_delta_x, gap = zeros
+  4. Updated test_no_constraints_no_feasibility_results → test_no_constraints_feasibility_equals_unconstrained
+  5. Updated count tests: batch (17→19), pipeline (10→12)
+- **Tests:** 4 new tests + 1 updated; 5502 passed, 0 failures
+- **Commit:** pending
+- **Superpowers Used:** test-driven-development, executing-plans
