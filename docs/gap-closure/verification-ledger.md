@@ -569,5 +569,32 @@ Each entry records:
   5. Added 12 new tests to decision-pack-panels.test.tsx (3 per panel: renders content, shows key feature, renders nothing when empty)
   6. Wired all 4 panels into results-display.tsx with useMemo hooks extracting depth_engine.suite_runs, qualitative_risks, sensitivity_runs, trace_steps
 - **Tests:** 12 new panel tests; 21 total decision-pack panel tests pass; 394 total frontend tests pass; 5502 backend tests pass
-- **Commit:** pending
+- **Commit:** aa665ea
 - **Superpowers Used:** test-driven-development, executing-plans
+
+---
+
+### Step 6: Integration Test Proving Real Economist Workflow
+
+#### S6-V1: Capstone Integration Test — Full Deterministic Pipeline
+- **Phase/Task:** Step 6 / Write integration test proving model-to-export works end-to-end
+- **Plan:** One test file exercising the complete deterministic pipeline without mocks: model build → shock → Leontief solve → satellites → saudization → feasibility → sector breakdowns → ResultPackager → governance claims → export-readiness. Must verify numerical correctness (d+i=t, multiplier>1), all metric types present, saudization sums, feasibility with/without constraints, packager output, and claims auto-creation.
+- **Implementation:**
+  1. Created `tests/integration/test_economist_workflow.py` with 13 tests in TestRealEconomistWorkflow class
+  2. Uses realistic 3-sector Saudi IO model (F=Construction, C=Manufacturing, G=Services) with plausible Z/x matrices
+  3. Test 1: Engine produces all 12+ cumulative metric types (core + satellite + saudization + feasibility)
+  4. Test 2: Leontief numerical correctness — direct + indirect = total per sector
+  5. Test 3: Multiplier exceeds 1.0 (total > direct)
+  6. Test 4: Employment values non-zero with positive shock
+  7. Test 5: Import leakage positive (import ratios applied)
+  8. Test 6: Saudization categories (saudi_ready + saudi_trainable + expat_reliant) sum to employment
+  9. Test 7: Unconstrained feasible = total, gap = 0
+  10. Test 8: Constrained feasible respects CAPACITY_CAP, gap > 0 for binding sector
+  11. Test 9: Sector breakdowns present on total_output (direct/indirect/employment)
+  12. Test 10: ResultPackager produces complete export-ready pack_data
+  13. Test 11: Governance claims auto-created from engine results
+  14. Test 12: Full chain model-to-export (single test proving all 11 stages)
+  15. Test 13: Batch run with 2 scenarios produces independent results with complete metrics
+- **Tests:** 13 new tests; 5515 total backend tests pass; 394 frontend tests pass; 0 failures
+- **Commit:** pending
+- **Superpowers Used:** test-driven-development, executing-plans, verification-before-completion
