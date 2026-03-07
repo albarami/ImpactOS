@@ -7,6 +7,7 @@ all version refs for reproducibility.
 Pure deterministic — no LLM calls, no side effects.
 """
 
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -15,11 +16,36 @@ import numpy as np
 from src.engine.feasibility import ClippingSolver, ConstraintSpec
 from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import LoadedModel, ModelStore
-from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
+from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients, SatelliteResult
 from src.engine.value_measures import ValueMeasuresComputer
 from src.engine.value_measures_validation import ValueMeasuresValidationError
 from src.models.common import new_uuid7
 from src.models.run import ResultSet, RunSnapshot
+
+_logger = logging.getLogger(__name__)
+
+
+def load_workforce_data(sector_codes: list[str]):
+    """Load D-4 workforce data (occupation bridge + nationality classification).
+
+    Builds data in-memory from expert-judgment patterns.
+    Returns (WorkforceSatellite, occupation_bridge, nationality_classifications)
+    or raises if D-4 modules unavailable.
+    """
+    from src.data.workforce.build_occupation_bridge import build_occupation_bridge
+    from src.data.workforce.build_nationality_classification import (
+        build_nationality_classification,
+    )
+    from src.engine.workforce_satellite.satellite import WorkforceSatellite
+
+    bridge = build_occupation_bridge(year=2022)
+    classifications = build_nationality_classification(year=2022)
+
+    satellite = WorkforceSatellite(
+        occupation_bridge=bridge,
+        nationality_classifications=classifications,
+    )
+    return satellite
 
 
 @dataclass
@@ -260,6 +286,14 @@ class BatchRunner:
             values=self._vec_to_dict(sat_result.delta_domestic_output, sector_codes),
         ))
 
+        # P5-2: Workforce/saudization ResultSets from WorkforceSatellite
+        self._emit_saudization_results(
+            result_sets=result_sets,
+            run_id=run_id,
+            sat_result=sat_result,
+            sector_codes=sector_codes,
+        )
+
         # Value measures (fail-closed in non-dev: always attempt validation)
         _attempt_vm = (
             loaded.has_value_measures_prerequisites
@@ -453,6 +487,74 @@ class BatchRunner:
         )
 
         return SingleRunResult(snapshot=snapshot, result_sets=result_sets)
+
+    def _emit_saudization_results(
+        self,
+        *,
+        result_sets: list[ResultSet],
+        run_id: UUID,
+        sat_result: SatelliteResult,
+        sector_codes: list[str],
+    ) -> None:
+        """P5-2: Compute and emit saudization ResultSets via WorkforceSatellite.
+
+        Graceful degradation: if D-4 data loading fails, logs a warning
+        and skips saudization (basic employment still emitted).
+        """
+        try:
+            workforce_satellite = load_workforce_data(sector_codes)
+        except Exception:
+            _logger.warning(
+                "Workforce D-4 data unavailable — skipping saudization ResultSets",
+                exc_info=True,
+            )
+            return
+
+        try:
+            wf_result = workforce_satellite.analyze(
+                satellite_result=sat_result,
+                sector_codes=sector_codes,
+            )
+        except Exception:
+            _logger.warning(
+                "WorkforceSatellite.analyze() failed — skipping saudization",
+                exc_info=True,
+            )
+            return
+
+        # Emit per-sector saudization ResultSets from sector_summaries
+        saudi_ready: dict[str, float] = {}
+        saudi_trainable: dict[str, float] = {}
+        expat_reliant: dict[str, float] = {}
+
+        for ss in wf_result.sector_summaries:
+            saudi_ready[ss.sector_code] = ss.saudi_ready_jobs
+            saudi_trainable[ss.sector_code] = ss.saudi_trainable_jobs
+            expat_reliant[ss.sector_code] = ss.expat_reliant_jobs
+
+        # Fill any missing sectors with 0.0
+        for code in sector_codes:
+            saudi_ready.setdefault(code, 0.0)
+            saudi_trainable.setdefault(code, 0.0)
+            expat_reliant.setdefault(code, 0.0)
+
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="saudization_saudi_ready",
+            values=saudi_ready,
+        ))
+
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="saudization_saudi_trainable",
+            values=saudi_trainable,
+        ))
+
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="saudization_expat_reliant",
+            values=expat_reliant,
+        ))
 
     @staticmethod
     def _vec_to_dict(vec: np.ndarray, sector_codes: list[str]) -> dict[str, float]:

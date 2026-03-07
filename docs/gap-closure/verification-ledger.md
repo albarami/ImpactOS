@@ -517,5 +517,21 @@ Each entry records:
   4. Added _execute_depth_suite_runs() to ChatToolExecutor — loads SUITE_PLANNING artifact, resolves model_version_id, calls DepthSuiteExecutionService
   5. _handle_run_depth_suite() now returns real run_ids after plan completion
 - **Tests:** 10 tests (service importable, execute_plan returns run_ids, converts levers to shocks, empty suite, handler returns run_ids); 5493 passed, 0 failures
+- **Commit:** 8744b24
+- **Superpowers Used:** test-driven-development, executing-plans, systematic-debugging
+
+---
+
+### Step 3: Wire Real Workforce Results into Main Run Path
+
+#### S3-V1: Failing Tests — Saudization ResultSets not emitted
+- **Phase/Task:** Step 3 / Wire WorkforceSatellite into BatchRunner
+- **Plan:** BatchRunner computes employment via SatelliteAccounts but does not call WorkforceSatellite. Need to: build D-4 data in-memory, call WorkforceSatellite.analyze(), emit saudization_saudi_ready/saudi_trainable/expat_reliant ResultSets. Graceful degradation when D-4 data unavailable.
+- **Failing tests:** 4 of 5 failed — saudization_* metric_types missing from BatchRunner output; load_workforce_data not yet defined
+- **Implementation:**
+  1. Added `load_workforce_data()` to batch.py — builds OccupationBridge + NationalityClassificationSet from expert patterns
+  2. Added `_emit_saudization_results()` to BatchRunner — calls load_workforce_data() + WorkforceSatellite.analyze(); converts WorkforceResult.sector_summaries to 3 ResultSet rows; graceful degradation on D-4 failure
+  3. Updated existing count tests: test_existing_metrics_unchanged_count (14→17), test_register_model_and_run (7→10), test_run_results_retrievable (7→10)
+- **Tests:** 5 new tests (saudization emitted, values sum to employment, basic still works, degradation without D-4, sector keys match); 5498 passed, 0 failures
 - **Commit:** pending
 - **Superpowers Used:** test-driven-development, executing-plans, systematic-debugging

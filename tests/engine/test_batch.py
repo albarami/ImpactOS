@@ -422,8 +422,8 @@ class TestTypeIIBatchIntegration:
         )
         result = runner.run(request)
         rs_list = result.run_results[0].result_sets
-        # 7 cumulative + 3 annual (1 year * 3 metrics) + 1 peak + 3 Type II = 14
-        assert len(rs_list) == 14
+        # 7 cumulative + 3 annual (1 year * 3 metrics) + 1 peak + 3 Type II + 3 saudization = 17
+        assert len(rs_list) == 17
 
 
 # ===================================================================
