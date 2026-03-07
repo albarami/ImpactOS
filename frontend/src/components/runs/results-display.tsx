@@ -43,6 +43,28 @@ export function ResultsDisplay({ workspaceId, runId }: ResultsDisplayProps) {
     }, 0);
   }, [data]);
 
+  // P6-2: Executive summary — extract key metrics
+  const executiveSummary = useMemo(() => {
+    if (!data?.result_sets || data.result_sets.length === 0) return null;
+
+    const findTotal = (metricType: string) => {
+      const rs = data.result_sets.find((r) => r.metric_type === metricType);
+      if (!rs) return null;
+      return Object.values(rs.values).reduce((sum, val) => sum + val, 0);
+    };
+
+    const totalOutput =
+      findTotal('total_output') ?? findTotal('gross_output');
+    const gdp =
+      findTotal('value_added') ?? findTotal('gdp_basic_price');
+    const jobs = findTotal('employment');
+
+    // Only show summary if at least one key metric exists
+    if (totalOutput == null && gdp == null && jobs == null) return null;
+
+    return { totalOutput, gdp, jobs };
+  }, [data]);
+
   if (isLoading) {
     return (
       <div className="space-y-4" data-testid="results-loading">
@@ -87,11 +109,61 @@ export function ResultsDisplay({ workspaceId, runId }: ResultsDisplayProps) {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Impact</p>
-              <p className="text-2xl font-bold">{formatNumber(totalImpact)}</p>
+              <p className="text-2xl font-bold" data-testid="total-impact-value">
+                {formatNumber(totalImpact)}{' '}
+                <span className="text-base font-normal text-muted-foreground">
+                  SAR
+                </span>
+              </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* P6-2: Executive Summary KPI Cards */}
+      {executiveSummary && (
+        <div
+          className="grid grid-cols-1 gap-4 sm:grid-cols-3"
+          data-testid="executive-summary"
+        >
+          {executiveSummary.totalOutput != null && (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground">Total Output</p>
+                <p className="text-2xl font-bold">
+                  {formatNumber(executiveSummary.totalOutput)}{' '}
+                  <span className="text-base font-normal text-muted-foreground">
+                    SAR
+                  </span>
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {executiveSummary.gdp != null && (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground">GDP Impact</p>
+                <p className="text-2xl font-bold">
+                  {formatNumber(executiveSummary.gdp)}{' '}
+                  <span className="text-base font-normal text-muted-foreground">
+                    SAR
+                  </span>
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {executiveSummary.jobs != null && (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground">Jobs Created</p>
+                <p className="text-2xl font-bold">
+                  {formatNumber(executiveSummary.jobs)}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Result Sets Table */}
       {data.result_sets.map((rs: ResultSet) => (

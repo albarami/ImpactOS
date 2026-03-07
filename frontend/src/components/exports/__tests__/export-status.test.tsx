@@ -101,7 +101,36 @@ describe('ExportStatusDisplay', () => {
     expect(screen.getByText('sha256:def456')).toBeInTheDocument();
   });
 
-  it('shows Phase 3B message for COMPLETED export', () => {
+  it('shows download buttons for each format when COMPLETED (P6-6)', () => {
+    mockStatusData = {
+      export_id: 'exp-001',
+      run_id: 'run-001',
+      mode: 'SANDBOX',
+      status: 'COMPLETED',
+      checksums: { excel: 'sha256:abc123', pptx: 'sha256:def456' },
+    };
+    renderDisplay();
+
+    // Download buttons should appear for each format
+    expect(screen.getByTestId('export-download-buttons')).toBeInTheDocument();
+    const excelLink = screen.getByTestId('download-excel');
+    expect(excelLink).toBeInTheDocument();
+    expect(excelLink).toHaveAttribute(
+      'href',
+      '/api/v1/workspaces/ws-001/exports/exp-001/download/excel'
+    );
+    expect(excelLink).toHaveTextContent(/excel/i);
+
+    const pptxLink = screen.getByTestId('download-pptx');
+    expect(pptxLink).toBeInTheDocument();
+    expect(pptxLink).toHaveAttribute(
+      'href',
+      '/api/v1/workspaces/ws-001/exports/exp-001/download/pptx'
+    );
+    expect(pptxLink).toHaveTextContent(/pptx/i);
+  });
+
+  it('does not show Phase 3B placeholder (P6-6)', () => {
     mockStatusData = {
       export_id: 'exp-001',
       run_id: 'run-001',
@@ -111,9 +140,11 @@ describe('ExportStatusDisplay', () => {
     };
     renderDisplay();
     expect(
-      screen.getByText(/download not yet available/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/phase 3b/i)).toBeInTheDocument();
+      screen.queryByText(/phase 3b/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/download not yet available/i)
+    ).not.toBeInTheDocument();
   });
 
   // ── BLOCKED ──────────────────────────────────────────────────────

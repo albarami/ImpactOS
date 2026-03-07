@@ -421,6 +421,87 @@ describe('MessageBubble – mixed-turn export status', () => {
   });
 });
 
+// ── P6-1: Structured Result Display Tests ───────────────────────────
+
+describe('MessageBubble – structured result display (P6-1)', () => {
+  it('hides raw JSON behind a nested toggle', () => {
+    const msg = makeMessage({
+      message_id: 'msg-p61a',
+      role: 'assistant',
+      content: 'Engine done.',
+      tool_calls: [
+        {
+          tool_name: 'run_engine',
+          arguments: { scenario_id: 'sc-01' },
+          result: {
+            status: 'success',
+            reason_code: 'ok',
+            retryable: false,
+            latency_ms: 200,
+            result: { gdp_impact: 1.5 },
+          },
+        },
+      ],
+    });
+    renderBubble(msg);
+
+    // Raw JSON toggle should exist
+    const rawToggle = screen.getByText(/raw json/i);
+    expect(rawToggle).toBeInTheDocument();
+  });
+
+  it('shows structured result summary with data-testid', () => {
+    const msg = makeMessage({
+      message_id: 'msg-p61b',
+      role: 'assistant',
+      content: 'Done.',
+      tool_calls: [
+        {
+          tool_name: 'run_engine',
+          arguments: { scenario_id: 'sc-01' },
+          result: {
+            status: 'success',
+            reason_code: 'ok',
+            retryable: false,
+            latency_ms: 200,
+            result: { gdp_impact: 1.5, jobs: 1200 },
+          },
+        },
+      ],
+    });
+    renderBubble(msg);
+
+    // Should show result summary
+    expect(screen.getByTestId('tool-result-summary')).toBeInTheDocument();
+  });
+
+  it('shows inner result keys in the summary', () => {
+    const msg = makeMessage({
+      message_id: 'msg-p61c',
+      role: 'assistant',
+      content: 'Done.',
+      tool_calls: [
+        {
+          tool_name: 'run_engine',
+          arguments: { scenario_id: 'sc-01' },
+          result: {
+            status: 'success',
+            reason_code: 'ok',
+            retryable: false,
+            latency_ms: 200,
+            result: { gdp_impact: 1.5, total_jobs: 1200 },
+          },
+        },
+      ],
+    });
+    renderBubble(msg);
+
+    // Should show human-readable key labels (underscores replaced with spaces)
+    expect(screen.getByText(/gdp impact/i)).toBeInTheDocument();
+    expect(screen.getByText(/total jobs/i)).toBeInTheDocument();
+  });
+});
+
 // ── Conditional Download Link Tests ──────────────────────────────────
 
 describe('MessageBubble – conditional download link', () => {
@@ -516,5 +597,48 @@ describe('MessageBubble – conditional download link', () => {
     renderBubble(msg);
 
     expect(screen.queryByTestId('export-download-link')).not.toBeInTheDocument();
+  });
+});
+
+// ── P6-5: Markdown Rendering Tests ──────────────────────────────────
+
+describe('MessageBubble – markdown rendering (P6-5)', () => {
+  it('renders bold text from markdown', () => {
+    const msg = makeMessage({
+      message_id: 'msg-md1',
+      role: 'assistant',
+      content: 'This is **bold** text.',
+    });
+    renderBubble(msg);
+
+    // react-markdown should render <strong> for **bold**
+    const strong = screen.getByText('bold');
+    expect(strong.tagName).toBe('STRONG');
+  });
+
+  it('renders bullet list from markdown', () => {
+    const msg = makeMessage({
+      message_id: 'msg-md2',
+      role: 'assistant',
+      content: '- Item one\n- Item two\n- Item three',
+    });
+    renderBubble(msg);
+
+    expect(screen.getByText('Item one')).toBeInTheDocument();
+    expect(screen.getByText('Item two')).toBeInTheDocument();
+    expect(screen.getByText('Item three')).toBeInTheDocument();
+  });
+
+  it('does not render markdown for user messages', () => {
+    const msg = makeMessage({
+      message_id: 'msg-md3',
+      role: 'user',
+      content: 'This is **bold** text.',
+    });
+    renderBubble(msg);
+
+    // User messages should render as plain text (no <strong>)
+    const contentEl = screen.getByText(/This is/);
+    expect(contentEl.querySelector('strong')).toBeNull();
   });
 });

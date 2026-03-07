@@ -3,6 +3,7 @@
 import type { ChatMessageResponse, ToolExecutionResult } from '@/lib/api/hooks/useChat';
 import { TraceMetadata } from './trace-metadata';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
 
 interface MessageBubbleProps {
   message: ChatMessageResponse;
@@ -67,7 +68,14 @@ export function MessageBubble({ message, workspaceId }: MessageBubbleProps) {
             : 'border border-slate-200 bg-white text-slate-900'
         )}
       >
-        <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+        {/* P6-5: Render markdown for assistant messages, plain text for user */}
+        {isUser ? (
+          <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+        ) : (
+          <div className="prose prose-sm prose-slate max-w-none text-sm">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
 
         {resolvedToolCalls && resolvedToolCalls.length > 0 && (
           <div className="mt-2 space-y-1">
@@ -154,14 +162,57 @@ export function MessageBubble({ message, workspaceId }: MessageBubbleProps) {
                     </div>
                   )}
 
-                  <pre
-                    className={cn(
-                      'overflow-auto px-2 py-1 font-mono',
-                      isUser ? 'text-blue-200' : 'text-slate-600'
-                    )}
-                  >
-                    {JSON.stringify(tc.result, null, 2)}
-                  </pre>
+                  {/* P6-1: Structured result summary */}
+                  {innerResult && Object.keys(innerResult).length > 0 && (
+                    <div
+                      data-testid="tool-result-summary"
+                      className="px-2 py-1 text-xs space-y-0.5"
+                    >
+                      {Object.entries(innerResult)
+                        .filter(
+                          ([key]) =>
+                            !['status', 'blocking_reasons', 'download_url', 'reason_code', 'export_id', 'run_id'].includes(key)
+                        )
+                        .slice(0, 5)
+                        .map(([key, value]) => (
+                          <div
+                            key={key}
+                            className={cn(
+                              'flex justify-between gap-2',
+                              isUser ? 'text-blue-200' : 'text-slate-500'
+                            )}
+                          >
+                            <span className="font-medium">
+                              {key.replace(/_/g, ' ')}
+                            </span>
+                            <span className="font-mono truncate max-w-[200px]">
+                              {typeof value === 'object' && value !== null
+                                ? `{${Object.keys(value as Record<string, unknown>).length} fields}`
+                                : String(value)}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  <details className="px-2">
+                    <summary
+                      className={cn(
+                        'cursor-pointer text-[10px] py-0.5',
+                        isUser ? 'text-blue-300' : 'text-slate-400'
+                      )}
+                    >
+                      Raw JSON
+                    </summary>
+                    <pre
+                      className={cn(
+                        'overflow-auto py-1 font-mono text-[10px]',
+                        isUser ? 'text-blue-200' : 'text-slate-600'
+                      )}
+                    >
+                      {JSON.stringify(tc.result, null, 2)}
+                    </pre>
+                  </details>
                 </details>
               );
             })}
