@@ -298,6 +298,36 @@ class TestSensitivitySweepParameters:
         types = {s["type"] for s in sweep_dicts}
         assert "import_share" in types or "phasing" in types
 
+    def test_sensitivity_multipliers_materialized(self):
+        """P3-3: sensitivity_multipliers must be materialized from sweep range metadata."""
+        scored = [_make_scored("High Novelty", 9.0)]
+        ctx = {"scored": scored, "qualitative_risks": [], "workspace_id": str(uuid4())}
+        suite = _build_suite_from_scored(ctx)
+        run = suite.runs[0]
+
+        # Must have materialized multipliers, not just metadata
+        assert hasattr(run, "sensitivity_multipliers")
+        assert isinstance(run.sensitivity_multipliers, list)
+        assert len(run.sensitivity_multipliers) >= 3, (
+            "Sensitivity sweep with steps=5 should produce at least 3 materialized multipliers"
+        )
+        # All entries must be floats, not dicts
+        for m in run.sensitivity_multipliers:
+            assert isinstance(m, (int, float)), f"Expected float, got {type(m)}: {m}"
+        # Must include the endpoints
+        assert min(run.sensitivity_multipliers) <= 0.81
+        assert max(run.sensitivity_multipliers) >= 1.19
+
+    def test_no_sensitivity_multipliers_when_low_novelty(self):
+        """Runs without sensitivity sweeps get empty multipliers list."""
+        scored = [_make_scored("Low Novelty", 5.0)]
+        ctx = {"scored": scored, "qualitative_risks": [], "workspace_id": str(uuid4())}
+        suite = _build_suite_from_scored(ctx)
+        run = suite.runs[0]
+
+        assert hasattr(run, "sensitivity_multipliers")
+        assert run.sensitivity_multipliers == []
+
 
 # ------------------------------------------------------------------
 # P3-4: Polarity guard in Muhasaba

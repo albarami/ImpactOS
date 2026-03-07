@@ -36,6 +36,35 @@ _DEFAULT_OUTPUTS = ["multipliers", "jobs", "imports"]
 _MAX_RUNS = 20
 
 
+def _materialize_multipliers(sensitivities: list[str | dict]) -> list[float]:
+    """Convert sensitivity sweep metadata into executable multiplier values.
+
+    P3-3: Bridges depth engine metadata to BatchRunner.sensitivity_multipliers.
+    Only processes "sensitivity_sweep" type entries with "range" containing
+    min, max, steps. Other sensitivity types (import_share, phasing) are
+    metadata-only and don't produce uniform multipliers.
+    """
+    multipliers: list[float] = []
+    for entry in sensitivities:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("type") != "sensitivity_sweep":
+            continue
+        sweep_range = entry.get("range")
+        if not isinstance(sweep_range, dict):
+            continue
+        lo = sweep_range.get("min", 0.8)
+        hi = sweep_range.get("max", 1.2)
+        steps = sweep_range.get("steps", 5)
+        if steps < 2:
+            multipliers.append(lo)
+            continue
+        step_size = (hi - lo) / (steps - 1)
+        for i in range(steps):
+            multipliers.append(round(lo + i * step_size, 6))
+    return multipliers
+
+
 def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
     """Build suite plan deterministically from scored candidates."""
     scored = context.get("scored", [])
@@ -98,12 +127,16 @@ def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:
 
         tier = DisclosureTier.TIER0 if is_contrarian else DisclosureTier.TIER1
 
+        # P3-3: materialize multipliers from sweep metadata
+        materialized = _materialize_multipliers(sensitivities)
+
         runs.append(SuiteRun(
             name=f"Run: {label}",
             direction_id=direction_id,
             executable_levers=executable_levers,
             mode="SANDBOX",
             sensitivities=sensitivities,
+            sensitivity_multipliers=materialized,
             disclosure_tier=tier,
         ))
 

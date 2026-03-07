@@ -403,6 +403,14 @@ class SuiteRun(ImpactOSBase):
     )
     mode: str = Field(default="SANDBOX")
     sensitivities: list[str | dict] = Field(default_factory=list)
+    # P3-3: materialized multiplier values from sensitivity sweep metadata
+    sensitivity_multipliers: list[float] = Field(
+        default_factory=list,
+        description=(
+            "Materialized multiplier values from sensitivity sweep ranges. "
+            "Directly consumable by BatchRunner.ScenarioInput.sensitivity_multipliers."
+        ),
+    )
     disclosure_tier: DisclosureTier = DisclosureTier.TIER1
     is_contrarian: bool = False
 
