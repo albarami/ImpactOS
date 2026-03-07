@@ -14,6 +14,10 @@ class TraceMetadata(BaseModel):
     scenario_spec_id: str | None = None
     scenario_spec_version: int | None = None
     model_version_id: str | None = None
+    plan_id: str | None = None
+    suite_id: str | None = None
+    batch_id: str | None = None
+    run_ids: list[str] = Field(default_factory=list)
     export_id: str | None = None
     io_table: str | None = None
     multiplier_type: str | None = None

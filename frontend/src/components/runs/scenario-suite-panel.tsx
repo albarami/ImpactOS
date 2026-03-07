@@ -1,5 +1,6 @@
-'use client';
+﻿'use client';
 
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -9,84 +10,99 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
-interface SuiteRun {
-  name: string;
-  mode?: string;
-  is_contrarian?: boolean;
-  sensitivities?: (string | Record<string, unknown>)[];
-  executable_levers?: Record<string, unknown>[];
-}
+import type { SuiteRunResponse } from '@/lib/api/hooks/useRuns';
 
 interface ScenarioSuitePanelProps {
-  runs: SuiteRun[];
-  suiteId?: string;
-  rationale?: string;
+  runs: SuiteRunResponse[];
+  suiteId?: string | null;
+  rationale?: string | null;
+  denomination?: string;
 }
 
-/**
- * P6-4: Scenario Suite Panel — displays the list of depth-engine
- * scenario runs from a ScenarioSuitePlan.
- */
+function formatNumber(value?: number | null): string {
+  if (value == null) return '-';
+  const str = Math.round(value).toString();
+  const parts: string[] = [];
+  for (let i = str.length; i > 0; i -= 3) {
+    parts.unshift(str.slice(Math.max(0, i - 3), i));
+  }
+  return parts.join(',');
+}
+
+function statusTone(status: string): string {
+  if (status === 'SURVIVED') return 'bg-green-100 text-green-800';
+  if (status === 'REJECTED') return 'bg-red-100 text-red-800';
+  return 'bg-amber-100 text-amber-800';
+}
+
 export function ScenarioSuitePanel({
   runs,
   suiteId,
   rationale,
+  denomination = 'SAR',
 }: ScenarioSuitePanelProps) {
+  const [expanded, setExpanded] = useState(false);
+  const sortedRuns = useMemo(
+    () => [...runs].sort((a, b) => (b.headline_output ?? 0) - (a.headline_output ?? 0)),
+    [runs]
+  );
+  const visibleRuns = expanded ? sortedRuns : sortedRuns.slice(0, 5);
+
   if (runs.length === 0) return null;
 
   return (
     <Card data-testid="scenario-suite-panel">
       <CardHeader>
         <CardTitle className="text-base">Scenario Suite</CardTitle>
-        {suiteId && (
-          <p className="text-xs text-muted-foreground font-mono">{suiteId}</p>
-        )}
+        {suiteId && <p className="font-mono text-xs text-muted-foreground">{suiteId}</p>}
       </CardHeader>
-      <CardContent>
-        {rationale && (
-          <p className="text-sm text-muted-foreground mb-4">{rationale}</p>
-        )}
+      <CardContent className="space-y-4">
+        {rationale && <p className="text-sm text-muted-foreground">{rationale}</p>}
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Scenario</TableHead>
-                <TableHead>Mode</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead className="text-right">Sensitivities</TableHead>
+                <TableHead className="text-right">Headline Output</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {runs.map((run, idx) => (
-                <TableRow key={idx}>
+              {visibleRuns.map((run) => (
+                <TableRow key={run.run_id}>
                   <TableCell className="font-medium">{run.name}</TableCell>
                   <TableCell>
                     <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        run.mode === 'GOVERNED'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusTone(run.muhasaba_status)}`}
                     >
-                      {run.mode ?? 'SANDBOX'}
+                      {run.muhasaba_status}
                     </span>
                   </TableCell>
                   <TableCell>
                     {run.is_contrarian ? (
-                      <span className="text-amber-600 font-medium">Contrarian</span>
+                      <span className="font-medium text-amber-700">Contrarian</span>
                     ) : (
                       <span className="text-muted-foreground">Standard</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {run.sensitivities?.length ?? 0}
+                    {formatNumber(run.headline_output)} {denomination}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
+        {runs.length > 5 && (
+          <button
+            type="button"
+            className="text-sm font-medium text-primary"
+            onClick={() => setExpanded((prev) => !prev)}
+          >
+            {expanded ? 'Show top 5' : `Show all ${runs.length} scenarios`}
+          </button>
+        )}
       </CardContent>
     </Card>
   );

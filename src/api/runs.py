@@ -35,10 +35,15 @@ from src.api.auth_deps import (
 )
 from src.api.dependencies import (
     get_batch_repo,
+    get_constraint_set_repo,
+    get_depth_artifact_repo,
+    get_depth_plan_repo,
     get_model_data_repo,
     get_model_version_repo,
     get_result_set_repo,
     get_run_snapshot_repo,
+    get_scenario_version_repo,
+    get_workforce_result_repo,
 )
 from src.config.settings import get_settings
 from src.data.io_loader import (
@@ -51,6 +56,7 @@ from src.engine.batch import (
     ScenarioInput,
     SingleRunResult,
 )
+from src.engine.feasibility import constraints_to_specs
 from src.engine.model_store import LoadedModel, ModelStore, compute_model_checksum
 from src.engine.runseries_delta import RunSeriesValidationError
 from src.data.workforce.satellite_coeff_loader import load_satellite_coefficients
@@ -58,6 +64,7 @@ from src.engine.satellites import SatelliteCoefficients
 from src.engine.type_ii_validation import TypeIIValidationError
 from src.engine.value_measures_validation import ValueMeasuresValidationError
 from src.models.common import new_uuid7
+from src.models.feasibility import Constraint
 from src.models.model_version import ModelVersion
 from src.repositories.engine import (
     BatchRepository,
@@ -66,6 +73,10 @@ from src.repositories.engine import (
     ResultSetRepository,
     RunSnapshotRepository,
 )
+from src.repositories.depth import DepthArtifactRepository, DepthPlanRepository
+from src.repositories.feasibility import ConstraintSetRepository
+from src.repositories.scenarios import ScenarioVersionRepository
+from src.repositories.workforce import WorkforceResultRepository
 
 _logger = logging.getLogger(__name__)
 
@@ -172,10 +183,79 @@ class SnapshotResponse(BaseModel):
     model_denomination: str = "SAR_MILLIONS"  # P6-3: from ModelVersion metadata
 
 
+class WorkforceSectorResponse(BaseModel):
+    sector_code: str
+    total_jobs: float
+    saudi_ready_jobs: float = 0.0
+    saudi_trainable_jobs: float = 0.0
+    expat_reliant_jobs: float = 0.0
+
+
+class WorkforceResponse(BaseModel):
+    total_jobs: float
+    total_saudi_ready: float = 0.0
+    total_saudi_trainable: float = 0.0
+    total_expat_reliant: float = 0.0
+    has_saudization_split: bool = False
+    per_sector: list[WorkforceSectorResponse] = Field(default_factory=list)
+
+
+class SuiteRunResponse(BaseModel):
+    scenario_spec_id: str
+    scenario_spec_version: int = 1
+    run_id: str
+    direction_id: str
+    name: str
+    mode: str = "SANDBOX"
+    is_contrarian: bool = False
+    multiplier: float = 1.0
+    headline_output: float | None = None
+    employment: float | None = None
+    muhasaba_status: str = "SURVIVED"
+    sensitivities: list[str | dict] = Field(default_factory=list)
+
+
+class QualitativeRiskResponse(BaseModel):
+    risk_id: str | None = None
+    label: str
+    description: str
+    disclosure_tier: str | None = None
+    not_modeled: bool = True
+    affected_sectors: list[str] = Field(default_factory=list)
+    trigger_conditions: list[str] = Field(default_factory=list)
+    expected_direction: str | None = None
+
+
+class DepthTraceStepResponse(BaseModel):
+    step: int
+    step_name: str
+    provider: str | None = None
+    model: str | None = None
+    generation_mode: str | None = None
+    duration_ms: int | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    details: dict = Field(default_factory=dict)
+
+
+class DepthEngineResponse(BaseModel):
+    plan_id: str
+    suite_id: str | None = None
+    batch_id: str | None = None
+    suite_rationale: str | None = None
+    run_ids: list[str] = Field(default_factory=list)
+    suite_runs: list[SuiteRunResponse] = Field(default_factory=list)
+    sensitivity_runs: list[SuiteRunResponse] = Field(default_factory=list)
+    qualitative_risks: list[QualitativeRiskResponse] = Field(default_factory=list)
+    trace_steps: list[DepthTraceStepResponse] = Field(default_factory=list)
+
+
 class RunResponse(BaseModel):
     run_id: str
     result_sets: list[ResultSetResponse]
     snapshot: SnapshotResponse
+    workforce: WorkforceResponse | None = None
+    depth_engine: DepthEngineResponse | None = None
 
 
 class RunSummary(BaseModel):
@@ -366,6 +446,179 @@ def _deflators_to_dict(deflators: dict[str, float] | None) -> dict[int, float] |
     return {int(year): val for year, val in deflators.items()}
 
 
+def _sum_metric(values: dict[str, float] | None) -> float | None:
+    if not values:
+        return None
+    return float(sum(float(v) for v in values.values()))
+
+
+async def _load_workforce_response(
+    run_id: UUID,
+    workforce_result_repo: WorkforceResultRepository | None,
+) -> WorkforceResponse | None:
+    if workforce_result_repo is None:
+        return None
+    rows = await workforce_result_repo.get_by_run(run_id)
+    if not rows:
+        return None
+    latest = rows[0]
+    payload = latest.results or {}
+    per_sector = [
+        WorkforceSectorResponse(**entry)
+        for entry in payload.get("per_sector", [])
+    ]
+    totals = payload.get("totals", {})
+    return WorkforceResponse(
+        total_jobs=float(totals.get("total_jobs", 0.0)),
+        total_saudi_ready=float(totals.get("total_saudi_ready", 0.0)),
+        total_saudi_trainable=float(totals.get("total_saudi_trainable", 0.0)),
+        total_expat_reliant=float(totals.get("total_expat_reliant", 0.0)),
+        has_saudization_split=bool(payload.get("has_saudization_split", False)),
+        per_sector=per_sector,
+    )
+
+
+def _artifact_details(step: str, payload: dict) -> dict:
+    if step == "KHAWATIR":
+        candidates = payload.get("candidates", [])
+        labels: dict[str, int] = {}
+        for candidate in candidates:
+            label = candidate.get("source_type", "unknown")
+            labels[label] = labels.get(label, 0) + 1
+        return {"candidate_count": len(candidates), "label_counts": labels}
+    if step == "MURAQABA":
+        entries = payload.get("bias_register", {}).get("entries", [])
+        return {
+            "bias_count": len(entries),
+            "bias_types": [entry.get("bias_type") for entry in entries if entry.get("bias_type")],
+        }
+    if step == "MUJAHADA":
+        contrarians = payload.get("contrarians", [])
+        return {
+            "contrarian_count": len(contrarians),
+            "broken_assumptions": [
+                entry.get("broken_assumption") for entry in contrarians if entry.get("broken_assumption")
+            ],
+        }
+    if step == "MUHASABA":
+        scored = payload.get("scored", [])
+        return {
+            "accepted": sum(1 for entry in scored if entry.get("accepted", True)),
+            "rejected": sum(1 for entry in scored if not entry.get("accepted", True)),
+            "polarity_warning": payload.get("polarity_warning"),
+        }
+    if step == "SUITE_PLANNING":
+        suite = payload.get("suite_plan", payload)
+        return {
+            "scenario_count": len(suite.get("runs", [])),
+            "sensitivity_axes": [
+                run.get("sensitivities", []) for run in suite.get("runs", [])
+            ],
+        }
+    if step == "SUITE_EXECUTION":
+        return {
+            "completed": payload.get("completed", 0),
+            "failed": payload.get("failed", 0),
+        }
+    return {}
+
+
+async def _load_depth_engine_response(
+    snap_row,
+    scenario_repo: ScenarioVersionRepository | None,
+    depth_plan_repo: DepthPlanRepository | None,
+    depth_artifact_repo: DepthArtifactRepository | None,
+) -> DepthEngineResponse | None:
+    if (
+        scenario_repo is None
+        or depth_plan_repo is None
+        or depth_artifact_repo is None
+        or getattr(snap_row, "scenario_spec_id", None) is None
+    ):
+        return None
+
+    scenario_row = await scenario_repo.get_by_id_and_version(
+        snap_row.scenario_spec_id,
+        getattr(snap_row, "scenario_spec_version", None) or 1,
+    )
+    if scenario_row is None:
+        return None
+    dqs = scenario_row.data_quality_summary or {}
+    plan_id_str = dqs.get("depth_plan_id")
+    if not plan_id_str:
+        return None
+
+    plan_id = UUID(str(plan_id_str))
+    plan_row = await depth_plan_repo.get(plan_id)
+    artifact_rows = await depth_artifact_repo.get_by_plan(plan_id)
+    if plan_row is None or not artifact_rows:
+        return None
+
+    suite_exec_artifact = next((row for row in artifact_rows if row.step == "SUITE_EXECUTION"), None)
+    suite_planning_artifact = next((row for row in artifact_rows if row.step == "SUITE_PLANNING"), None)
+
+    suite_payload = suite_exec_artifact.payload if suite_exec_artifact is not None else {}
+    planning_payload = (
+        suite_planning_artifact.payload.get("suite_plan", suite_planning_artifact.payload)
+        if suite_planning_artifact is not None
+        else {}
+    )
+    qualitative_risks = suite_payload.get("qualitative_risks", planning_payload.get("qualitative_risks", []))
+
+    trace_steps: list[DepthTraceStepResponse] = []
+    step_order = ["KHAWATIR", "MURAQABA", "MUJAHADA", "MUHASABA", "SUITE_PLANNING", "SUITE_EXECUTION"]
+    metadata_by_step = {
+        str(meta.get("step_name")): meta for meta in (getattr(plan_row, "step_metadata", None) or [])
+    }
+    for idx, step_name in enumerate(step_order, start=1):
+        artifact = next((row for row in artifact_rows if row.step == step_name), None)
+        if artifact is None:
+            continue
+        meta = metadata_by_step.get(step_name, {})
+        trace_steps.append(DepthTraceStepResponse(
+            step=idx,
+            step_name=step_name,
+            provider=meta.get("provider"),
+            model=meta.get("model"),
+            generation_mode=meta.get("generation_mode"),
+            duration_ms=meta.get("duration_ms"),
+            input_tokens=int(meta.get("input_tokens", 0) or 0),
+            output_tokens=int(meta.get("output_tokens", 0) or 0),
+            details=_artifact_details(step_name, artifact.payload),
+        ))
+
+    return DepthEngineResponse(
+        plan_id=str(plan_id),
+        suite_id=suite_payload.get("suite_id") or planning_payload.get("suite_id"),
+        batch_id=suite_payload.get("batch_id"),
+        suite_rationale=suite_payload.get("suite_rationale") or planning_payload.get("rationale"),
+        run_ids=list(suite_payload.get("run_ids", [])),
+        suite_runs=[SuiteRunResponse(**row) for row in suite_payload.get("suite_runs", [])],
+        sensitivity_runs=[SuiteRunResponse(**row) for row in suite_payload.get("sensitivity_runs", [])],
+        qualitative_risks=[QualitativeRiskResponse(**row) for row in qualitative_risks],
+        trace_steps=trace_steps,
+    )
+
+
+async def _resolve_constraint_specs(
+    workspace_id: UUID,
+    model_version_id: UUID,
+    sector_codes: list[str],
+    constraint_repo: ConstraintSetRepository | None,
+) -> tuple[list, UUID | None]:
+    if constraint_repo is None:
+        return [], None
+    rows = await constraint_repo.get_by_workspace(workspace_id)
+    row = next((entry for entry in rows if entry.model_version_id == model_version_id), None)
+    if row is None:
+        return [], None
+    constraints = [
+        Constraint.model_validate(item)
+        for item in (row.constraints or [])
+    ]
+    return constraints_to_specs(constraints, sector_codes), row.constraint_set_id
+
+
 def _serialize_extended_artifacts(validated: dict[str, object]) -> dict[str, object]:
     """Convert validated artifact payload to JSON-serializable values."""
     out: dict[str, object] = {}
@@ -397,6 +650,8 @@ def _single_run_to_response(
     *,
     include_series: bool = False,
     model_denomination: str = "SAR_MILLIONS",
+    workforce: WorkforceResponse | None = None,
+    depth_engine: DepthEngineResponse | None = None,
 ) -> RunResponse:
     rows = sr.result_sets
     if not include_series:
@@ -426,6 +681,8 @@ def _single_run_to_response(
             model_version_id=str(sr.snapshot.model_version_id),
             model_denomination=model_denomination,
         ),
+        workforce=workforce,
+        depth_engine=depth_engine,
     )
 
 
@@ -437,6 +694,7 @@ async def _persist_run_result(
     scenario_spec_id: UUID | None = None,
     scenario_spec_version: int | None = None,
     model_denomination: str = "UNKNOWN",
+    constraint_set_version_id: UUID | None = None,
 ) -> None:
     """Persist a SingleRunResult to DB (snapshot + result sets).
 
@@ -452,6 +710,7 @@ async def _persist_run_result(
         mapping_library_version_id=snap.mapping_library_version_id,
         assumption_library_version_id=snap.assumption_library_version_id,
         prompt_pack_version_id=snap.prompt_pack_version_id,
+        constraint_set_version_id=constraint_set_version_id,
         workspace_id=workspace_id,
         scenario_spec_id=scenario_spec_id,
         scenario_spec_version=scenario_spec_version,
@@ -463,6 +722,7 @@ async def _persist_run_result(
             run_id=rs.run_id,
             metric_type=rs.metric_type,
             values=rs.values,
+            sector_breakdowns=rs.sector_breakdowns,
             workspace_id=workspace_id,
             year=rs.year,
             series_kind=rs.series_kind,
@@ -474,6 +734,10 @@ async def _load_run_response(
     run_id: UUID,
     snap_repo: RunSnapshotRepository,
     rs_repo: ResultSetRepository,
+    workforce_result_repo: WorkforceResultRepository | None = None,
+    scenario_repo: ScenarioVersionRepository | None = None,
+    depth_plan_repo: DepthPlanRepository | None = None,
+    depth_artifact_repo: DepthArtifactRepository | None = None,
     workspace_id: UUID | None = None,
     include_series: bool = False,
 ) -> RunResponse | None:
@@ -493,6 +757,13 @@ async def _load_run_response(
     rs_rows = await rs_repo.get_by_run(run_id)
     if not include_series:
         rs_rows = [r for r in rs_rows if r.series_kind is None]
+    workforce = await _load_workforce_response(run_id, workforce_result_repo)
+    depth_engine = await _load_depth_engine_response(
+        snap_row,
+        scenario_repo,
+        depth_plan_repo,
+        depth_artifact_repo,
+    )
     return RunResponse(
         run_id=str(snap_row.run_id),
         result_sets=[
@@ -522,6 +793,8 @@ async def _load_run_response(
                 snap_row, "model_denomination", "SAR_MILLIONS",
             ),
         ),
+        workforce=workforce,
+        depth_engine=depth_engine,
     )
 
 
@@ -606,6 +879,8 @@ async def create_run(
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
     mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
     md_repo: ModelDataRepository = Depends(get_model_data_repo),
+    constraint_repo: ConstraintSetRepository = Depends(get_constraint_set_repo),
+    workforce_result_repo: WorkforceResultRepository = Depends(get_workforce_result_repo),
 ) -> RunResponse:
     """Execute a single scenario run."""
     model_version_id = UUID(body.model_version_id)
@@ -615,16 +890,26 @@ async def create_run(
     # P5-2: Auto-load curated satellite coefficients when not provided
     if body.satellite_coefficients is not None:
         coeffs = _make_satellite_coefficients(body.satellite_coefficients)
+        employment_coeff_year = body.base_year
     else:
         loaded_coeffs = load_satellite_coefficients(
             year=body.base_year,
             sector_codes=loaded.sector_codes,
         )
         coeffs = loaded_coeffs.coefficients
+        employment_coeff_year = getattr(
+            loaded_coeffs.provenance, "employment_coeff_year", body.base_year,
+        )
         _logger.info(
             "P5-2: Auto-loaded curated satellite coefficients for year %d",
             body.base_year,
         )
+    constraint_specs, constraint_set_version_id = await _resolve_constraint_specs(
+        workspace_id,
+        model_version_id,
+        loaded.sector_codes,
+        constraint_repo,
+    )
 
     # Sprint 17: baseline handling
     baseline_run_id: UUID | None = None
@@ -682,6 +967,7 @@ async def create_run(
         model_version_id=model_version_id,
         satellite_coefficients=coeffs,
         version_refs=_make_version_refs(),
+        constraints=constraint_specs,
     )
 
     try:
@@ -722,9 +1008,24 @@ async def create_run(
         sr, snap_repo, rs_repo,
         workspace_id=workspace_id,
         model_denomination=model_denom,
+        constraint_set_version_id=constraint_set_version_id,
     )
+    from src.services.run_execution import RunExecutionService
 
-    return _single_run_to_response(sr, model_denomination=model_denom)
+    await RunExecutionService()._persist_workforce_result(
+        sr=sr,
+        repo=workforce_result_repo,
+        workspace_id=workspace_id,
+        coefficients=coeffs,
+        employment_coeff_year=employment_coeff_year,
+    )
+    workforce = await _load_workforce_response(sr.snapshot.run_id, workforce_result_repo)
+
+    return _single_run_to_response(
+        sr,
+        model_denomination=model_denom,
+        workforce=workforce,
+    )
 
 
 @router.get("/{workspace_id}/engine/runs", response_model=ListRunsResponse)
@@ -759,13 +1060,23 @@ async def get_run_results(
     member: WorkspaceMember = Depends(require_workspace_member),
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
+    workforce_result_repo: WorkforceResultRepository = Depends(get_workforce_result_repo),
+    scenario_repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+    depth_plan_repo: DepthPlanRepository = Depends(get_depth_plan_repo),
+    depth_artifact_repo: DepthArtifactRepository = Depends(get_depth_artifact_repo),
 ) -> RunResponse:
     """Get results for a completed run (workspace-scoped — Amendment 3).
 
     Sprint 17: include_series=true returns annual/peak/delta rows.
     """
     resp = await _load_run_response(
-        run_id, snap_repo, rs_repo,
+        run_id,
+        snap_repo,
+        rs_repo,
+        workforce_result_repo,
+        scenario_repo,
+        depth_plan_repo,
+        depth_artifact_repo,
         workspace_id=workspace_id,
         include_series=include_series,
     )
@@ -784,6 +1095,8 @@ async def create_batch_run(
     batch_repo: BatchRepository = Depends(get_batch_repo),
     mv_repo: ModelVersionRepository = Depends(get_model_version_repo),
     md_repo: ModelDataRepository = Depends(get_model_data_repo),
+    constraint_repo: ConstraintSetRepository = Depends(get_constraint_set_repo),
+    workforce_result_repo: WorkforceResultRepository = Depends(get_workforce_result_repo),
 ) -> BatchResponse:
     """Execute a batch of scenario runs with status tracking."""
     model_version_id = UUID(body.model_version_id)
@@ -803,13 +1116,33 @@ async def create_batch_run(
     # P5-2: Auto-load curated satellite coefficients when not provided
     if body.satellite_coefficients is not None:
         coeffs = _make_satellite_coefficients(body.satellite_coefficients)
+        employment_coeff_year = (
+            body.scenarios[0].base_year
+            if body.scenarios
+            else loaded.model_version.base_year
+        )
     else:
         loaded_coeffs = load_satellite_coefficients(
             year=body.scenarios[0].base_year if body.scenarios else 2023,
             sector_codes=loaded.sector_codes,
         )
         coeffs = loaded_coeffs.coefficients
+        employment_coeff_year = getattr(
+            loaded_coeffs.provenance,
+            "employment_coeff_year",
+            (
+                body.scenarios[0].base_year
+                if body.scenarios
+                else loaded.model_version.base_year
+            ),
+        )
         _logger.info("P5-2: Auto-loaded curated satellite coefficients for batch run")
+    constraint_specs, constraint_set_version_id = await _resolve_constraint_specs(
+        workspace_id,
+        model_version_id,
+        loaded.sector_codes,
+        constraint_repo,
+    )
     scenarios: list[ScenarioInput] = []
     for sp in body.scenarios:
         # Sprint 17: baseline handling per scenario
@@ -867,6 +1200,7 @@ async def create_batch_run(
         model_version_id=model_version_id,
         satellite_coefficients=coeffs,
         version_refs=_make_version_refs(),
+        constraints=constraint_specs,
     )
 
     try:
@@ -878,14 +1212,33 @@ async def create_batch_run(
         # Persist results
         run_ids: list[str] = []
         responses: list[RunResponse] = []
+        from src.services.run_execution import RunExecutionService
+
         for sr in batch_result.run_results:
             await _persist_run_result(
                 sr, snap_repo, rs_repo,
                 workspace_id=workspace_id,
                 model_denomination=batch_denom,
+                constraint_set_version_id=constraint_set_version_id,
+            )
+            await RunExecutionService()._persist_workforce_result(
+                sr=sr,
+                repo=workforce_result_repo,
+                workspace_id=workspace_id,
+                coefficients=coeffs,
+                employment_coeff_year=employment_coeff_year,
             )
             run_ids.append(str(sr.snapshot.run_id))
-            responses.append(_single_run_to_response(sr, model_denomination=batch_denom))
+            workforce = await _load_workforce_response(
+                sr.snapshot.run_id, workforce_result_repo,
+            )
+            responses.append(
+                _single_run_to_response(
+                    sr,
+                    model_denomination=batch_denom,
+                    workforce=workforce,
+                )
+            )
 
         # Update batch to COMPLETED with run IDs
         batch_row = await batch_repo.get(batch_id)
@@ -939,6 +1292,10 @@ async def get_batch_status(
     snap_repo: RunSnapshotRepository = Depends(get_run_snapshot_repo),
     rs_repo: ResultSetRepository = Depends(get_result_set_repo),
     batch_repo: BatchRepository = Depends(get_batch_repo),
+    workforce_result_repo: WorkforceResultRepository = Depends(get_workforce_result_repo),
+    scenario_repo: ScenarioVersionRepository = Depends(get_scenario_version_repo),
+    depth_plan_repo: DepthPlanRepository = Depends(get_depth_plan_repo),
+    depth_artifact_repo: DepthArtifactRepository = Depends(get_depth_artifact_repo),
 ) -> BatchResponse:
     """Get batch run status and results (workspace-scoped — Amendment 3).
 
@@ -954,7 +1311,13 @@ async def get_batch_status(
     responses: list[RunResponse] = []
     for rid_str in batch_row.run_ids:
         resp = await _load_run_response(
-            UUID(rid_str), snap_repo, rs_repo,
+            UUID(rid_str),
+            snap_repo,
+            rs_repo,
+            workforce_result_repo,
+            scenario_repo,
+            depth_plan_repo,
+            depth_artifact_repo,
             workspace_id=workspace_id,
             include_series=include_series,
         )

@@ -13,6 +13,12 @@ class ScenarioVersionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    @staticmethod
+    def _normalize_assumption_ids(assumption_ids: list | None) -> list[str]:
+        if not assumption_ids:
+            return []
+        return [str(assumption_id) for assumption_id in assumption_ids]
+
     async def create(self, *, scenario_spec_id: UUID, version: int, name: str,
                      workspace_id: UUID, base_model_version_id: UUID,
                      base_year: int, time_horizon: dict,
@@ -29,7 +35,7 @@ class ScenarioVersionRepository:
             currency=currency, base_year=base_year,
             time_horizon=time_horizon,
             shock_items=shock_items or [],
-            assumption_ids=assumption_ids or [],
+            assumption_ids=self._normalize_assumption_ids(assumption_ids),
             data_quality_summary=data_quality_summary,
             is_locked=is_locked,
             created_at=now, updated_at=now,

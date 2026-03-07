@@ -10,6 +10,8 @@ deterministic computation — it never performs economic calculations itself.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Literal
@@ -21,9 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.config.settings import get_settings
 from src.data.workforce.satellite_coeff_loader import load_satellite_coefficients
 from src.engine.batch import BatchRequest, BatchRunner, ScenarioInput, SingleRunResult
+from src.engine.feasibility import constraints_to_specs
 from src.engine.model_store import LoadedModel, ModelStore, compute_model_checksum
 from src.engine.satellites import SatelliteCoefficients
 from src.models.common import new_uuid7
+from src.models.feasibility import Constraint
 from src.models.model_version import ModelVersion
 from src.repositories.engine import (
     ModelDataRepository,
@@ -31,8 +35,10 @@ from src.repositories.engine import (
     ResultSetRepository,
     RunSnapshotRepository,
 )
+from src.repositories.feasibility import ConstraintSetRepository
 from src.repositories.governance import ClaimRepository
 from src.repositories.scenarios import ScenarioVersionRepository
+from src.repositories.workforce import WorkforceResultRepository
 
 _logger = logging.getLogger(__name__)
 
@@ -89,6 +95,8 @@ class RunRepositories:
     snap_repo: RunSnapshotRepository
     rs_repo: ResultSetRepository
     claim_repo: ClaimRepository | None = None  # P4-1: optional for backward compat
+    constraint_repo: ConstraintSetRepository | None = None
+    workforce_result_repo: WorkforceResultRepository | None = None
 
 
 # ------------------------------------------------------------------
@@ -203,6 +211,21 @@ class RunExecutionService:
                 error=f"Failed to load satellite coefficients: {str(exc)[:200]}",
             )
 
+        # 4b. Resolve workspace feasibility constraints for this model.
+        constraint_rows = []
+        if repos.constraint_repo is not None:
+            constraint_rows = await repos.constraint_repo.get_by_workspace(input.workspace_id)
+        constraint_set_row = next(
+            (r for r in constraint_rows if r.model_version_id == model_version_id),
+            None,
+        )
+        constraint_specs = []
+        if constraint_set_row is not None:
+            constraint_models = [
+                Constraint.model_validate(c) for c in (constraint_set_row.constraints or [])
+            ]
+            constraint_specs = constraints_to_specs(constraint_models, loaded.sector_codes)
+
         # 5. Build scenario input from ScenarioSpec
         shocks = row.shock_items or []
         annual_shocks = self._build_annual_shocks(
@@ -229,6 +252,7 @@ class RunExecutionService:
             model_version_id=model_version_id,
             satellite_coefficients=coeffs,
             version_refs=version_refs,
+            constraints=constraint_specs,
         )
 
         try:
@@ -249,6 +273,10 @@ class RunExecutionService:
             workspace_id=input.workspace_id,
             scenario_spec_id=row.scenario_spec_id,
             scenario_spec_version=row.version,
+            model_denomination=getattr(loaded.model_version, "model_denomination", "UNKNOWN"),
+            constraint_set_version_id=(
+                constraint_set_row.constraint_set_id if constraint_set_row is not None else None
+            ),
         )
 
         # 8. Build result_summary from persisted rows (NOT from in-memory BatchResult)
@@ -276,6 +304,17 @@ class RunExecutionService:
             _logger.info(
                 "P4-1: Auto-created %d claims from run %s",
                 len(claims), sr.snapshot.run_id,
+            )
+
+        if repos.workforce_result_repo is not None:
+            await self._persist_workforce_result(
+                sr=sr,
+                repo=repos.workforce_result_repo,
+                workspace_id=input.workspace_id,
+                coefficients=coeffs,
+                employment_coeff_year=getattr(
+                    loaded_coeffs.provenance, "employment_coeff_year", row.base_year,
+                ),
             )
 
         return RunExecutionResult(
@@ -417,6 +456,7 @@ class RunExecutionService:
                 source=mv_row.source,
                 sector_count=mv_row.sector_count,
                 checksum=mv_row.checksum,
+                model_denomination=getattr(mv_row, "model_denomination", "UNKNOWN"),
                 **artifact_kwargs,
             )
             loaded = LoadedModel(
@@ -439,6 +479,8 @@ class RunExecutionService:
         workspace_id: UUID | None = None,
         scenario_spec_id: UUID | None = None,
         scenario_spec_version: int | None = None,
+        model_denomination: str = "UNKNOWN",
+        constraint_set_version_id: UUID | None = None,
     ) -> None:
         """Persist a SingleRunResult to DB (snapshot + result sets).
 
@@ -453,9 +495,11 @@ class RunExecutionService:
             mapping_library_version_id=snap.mapping_library_version_id,
             assumption_library_version_id=snap.assumption_library_version_id,
             prompt_pack_version_id=snap.prompt_pack_version_id,
+            constraint_set_version_id=constraint_set_version_id,
             workspace_id=workspace_id,
             scenario_spec_id=scenario_spec_id,
             scenario_spec_version=scenario_spec_version,
+            model_denomination=model_denomination,
         )
         for rs in sr.result_sets:
             await rs_repo.create(
@@ -463,8 +507,94 @@ class RunExecutionService:
                 run_id=rs.run_id,
                 metric_type=rs.metric_type,
                 values=rs.values,
+                sector_breakdowns=rs.sector_breakdowns,
                 workspace_id=workspace_id,
                 year=rs.year,
                 series_kind=rs.series_kind,
                 baseline_run_id=rs.baseline_run_id,
             )
+
+    async def _persist_workforce_result(
+        self,
+        *,
+        sr: SingleRunResult,
+        repo: WorkforceResultRepository,
+        workspace_id: UUID,
+        coefficients: SatelliteCoefficients,
+        employment_coeff_year: int,
+    ) -> None:
+        """Persist workforce/saudization outputs derived from the real run result sets."""
+        result_map = {
+            rs.metric_type: rs.values
+            for rs in sr.result_sets
+            if getattr(rs, "series_kind", None) is None
+        }
+        employment = result_map.get("employment")
+        if not employment:
+            return
+
+        ready = result_map.get("saudization_saudi_ready", {})
+        trainable = result_map.get("saudization_saudi_trainable", {})
+        expat = result_map.get("saudization_expat_reliant", {})
+
+        sectors = sorted(set(employment) | set(ready) | set(trainable) | set(expat))
+        per_sector = []
+        for sector in sectors:
+            total_jobs = float(employment.get(sector, 0.0))
+            per_sector.append({
+                "sector_code": sector,
+                "total_jobs": total_jobs,
+                "saudi_ready_jobs": float(ready.get(sector, 0.0)),
+                "saudi_trainable_jobs": float(trainable.get(sector, 0.0)),
+                "expat_reliant_jobs": float(expat.get(sector, 0.0)),
+            })
+
+        payload = {
+            "per_sector": per_sector,
+            "totals": {
+                "total_jobs": sum(float(v) for v in employment.values()),
+                "total_saudi_ready": sum(float(v) for v in ready.values()),
+                "total_saudi_trainable": sum(float(v) for v in trainable.values()),
+                "total_expat_reliant": sum(float(v) for v in expat.values()),
+            },
+            "has_saudization_split": bool(ready or trainable or expat),
+        }
+        coeff_hash = hashlib.sha256(
+            json.dumps(
+                {
+                    "jobs_coeff": coefficients.jobs_coeff.tolist(),
+                    "import_ratio": coefficients.import_ratio.tolist(),
+                    "va_ratio": coefficients.va_ratio.tolist(),
+                    "version_id": str(coefficients.version_id),
+                },
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()
+
+        existing = await repo.get_existing(
+            run_id=sr.snapshot.run_id,
+            employment_coefficients_id=coefficients.version_id,
+            employment_coefficients_version=1,
+            delta_x_source="RESULT_SET",
+        )
+        if existing is not None:
+            return
+
+        await repo.create(
+            workforce_result_id=new_uuid7(),
+            workspace_id=workspace_id,
+            run_id=sr.snapshot.run_id,
+            employment_coefficients_id=coefficients.version_id,
+            employment_coefficients_version=1,
+            results=payload,
+            confidence_summary={
+                "employment_coeff_year": employment_coeff_year,
+                "has_saudization_split": payload["has_saudization_split"],
+            },
+            data_quality_notes=[
+                f"Employment coefficients year: {employment_coeff_year}",
+                "Saudization split derived from persisted run result sets.",
+            ],
+            satellite_coefficients_hash=f"sha256:{coeff_hash}",
+            delta_x_source="RESULT_SET",
+        )

@@ -20,19 +20,92 @@ export interface ResultSet {
   result_id: string;
   metric_type: string;
   values: Record<string, number>;
-  sector_breakdowns?: Record<string, Record<string, number>>; // P6-4
+  confidence_class?: string;
+  sector_breakdowns?: Record<string, Record<string, number>>;
+  year?: number | null;
+  series_kind?: string | null;
+  baseline_run_id?: string | null;
 }
 
 export interface RunSnapshot {
   run_id: string;
   model_version_id: string;
-  model_denomination?: string; // P6-3: e.g. "SAR_MILLIONS", "SAR_THOUSANDS"
+  model_denomination?: string;
+}
+
+export interface WorkforceSector {
+  sector_code: string;
+  total_jobs: number;
+  saudi_ready_jobs: number;
+  saudi_trainable_jobs: number;
+  expat_reliant_jobs: number;
+}
+
+export interface WorkforceResponse {
+  total_jobs: number;
+  total_saudi_ready: number;
+  total_saudi_trainable: number;
+  total_expat_reliant: number;
+  has_saudization_split: boolean;
+  per_sector: WorkforceSector[];
+}
+
+export interface SuiteRunResponse {
+  scenario_spec_id: string;
+  scenario_spec_version: number;
+  run_id: string;
+  direction_id: string;
+  name: string;
+  mode: string;
+  is_contrarian: boolean;
+  multiplier: number;
+  headline_output?: number | null;
+  employment?: number | null;
+  muhasaba_status: string;
+  sensitivities: Array<string | Record<string, unknown>>;
+}
+
+export interface QualitativeRiskResponse {
+  risk_id?: string | null;
+  label: string;
+  description: string;
+  disclosure_tier?: string | null;
+  not_modeled: boolean;
+  affected_sectors: string[];
+  trigger_conditions: string[];
+  expected_direction?: string | null;
+}
+
+export interface DepthTraceStepResponse {
+  step: number;
+  step_name: string;
+  provider?: string | null;
+  model?: string | null;
+  generation_mode?: string | null;
+  duration_ms?: number | null;
+  input_tokens: number;
+  output_tokens: number;
+  details: Record<string, unknown>;
+}
+
+export interface DepthEngineResponse {
+  plan_id: string;
+  suite_id?: string | null;
+  batch_id?: string | null;
+  suite_rationale?: string | null;
+  run_ids: string[];
+  suite_runs: SuiteRunResponse[];
+  sensitivity_runs: SuiteRunResponse[];
+  qualitative_risks: QualitativeRiskResponse[];
+  trace_steps: DepthTraceStepResponse[];
 }
 
 export interface RunResponse {
   run_id: string;
   result_sets: ResultSet[];
   snapshot: RunSnapshot;
+  workforce?: WorkforceResponse | null;
+  depth_engine?: DepthEngineResponse | null;
 }
 
 // ── Run listing types (Sprint 24 — I-4) ──────────────────────────────

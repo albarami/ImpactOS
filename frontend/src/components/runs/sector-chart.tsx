@@ -46,9 +46,11 @@ export function SectorChart({ data }: SectorChartProps) {
         <XAxis type="number" />
         <YAxis dataKey="sector" type="category" width={80} />
         <Tooltip
-          formatter={(value: number | string | undefined) => {
-            const num = typeof value === 'number' ? value : 0;
-            return [num.toLocaleString('en-US'), 'Value'];
+          formatter={(value) => {
+            const rawValue = Array.isArray(value) ? value[0] : value;
+            const numericValue =
+              typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
+            return [numericValue.toLocaleString('en-US'), 'Value'] as const;
           }}
         />
         <Bar dataKey="value" fill="#334155" />

@@ -29,6 +29,7 @@ from src.repositories.data_quality import DataQualityRepository
 from src.repositories.engine import ModelVersionRepository, RunSnapshotRepository
 from src.repositories.exports import ExportRepository
 from src.repositories.governance import AssumptionRepository, ClaimRepository
+from src.repositories.scenarios import ScenarioVersionRepository
 
 _logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ class ExportRepositories:
     mv_repo: ModelVersionRepository
     artifact_store: ExportArtifactStorage
     assumption_repo: AssumptionRepository | None = None  # P4-3: optional for backward compat
+    scenario_repo: ScenarioVersionRepository | None = None
 
 
 # ------------------------------------------------------------------
@@ -194,32 +196,34 @@ class ExportExecutionService:
         claim_rows = await repos.claim_repo.get_by_run(input.run_id)
         claims = [_claim_row_to_model(r) for r in claim_rows]
 
-        # Step 1 fix: Load assumptions scoped to scenario, not workspace.
-        # If the run has a scenario_spec_id, load only assumptions linked
-        # to that scenario via AssumptionLinkRow. Falls back to workspace
-        # scope for legacy runs without scenario_spec_id.
+        # Scope assumptions to the exported scenario only.
         assumptions: list[Assumption] | None = None
         if repos.assumption_repo is not None:
             try:
                 assumption_rows: list = []
                 scenario_spec_id = getattr(snap_row, "scenario_spec_id", None)
                 if scenario_spec_id is not None:
-                    # Scoped: only assumptions linked to this run's scenario
-                    assumption_rows = await repos.assumption_repo.list_linked_to(
-                        scenario_spec_id, link_type="scenario",
-                    )
+                    scenario_row = None
+                    if repos.scenario_repo is not None:
+                        scenario_row = await repos.scenario_repo.get_by_id_and_version(
+                            scenario_spec_id,
+                            getattr(snap_row, "scenario_spec_version", 1) or 1,
+                        )
+                    if scenario_row is not None and getattr(scenario_row, "assumption_ids", None):
+                        assumption_ids = [
+                            UUID(str(assumption_id))
+                            for assumption_id in scenario_row.assumption_ids
+                        ]
+                        assumption_rows = await repos.assumption_repo.list_by_ids(
+                            assumption_ids
+                        )
+                    else:
+                        assumption_rows = await repos.assumption_repo.list_linked_to(
+                            scenario_spec_id, link_type="scenario",
+                        )
                     _logger.info(
-                        "Step 1: Loaded %d assumptions scoped to scenario %s",
+                        "Loaded %d assumptions scoped to scenario %s",
                         len(assumption_rows), scenario_spec_id,
-                    )
-                else:
-                    # Legacy fallback: workspace-wide
-                    assumption_rows, _ = await repos.assumption_repo.list_by_workspace(
-                        input.workspace_id,
-                    )
-                    _logger.info(
-                        "P4-3: Loaded %d assumptions for workspace %s (legacy fallback)",
-                        len(assumption_rows), input.workspace_id,
                     )
                 if assumption_rows:
                     assumptions = [

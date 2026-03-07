@@ -106,14 +106,6 @@ export function ResultsDisplay({ workspaceId, runId }: ResultsDisplayProps) {
     return outputRS.sector_breakdowns;
   }, [data]);
 
-  // P6-4: Extract employment data
-  const employmentData = useMemo(() => {
-    if (!data?.result_sets) return null;
-    const empRS = data.result_sets.find((rs) => rs.metric_type === 'employment');
-    if (!empRS) return null;
-    return empRS.values;
-  }, [data]);
-
   // P6-4: Extract feasibility data
   const feasibilityData = useMemo(() => {
     if (!data?.result_sets) return null;
@@ -268,8 +260,23 @@ export function ResultsDisplay({ workspaceId, runId }: ResultsDisplayProps) {
         />
       )}
 
+      {/* P6-4: Sensitivity Envelope Panel */}
+      {sensitivityRuns.length > 0 && (
+        <SensitivityEnvelopePanel runs={sensitivityRuns} denomination={denominationLabel} />
+      )}
+
+      {/* P6-4: Scenario Suite Panel */}
+      {suiteRuns.length > 0 && (
+        <ScenarioSuitePanel
+          runs={suiteRuns}
+          suiteId={depthData?.suite_id}
+          rationale={depthData?.suite_rationale}
+          denomination={denominationLabel}
+        />
+      )}
+
       {/* P6-4: Workforce Panel */}
-      {employmentData && <WorkforcePanel employment={employmentData} />}
+      {data.workforce && <WorkforcePanel workforce={data.workforce} />}
 
       {/* P6-4: Feasibility Panel */}
       {feasibilityData && (
@@ -280,23 +287,9 @@ export function ResultsDisplay({ workspaceId, runId }: ResultsDisplayProps) {
         />
       )}
 
-      {/* P6-4: Scenario Suite Panel */}
-      {suiteRuns.length > 0 && (
-        <ScenarioSuitePanel
-          runs={suiteRuns}
-          suiteId={depthData?.suite_id}
-          rationale={depthData?.suite_rationale}
-        />
-      )}
-
       {/* P6-4: Qualitative Risks Panel */}
       {qualitativeRisks.length > 0 && (
         <QualitativeRisksPanel risks={qualitativeRisks} />
-      )}
-
-      {/* P6-4: Sensitivity Envelope Panel */}
-      {sensitivityRuns.length > 0 && (
-        <SensitivityEnvelopePanel runs={sensitivityRuns} />
       )}
 
       {/* P6-4: Depth Engine Trace Panel */}

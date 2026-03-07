@@ -14,7 +14,16 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_extensions import uuid7
 
-from src.db.tables import ModelVersionRow
+from src.db.tables import (
+    DepthArtifactRow,
+    DepthPlanRow,
+    ModelVersionRow,
+    ResultSetRow,
+    RunSnapshotRow,
+    ScenarioSpecRow,
+    WorkforceResultRow,
+)
+from src.models.common import new_uuid7, utc_now
 
 WS_ID = "01961060-0000-7000-8000-000000000001"
 
@@ -770,3 +779,225 @@ class TestDenominationInSnapshot:
             f"Expected SAR_THOUSANDS from DB, got {data['snapshot']['model_denomination']}. "
             "This means _load_run_response() is not reading denomination from the DB row."
         )
+
+class TestEnrichedRunResponse:
+    """Run GET responses should expose the data required by the Decision Pack."""
+
+    @pytest.mark.anyio
+    async def test_get_run_includes_workforce_payload(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        reg_resp = await client.post("/v1/engine/models", json=_register_model_payload())
+        model_version_id = reg_resp.json()["model_version_id"]
+        await _promote_model(db_session, model_version_id)
+
+        run_resp = await client.post(
+            f"/v1/workspaces/{WS_ID}/engine/runs",
+            json={
+                "model_version_id": model_version_id,
+                "annual_shocks": {"2026": [100.0, 0.0]},
+                "base_year": 2023,
+                "satellite_coefficients": _satellite_payload(),
+            },
+        )
+        run_id = run_resp.json()["run_id"]
+
+        get_resp = await client.get(f"/v1/workspaces/{WS_ID}/engine/runs/{run_id}")
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        assert "workforce" in data
+        assert data["workforce"] is not None
+        assert data["workforce"]["total_jobs"] > 0
+        assert len(data["workforce"]["per_sector"]) > 0
+
+    @pytest.mark.anyio
+    async def test_get_run_includes_depth_engine_payload_when_artifacts_exist(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ) -> None:
+        now = utc_now()
+        workspace_id = UUID(WS_ID)
+        run_id = new_uuid7()
+        scenario_spec_id = new_uuid7()
+        plan_id = new_uuid7()
+        model_version_id = new_uuid7()
+
+        db_session.add(ModelVersionRow(
+            model_version_id=model_version_id,
+            base_year=2023,
+            source="test",
+            sector_count=2,
+            checksum="sha256:depth_response",
+            provenance_class="curated_real",
+            model_denomination="SAR_THOUSANDS",
+            created_at=now,
+        ))
+        db_session.add(ScenarioSpecRow(
+            scenario_spec_id=scenario_spec_id,
+            version=1,
+            name="Depth Scenario",
+            workspace_id=workspace_id,
+            disclosure_tier="TIER1",
+            base_model_version_id=model_version_id,
+            base_year=2023,
+            time_horizon={"start_year": 2023, "end_year": 2023},
+            shock_items=[],
+            assumption_ids=[],
+            data_quality_summary={"depth_plan_id": str(plan_id)},
+            created_at=now,
+            updated_at=now,
+        ))
+        db_session.add(RunSnapshotRow(
+            run_id=run_id,
+            model_version_id=model_version_id,
+            taxonomy_version_id=new_uuid7(),
+            concordance_version_id=new_uuid7(),
+            mapping_library_version_id=new_uuid7(),
+            assumption_library_version_id=new_uuid7(),
+            prompt_pack_version_id=new_uuid7(),
+            workspace_id=workspace_id,
+            scenario_spec_id=scenario_spec_id,
+            scenario_spec_version=1,
+            model_denomination="SAR_THOUSANDS",
+            source_checksums=[],
+            created_at=now,
+        ))
+        db_session.add(ResultSetRow(
+            result_id=new_uuid7(),
+            run_id=run_id,
+            metric_type="total_output",
+            values={"S1": -1000.0, "S2": -500.0},
+            sector_breakdowns={"direct": {"S1": -700.0}, "indirect": {"S1": -300.0}},
+            workspace_id=workspace_id,
+            created_at=now,
+        ))
+        db_session.add(WorkforceResultRow(
+            workforce_result_id=new_uuid7(),
+            workspace_id=workspace_id,
+            run_id=run_id,
+            employment_coefficients_id=new_uuid7(),
+            employment_coefficients_version=1,
+            results={
+                "per_sector": [
+                    {
+                        "sector_code": "S1",
+                        "total_jobs": 100.0,
+                        "saudi_ready_jobs": 30.0,
+                        "saudi_trainable_jobs": 20.0,
+                        "expat_reliant_jobs": 50.0,
+                    }
+                ],
+                "totals": {
+                    "total_jobs": 100.0,
+                    "total_saudi_ready": 30.0,
+                    "total_saudi_trainable": 20.0,
+                    "total_expat_reliant": 50.0,
+                },
+                "has_saudization_split": True,
+            },
+            confidence_summary={"employment_coeff_year": 2023},
+            data_quality_notes=[],
+            satellite_coefficients_hash="sha256:test",
+            delta_x_source="RESULT_SET",
+            created_at=now,
+        ))
+        db_session.add(DepthPlanRow(
+            plan_id=plan_id,
+            workspace_id=workspace_id,
+            scenario_spec_id=scenario_spec_id,
+            engagement_id=None,
+            status="COMPLETED",
+            current_step="SUITE_EXECUTION",
+            degraded_steps=[],
+            step_errors={},
+            step_metadata=[
+                {
+                    "step_name": "KHAWATIR",
+                    "provider": "anthropic",
+                    "model": "claude-test",
+                    "generation_mode": "LLM",
+                    "duration_ms": 12,
+                    "input_tokens": 10,
+                    "output_tokens": 20,
+                },
+                {
+                    "step_name": "SUITE_EXECUTION",
+                    "provider": "deterministic",
+                    "model": "batch-runner",
+                    "generation_mode": "SYNC",
+                    "duration_ms": 5,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                },
+            ],
+            error_message=None,
+            created_at=now,
+            updated_at=now,
+        ))
+        db_session.add(DepthArtifactRow(
+            artifact_id=new_uuid7(),
+            plan_id=plan_id,
+            step="KHAWATIR",
+            payload={
+                "candidates": [
+                    {"source_type": "insight"},
+                    {"source_type": "nafs"},
+                ]
+            },
+            disclosure_tier="TIER1",
+            metadata_json={},
+            created_at=now,
+        ))
+        db_session.add(DepthArtifactRow(
+            artifact_id=new_uuid7(),
+            plan_id=plan_id,
+            step="SUITE_EXECUTION",
+            payload={
+                "suite_id": str(new_uuid7()),
+                "batch_id": str(new_uuid7()),
+                "run_ids": [str(run_id)],
+                "suite_rationale": "Depth rationale",
+                "suite_runs": [
+                    {
+                        "scenario_spec_id": str(scenario_spec_id),
+                        "scenario_spec_version": 1,
+                        "run_id": str(run_id),
+                        "direction_id": str(new_uuid7()),
+                        "name": "Base contraction",
+                        "mode": "GOVERNED",
+                        "is_contrarian": False,
+                        "multiplier": 1.0,
+                        "headline_output": -1500.0,
+                        "employment": 100.0,
+                        "muhasaba_status": "SURVIVED",
+                        "sensitivities": ["volume"],
+                    }
+                ],
+                "sensitivity_runs": [],
+                "qualitative_risks": [
+                    {
+                        "label": "Border congestion",
+                        "description": "Not modeled in deterministic IO.",
+                        "disclosure_tier": "TIER1",
+                        "not_modeled": True,
+                        "affected_sectors": ["S1"],
+                        "trigger_conditions": ["peak season"],
+                    }
+                ],
+                "completed": 1,
+                "failed": 0,
+            },
+            disclosure_tier="TIER1",
+            metadata_json={},
+            created_at=now,
+        ))
+        await db_session.commit()
+
+        get_resp = await client.get(f"/v1/workspaces/{WS_ID}/engine/runs/{run_id}")
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        assert data["depth_engine"]["plan_id"] == str(plan_id)
+        assert data["depth_engine"]["run_ids"] == [str(run_id)]
+        assert len(data["depth_engine"]["suite_runs"]) == 1
+        assert data["depth_engine"]["suite_runs"][0]["headline_output"] == -1500.0
+        assert len(data["depth_engine"]["qualitative_risks"]) == 1
+        assert len(data["depth_engine"]["trace_steps"]) == 2

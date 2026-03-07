@@ -243,19 +243,10 @@ class ChatToolExecutor:
         end_year = arguments.get("end_year", base_year)
 
         scenario_spec_id = new_uuid7()
-        repo = ScenarioVersionRepository(self._session)
-        row = await repo.create(
-            scenario_spec_id=scenario_spec_id,
-            version=1,
-            name=name,
-            workspace_id=self._workspace_id,
-            base_model_version_id=UUID(str(base_model_version_id)),
-            base_year=int(base_year),
-            time_horizon={"start_year": int(start_year), "end_year": int(end_year)},
-            shock_items=arguments.get("shock_items", []),
-        )
+        assumption_ids: list[UUID] = []
 
-        # P4-2: Auto-draft compilation assumptions
+        # P4-2: Auto-draft compilation assumptions before creating the scenario
+        # so the scenario row carries its own scoped assumption_ids.
         try:
             compilation_inp = CompilationInput(
                 workspace_id=self._workspace_id,
@@ -270,9 +261,32 @@ class ChatToolExecutor:
                 default_domestic_share=0.65,
                 default_import_share=0.35,
             )
-            assumptions = draft_compilation_assumptions(compilation_inp)
+            drafted_assumptions = draft_compilation_assumptions(compilation_inp)
+            assumption_ids = [assumption.assumption_id for assumption in drafted_assumptions]
+        except Exception:
+            drafted_assumptions = []
+            _logger.warning(
+                "P4-2: Failed to draft assumptions for scenario %s",
+                scenario_spec_id,
+                exc_info=True,
+            )
+
+        repo = ScenarioVersionRepository(self._session)
+        row = await repo.create(
+            scenario_spec_id=scenario_spec_id,
+            version=1,
+            name=name,
+            workspace_id=self._workspace_id,
+            base_model_version_id=UUID(str(base_model_version_id)),
+            base_year=int(base_year),
+            time_horizon={"start_year": int(start_year), "end_year": int(end_year)},
+            shock_items=arguments.get("shock_items", []),
+            assumption_ids=assumption_ids,
+        )
+
+        if drafted_assumptions:
             assumption_repo = AssumptionRepository(self._session)
-            for assumption in assumptions:
+            for assumption in drafted_assumptions:
                 await assumption_repo.create(
                     assumption_id=assumption.assumption_id,
                     type=assumption.type.value,
@@ -290,13 +304,7 @@ class ChatToolExecutor:
                 )
             _logger.info(
                 "P4-2: Auto-drafted %d assumptions for scenario %s (linked)",
-                len(assumptions), scenario_spec_id,
-            )
-        except Exception:
-            _logger.warning(
-                "P4-2: Failed to auto-draft assumptions for scenario %s",
-                scenario_spec_id,
-                exc_info=True,
+                len(drafted_assumptions), scenario_spec_id,
             )
 
         return {
@@ -440,6 +448,7 @@ class ChatToolExecutor:
         from src.repositories.governance import AssumptionRepository, ClaimRepository
         from src.repositories.data_quality import DataQualityRepository
         from src.repositories.engine import RunSnapshotRepository, ModelVersionRepository
+        from src.repositories.scenarios import ScenarioVersionRepository
         from src.export.artifact_storage import ExportArtifactStorage
         from src.config.settings import get_settings
 
@@ -493,6 +502,7 @@ class ChatToolExecutor:
             mv_repo=ModelVersionRepository(self._session),
             artifact_store=artifact_store,
             assumption_repo=AssumptionRepository(self._session),  # P4-3
+            scenario_repo=ScenarioVersionRepository(self._session),
         )
         svc = ExportExecutionService()
         inp = ExportExecutionInput(
@@ -585,7 +595,6 @@ class ChatToolExecutor:
                 plan_id=plan_id,
                 base_year=base_year or 2023,
                 model_version_id=arguments.get("model_version_id"),
-                scenario_spec_id=arguments.get("scenario_spec_id"),
             )
             if suite_result:
                 result.update(suite_result)
@@ -597,34 +606,14 @@ class ChatToolExecutor:
         plan_id: UUID,
         base_year: int,
         model_version_id: str | None = None,
-        scenario_spec_id: str | None = None,
     ) -> dict | None:
-        """Step 2: Load ScenarioSuitePlan artifact and execute runs.
-
-        Returns dict with suite_id, run_ids, run_count on success.
-        Returns None on failure (graceful degradation).
-        """
-        from src.repositories.depth import DepthArtifactRepository
-        from src.models.depth import ScenarioSuitePlan
+        """Execute the persisted suite plan through the real run path."""
         from src.services.depth_suite_execution import (
             DepthSuiteExecutionService,
             DepthSuiteExecutionInput,
         )
 
         try:
-            artifact_repo = DepthArtifactRepository(self._session)
-            suite_artifact = await artifact_repo.get_by_plan_and_step(
-                plan_id, "SUITE_PLANNING",
-            )
-            if suite_artifact is None:
-                _logger.warning(
-                    "Step 2: No suite_planning artifact for plan %s", plan_id,
-                )
-                return None
-
-            plan = ScenarioSuitePlan.model_validate(suite_artifact.payload)
-
-            # Resolve model_version_id (from argument or first available)
             mv_id: UUID
             if model_version_id:
                 mv_id = UUID(str(model_version_id))
@@ -641,17 +630,21 @@ class ChatToolExecutor:
                 workspace_id=self._workspace_id,
                 model_version_id=mv_id,
                 base_year=base_year,
-                scenario_spec_id=UUID(str(scenario_spec_id)) if scenario_spec_id else None,
             )
 
-            svc = DepthSuiteExecutionService()
-            exec_result = await svc.execute_plan(plan, inp)
+            svc = DepthSuiteExecutionService(self._session)
+            exec_result = await svc.execute(plan_id, inp)
 
-            if exec_result.status == "COMPLETED":
+            if exec_result.status in {"COMPLETED", "PARTIAL"}:
                 return {
+                    "plan_id": str(exec_result.plan_id),
                     "suite_id": str(exec_result.suite_id),
+                    "batch_id": str(exec_result.batch_id) if exec_result.batch_id else None,
+                    "scenario_spec_ids": [str(s) for s in exec_result.scenario_spec_ids],
                     "run_ids": [str(r) for r in exec_result.run_ids],
-                    "run_count": exec_result.run_count,
+                    "run_count": len(exec_result.run_ids),
+                    "completed": exec_result.completed,
+                    "failed": exec_result.failed,
                 }
             else:
                 _logger.warning(

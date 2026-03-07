@@ -1,4 +1,4 @@
-import type { NextAuthOptions, Provider } from 'next-auth';
+import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
 export const DEV_USER_ID = '00000000-0000-7000-8000-000000000001';
@@ -11,7 +11,7 @@ export const DEV_USER_ID = '00000000-0000-7000-8000-000000000001';
  *   Azure AD, Auth0, Keycloak, or any OIDC-compliant IdP.
  *   Requires: OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET.
  */
-export function buildProviders(): Provider[] {
+export function buildProviders(): NextAuthOptions['providers'] {
   const provider = process.env.NEXTAUTH_PROVIDER || 'credentials';
 
   if (provider === 'oidc') {
@@ -44,7 +44,7 @@ export function buildProviders(): Provider[] {
             email: profile.email,
           };
         },
-      } as Provider,
+      } as NextAuthOptions['providers'][number],
     ];
   }
 

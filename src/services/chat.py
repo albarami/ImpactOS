@@ -329,7 +329,11 @@ class ChatService:
             "scenario_spec_id": "prior_scenario_spec_id",
             "scenario_spec_version": "prior_scenario_spec_version",
             "run_id": "prior_run_id",
+            "run_ids": "prior_run_ids",
             "model_version_id": "prior_model_version_id",
+            "plan_id": "prior_plan_id",
+            "suite_id": "prior_suite_id",
+            "batch_id": "prior_batch_id",
             "export_id": "prior_export_id",
         }
 
@@ -433,6 +437,13 @@ class ChatService:
                 elif er.tool_name == "build_scenario":
                     trace_dict["scenario_spec_id"] = er.result.get("scenario_spec_id")
                     trace_dict["scenario_spec_version"] = er.result.get("version")
+                elif er.tool_name == "run_depth_suite":
+                    trace_dict["plan_id"] = er.result.get("plan_id")
+                    trace_dict["suite_id"] = er.result.get("suite_id")
+                    trace_dict["batch_id"] = er.result.get("batch_id")
+                    trace_dict["run_ids"] = er.result.get("run_ids", [])
+                    if er.result.get("run_ids"):
+                        trace_dict["run_id"] = er.result["run_ids"][0]
                 elif er.tool_name == "create_export":
                     trace_dict["export_id"] = er.result.get("export_id")
             # Governance-blocked exports still carry an export_id for trace

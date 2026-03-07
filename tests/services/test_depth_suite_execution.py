@@ -1,242 +1,279 @@
-"""Tests for DepthSuiteExecutionService (Step 2).
+"""Tests for the persisted DepthSuiteExecutionService and chat wiring."""
 
-TDD: Failing tests first, then implementation.
-Tests prove that run_depth_suite on the chat path actually executes
-SuiteRun entries via BatchRunner and returns real run results.
-"""
+from uuid import uuid4
+from unittest.mock import patch
 
-import pytest
 import numpy as np
-from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import UUID, uuid4
+import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.models.common import new_uuid7
+from src.db.session import Base
+import src.db.tables  # noqa: F401
+from src.db.tables import (
+    BatchRow,
+    ClaimRow,
+    DepthArtifactRow,
+    DepthPlanRow,
+    ModelDataRow,
+    ModelVersionRow,
+    ResultSetRow,
+    RunSnapshotRow,
+    ScenarioSpecRow,
+    WorkspaceRow,
+    WorkforceResultRow,
+)
+from src.models.common import DisclosureTier, new_uuid7, utc_now
+from src.models.depth import (
+    QualitativeRisk,
+    ScenarioSuitePlan,
+    SuitePlanningOutput,
+    SuiteRun,
+)
 
 pytestmark = pytest.mark.anyio
 
 
-class TestDepthSuiteExecutionService:
-    """Step 2: DepthSuiteExecutionService converts a ScenarioSuitePlan
-    into real BatchRunner executions and persists results."""
-
-    async def test_service_exists_and_is_importable(self):
-        """DepthSuiteExecutionService must be importable."""
-        from src.services.depth_suite_execution import DepthSuiteExecutionService
-        svc = DepthSuiteExecutionService()
-        assert svc is not None
-
-    async def test_execute_plan_returns_run_ids(self):
-        """execute_plan should return run_ids for each SuiteRun executed."""
-        from src.services.depth_suite_execution import (
-            DepthSuiteExecutionService,
-            DepthSuiteExecutionInput,
-        )
-        from src.models.depth import ScenarioSuitePlan, SuiteRun
-
+@pytest.fixture
+async def suite_env():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
         ws_id = new_uuid7()
         mv_id = new_uuid7()
-        scenario_id = new_uuid7()
+        plan_id = new_uuid7()
+        now = utc_now()
 
-        # Build a minimal ScenarioSuitePlan with 2 runs
-        plan = ScenarioSuitePlan(
+        session.add(WorkspaceRow(
+            workspace_id=ws_id,
+            client_name="Depth Suite Client",
+            engagement_code="DEPTH-001",
+            classification="INTERNAL",
+            description="depth suite execution test",
+            created_by=uuid4(),
+            created_at=now,
+            updated_at=now,
+        ))
+        session.add(ModelVersionRow(
+            model_version_id=mv_id,
+            base_year=2023,
+            source="test",
+            sector_count=3,
+            checksum="sha256:1bb9deeef3696f1d6b544ca7e10a3cd14e0cf9437047501b48fa6bc9a72b65a7",
+            provenance_class="curated_real",
+            model_denomination="SAR_THOUSANDS",
+            created_at=now,
+        ))
+        session.add(ModelDataRow(
+            model_version_id=mv_id,
+            z_matrix_json=[[0.1, 0.2, 0.0], [0.0, 0.1, 0.3], [0.1, 0.0, 0.1]],
+            x_vector_json=[100.0, 200.0, 150.0],
+            sector_codes=["A", "F", "I"],
+        ))
+        session.add(DepthPlanRow(
+            plan_id=plan_id,
+            workspace_id=ws_id,
+            scenario_spec_id=None,
+            engagement_id=None,
+            status="COMPLETED",
+            current_step="SUITE_PLANNING",
+            degraded_steps=[],
+            step_errors={},
+            step_metadata=[
+                {
+                    "step": 1,
+                    "step_name": "KHAWATIR",
+                    "provider": "anthropic",
+                    "model": "claude-test",
+                    "generation_mode": "LLM",
+                    "duration_ms": 10,
+                    "input_tokens": 1,
+                    "output_tokens": 1,
+                }
+            ],
+            error_message=None,
+            created_at=now,
+            updated_at=now,
+        ))
+
+        suite_plan = ScenarioSuitePlan(
             workspace_id=ws_id,
             runs=[
                 SuiteRun(
-                    name="Run: Construction growth",
+                    name="Base contraction",
                     direction_id=new_uuid7(),
                     executable_levers=[{
                         "type": "FINAL_DEMAND_SHOCK",
                         "sector_code": "F",
-                        "amount_real_base_year": 1_000_000_000,
-                        "domestic_share": 0.85,
+                        "amount_real_base_year": -500_000_000.0,
+                        "domestic_share": 0.8,
+                        "year": 2023,
                     }],
-                    sensitivity_multipliers=[1.0],
+                    mode="GOVERNED",
+                    sensitivities=["volume"],
+                    sensitivity_multipliers=[0.8, 1.0, 1.2],
                 ),
                 SuiteRun(
-                    name="Run: Tourism expansion",
+                    name="Contrarian offset",
                     direction_id=new_uuid7(),
                     executable_levers=[{
                         "type": "FINAL_DEMAND_SHOCK",
                         "sector_code": "I",
-                        "amount_real_base_year": 500_000_000,
-                        "domestic_share": 0.70,
+                        "amount_real_base_year": 100_000_000.0,
+                        "domestic_share": 0.7,
+                        "year": 2023,
                     }],
-                    sensitivity_multipliers=[0.8, 1.0, 1.2],
-                ),
-            ],
-            rationale="Two scenarios for deep-dive analysis",
-        )
-
-        # Mock model with 3 sectors
-        mock_loaded = MagicMock()
-        mock_loaded.sector_codes = ["A", "F", "I"]
-        mock_loaded.model_version.model_version_id = mv_id
-        mock_loaded.model_version.model_denomination = "SAR_MILLIONS"
-        mock_loaded.n = 3
-
-        # Mock BatchRunner result
-        from src.engine.batch import SingleRunResult
-        from src.models.run import RunSnapshot
-
-        mock_results = []
-        for i in range(4):  # 1 run + 3 sensitivity variants
-            rid = new_uuid7()
-            mock_sr = MagicMock(spec=SingleRunResult)
-            mock_sr.snapshot = MagicMock(spec=RunSnapshot)
-            mock_sr.snapshot.run_id = rid
-            mock_sr.result_sets = []
-            mock_results.append(mock_sr)
-
-        mock_batch_result = MagicMock()
-        mock_batch_result.run_results = mock_results
-
-        svc = DepthSuiteExecutionService()
-
-        inp = DepthSuiteExecutionInput(
-            workspace_id=ws_id,
-            model_version_id=mv_id,
-            base_year=2023,
-            scenario_spec_id=scenario_id,
-        )
-
-        with patch.object(svc, "_get_loaded_model", return_value=mock_loaded), \
-             patch.object(svc, "_run_batch", return_value=mock_batch_result):
-            result = await svc.execute_plan(plan, inp)
-
-        assert result.status == "COMPLETED"
-        assert len(result.run_ids) == 4  # 1 + 3 sensitivity variants
-        assert result.suite_id == plan.suite_id
-
-    async def test_execute_plan_converts_levers_to_shocks(self):
-        """execute_plan must convert SuiteRun.executable_levers to
-        BatchRunner.ScenarioInput.annual_shocks."""
-        from src.services.depth_suite_execution import (
-            DepthSuiteExecutionService,
-            DepthSuiteExecutionInput,
-        )
-        from src.models.depth import ScenarioSuitePlan, SuiteRun
-
-        ws_id = new_uuid7()
-        mv_id = new_uuid7()
-
-        plan = ScenarioSuitePlan(
-            workspace_id=ws_id,
-            runs=[
-                SuiteRun(
-                    name="Run: Single sector",
-                    direction_id=new_uuid7(),
-                    executable_levers=[{
-                        "type": "FINAL_DEMAND_SHOCK",
-                        "sector_code": "F",
-                        "amount_real_base_year": 1_000_000_000,
-                        "domestic_share": 0.85,
-                    }],
+                    mode="SANDBOX",
+                    is_contrarian=True,
                     sensitivity_multipliers=[1.0],
                 ),
             ],
+            qualitative_risks=[
+                QualitativeRisk(
+                    label="Border congestion",
+                    description="Throughput loss not represented in IO coefficients.",
+                    disclosure_tier=DisclosureTier.TIER1,
+                    affected_sectors=["F", "I"],
+                    trigger_conditions=["visa rule enforced mid-season"],
+                    expected_direction="negative",
+                )
+            ],
+            rationale="Depth suite rationale",
+            export_mode="SANDBOX",
+            disclosure_tier=DisclosureTier.TIER1,
         )
+        session.add(DepthArtifactRow(
+            artifact_id=new_uuid7(),
+            plan_id=plan_id,
+            step="SUITE_PLANNING",
+            payload=SuitePlanningOutput(suite_plan=suite_plan).model_dump(mode="json"),
+            disclosure_tier="TIER1",
+            metadata_json={},
+            created_at=now,
+        ))
+        await session.flush()
 
-        # Mock model
-        mock_loaded = MagicMock()
-        mock_loaded.sector_codes = ["A", "F", "I"]
-        mock_loaded.model_version.model_version_id = mv_id
-        mock_loaded.model_version.model_denomination = "SAR_MILLIONS"
-        mock_loaded.n = 3
+        yield {
+            "session": session,
+            "workspace_id": ws_id,
+            "model_version_id": mv_id,
+            "plan_id": plan_id,
+        }
+    await engine.dispose()
 
-        mock_batch_result = MagicMock()
-        mock_sr = MagicMock()
-        mock_sr.snapshot = MagicMock()
-        mock_sr.snapshot.run_id = new_uuid7()
-        mock_sr.result_sets = []
-        mock_batch_result.run_results = [mock_sr]
 
-        svc = DepthSuiteExecutionService()
+class TestDepthSuiteExecutionService:
+    async def test_service_is_importable(self, suite_env):
+        from src.services.depth_suite_execution import DepthSuiteExecutionService
 
-        inp = DepthSuiteExecutionInput(
-            workspace_id=ws_id,
-            model_version_id=mv_id,
-            base_year=2023,
+        svc = DepthSuiteExecutionService(suite_env["session"])
+        assert svc is not None
+
+    async def test_execute_materializes_scenarios_runs_claims_and_workforce(self, suite_env):
+        from src.data.workforce.satellite_coeff_loader import (
+            CoefficientProvenance,
+            LoadedCoefficients,
         )
-
-        captured_request = {}
-
-        def capture_batch(request, **kwargs):
-            captured_request["req"] = request
-            return mock_batch_result
-
-        with patch.object(svc, "_get_loaded_model", return_value=mock_loaded), \
-             patch.object(svc, "_run_batch", side_effect=capture_batch):
-            await svc.execute_plan(plan, inp)
-
-        req = captured_request["req"]
-        assert len(req.scenarios) == 1
-        scenario = req.scenarios[0]
-        assert scenario.name == "Run: Single sector"
-        assert scenario.sensitivity_multipliers == [1.0]
-        # Shock in sector F (index 1) should be 1B * 0.85
-        assert 2023 in scenario.annual_shocks
-        shock_vec = scenario.annual_shocks[2023]
-        assert shock_vec[1] == pytest.approx(1_000_000_000 * 0.85)
-
-    async def test_execute_plan_empty_suite(self):
-        """execute_plan with no runs should return COMPLETED with empty results."""
+        from src.engine.satellites import SatelliteCoefficients
         from src.services.depth_suite_execution import (
-            DepthSuiteExecutionService,
             DepthSuiteExecutionInput,
+            DepthSuiteExecutionService,
         )
-        from src.models.depth import ScenarioSuitePlan
 
-        ws_id = new_uuid7()
-        plan = ScenarioSuitePlan(workspace_id=ws_id, runs=[])
-
-        svc = DepthSuiteExecutionService()
+        session = suite_env["session"]
+        svc = DepthSuiteExecutionService(session)
         inp = DepthSuiteExecutionInput(
-            workspace_id=ws_id,
-            model_version_id=new_uuid7(),
+            workspace_id=suite_env["workspace_id"],
+            model_version_id=suite_env["model_version_id"],
             base_year=2023,
         )
 
-        result = await svc.execute_plan(plan, inp)
+        mock_coeffs = SatelliteCoefficients(
+            jobs_coeff=np.array([0.01, 0.02, 0.015]),
+            import_ratio=np.array([0.10, 0.20, 0.30]),
+            va_ratio=np.array([0.5, 0.4, 0.6]),
+            version_id=new_uuid7(),
+        )
+
+        with patch("src.services.run_execution.load_satellite_coefficients") as mock_load:
+            mock_load.return_value = LoadedCoefficients(
+                coefficients=mock_coeffs,
+                provenance=CoefficientProvenance(
+                    employment_coeff_year=2023,
+                    io_base_year=2023,
+                    import_ratio_year=2023,
+                    va_ratio_year=2023,
+                ),
+            )
+            result = await svc.execute(suite_env["plan_id"], inp)
 
         assert result.status == "COMPLETED"
-        assert len(result.run_ids) == 0
+        assert result.batch_id is not None
+        assert result.total_scenarios == 4
+        assert len(result.scenario_spec_ids) == 4
+        assert len(result.run_ids) == 4
+        assert result.completed == 4
+        assert result.failed == 0
 
+        scenarios = list((await session.execute(select(ScenarioSpecRow))).scalars().all())
+        snapshots = list((await session.execute(select(RunSnapshotRow))).scalars().all())
+        result_sets = list((await session.execute(select(ResultSetRow))).scalars().all())
+        claims = list((await session.execute(select(ClaimRow))).scalars().all())
+        batches = list((await session.execute(select(BatchRow))).scalars().all())
+        workforce_rows = list((await session.execute(select(WorkforceResultRow))).scalars().all())
+        suite_artifacts = list((await session.execute(
+            select(DepthArtifactRow).where(DepthArtifactRow.step == "SUITE_EXECUTION")
+        )).scalars().all())
 
-class TestDepthSuiteInChatHandler:
-    """Step 2: run_depth_suite chat handler must execute the suite plan
-    and return real run_ids in the response."""
+        assert len(scenarios) == 4
+        assert len(snapshots) == 4
+        assert len(result_sets) >= 4
+        assert len(claims) >= 4
+        assert len(batches) == 1
+        assert len(workforce_rows) == 4
+        assert len(suite_artifacts) == 1
+        assert suite_artifacts[0].payload["run_ids"]
 
-    async def test_handler_returns_run_ids_after_execution(self):
-        """_handle_run_depth_suite must return run_ids and suite_id
-        when the depth plan produces a ScenarioSuitePlan."""
+    async def test_chat_executor_suite_execution_returns_ids(self, suite_env):
+        from src.data.workforce.satellite_coeff_loader import (
+            CoefficientProvenance,
+            LoadedCoefficients,
+        )
+        from src.engine.satellites import SatelliteCoefficients
         from src.services.chat_tool_executor import ChatToolExecutor
 
-        session = AsyncMock()
         executor = ChatToolExecutor(
-            session=session,
-            workspace_id=new_uuid7(),
+            session=suite_env["session"],
+            workspace_id=suite_env["workspace_id"],
+        )
+        mock_coeffs = SatelliteCoefficients(
+            jobs_coeff=np.array([0.01, 0.02, 0.015]),
+            import_ratio=np.array([0.10, 0.20, 0.30]),
+            va_ratio=np.array([0.5, 0.4, 0.6]),
+            version_id=new_uuid7(),
         )
 
-        plan_id = new_uuid7()
-        suite_id = new_uuid7()
-        run_ids = [new_uuid7(), new_uuid7()]
+        with patch("src.services.run_execution.load_satellite_coefficients") as mock_load:
+            mock_load.return_value = LoadedCoefficients(
+                coefficients=mock_coeffs,
+                provenance=CoefficientProvenance(
+                    employment_coeff_year=2023,
+                    io_base_year=2023,
+                    import_ratio_year=2023,
+                    va_ratio_year=2023,
+                ),
+            )
+            result = await executor._execute_depth_suite_runs(
+                plan_id=suite_env["plan_id"],
+                base_year=2023,
+                model_version_id=str(suite_env["model_version_id"]),
+            )
 
-        # Mock the depth plan execution
-        with patch("src.services.chat_tool_executor.run_depth_plan", return_value="COMPLETED"), \
-             patch.object(
-                 executor, "_execute_depth_suite_runs",
-                 return_value={
-                     "suite_id": str(suite_id),
-                     "run_ids": [str(r) for r in run_ids],
-                     "run_count": 2,
-                 },
-             ):
-            result = await executor._handle_run_depth_suite({
-                "key_questions": ["What is the GDP impact?"],
-            })
-
-        assert result["status"] == "COMPLETED"
-        assert result["plan_id"] is not None
-        assert "suite_id" in result
-        assert "run_ids" in result
-        assert len(result["run_ids"]) == 2
+        assert result is not None
+        assert result["batch_id"]
+        assert len(result["scenario_spec_ids"]) == 4
+        assert len(result["run_ids"]) == 4
+        assert result["completed"] == 4
+        assert result["failed"] == 0

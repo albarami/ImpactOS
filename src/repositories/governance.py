@@ -130,6 +130,17 @@ class AssumptionRepository:
         )
         return list(result.scalars().all())
 
+    async def list_by_ids(self, assumption_ids: list[UUID]) -> list[AssumptionRow]:
+        """Load only the requested assumptions, preserving the input order."""
+        if not assumption_ids:
+            return []
+        result = await self._session.execute(
+            select(AssumptionRow).where(AssumptionRow.assumption_id.in_(assumption_ids))
+        )
+        rows = list(result.scalars().all())
+        row_map = {row.assumption_id: row for row in rows}
+        return [row_map[assumption_id] for assumption_id in assumption_ids if assumption_id in row_map]
+
     async def list_by_workspace(
         self, workspace_id: UUID, *,
         status: str | None = None,
