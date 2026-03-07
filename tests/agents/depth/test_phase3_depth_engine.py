@@ -233,12 +233,12 @@ class TestLLMWiring:
 class TestSuitePlannerConfigurableMaxRuns:
     """P3-2: Suite planner max_runs must be configurable from context."""
 
-    def test_default_max_runs_is_5(self):
-        """Default without context override is 5."""
-        scored = [_make_scored(f"Dir {i}", 8.0 - i * 0.3) for i in range(10)]
+    def test_default_max_runs_is_20(self):
+        """Default without context override is 20 (product requirement)."""
+        scored = [_make_scored(f"Dir {i}", 8.0 - i * 0.1) for i in range(25)]
         ctx = {"scored": scored, "qualitative_risks": [], "workspace_id": str(uuid4())}
         suite = _build_suite_from_scored(ctx)
-        assert len(suite.runs) == 5
+        assert len(suite.runs) == 20
 
     def test_context_max_runs_override(self):
         """Context can set max_runs to allow more runs."""

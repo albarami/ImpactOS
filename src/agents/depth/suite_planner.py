@@ -33,7 +33,7 @@ _LEVER_TYPE_MAP = {
 }
 
 _DEFAULT_OUTPUTS = ["multipliers", "jobs", "imports"]
-_MAX_RUNS = 5
+_MAX_RUNS = 20
 
 
 def _build_suite_from_scored(context: dict) -> ScenarioSuitePlan:

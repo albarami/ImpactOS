@@ -146,10 +146,10 @@ class TestSuitePlannerAgent:
 
 
 class TestBuildSuiteFromScored:
-    def test_max_5_runs(self):
+    def test_max_20_runs(self):
         scored = [
-            _make_scored(f"Dir {i}", 8.0 - i * 0.5)
-            for i in range(10)
+            _make_scored(f"Dir {i}", 8.0 - i * 0.1)
+            for i in range(25)
         ]
         context = {
             "scored": scored,
@@ -159,7 +159,7 @@ class TestBuildSuiteFromScored:
             "contrarians": [],
         }
         suite = _build_suite_from_scored(context)
-        assert len(suite.runs) <= 5
+        assert len(suite.runs) <= 20
 
     def test_sorted_by_composite_score(self):
         d1 = uuid4()
