@@ -138,19 +138,31 @@ class BatchRunner:
         # Build result sets
         result_sets: list[ResultSet] = []
 
-        # Total output
-        result_sets.append(ResultSet(
-            run_id=run_id,
-            metric_type="total_output",
-            values=self._vec_to_dict(phased.cumulative_delta_x, sector_codes),
-        ))
-
         # Direct effect (sum of annual directs)
         cumulative_direct = np.zeros(loaded.n)
         cumulative_indirect = np.zeros(loaded.n)
         for year_result in phased.annual_results.values():
             cumulative_direct += year_result.delta_x_direct
             cumulative_indirect += year_result.delta_x_indirect
+
+        # P5-1: Build sector_breakdowns for total_output (direct, indirect,
+        # employment, imports, value_added per sector)
+        sector_breakdowns: dict[str, dict[str, float]] = {
+            "direct": self._vec_to_dict(cumulative_direct, sector_codes),
+            "indirect": self._vec_to_dict(cumulative_indirect, sector_codes),
+            "employment": self._vec_to_dict(sat_result.delta_jobs, sector_codes),
+            "imports": self._vec_to_dict(sat_result.delta_imports, sector_codes),
+            "value_added": self._vec_to_dict(sat_result.delta_va, sector_codes),
+            "domestic_output": self._vec_to_dict(sat_result.delta_domestic_output, sector_codes),
+        }
+
+        # Total output (with sector breakdowns)
+        result_sets.append(ResultSet(
+            run_id=run_id,
+            metric_type="total_output",
+            values=self._vec_to_dict(phased.cumulative_delta_x, sector_codes),
+            sector_breakdowns=sector_breakdowns,
+        ))
 
         result_sets.append(ResultSet(
             run_id=run_id,
