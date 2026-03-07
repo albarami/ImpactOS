@@ -71,9 +71,9 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P4-1 | Claims not auto-created on real run path | reopened | create_claims_from_results() helper exists but RunExecutionService.execute_from_scenario() does not call it; claims never auto-created on real engine run | 92838eb |
-| P4-2 | Draft assumptions not auto-created on real build path | reopened | draft_compilation_assumptions() helper exists but build_scenario executor does not call it; assumptions never auto-created on real scenario build | 92838eb |
-| P4-3 | Publication gate not receiving assumptions on real export path | reopened | Gate accepts assumptions kwarg but chat and API export paths do not load or pass assumptions | 92838eb |
+| P4-1 | Claims not auto-created on real run path | verified_closed | execute_from_scenario() calls create_claims_from_results() + persists via claim_repo.create(); claim_repo on RunRepositories; 2 tests | 25d30b4 |
+| P4-2 | Draft assumptions not auto-created on real build path | verified_closed | _handle_build_scenario() calls draft_compilation_assumptions() + persists via assumption_repo.create(); 2 tests | 25d30b4 |
+| P4-3 | Publication gate not receiving assumptions on real export path | verified_closed | ExportExecutionService.execute() loads via assumption_repo.list_by_workspace() + passes to orchestrator; assumption_repo on ExportRepositories; 2 tests | 25d30b4 |
 | P4-4 | Tiered disclosure not enforced in exports | verified_closed | ExportOrchestrator filters TIER0 from pack_data in GOVERNED mode; ExportRecord.filtered_tier0_count; 3 tests | 92838eb |
 | P4-5 | Workspace isolation gaps in repositories | verified_closed | ClaimRepository.list_by_workspace() with pagination+status filter via RunSnapshot join; 2 tests | 92838eb |
 
