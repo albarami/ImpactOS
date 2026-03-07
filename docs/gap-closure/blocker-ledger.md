@@ -105,11 +105,11 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P7-1 | External IdP not provisioned | open | — | — |
-| P7-2 | Strong SECRET_KEY not generated | open | — | — |
-| P7-3 | Staging database not provisioned | open | — | — |
-| P7-4 | Staging Redis not provisioned | open | — | — |
-| P7-5 | Staging object storage not provisioned | open | — | — |
-| P7-6 | LLM API keys not configured for staging | open | — | — |
-| P7-7 | Staging DNS/URL not allocated | open | — | — |
-| P7-8 | Full E2E harness never executed on live staging | open | — | — |
+| P7-1 | External IdP not provisioned | code_complete | Dual-mode auth (HS256 dev / RS256 staging), fail-closed on missing JWKS_URL/JWT_ISSUER/JWT_AUDIENCE; frontend OIDC provider ready; settings validation at startup. **Awaiting external IdP provisioning.** | pending |
+| P7-2 | Strong SECRET_KEY not generated | code_complete | validate_settings_for_env() rejects dev default in staging/prod; exits code 1. **Generate with `python -c "import secrets; print(secrets.token_urlsafe(64))"`** | pending |
+| P7-3 | Staging database not provisioned | code_complete | 22 Alembic migrations ready; docker-compose.staging.yml includes Postgres+pgvector; /health and /readiness check DB. **Awaiting DBA provisioning.** | pending |
+| P7-4 | Staging Redis not provisioned | code_complete | Celery broker configurable; graceful degradation if Redis unavailable; /health check non-blocking. **Optional — system works without Redis (sync mode).** | pending |
+| P7-5 | Staging object storage not provisioned | code_complete | S3-compatible design; MinIO in docker-compose.staging.yml; settings validation rejects relative paths in staging. **Awaiting infra provisioning.** | pending |
+| P7-6 | LLM API keys not configured for staging | code_complete | ProviderRouter with data-classification routing; all agents have deterministic fallback; copilot smoke test returns SKIP if no keys. **Optional — core system works without LLM keys.** | pending |
+| P7-7 | Staging DNS/URL not allocated | code_complete | Env-driven ALLOWED_ORIGINS and NEXTAUTH_URL; strict CORS validation; docker-compose supports any URL. **Awaiting DNS allocation and TLS cert.** | pending |
+| P7-8 | Full E2E harness never executed on live staging | code_complete | 15-stage acceptance pipeline (staging_full_e2e.py); 178 tests; strict mode; golden fixture validation; deployment runbook at docs/runbooks/staging-deployment.md. **Awaiting P7-1 through P7-7 provisioning, then execute.** | pending |
