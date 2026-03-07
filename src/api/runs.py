@@ -53,6 +53,7 @@ from src.engine.batch import (
 )
 from src.engine.model_store import LoadedModel, ModelStore, compute_model_checksum
 from src.engine.runseries_delta import RunSeriesValidationError
+from src.data.workforce.satellite_coeff_loader import load_satellite_coefficients
 from src.engine.satellites import SatelliteCoefficients
 from src.engine.type_ii_validation import TypeIIValidationError
 from src.engine.value_measures_validation import ValueMeasuresValidationError
@@ -125,7 +126,7 @@ class RunRequest(BaseModel):
     model_version_id: str
     annual_shocks: dict[str, list[float]]
     base_year: int
-    satellite_coefficients: SatelliteCoeffsPayload
+    satellite_coefficients: SatelliteCoeffsPayload | None = None  # P5-2: optional, auto-loaded from curated data when None
     deflators: dict[str, float] | None = None
     baseline_run_id: str | None = None  # Sprint 17
 
@@ -142,7 +143,7 @@ class ScenarioPayload(BaseModel):
 class BatchRunRequest(BaseModel):
     model_version_id: str
     scenarios: list[ScenarioPayload]
-    satellite_coefficients: SatelliteCoeffsPayload
+    satellite_coefficients: SatelliteCoeffsPayload | None = None  # P5-2: optional, auto-loaded when None
 
 
 # Confidence class derivation by metric_type (no DB schema change)
@@ -587,9 +588,21 @@ async def create_run(
     """Execute a single scenario run."""
     model_version_id = UUID(body.model_version_id)
     await _enforce_model_provenance(model_version_id, mv_repo)
-    await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
+    loaded = await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
 
-    coeffs = _make_satellite_coefficients(body.satellite_coefficients)
+    # P5-2: Auto-load curated satellite coefficients when not provided
+    if body.satellite_coefficients is not None:
+        coeffs = _make_satellite_coefficients(body.satellite_coefficients)
+    else:
+        loaded_coeffs = load_satellite_coefficients(
+            year=body.base_year,
+            sector_codes=loaded.sector_codes,
+        )
+        coeffs = loaded_coeffs.coefficients
+        _logger.info(
+            "P5-2: Auto-loaded curated satellite coefficients for year %d",
+            body.base_year,
+        )
 
     # Sprint 17: baseline handling
     baseline_run_id: UUID | None = None
@@ -746,7 +759,7 @@ async def create_batch_run(
     """Execute a batch of scenario runs with status tracking."""
     model_version_id = UUID(body.model_version_id)
     await _enforce_model_provenance(model_version_id, mv_repo)
-    await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
+    loaded = await _ensure_model_loaded(model_version_id, mv_repo, md_repo)
 
     batch_id = new_uuid7()
 
@@ -758,7 +771,16 @@ async def create_batch_run(
         workspace_id=workspace_id,
     )
 
-    coeffs = _make_satellite_coefficients(body.satellite_coefficients)
+    # P5-2: Auto-load curated satellite coefficients when not provided
+    if body.satellite_coefficients is not None:
+        coeffs = _make_satellite_coefficients(body.satellite_coefficients)
+    else:
+        loaded_coeffs = load_satellite_coefficients(
+            year=body.scenarios[0].base_year if body.scenarios else 2023,
+            sector_codes=loaded.sector_codes,
+        )
+        coeffs = loaded_coeffs.coefficients
+        _logger.info("P5-2: Auto-loaded curated satellite coefficients for batch run")
     scenarios: list[ScenarioInput] = []
     for sp in body.scenarios:
         # Sprint 17: baseline handling per scenario

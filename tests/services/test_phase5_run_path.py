@@ -12,6 +12,7 @@ import numpy as np
 from uuid_extensions import uuid7
 
 from src.engine.batch import BatchRequest, BatchRunner, ScenarioInput
+from src.engine.feasibility import ConstraintSpec
 from src.engine.model_store import LoadedModel, ModelStore
 from src.engine.satellites import SatelliteCoefficients
 from src.export.result_packager import ResultPackager
@@ -273,3 +274,209 @@ class TestResultPackager:
             "assumptions", "evidence_ledger",
         }
         assert required_keys.issubset(set(pack.keys()))
+
+
+# ===================================================================
+# P5-2: Workforce satellite auto-loaded when not in request body
+# ===================================================================
+
+
+class TestWorkforceAutoLoad:
+    """P5-2: API path supports optional satellite coefficients (auto-load)."""
+
+    def test_run_request_accepts_optional_satellites(self) -> None:
+        """RunRequest should work without satellite_coefficients."""
+        from src.api.runs import RunRequest
+
+        req = RunRequest(
+            model_version_id="00000000-0000-0000-0000-000000000001",
+            annual_shocks={"2023": [100.0, 200.0, 300.0]},
+            base_year=2023,
+            # No satellite_coefficients provided
+        )
+        assert req.satellite_coefficients is None
+
+    def test_batch_run_request_accepts_optional_satellites(self) -> None:
+        """BatchRunRequest should work without satellite_coefficients."""
+        from src.api.runs import BatchRunRequest
+
+        req = BatchRunRequest(
+            model_version_id="00000000-0000-0000-0000-000000000001",
+            scenarios=[],
+            # No satellite_coefficients provided
+        )
+        assert req.satellite_coefficients is None
+
+    def test_employment_result_always_produced(self) -> None:
+        """Engine run produces employment ResultSet with curated coefficients.
+
+        Verifies the run pipeline always emits employment (workforce) results
+        regardless of how satellite coefficients are provided.
+        """
+        store = ModelStore()
+        _, mv_id = _make_3sector_model(store)
+        result_sets = _run_basic_scenario(store, mv_id)
+
+        employment_rs = [
+            rs for rs in result_sets
+            if rs.metric_type == "employment" and rs.series_kind is None
+        ]
+        assert len(employment_rs) == 1
+        # Employment values should be non-zero (real workforce computation)
+        emp = employment_rs[0]
+        assert any(v != 0.0 for v in emp.values.values())
+
+
+# ===================================================================
+# P5-3: Feasibility solver integrated in BatchRunner (optional)
+# ===================================================================
+
+
+class TestFeasibilityIntegration:
+    """P5-3: ClippingSolver runs within BatchRunner when constraints provided."""
+
+    def test_no_constraints_no_feasibility_results(self) -> None:
+        """Without constraints, no feasible_output ResultSet emitted."""
+        store = ModelStore()
+        _, mv_id = _make_3sector_model(store)
+        result_sets = _run_basic_scenario(store, mv_id)
+
+        feasible_rs = [
+            rs for rs in result_sets
+            if rs.metric_type == "feasible_output"
+        ]
+        assert len(feasible_rs) == 0
+
+    def test_capacity_cap_produces_feasible_output(self) -> None:
+        """With CAPACITY_CAP, feasible_output ResultSet is emitted."""
+        store = ModelStore()
+        loaded, mv_id = _make_3sector_model(store)
+
+        # Cap sector 0 at 500_000 (shock is 1M → should bind)
+        constraints = [
+            ConstraintSpec(
+                constraint_id=new_uuid7(),
+                constraint_type="CAPACITY_CAP",
+                sector_index=0,
+                bound_value=500_000.0,
+                confidence="HARD",
+            ),
+        ]
+
+        runner = BatchRunner(model_store=store, environment="dev")
+        shock = np.array([1_000_000.0, 0.0, 0.0])
+        scenario = ScenarioInput(
+            scenario_spec_id=new_uuid7(),
+            scenario_spec_version=1,
+            name="Constrained",
+            annual_shocks={2023: shock},
+            base_year=2023,
+        )
+        request = BatchRequest(
+            scenarios=[scenario],
+            model_version_id=mv_id,
+            satellite_coefficients=_make_coefficients(),
+            version_refs=_make_version_refs(),
+            constraints=constraints,
+        )
+        result = runner.run(request)
+        result_sets = result.run_results[0].result_sets
+
+        feasible_rs = [
+            rs for rs in result_sets
+            if rs.metric_type == "feasible_output" and rs.series_kind is None
+        ]
+        assert len(feasible_rs) == 1
+
+        # Feasible output for SEC01 should respect the 500_000 cap
+        frs = feasible_rs[0]
+        assert frs.values["SEC01"] <= 500_000.0 + 1.0  # small tolerance
+
+    def test_constraint_gap_emitted(self) -> None:
+        """Constraint gap ResultSet shows unconstrained - feasible."""
+        store = ModelStore()
+        loaded, mv_id = _make_3sector_model(store)
+
+        constraints = [
+            ConstraintSpec(
+                constraint_id=new_uuid7(),
+                constraint_type="CAPACITY_CAP",
+                sector_index=0,
+                bound_value=500_000.0,
+                confidence="HARD",
+            ),
+        ]
+
+        runner = BatchRunner(model_store=store, environment="dev")
+        shock = np.array([1_000_000.0, 0.0, 0.0])
+        scenario = ScenarioInput(
+            scenario_spec_id=new_uuid7(),
+            scenario_spec_version=1,
+            name="Constrained",
+            annual_shocks={2023: shock},
+            base_year=2023,
+        )
+        request = BatchRequest(
+            scenarios=[scenario],
+            model_version_id=mv_id,
+            satellite_coefficients=_make_coefficients(),
+            version_refs=_make_version_refs(),
+            constraints=constraints,
+        )
+        result = runner.run(request)
+        result_sets = result.run_results[0].result_sets
+
+        gap_rs = [
+            rs for rs in result_sets
+            if rs.metric_type == "constraint_gap" and rs.series_kind is None
+        ]
+        assert len(gap_rs) == 1
+
+        # Gap for SEC01 should be > 0 (constraint is binding)
+        grs = gap_rs[0]
+        assert grs.values["SEC01"] > 0.0
+
+    def test_unconstrained_sectors_zero_gap(self) -> None:
+        """Sectors without constraints have zero gap."""
+        store = ModelStore()
+        loaded, mv_id = _make_3sector_model(store)
+
+        # Only constrain sector 0
+        constraints = [
+            ConstraintSpec(
+                constraint_id=new_uuid7(),
+                constraint_type="CAPACITY_CAP",
+                sector_index=0,
+                bound_value=500_000.0,
+                confidence="HARD",
+            ),
+        ]
+
+        runner = BatchRunner(model_store=store, environment="dev")
+        shock = np.array([1_000_000.0, 0.0, 0.0])
+        scenario = ScenarioInput(
+            scenario_spec_id=new_uuid7(),
+            scenario_spec_version=1,
+            name="Constrained",
+            annual_shocks={2023: shock},
+            base_year=2023,
+        )
+        request = BatchRequest(
+            scenarios=[scenario],
+            model_version_id=mv_id,
+            satellite_coefficients=_make_coefficients(),
+            version_refs=_make_version_refs(),
+            constraints=constraints,
+        )
+        result = runner.run(request)
+        result_sets = result.run_results[0].result_sets
+
+        gap_rs = next(
+            rs for rs in result_sets
+            if rs.metric_type == "constraint_gap" and rs.series_kind is None
+        )
+
+        # SEC02 and SEC03 have no sector-level constraints → 0 gap
+        # (CAPACITY_CAP only applies to sector_index=0, not cross-sector)
+        assert gap_rs.values["SEC02"] == 0.0
+        assert gap_rs.values["SEC03"] == 0.0

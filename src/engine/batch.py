@@ -12,6 +12,7 @@ from uuid import UUID
 
 import numpy as np
 
+from src.engine.feasibility import ClippingSolver, ConstraintSpec
 from src.engine.leontief import LeontiefSolver
 from src.engine.model_store import LoadedModel, ModelStore
 from src.engine.satellites import SatelliteAccounts, SatelliteCoefficients
@@ -65,6 +66,7 @@ class BatchRequest:
     model_version_id: UUID
     satellite_coefficients: SatelliteCoefficients
     version_refs: dict[str, UUID]
+    constraints: list[ConstraintSpec] | None = None  # P5-3: optional feasibility constraints
 
 
 class BatchRunner:
@@ -97,6 +99,7 @@ class BatchRunner:
                     multiplier=multiplier,
                     coefficients=request.satellite_coefficients,
                     version_refs=request.version_refs,
+                    constraints=request.constraints,
                 )
                 results.append(run_result)
 
@@ -110,6 +113,7 @@ class BatchRunner:
         multiplier: float,
         coefficients: SatelliteCoefficients,
         version_refs: dict[str, UUID],
+        constraints: list[ConstraintSpec] | None = None,
     ) -> SingleRunResult:
         """Execute a single scenario at a given sensitivity multiplier."""
         run_id = new_uuid7()
@@ -408,6 +412,34 @@ class BatchRunner:
                 logging.getLogger(__name__).warning(
                     "Type II validation failed in dev -- continuing with Type I only"
                 )
+
+        # P5-3: Optional feasibility solve after unconstrained computation
+        if constraints:
+            feasibility_solver = ClippingSolver()
+            feas_result = feasibility_solver.solve(
+                unconstrained_delta_x=phased.cumulative_delta_x,
+                constraints=constraints,
+                satellite_coefficients=coefficients,
+                sector_codes=sector_codes,
+            )
+
+            # Emit feasible_output ResultSet
+            result_sets.append(ResultSet(
+                run_id=run_id,
+                metric_type="feasible_output",
+                values=self._vec_to_dict(
+                    feas_result.feasible_delta_x, sector_codes,
+                ),
+            ))
+
+            # Emit constraint_gap ResultSet (unconstrained - feasible, >= 0)
+            result_sets.append(ResultSet(
+                run_id=run_id,
+                metric_type="constraint_gap",
+                values=self._vec_to_dict(
+                    feas_result.gap_per_sector, sector_codes,
+                ),
+            ))
 
         # Build RunSnapshot
         snapshot = RunSnapshot(
