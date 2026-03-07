@@ -43,12 +43,12 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P2-1 | Prompt/tool contract mismatch | open | — | — |
-| P2-2 | lookup_data is a hardcoded stub | open | — | — |
-| P2-3 | LLM-mediated cross-turn scenario_spec_id reuse | open | — | — |
-| P2-4 | Pending action approval does not execute stored tool intent | open | — | — |
-| P2-5 | narrate_results reads real persisted data | open | — | — |
-| P2-6 | create_export executes real orchestration | open | — | — |
+| P2-1 | Prompt/tool contract mismatch | verified_closed | Audit confirmed: all 5 tools aligned between prompt and executor | 730eec7 |
+| P2-2 | lookup_data is a hardcoded stub | verified_closed | Real data queries: io_tables returns sector_codes/output/denomination, models lists versions; 7 tests | 730eec7 |
+| P2-3 | LLM-mediated cross-turn scenario_spec_id reuse | verified_closed | Stored intent replay: _find_pending_intent retrieves from DB, executes directly | 730eec7 |
+| P2-4 | Pending action approval does not execute stored tool intent | verified_closed | _replay_stored_intent skips LLM, replays exact stored args; 4 tests prove copilot NOT re-invoked | 730eec7 |
+| P2-5 | narrate_results reads real persisted data | verified_closed | Audit confirmed: reads ResultSet rows from DB, not hardcoded | 730eec7 |
+| P2-6 | create_export executes real orchestration | verified_closed | Audit confirmed: ExportExecutionService handles governance + artifact generation | 730eec7 |
 
 ---
 

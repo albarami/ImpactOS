@@ -145,7 +145,50 @@ Each entry records:
 
 ### Phase 2: Copilot Contract and Orchestration Integrity
 
-(Entries will be added as Phase 2 work is verified)
+#### P2-V1: Prompt/Tool Contract Alignment Audit
+- **Phase/Task:** Phase 2 / Verify prompt-executor contract (P2-1)
+- **Files Audited:** `src/agents/prompts/economist_copilot_v1.py`, `src/services/chat_tool_executor.py`
+- **Branch/Commit:** gap-closure-verified / 730eec7
+- **Environment:** dev (local)
+- **Result:** PASS — All 5 tools (lookup_data, build_scenario, run_engine, narrate_results, create_export) aligned between prompt schema and executor handler map
+- **Evidence:** Code audit confirmed handler_map keys match tool definitions
+- **Superpowers Used:** verification-before-completion
+
+#### P2-V2: Real lookup_data Implementation
+- **Phase/Task:** Phase 2 / Replace hardcoded stub with real data queries (P2-2)
+- **Files Changed:** `src/services/chat_tool_executor.py`
+- **Branch/Commit:** gap-closure-verified / 730eec7
+- **Environment:** dev (local)
+- **Result:** PASS — lookup_data now queries ModelDataRepository and ModelVersionRepository
+- **Evidence:** 7 tests in TestLookupDataReal: io_tables returns sector_codes/output/denomination, models lists versions, filters by sector_codes, validates model_version_id
+- **Superpowers Used:** verification-before-completion
+
+#### P2-V3: Stored Intent Replay
+- **Phase/Task:** Phase 2 / Implement confirmation gate stored intent replay (P2-3, P2-4)
+- **Files Changed:** `src/services/chat.py`
+- **Branch/Commit:** gap-closure-verified / 730eec7
+- **Environment:** dev (local)
+- **Result:** PASS — _find_pending_intent scans session history, _replay_stored_intent executes directly without LLM re-invocation
+- **Evidence:** 4 tests in TestStoredIntentReplay prove: copilot.process_turn.call_count == 1 on confirm, run_engine replay works, no-pending fallback to copilot
+- **Superpowers Used:** verification-before-completion
+
+#### P2-V4: narrate_results and create_export Audit
+- **Phase/Task:** Phase 2 / Verify real data reads (P2-5, P2-6)
+- **Files Audited:** `src/services/chat_tool_executor.py`, `src/services/chat_narrative.py`, `src/services/run_execution.py`, `src/services/export_execution.py`
+- **Branch/Commit:** gap-closure-verified / 730eec7
+- **Environment:** dev (local)
+- **Result:** PASS — narrate_results reads ResultSet from DB; create_export delegates to ExportExecutionService (governance + artifact generation)
+- **Evidence:** Code audit; existing test_chat.py tests for narrative and export confirmed passing
+- **Superpowers Used:** verification-before-completion
+
+#### P2-V5: Full Suite Regression
+- **Phase/Task:** Phase 2 / Verify no regressions
+- **Command:** `python -m pytest tests -q --tb=no`
+- **Branch/Commit:** gap-closure-verified / 730eec7
+- **Environment:** dev (local)
+- **Result:** PASS — 5290 passed, 29 skipped, 0 failures (was 5268 after Phase 1)
+- **Evidence:** 22 new tests added, 0 regressions
+- **Superpowers Used:** verification-before-completion
 
 ---
 
