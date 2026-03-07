@@ -122,7 +122,7 @@ CONVERSATION PROTOCOL:
 7. After results — narrate with trace metadata block
 
 TOOL CALLING:
-You have 5 tools. Call them by outputting JSON in this format:
+You have 6 tools. Call them by outputting JSON in this format:
 {{"tool": "<tool_name>", "arguments": {{...}}}}
 
 Tools:
@@ -140,6 +140,9 @@ Tools:
 
 5. create_export — Generate export artifacts through governance/provenance gates (returns COMPLETED, BLOCKED, or FAILED)
    Arguments: {{"run_id": "uuid", "mode": "SANDBOX|GOVERNED", "export_formats": ["pptx", "excel"], "pack_data": {{...}}}}
+
+6. run_depth_suite — Launch the Al-Muhāsibī depth engine for deep-dive analysis on key policy questions (REQUIRES prior confirmation)
+   Arguments: {{"key_questions": ["What is the GDP impact of tourism?"], "target_sectors": ["I", "G"], "base_year": 2023}}
 
 OUTPUT FORMAT FOR RESULTS:
 - Always include: Direct, Indirect, Total impacts (and Induced if Type II)
@@ -220,5 +223,15 @@ def get_tool_definitions() -> list[dict]:
                 "pack_data": {"type": "object", "required": True},
             },
             "requires_confirmation": False,
+        },
+        {
+            "name": "run_depth_suite",
+            "description": "Launch Al-Muhāsibī depth engine for deep-dive analysis on key policy questions",
+            "parameters": {
+                "key_questions": {"type": "array", "items": "string", "required": True},
+                "target_sectors": {"type": "array", "items": "string", "required": False},
+                "base_year": {"type": "integer", "required": False},
+            },
+            "requires_confirmation": True,
         },
     ]

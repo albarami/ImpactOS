@@ -17,6 +17,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.agents.depth.tasks import run_depth_plan
 from src.models.chat import ToolCall, ToolExecutionResult
 from src.models.common import ExportMode, new_uuid7
 
@@ -66,6 +67,7 @@ class ChatToolExecutor:
             "run_engine": self._handle_run_engine,
             "narrate_results": self._handle_narrate_results,
             "create_export": self._handle_create_export,
+            "run_depth_suite": self._handle_run_depth_suite,
         }
 
     def _get_handler(self, tool_name: str):
@@ -464,6 +466,57 @@ class ChatToolExecutor:
             response["reason_code"] = "export_blocked"
 
         return response
+
+    async def _handle_run_depth_suite(self, arguments: dict) -> dict:
+        """Launch Al-Muhāsibī depth engine for deep-dive analysis (P3-1).
+
+        Creates a DepthPlan row and runs the full depth pipeline inline.
+        Mocked in tests via patch("src.services.chat_tool_executor.run_depth_plan").
+
+        Required args: key_questions (list[str])
+        Optional: target_sectors (list[str]), base_year (int)
+        """
+        from src.repositories.depth import DepthPlanRepository
+
+        key_questions = arguments.get("key_questions")
+        if not key_questions or not isinstance(key_questions, list):
+            return {
+                "reason_code": "invalid_args",
+                "error": "Missing required field: key_questions (must be a non-empty list)",
+            }
+
+        target_sectors = arguments.get("target_sectors", [])
+        base_year = arguments.get("base_year")
+
+        # Create a DepthPlan row
+        plan_repo = DepthPlanRepository(self._session)
+        plan_id = new_uuid7()
+        await plan_repo.create(
+            plan_id=plan_id,
+            workspace_id=self._workspace_id,
+            status="PENDING",
+        )
+
+        # Build context for the depth engine
+        depth_context: dict = {
+            "key_questions": key_questions,
+            "target_sectors": target_sectors,
+        }
+        if base_year is not None:
+            depth_context["base_year"] = base_year
+
+        # Run the depth pipeline inline
+        final_status = await run_depth_plan(
+            plan_id=plan_id,
+            workspace_id=self._workspace_id,
+            context=depth_context,
+            classification="INTERNAL",
+        )
+
+        return {
+            "plan_id": str(plan_id),
+            "status": final_status,
+        }
 
     # ------------------------------------------------------------------
     # Execute single / execute all

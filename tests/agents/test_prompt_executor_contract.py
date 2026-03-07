@@ -143,6 +143,7 @@ class TestPromptExecutorToolCount:
             "run_engine": None,
             "narrate_results": None,
             "create_export": None,
+            "run_depth_suite": None,
         }
 
         tool_defs = get_tool_definitions()

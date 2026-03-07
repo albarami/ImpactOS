@@ -84,12 +84,12 @@ class TestToolDefinitions:
 
     def test_tool_definitions_count(self):
         tools = get_tool_definitions()
-        assert len(tools) == 5
+        assert len(tools) == 6
 
     def test_tool_names(self):
         tools = get_tool_definitions()
         names = {t["name"] for t in tools}
-        assert names == {"lookup_data", "build_scenario", "run_engine", "narrate_results", "create_export"}
+        assert names == {"lookup_data", "build_scenario", "run_engine", "narrate_results", "create_export", "run_depth_suite"}
 
     def test_gated_tools_require_confirmation(self):
         tools = get_tool_definitions()

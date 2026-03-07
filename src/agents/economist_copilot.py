@@ -26,10 +26,10 @@ from src.models.chat import TokenUsage, ToolCall, TraceMetadata
 _logger = logging.getLogger(__name__)
 
 # Tools that require user confirmation before execution
-_GATED_TOOLS = frozenset({"build_scenario", "run_engine"})
+_GATED_TOOLS = frozenset({"build_scenario", "run_engine", "run_depth_suite"})
 
 # Valid tool names
-_VALID_TOOLS = frozenset({"lookup_data", "build_scenario", "run_engine", "narrate_results", "create_export"})
+_VALID_TOOLS = frozenset({"lookup_data", "build_scenario", "run_engine", "narrate_results", "create_export", "run_depth_suite"})
 
 
 class ConfirmationRequiredError(Exception):
