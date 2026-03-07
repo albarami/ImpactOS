@@ -310,7 +310,49 @@ Each entry records:
 
 ### Phase 5: Main Run Path Completeness
 
-(Entries will be added as Phase 5 work is verified)
+#### P5-V1: Sector Breakdowns in ResultSet
+- **Phase/Task:** Phase 5 / Populate sector_breakdowns on total_output (P5-1)
+- **Files Changed:** `src/engine/batch.py`
+- **Branch/Commit:** gap-closure-verified / d5a5b91
+- **Environment:** dev (local)
+- **Result:** PASS — total_output ResultSet now carries sector_breakdowns dict with direct/indirect/employment/imports/value_added/domestic_output per sector
+- **Evidence:** 5 tests in TestSectorBreakdowns: breakdowns non-empty, has direct+indirect, has employment, sectors match, direct+indirect=total
+- **Superpowers Used:** verification-before-completion
+
+#### P5-V2: Workforce Satellite Audit
+- **Phase/Task:** Phase 5 / Verify workforce on main run path (P5-2)
+- **Files Audited:** `src/services/run_execution.py`, `src/api/runs.py`, `src/engine/batch.py`
+- **Branch/Commit:** gap-closure-verified / d5a5b91
+- **Environment:** dev (local)
+- **Result:** PASS — Chat path loads curated coefficients via load_satellite_coefficients(); API path accepts from request body (by design for testing flexibility); both paths flow through BatchRunner which correctly computes employment/imports/VA/domestic satellites
+- **Evidence:** Code audit; existing satellite tests pass
+- **Superpowers Used:** verification-before-completion
+
+#### P5-V3: Feasibility Layer Status
+- **Phase/Task:** Phase 5 / Feasibility integration (P5-3)
+- **Branch/Commit:** gap-closure-verified / d5a5b91
+- **Environment:** dev (local)
+- **Result:** DEFERRED — ClippingSolver exists and works as standalone API. Integration as optional BatchRunner post-solve step deferred to Phase 2 roadmap per tech spec Section 7.8
+- **Evidence:** `src/engine/feasibility.py` has working ClippingSolver; `src/api/feasibility.py` has working endpoints; integration into BatchRunner requires additional BatchRequest fields
+- **Superpowers Used:** verification-before-completion
+
+#### P5-V4: ResultPackager Service
+- **Phase/Task:** Phase 5 / Package results for UI consumption (P5-4)
+- **Files Changed:** `src/export/result_packager.py` (new)
+- **Branch/Commit:** gap-closure-verified / d5a5b91
+- **Environment:** dev (local)
+- **Result:** PASS — ResultPackager converts ResultSet rows into DecisionPack-compatible pack_data with sector_impacts (direct/indirect/total/multiplier/domestic_share/import_leakage per sector), executive_summary (headline_gdp, headline_jobs), employment data, input_vectors
+- **Evidence:** 6 tests in TestResultPackager: builds sector_impacts, has required fields, executive summary, employment, empty handling, export compatibility
+- **Superpowers Used:** verification-before-completion
+
+#### P5-V5: Full Suite Regression
+- **Phase/Task:** Phase 5 / Verify no regressions
+- **Command:** `python -m pytest tests -q --tb=no`
+- **Branch/Commit:** gap-closure-verified / d5a5b91
+- **Environment:** dev (local)
+- **Result:** PASS — 5386 passed, 29 skipped, 0 failures (was 5375 after Phase 4)
+- **Evidence:** 11 new tests added, 0 regressions
+- **Superpowers Used:** verification-before-completion
 
 ---
 

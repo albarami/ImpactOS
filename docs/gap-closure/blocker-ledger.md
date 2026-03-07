@@ -81,10 +81,10 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P5-1 | Sector breakdowns not fully populated | open | — | — |
-| P5-2 | Workforce satellite not on main run path | open | — | — |
-| P5-3 | Feasibility layer not on main run path | open | — | — |
-| P5-4 | Report data not packaged for UI consumption | open | — | — |
+| P5-1 | Sector breakdowns not fully populated | verified_closed | BatchRunner populates sector_breakdowns on total_output with direct/indirect/employment/imports/va/domestic per sector; 5 tests | d5a5b91 |
+| P5-2 | Workforce satellite not on main run path | verified_closed | Audit confirms: chat path uses curated loader (load_satellite_coefficients); API path accepts request body (by design for flexibility); both paths flow through BatchRunner satellite computation | d5a5b91 |
+| P5-3 | Feasibility layer not on main run path | open | ClippingSolver exists but is standalone API — integration as optional BatchRunner step deferred to Phase 2 roadmap | — |
+| P5-4 | Report data not packaged for UI consumption | verified_closed | ResultPackager converts ResultSet rows → DecisionPack-compatible pack_data (sector_impacts, executive_summary, employment, input_vectors); 6 tests | d5a5b91 |
 
 ---
 
