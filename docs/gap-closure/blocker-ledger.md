@@ -56,12 +56,12 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P3-1 | LLM mode dead-lettered (all 5 agents) | open | — | — |
-| P3-2 | Suite planner hard cap at 5 | open | — | — |
-| P3-3 | No sensitivity sweep expansion | open | — | — |
-| P3-4 | No polarity guard in Muhasaba | open | — | — |
-| P3-5 | Candidate generation is generic, not question-calibrated | open | — | — |
-| P3-6 | Munazara (step 6) decision: include or defer | open | — | — |
+| P3-1 | LLM mode dead-lettered (all 5 agents) | verified_closed | All 5 agents async, call llm_client.call() with structured output; fallback on parse failure; 12 tests | 555de1d |
+| P3-2 | Suite planner hard cap at 5 | verified_closed | max_runs read from context, default 5; 3 tests prove configurable | 555de1d |
+| P3-3 | No sensitivity sweep expansion | verified_closed | Sensitivities are dicts with type+range/values, not strings; 2 tests | 555de1d |
+| P3-4 | No polarity guard in Muhasaba | verified_closed | model_validator on MuhasabaOutput sets polarity_warning when all-upside; 2 tests | 555de1d |
+| P3-5 | Candidate generation is generic, not question-calibrated | verified_closed | _generate_fallback_candidates reads key_questions, generates question-driven CandidateDirections; 1 test | 555de1d |
+| P3-6 | Munazara (step 6) decision: include or defer | verified_closed | Deferred by design — Munazara is a future step; documented | 555de1d |
 
 ---
 

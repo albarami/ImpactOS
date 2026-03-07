@@ -194,7 +194,59 @@ Each entry records:
 
 ### Phase 3: Al-Muhasabi Depth Engine Reality Gap
 
-(Entries will be added as Phase 3 work is verified)
+#### P3-V1: LLM Mode Wired (All 5 Agents)
+- **Phase/Task:** Phase 3 / Wire LLM mode in all 5 depth agents (P3-1)
+- **Files Changed:** `src/agents/depth/base.py`, `src/agents/depth/khawatir.py`, `src/agents/depth/muraqaba.py`, `src/agents/depth/mujahada.py`, `src/agents/depth/muhasaba.py`, `src/agents/depth/suite_planner.py`, `src/agents/depth/orchestrator.py`
+- **Branch/Commit:** gap-closure-verified / 555de1d
+- **Environment:** dev (local)
+- **Result:** PASS — All 5 agents: run() is async, _run_with_llm() calls llm_client.call() with LLMRequest+output_schema, falls back on parse failure. Orchestrator uses `await agent.run()`.
+- **Evidence:** 12 tests in TestLLMWiring: each agent calls LLM when available, fallback when no LLM
+- **Superpowers Used:** verification-before-completion
+
+#### P3-V2: Configurable max_runs
+- **Phase/Task:** Phase 3 / Make suite planner max_runs configurable (P3-2)
+- **Files Changed:** `src/agents/depth/suite_planner.py`
+- **Branch/Commit:** gap-closure-verified / 555de1d
+- **Environment:** dev (local)
+- **Result:** PASS — _build_suite_from_scored reads `max_runs` from context, defaults to _MAX_RUNS (5)
+- **Evidence:** 3 tests: default=5, override=8, override=3
+- **Superpowers Used:** verification-before-completion
+
+#### P3-V3: Sensitivity Sweep Parameters
+- **Phase/Task:** Phase 3 / Expand sensitivity sweeps from strings to parameter dicts (P3-3)
+- **Files Changed:** `src/agents/depth/suite_planner.py`, `src/models/depth.py`
+- **Branch/Commit:** gap-closure-verified / 555de1d
+- **Environment:** dev (local)
+- **Result:** PASS — SuiteRun.sensitivities is now list[str | dict]; sweeps include type+range/values dicts
+- **Evidence:** 2 tests: high-novelty gets sensitivity_sweep dict, contrarian gets import_share+phasing dicts
+- **Superpowers Used:** verification-before-completion
+
+#### P3-V4: Polarity Guard in Muhasaba
+- **Phase/Task:** Phase 3 / Add polarity guard (P3-4)
+- **Files Changed:** `src/models/depth.py`
+- **Branch/Commit:** gap-closure-verified / 555de1d
+- **Environment:** dev (local)
+- **Result:** PASS — MuhasabaOutput model_validator sets polarity_warning when all scored are non-contrarian
+- **Evidence:** 2 tests: all-upside triggers warning, balanced suite has None
+- **Superpowers Used:** verification-before-completion
+
+#### P3-V5: Question-Calibrated Candidates
+- **Phase/Task:** Phase 3 / Khawatir reads key_questions from context (P3-5)
+- **Files Changed:** `src/agents/depth/khawatir.py`
+- **Branch/Commit:** gap-closure-verified / 555de1d
+- **Environment:** dev (local)
+- **Result:** PASS — _generate_fallback_candidates generates CandidateDirection from key_questions (up to 2)
+- **Evidence:** 1 test: key_questions reflected in candidate rationale/description
+- **Superpowers Used:** verification-before-completion
+
+#### P3-V6: Full Suite Regression
+- **Phase/Task:** Phase 3 / Verify no regressions
+- **Command:** `python -m pytest tests -q --tb=no`
+- **Branch/Commit:** gap-closure-verified / 555de1d
+- **Environment:** dev (local)
+- **Result:** PASS — 5351 passed, 29 skipped, 0 failures (was 5290 after Phase 2)
+- **Evidence:** 61 new tests added (20 Phase 3 + existing tests now run as async variants), 0 regressions
+- **Superpowers Used:** verification-before-completion
 
 ---
 
