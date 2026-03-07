@@ -463,7 +463,7 @@ class TestToolExecution:
         copilot.process_turn = AsyncMock(return_value=CopilotResponse(
             content="Looking up available datasets.",
             tool_calls=[
-                ToolCall(tool_name="lookup_data", arguments={"dataset_id": "io_tables"}),
+                ToolCall(tool_name="lookup_data", arguments={}),
             ],
             prompt_version="copilot_v1",
             model_provider="anthropic",

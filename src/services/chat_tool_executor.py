@@ -75,7 +75,102 @@ class ChatToolExecutor:
     # ------------------------------------------------------------------
 
     async def _handle_lookup_data(self, arguments: dict) -> dict:
-        """MVP stub: return available dataset metadata list."""
+        """Query curated datasets (P2-2: real data, not stubs).
+
+        Dispatches on dataset_id:
+          - (none)    → list available dataset types
+          - "models"  → list available model versions
+          - "io_tables" → return sector codes, output vector, denomination
+                          (requires model_version_id)
+        """
+        from src.repositories.engine import ModelDataRepository, ModelVersionRepository
+
+        dataset_id = arguments.get("dataset_id")
+
+        # No dataset_id → list available dataset types
+        if not dataset_id:
+            return {
+                "reason_code": "datasets_listed",
+                "datasets": _AVAILABLE_DATASETS,
+            }
+
+        # "models" → list available model versions
+        if dataset_id == "models":
+            mv_repo = ModelVersionRepository(self._session)
+            rows = await mv_repo.list_all()
+            models = [
+                {
+                    "model_version_id": str(r.model_version_id),
+                    "base_year": r.base_year,
+                    "source": r.source,
+                    "sector_count": r.sector_count,
+                    "denomination": getattr(r, "model_denomination", "UNKNOWN"),
+                }
+                for r in rows
+            ]
+            return {"reason_code": "models_listed", "models": models}
+
+        # All other datasets require model_version_id
+        model_version_id_str = arguments.get("model_version_id")
+        if not model_version_id_str:
+            return {
+                "reason_code": "invalid_args",
+                "error": f"dataset_id='{dataset_id}' requires model_version_id",
+            }
+
+        try:
+            mv_uuid = UUID(str(model_version_id_str))
+        except (ValueError, AttributeError):
+            return {
+                "reason_code": "invalid_args",
+                "error": f"Invalid model_version_id format: {model_version_id_str}",
+            }
+
+        # Load model data
+        mv_repo = ModelVersionRepository(self._session)
+        mv_row = await mv_repo.get(mv_uuid)
+        if mv_row is None:
+            return {
+                "reason_code": "model_not_found",
+                "error": f"Model version {model_version_id_str} not found",
+            }
+
+        md_repo = ModelDataRepository(self._session)
+        md_row = await md_repo.get(mv_uuid)
+        if md_row is None:
+            return {
+                "reason_code": "model_not_found",
+                "error": f"Model data for {model_version_id_str} not found",
+            }
+
+        sector_codes: list[str] = md_row.sector_codes
+        x_vector: list[float] = md_row.x_vector_json
+        sector_filter = arguments.get("sector_codes")
+
+        if dataset_id == "io_tables":
+            # Build sector → output mapping
+            output_map: dict[str, float] = {}
+            for code, val in zip(sector_codes, x_vector):
+                if sector_filter and code not in sector_filter:
+                    continue
+                output_map[code] = val
+
+            filtered_codes = (
+                [c for c in sector_codes if c in sector_filter]
+                if sector_filter
+                else sector_codes
+            )
+
+            return {
+                "reason_code": "io_tables_found",
+                "model_version_id": str(mv_uuid),
+                "base_year": mv_row.base_year,
+                "denomination": getattr(mv_row, "model_denomination", "UNKNOWN"),
+                "sector_codes": filtered_codes,
+                "total_output": output_map,
+            }
+
+        # Fallback: unknown dataset_id → list available
         return {
             "reason_code": "datasets_listed",
             "datasets": _AVAILABLE_DATASETS,
@@ -359,7 +454,7 @@ class ChatToolExecutor:
         # Reason codes that indicate handler-level validation failures
         _ERROR_REASON_CODES = frozenset({
             "invalid_args", "scenario_not_found", "no_results", "run_not_found",
-            "run_failed", "export_failed",
+            "run_failed", "export_failed", "model_not_found",
         })
         # Reason codes that indicate a governance-blocked result (amber, not red)
         _BLOCKED_REASON_CODES = frozenset({

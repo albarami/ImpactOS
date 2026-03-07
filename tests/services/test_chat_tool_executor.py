@@ -366,7 +366,8 @@ class TestLookupDataHandler:
     """S27-1b: lookup_data MVP stub returns dataset metadata."""
 
     async def test_basic_success(self, executor):
-        tc = ToolCall(tool_name="lookup_data", arguments={"dataset_id": "io_tables"})
+        # Without dataset_id → lists available dataset types
+        tc = ToolCall(tool_name="lookup_data", arguments={})
         result = await executor.execute(tc)
         assert result.status == "success"
         assert result.result["reason_code"] == "datasets_listed"
