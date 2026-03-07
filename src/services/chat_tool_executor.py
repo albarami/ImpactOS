@@ -37,11 +37,12 @@ _PER_TOOL_CAPS: dict[str, int] = {
 
 # Available dataset types for lookup_data
 # Only list datasets with real handlers — do not advertise unimplemented stubs.
-# P2-1: removed multipliers, employment_coefficients, macro_indicators
-# (no handler exists; they fell through to the default dataset listing)
+# P2-1: removed multipliers, macro_indicators (no handler exists)
+# P2-2: employment_coefficients handler implemented (queries EmploymentCoefficientsRepository)
 _AVAILABLE_DATASETS = [
     {"dataset_id": "io_tables", "description": "Input-Output tables (KAPSARC)"},
     {"dataset_id": "models", "description": "Available model versions"},
+    {"dataset_id": "employment_coefficients", "description": "Employment coefficients by sector (jobs per million SAR)"},
 ]
 
 
@@ -169,6 +170,38 @@ class ChatToolExecutor:
                 "denomination": getattr(mv_row, "model_denomination", "UNKNOWN"),
                 "sector_codes": filtered_codes,
                 "total_output": output_map,
+            }
+
+        if dataset_id == "employment_coefficients":
+            # P2-2: Query real employment coefficients from DB
+            from src.repositories.workforce import EmploymentCoefficientsRepository
+
+            ec_repo = EmploymentCoefficientsRepository(self._session)
+            ec_rows = await ec_repo.get_by_model_version(mv_uuid)
+
+            if not ec_rows:
+                return {
+                    "reason_code": "employment_coefficients_not_found",
+                    "error": f"No employment coefficients found for model {model_version_id_str}",
+                }
+
+            # Use the latest version
+            latest = ec_rows[0]  # already sorted newest-first by repository
+            coefficients: list[dict] = latest.coefficients
+
+            # Apply sector filter if provided
+            if sector_filter:
+                coefficients = [
+                    c for c in coefficients
+                    if c.get("sector_code") in sector_filter
+                ]
+
+            return {
+                "reason_code": "employment_coefficients_found",
+                "model_version_id": str(mv_uuid),
+                "base_year": latest.base_year,
+                "output_unit": latest.output_unit,
+                "coefficients": coefficients,
             }
 
         # Fallback: unknown dataset_id → list available
@@ -456,6 +489,7 @@ class ChatToolExecutor:
         _ERROR_REASON_CODES = frozenset({
             "invalid_args", "scenario_not_found", "no_results", "run_not_found",
             "run_failed", "export_failed", "model_not_found",
+            "employment_coefficients_not_found",
         })
         # Reason codes that indicate a governance-blocked result (amber, not red)
         _BLOCKED_REASON_CODES = frozenset({

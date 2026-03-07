@@ -45,8 +45,8 @@
 
 | ID | Blocker | Status | Verification | Commit |
 |----|---------|--------|--------------|--------|
-| P2-1 | Prompt/tool contract mismatch | verified_closed | build_scenario prompt+tool_def now includes base_model_version_id; create_export uses "excel" not "xlsx"; lookup_data description+_AVAILABLE_DATASETS trimmed to io_tables+models only; model_version_id added to lookup_data params; 8 contract tests | pending |
-| P2-2 | lookup_data is a hardcoded stub | reopened | Only io_tables and models are real; multipliers, employment_coefficients, macro_indicators fall through to dataset list | 730eec7 |
+| P2-1 | Prompt/tool contract mismatch | verified_closed | build_scenario prompt+tool_def now includes base_model_version_id; create_export uses "excel" not "xlsx"; lookup_data description+_AVAILABLE_DATASETS trimmed to io_tables+models only; model_version_id added to lookup_data params; 8 contract tests | 93ce242 |
+| P2-2 | lookup_data is a hardcoded stub | verified_closed | employment_coefficients handler queries EmploymentCoefficientsRepository.get_by_model_version(); returns real coefficients with sector_code, jobs_per_million_sar, confidence; sector filtering; multipliers+macro_indicators removed (no data); 5 tests | pending |
 | P2-3 | LLM-mediated cross-turn scenario_spec_id reuse | reopened | Stored intent replay works for confirmation turns only; later follow-up turns still rely on LLM inferring IDs from plain text; no server-side context injection of prior persisted IDs | 730eec7 |
 | P2-4 | Pending action approval does not execute stored tool intent | verified_closed | _replay_stored_intent skips LLM, replays exact stored args; 4 tests prove copilot NOT re-invoked | 730eec7 |
 | P2-5 | narrate_results reads real persisted data | verified_closed | Reads ResultSet rows from DB, workspace-scoped | 730eec7 |

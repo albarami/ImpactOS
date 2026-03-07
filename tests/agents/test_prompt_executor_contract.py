@@ -70,10 +70,10 @@ class TestLookupDataContract:
         """Every dataset_id in _AVAILABLE_DATASETS must correspond to a real
         handler path in the executor — not fall through to the default listing.
 
-        Current real handlers: (no dataset_id), "models", "io_tables"
+        Current real handlers: (no dataset_id), "models", "io_tables", "employment_coefficients"
         """
         # These are the dataset_ids that have real handlers (not fallthrough)
-        HANDLED_DATASET_IDS = {"io_tables", "models"}
+        HANDLED_DATASET_IDS = {"io_tables", "models", "employment_coefficients"}
 
         for ds in _AVAILABLE_DATASETS:
             ds_id = ds["dataset_id"]

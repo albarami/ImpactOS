@@ -109,7 +109,7 @@ You have 5 tools. Call them by outputting JSON in this format:
 {{"tool": "<tool_name>", "arguments": {{...}}}}
 
 Tools:
-1. lookup_data — Query curated datasets (I/O tables, model versions)
+1. lookup_data — Query curated datasets (I/O tables, model versions, employment coefficients)
    Arguments: {{"dataset_id": "string", "model_version_id": "uuid", "sector_codes": ["A", "B"]}}
 
 2. build_scenario — Construct a ScenarioSpec with shock items (REQUIRES prior confirmation)
@@ -157,7 +157,7 @@ def get_tool_definitions() -> list[dict]:
     return [
         {
             "name": "lookup_data",
-            "description": "Query curated datasets (I/O tables, model versions)",
+            "description": "Query curated datasets (I/O tables, model versions, employment coefficients)",
             "parameters": {
                 "dataset_id": {"type": "string", "required": True},
                 "model_version_id": {"type": "string", "required": False},

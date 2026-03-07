@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from src.db.session import Base
 import src.db.tables  # noqa: F401
-from src.db.tables import WorkspaceRow, ModelVersionRow, ModelDataRow
+from src.db.tables import WorkspaceRow, ModelVersionRow, ModelDataRow, EmploymentCoefficientsRow
 from src.models.chat import ToolCall, ToolExecutionResult, TokenUsage, TraceMetadata
 from src.models.common import new_uuid7, utc_now
 from src.repositories.chat import ChatMessageRepository, ChatSessionRepository
@@ -231,6 +231,157 @@ class TestLookupDataReal:
         assert result.status == "success"
         data = result.result
         assert "datasets" in data
+
+
+# ------------------------------------------------------------------
+# P2-2: employment_coefficients handler (real data)
+# ------------------------------------------------------------------
+
+
+@pytest.fixture
+async def db_session_with_employment_coeffs():
+    """In-memory DB with workspace + model + employment coefficients."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
+        ws_id = uuid4()
+        now = utc_now()
+        ws = WorkspaceRow(
+            workspace_id=ws_id,
+            client_name="P2-2 Test",
+            engagement_code="P2-2",
+            classification="INTERNAL",
+            description="Employment coefficients test",
+            created_by=uuid4(),
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(ws)
+
+        mv_id = new_uuid7()
+        mv = ModelVersionRow(
+            model_version_id=mv_id,
+            base_year=2023,
+            source="test_p2_2",
+            sector_count=3,
+            checksum="sha256:" + "c" * 64,
+            provenance_class="curated_real",
+            model_denomination="SAR_MILLIONS",
+            created_at=now,
+        )
+        session.add(mv)
+
+        z = [[10.0, 20.0, 0.0], [0.0, 15.0, 30.0], [5.0, 0.0, 10.0]]
+        x = [100.0, 200.0, 150.0]
+        md = ModelDataRow(
+            model_version_id=mv_id,
+            z_matrix_json=z,
+            x_vector_json=x,
+            sector_codes=["A", "B", "C"],
+        )
+        session.add(md)
+
+        ec_id = new_uuid7()
+        ec = EmploymentCoefficientsRow(
+            employment_coefficients_id=ec_id,
+            version=1,
+            model_version_id=mv_id,
+            workspace_id=ws_id,
+            output_unit="MILLION_SAR",
+            base_year=2023,
+            coefficients=[
+                {"sector_code": "A", "jobs_per_million_sar": 12.5, "confidence": "HIGH", "source_description": "ILO 2023"},
+                {"sector_code": "B", "jobs_per_million_sar": 3.2, "confidence": "MEDIUM", "source_description": "ILO 2023"},
+                {"sector_code": "C", "jobs_per_million_sar": 8.7, "confidence": "HIGH", "source_description": "ILO 2023"},
+            ],
+            created_at=now,
+        )
+        session.add(ec)
+        await session.flush()
+        yield session, ws_id, mv_id, ec_id
+    await engine.dispose()
+
+
+class TestLookupEmploymentCoefficients:
+    """P2-2: lookup_data must serve real employment coefficients from DB."""
+
+    async def test_lookup_employment_returns_coefficients(self, db_session_with_employment_coeffs):
+        """lookup_data with dataset_id=employment_coefficients returns real data."""
+        session, ws_id, mv_id, _ = db_session_with_employment_coeffs
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(
+            tool_name="lookup_data",
+            arguments={
+                "dataset_id": "employment_coefficients",
+                "model_version_id": str(mv_id),
+            },
+        )
+        result = await executor.execute(tc)
+        assert result.status == "success", f"Expected success, got {result.status}: {result.result}"
+        data = result.result
+        assert data["reason_code"] == "employment_coefficients_found"
+        assert "coefficients" in data
+        assert len(data["coefficients"]) == 3
+
+    async def test_lookup_employment_returns_sector_data(self, db_session_with_employment_coeffs):
+        """Employment coefficients include sector_code and jobs_per_million_sar."""
+        session, ws_id, mv_id, _ = db_session_with_employment_coeffs
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(
+            tool_name="lookup_data",
+            arguments={
+                "dataset_id": "employment_coefficients",
+                "model_version_id": str(mv_id),
+            },
+        )
+        result = await executor.execute(tc)
+        data = result.result
+        coeff_a = next(c for c in data["coefficients"] if c["sector_code"] == "A")
+        assert coeff_a["jobs_per_million_sar"] == 12.5
+        assert coeff_a["confidence"] == "HIGH"
+
+    async def test_lookup_employment_filters_by_sector(self, db_session_with_employment_coeffs):
+        """Employment coefficients can be filtered by sector_codes."""
+        session, ws_id, mv_id, _ = db_session_with_employment_coeffs
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        tc = ToolCall(
+            tool_name="lookup_data",
+            arguments={
+                "dataset_id": "employment_coefficients",
+                "model_version_id": str(mv_id),
+                "sector_codes": ["A", "C"],
+            },
+        )
+        result = await executor.execute(tc)
+        data = result.result
+        assert len(data["coefficients"]) == 2
+        sector_codes = {c["sector_code"] for c in data["coefficients"]}
+        assert sector_codes == {"A", "C"}
+
+    async def test_lookup_employment_no_data_returns_error(self, db_session_with_employment_coeffs):
+        """Employment coefficients for nonexistent model returns empty list."""
+        session, ws_id, _, _ = db_session_with_employment_coeffs
+        executor = ChatToolExecutor(session=session, workspace_id=ws_id)
+        fake_mv_id = str(new_uuid7())
+        tc = ToolCall(
+            tool_name="lookup_data",
+            arguments={
+                "dataset_id": "employment_coefficients",
+                "model_version_id": fake_mv_id,
+            },
+        )
+        result = await executor.execute(tc)
+        # Should return error since no coefficients exist for this model
+        assert result.status == "error"
+        assert "not found" in result.result.get("error", "").lower()
+
+    async def test_employment_coefficients_in_available_datasets(self, db_session_with_employment_coeffs):
+        """employment_coefficients must appear in the dataset listing."""
+        from src.services.chat_tool_executor import _AVAILABLE_DATASETS
+        ds_ids = {ds["dataset_id"] for ds in _AVAILABLE_DATASETS}
+        assert "employment_coefficients" in ds_ids
 
 
 # ------------------------------------------------------------------
