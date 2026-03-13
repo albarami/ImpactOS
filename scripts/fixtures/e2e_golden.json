@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "description": "Golden validation rules for E2E acceptance. Used by stage_output_validation to verify engine outputs meet domain-specific correctness criteria.",
+  "result_sets": {
+    "min_count": 1,
+    "required_metric_types": ["output"],
+    "known_metric_types": ["output", "value_added", "employment", "imports"],
+    "per_metric": {
+      "min_sectors_with_values": 1,
+      "value_range_min": -1e15,
+      "value_range_max": 1e15,
+      "require_non_zero": true
+    }
+  },
+  "governance": {
+    "min_claims_extracted": 1,
+    "require_governance_status": true
+  },
+  "export": {
+    "min_bytes": 100,
+    "accepted_formats": ["excel"]
+  },
+  "determinism": {
+    "require_persisted_match": true,
+    "metric_type_set_must_match": true,
+    "result_set_count_must_match": true
+  }
+}

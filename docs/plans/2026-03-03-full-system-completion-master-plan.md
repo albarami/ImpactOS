@@ -34,6 +34,7 @@ Based on merged work on `main`:
 | 28 | S28 | Copilot Real Execution + Post-Execution Narrative | 4958 + 350 FE | bcd9c10 | sprint-28-complete | 2026-03-06 |
 | 29 | S29 | Staging Activation + Release Candidate Closeout | 5016 + 350 FE | 0e1d33e | sprint-29-complete | 2026-03-06 |
 | 30 | S30 | Backend Staging Deployment Tooling + Infrastructure Blocker Report | 5066 + 350 FE | 9bcebe2 | sprint-30-complete | 2026-03-06 |
+| 31 | S31 | Full-System Staging E2E + Production Readiness Gate | TBD | TBD | — | 2026-03-06 |
 
 ## 2) What is not complete yet (blocking "all layers/components")
 
@@ -152,6 +153,9 @@ The system is only considered fully complete when all are true:
 - See `docs/evidence/sprint24-go-no-go-dossier.md` for full criteria and rollback plan.
 - See `docs/evidence/sprint25-copilot-evidence.md` for copilot evidence (Sprints 25-28).
 - See `docs/evidence/sprint29-staging-activation.md` for staging activation evidence.
+- Sprint 31 (Full-System Staging E2E + Production Readiness Gate): in progress. Closes all application gaps (G1-G7) from Sprint 30. Frontend auth configurable (OIDC), deployment tooling extended for full system, full-system E2E acceptance harness built. Status: CONDITIONAL NO-GO — application ready, infrastructure provisioning (B1-B7) is sole remaining gate.
+- See `docs/evidence/sprint31-full-system-staging-e2e.md` for full-system evidence.
+- See `docs/evidence/sprint31-production-readiness-gate.md` for production readiness gate.
 
 ## 6) Minimum environment needed to see "live" behavior
 
